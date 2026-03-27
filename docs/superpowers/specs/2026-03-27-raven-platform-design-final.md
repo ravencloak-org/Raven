@@ -3,7 +3,7 @@
 **Status:** Final
 **Date:** 2026-03-27
 **Authors:** Jobin Lawrance, Claude
-**Version:** 1.1
+**Version:** 1.2
 
 > This is the single source of truth for the Raven platform. All GitHub wiki pages, issues, milestones, and roadmaps derive from this document.
 
@@ -26,6 +26,7 @@
 13. [Analytics and Observability](#13-analytics-and-observability)
 14. [Hardware Requirements](#14-hardware-requirements)
 15. [SaaS Stack Completeness](#15-saas-stack-completeness)
+16. [Monetization Strategy](#16-monetization-strategy)
 
 ---
 
@@ -1430,6 +1431,89 @@ These v1.0 services are NOT suitable for edge/Pi deployment due to resource requ
 | Infisical | ~512 MB | SOPS with age encryption (zero runtime cost) |
 
 The edge device should run only: Go API, PostgreSQL, Valkey, Traefik, and optionally SeaweedFS/local FS + OpenObserve. All heavy ancillary services run on the cloud component.
+
+---
+
+## 16. Monetization Strategy
+
+### 16.1 BYOK Cost Advantage
+
+Raven's single most important economic feature: **users bring their own LLM API keys**. Raven pays zero for:
+
+- Embedding generation (OpenAI, Cohere, etc.)
+- LLM inference (GPT-4o, Claude, etc.)
+- Reranking (Cohere rerank API)
+- TTS/STT for voice (ElevenLabs, Deepgram, etc.)
+
+Competitors bundling LLM costs into pricing (Chatbase, CustomGPT, Mendable, Inkeep) have a per-message marginal cost of $0.001--$0.05. Raven's per-message marginal cost is effectively **zero** (just compute for retrieval and SSE streaming). The full subscription price is margin.
+
+### 16.2 Pricing Tiers
+
+| | **Free** | **Pro** | **Business** | **Enterprise** |
+|---|---|---|---|---|
+| **Monthly price** | $0 | $29 | $99 | $299+ |
+| **Annual price** | $0 | $290 | $990 | Custom |
+| **Target** | Developers, POCs | Freelancers, SMBs | Agencies, SaaS companies | Large orgs, regulated industries |
+| **Messages/month** | 500 | 5,000 | 25,000 | 100,000 |
+| **Knowledge bases** | 1 | 5 | 25 | Unlimited |
+| **Documents** | 50 | 500 | 5,000 | Unlimited |
+| **Storage** | 100 MB | 2 GB | 20 GB | 100 GB (expandable) |
+| **Voice minutes (Phase 2)** | -- | 60 | 300 | 1,000 |
+| **Widgets** | 1 | 5 (custom branding) | 25 | Unlimited |
+| **Dashboard users** | 1 | 3 | 10 | Unlimited |
+| **API access** | -- | REST API | REST + webhooks | Full + bulk ops |
+| **White-label** | -- | -- | Yes | Yes |
+| **SSO** | -- | -- | Yes (SAML/OIDC) | Yes |
+| **Custom domain** | -- | -- | Yes | Yes |
+| **Support** | Community | Email (48h) | Email (24h) + Slack | Priority (4h) + SLA |
+| **Data retention** | 30 days | 90 days | 1 year | Custom |
+
+Free tier is **self-hosted only** (all features, no artificial limits, no support). Cloud-managed Free tier has the limits above.
+
+### 16.3 Overage Pricing
+
+| Unit | Overage Rate |
+|------|-------------|
+| Message (chatbot query) | $0.002/message ($2 per 1,000) at Enterprise; $0.003 at Business; $0.004 at Pro |
+| Voice minute (Phase 2) | $0.03/min at Pro; $0.025 at Business; $0.02 at Enterprise |
+| Document ingestion | $0.01/document above tier limit |
+
+Overages are soft-capped: daily email warnings at 80% and 100% of tier limit. Hard cap only on Free tier.
+
+### 16.4 Open-Core Split
+
+**Free (self-hosted Community Edition):**
+- Full RAG pipeline (ingestion, hybrid search, reranking)
+- Embeddable chatbot widget
+- Multi-tenant hierarchy (org > workspace > KB)
+- BYOK LLM support, voice agent (Phase 2), WebRTC (Phase 3)
+- API access, basic analytics
+
+**Paid (cloud-managed or Enterprise self-hosted license at $499/month):**
+- Managed hosting, auto-scaling, managed backups/DR
+- Custom domain, white-label branding
+- Advanced analytics and reporting
+- SSO (SAML/OIDC), audit logs, RBAC
+- Priority support with SLA guarantees
+- Webhook marketplace and premium integrations
+
+### 16.5 Break-Even Math
+
+| Infrastructure | Monthly Cost | Break-Even Point |
+|---------------|-------------|-----------------|
+| **Hetzner CCX33** (8 vCPU, 32 GB) | ~$58 | **2 Pro customers** ($58 revenue) |
+| **Hetzner CPX41** (budget) | ~$31 | **1 Business customer** ($99 revenue covers 3x) |
+| **AWS ECS/RDS** | ~$590 | **6 Business customers** ($594 revenue) |
+
+At 100 customers (60 free, 25 Pro, 12 Business, 3 Enterprise): **$2,810 MRR** against ~$177 Hetzner costs = **$2,633/month net**.
+
+Start on Hetzner; migrate to AWS only when managed services are needed for reliability at scale.
+
+### 16.6 Phase 2 Voice Pricing Inflection
+
+Voice is the upgrade catalyst. Per-minute pricing ($0.02--$0.03/min) is the industry standard (Vapi $0.05, Retell $0.07). Raven undercuts because BYOK means customers pay their own STT/TTS providers directly -- Raven charges only for orchestration compute.
+
+Included voice minutes per tier (60/300/1,000) are designed to let customers validate the feature, then convert to overage revenue as usage grows. Voice is the primary mechanism for moving Pro customers to Business tier.
 
 ---
 
