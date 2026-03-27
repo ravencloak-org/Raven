@@ -1,0 +1,1259 @@
+Let's brainstorm this. I want to use Lama indexes light parser, which is an open-source LLM tool that can parse documents, PDFs, images using OCR, and hopefully an HTML page, which allows me to create an LLM knowledge base.
+
+Here is what we are going to do. When the user comes, the user is presented with a front-end web page, which will be built on Vue.js with Tailwind Plus, since I already have a subscription to Tailwind Plus. We will use that to create a front-end Vue.js page which invites the user into first creating an application on the platform. Once they create an application, then  They can add an organization, and once they create an organization in the application, then inside the organization they have the ability to create the knowledge graph for it. The idea is that we will use light parser to scrape through websites, and then we will allow the user to input multiple stuff for the same particular organization. Let's say the application that is created as a voice agent and the organization is an educational institute called MIT, Massachusetts Institute of Technology. Inside MIT, the user, which will probably be an admin user, can go ahead and add a URL, a website URL of MIT, which points to multiple courses, the college life, and what not. The user also has the ability to upload images, PDF docs, markdown files, you name it.
+We will use light parser by Lama index to scrape through all of it, then use an LLM model behind the scenes to create a knowledge graph out of it and hopefully a vector embedding for it. We will save this vector embedding inside a parade DB with a PG vector extension. Once the embedding is created, then the user has again three to four options on how to interact with the particular data or the knowledge graph:
+1. A chatbot inside a chatbot that can be embedded in any of the user's websites. This chatbot can then communicate with the knowledge base using any LLM tools.
+2. The user also has the option to create a voice agent, which will just be a voice interface on top of the knowledge base. We will use a WAD or some speech-to-text tools like Open Whispering, in which the user can talk to the particular knowledge graph and get information out of it.
+3. We provide a web RTC extension in which they can connect to it on their WhatsApp calls.
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/skills/brainstorming
+
+# Brainstorming Ideas Into Designs
+
+Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
+
+Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design and get user approval.
+
+<HARD-GATE>
+Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
+</HARD-GATE>
+
+## Anti-Pattern: "This Is Too Simple To Need A Design"
+
+Every project goes through this process. A todo list, a single-function utility, a config change — all of them. "Simple" projects are where unexamined assumptions cause the most wasted work. The design can be short (a few sentences for truly simple projects), but you MUST present it and get approval.
+
+## Checklist
+
+You MUST create a task for each of these items and complete them in order:
+
+1. **Explore project context** — check files, docs, recent commits
+2. **Offer visual companion** (if topic will involve visual questions) — this is its own message, not combined with a clarifying question. See the Visual Companion section below.
+3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
+4. **Propose 2-3 approaches** — with trade-offs and your recommendation
+5. **Present design** — in sections scaled to their complexity, get user approval after each section
+6. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit
+7. **Spec review loop** — dispatch spec-document-reviewer subagent with precisely crafted review context (never your session history); fix issues and re-dispatch until approved (max 3 iterations, then surface to human)
+8. **User reviews written spec** — ask user to review the spec file before proceeding
+9. **Transition to implementation** — invoke writing-plans skill to create implementation plan
+
+## Process Flow
+
+```dot
+digraph brainstorming {
+    "Explore project context" [shape=box];
+    "Visual questions ahead?" [shape=diamond];
+    "Offer Visual Companion\n(own message, no other content)" [shape=box];
+    "Ask clarifying questions" [shape=box];
+    "Propose 2-3 approaches" [shape=box];
+    "Present design sections" [shape=box];
+    "User approves design?" [shape=diamond];
+    "Write design doc" [shape=box];
+    "Spec review loop" [shape=box];
+    "Spec review passed?" [shape=diamond];
+    "User reviews spec?" [shape=diamond];
+    "Invoke writing-plans skill" [shape=doublecircle];
+
+    "Explore project context" -> "Visual questions ahead?";
+    "Visual questions ahead?" -> "Offer Visual Companion\n(own message, no other content)" [label="yes"];
+    "Visual questions ahead?" -> "Ask clarifying questions" [label="no"];
+    "Offer Visual Companion\n(own message, no other content)" -> "Ask clarifying questions";
+    "Ask clarifying questions" -> "Propose 2-3 approaches";
+    "Propose 2-3 approaches" -> "Present design sections";
+    "Present design sections" -> "User approves design?";
+    "User approves design?" -> "Present design sections" [label="no, revise"];
+    "User approves design?" -> "Write design doc" [label="yes"];
+    "Write design doc" -> "Spec review loop";
+    "Spec review loop" -> "Spec review passed?";
+    "Spec review passed?" -> "Spec review loop" [label="issues found,\nfix and re-dispatch"];
+    "Spec review passed?" -> "User reviews spec?" [label="approved"];
+    "User reviews spec?" -> "Write design doc" [label="changes requested"];
+    "User reviews spec?" -> "Invoke writing-plans skill" [label="approved"];
+}
+```
+
+**The terminal state is invoking writing-plans.** Do NOT invoke frontend-design, mcp-builder, or any other implementation skill. The ONLY skill you invoke after brainstorming is writing-plans.
+
+## The Process
+
+**Understanding the idea:**
+
+- Check out the current project state first (files, docs, recent commits)
+- Before asking detailed questions, assess scope: if the request describes multiple independent subsystems (e.g., "build a platform with chat, file storage, billing, and analytics"), flag this immediately. Don't spend questions refining details of a project that needs to be decomposed first.
+- If the project is too large for a single spec, help the user decompose into sub-projects: what are the independent pieces, how do they relate, what order should they be built? Then brainstorm the first sub-project through the normal design flow. Each sub-project gets its own spec → plan → implementation cycle.
+- For appropriately-scoped projects, ask questions one at a time to refine the idea
+- Prefer multiple choice questions when possible, but open-ended is fine too
+- Only one question per message - if a topic needs more exploration, break it into multiple questions
+- Focus on understanding: purpose, constraints, success criteria
+
+**Exploring approaches:**
+
+- Propose 2-3 different approaches with trade-offs
+- Present options conversationally with your recommendation and reasoning
+- Lead with your recommended option and explain why
+
+**Presenting the design:**
+
+- Once you believe you understand what you're building, present the design
+- Scale each section to its complexity: a few sentences if straightforward, up to 200-300 words if nuanced
+- Ask after each section whether it looks right so far
+- Cover: architecture, components, data flow, error handling, testing
+- Be ready to go back and clarify if something doesn't make sense
+
+**Design for isolation and clarity:**
+
+- Break the system into smaller units that each have one clear purpose, communicate through well-defined interfaces, and can be understood and tested independently
+- For each unit, you should be able to answer: what does it do, how do you use it, and what does it depend on?
+- Can someone understand what a unit does without reading its internals? Can you change the internals without breaking consumers? If not, the boundaries need work.
+- Smaller, well-bounded units are also easier for you to work with - you reason better about code you can hold in context at once, and your edits are more reliable when files are focused. When a file grows large, that's often a signal that it's doing too much.
+
+**Working in existing codebases:**
+
+- Explore the current structure before proposing changes. Follow existing patterns.
+- Where existing code has problems that affect the work (e.g., a file that's grown too large, unclear boundaries, tangled responsibilities), include targeted improvements as part of the design - the way a good developer improves code they're working in.
+- Don't propose unrelated refactoring. Stay focused on what serves the current goal.
+
+## After the Design
+
+**Documentation:**
+
+- Write the validated design (spec) to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
+  - (User preferences for spec location override this default)
+- Use elements-of-style:writing-clearly-and-concisely skill if available
+- Commit the design document to git
+
+**Spec Review Loop:**
+After writing the spec document:
+
+1. Dispatch spec-document-reviewer subagent (see spec-document-reviewer-prompt.md)
+2. If Issues Found: fix, re-dispatch, repeat until Approved
+3. If loop exceeds 3 iterations, surface to human for guidance
+
+**User Review Gate:**
+After the spec review loop passes, ask the user to review the written spec before proceeding:
+
+> "Spec written and committed to `<path>`. Please review it and let me know if you want to make any changes before we start writing out the implementation plan."
+
+Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
+
+**Implementation:**
+
+- Invoke the writing-plans skill to create a detailed implementation plan
+- Do NOT invoke any other skill. writing-plans is the next step.
+
+## Key Principles
+
+- **One question at a time** - Don't overwhelm with multiple questions
+- **Multiple choice preferred** - Easier to answer than open-ended when possible
+- **YAGNI ruthlessly** - Remove unnecessary features from all designs
+- **Explore alternatives** - Always propose 2-3 approaches before settling
+- **Incremental validation** - Present design, get approval before moving on
+- **Be flexible** - Go back and clarify when something doesn't make sense
+
+## Visual Companion
+
+A browser-based companion for showing mockups, diagrams, and visual options during brainstorming. Available as a tool — not a mode. Accepting the companion means it's available for questions that benefit from visual treatment; it does NOT mean every question goes through the browser.
+
+**Offering the companion:** When you anticipate that upcoming questions will involve visual content (mockups, layouts, diagrams), offer it once for consent:
+> "Some of what we're working on might be easier to explain if I can show it to you in a web browser. I can put together mockups, diagrams, comparisons, and other visuals as we go. This feature is still new and can be token-intensive. Want to try it? (Requires opening a local URL)"
+
+**This offer MUST be its own message.** Do not combine it with clarifying questions, context summaries, or any other content. The message should contain ONLY the offer above and nothing else. Wait for the user's response before continuing. If they decline, proceed with text-only brainstorming.
+
+**Per-question decision:** Even after the user accepts, decide FOR EACH QUESTION whether to use the browser or the terminal. The test: **would the user understand this better by seeing it than reading it?**
+
+- **Use the browser** for content that IS visual — mockups, wireframes, layout comparisons, architecture diagrams, side-by-side visual designs
+- **Use the terminal** for content that is text — requirements questions, conceptual choices, tradeoff lists, A/B/C/D text options, scope decisions
+
+A question about a UI topic is not automatically a visual question. "What does personality mean in this context?" is a conceptual question — use the terminal. "Which wizard layout works better?" is a visual question — use the browser.
+
+If they agree to the companion, read the detailed guide before proceeding:
+`skills/brainstorming/visual-companion.md`
+
+---
+
+[Request interrupted by user]
+
+---
+
+Let's also use parallel agents to fasten the brainstorming session. Let's assign each task to each particular agent.
+
+---
+
+Let's also use parallel agents to fasten the brainstorming session. Let's assign each task to each particular agent.
+
+---
+
+continue
+
+---
+
+Let's use https://github.com/strapi/strapi as our CMS to manage orgs and users, and for user auth keycloak with reavencloak (another spi for keycloak  I created)
+
+---
+
+<task-notification>
+<task-id>a7a98ba535bf6254e</task-id>
+<tool-use-id>toolu_01RbpmHSGhpP2tpkd7RwHPUJ</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Draft backend architecture approaches" completed</summary>
+<result>Done. Here is the summary:
+
+**Actions taken:**
+- Created the directory `/Users/jobinlawrance/Project/raven/docs/research/`
+- Drafted three backend architecture approaches with trade-off analysis
+
+**File created:**
+- `/Users/jobinlawrance/Project/raven/docs/research/backend-architecture-approaches.md` -- Full architecture comparison document
+
+**Key findings / structure of the document:**
+
+1. **Approach 1 -- Node.js Modular Monolith**: Single language (TypeScript), tRPC for type safety, BullMQ for jobs, LiteParse in-process. Simplest to deploy but weakest AI/ML ecosystem access.
+
+2. **Approach 2 -- Hybrid Node.js API + Python AI Workers**: Node.js handles API/ingestion, Python handles AI/RAG/voice. Best flexibility and scaling but highest operational complexity.
+
+3. **Approach 3 -- Python-First with Node.js Sidecar**: FastAPI core, Celery for jobs, thin Node.js sidecar just for LiteParse. Richest AI ecosystem but loses frontend type safety.
+
+**Recommendation**: Start with Approach 1 (Node.js modular monolith) for MVP speed, evolve into Approach 2 by introducing a Python AI service only when you need local models or advanced RAG. This avoids premature complexity while keeping the Python door open. The document also calls out four decisions to lock in early: multi-tenant DB schema design, embedding model choice, web scraper selection, and API contract definition.</result>
+<usage><total_tokens>19513</total_tokens><tool_uses>2</tool_uses><duration_ms>94599</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>abc75370f19869e1c</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Draft web scraping approaches" completed</summary>
+<result>The research document has been written successfully.
+
+**Actions taken:**
+- Researched and compared 7 web scraping/crawling tools (Firecrawl, Crawl4AI, Playwright+Custom, Jina Reader, Scrapy+Splash, Stagehand, Apify/Crawlee)
+- Drafted 3 detailed approaches with architecture diagrams, integration code samples (Python + Node.js), and pros/cons
+- Included license comparison, implementation timeline, and a recommended phased approach
+
+**File created:**
+- `/Users/jobinlawrance/Project/raven/docs/research/web-scraping-approaches.md` -- Full research document with comparison matrix, 3 primary approaches, 4 additional tools evaluated, recommended architecture, and implementation roadmap.
+
+**Key findings:**
+- **Firecrawl** is the fastest path to value (purpose-built for LLM/RAG, markdown output, full crawl support) but carries an AGPL-3.0 copyleft license.
+- **Crawl4AI** is the best Apache 2.0 alternative with built-in chunking strategies that directly benefit embedding pipelines, though it is Python-only (Node.js access via Docker API).
+- **Custom Playwright + Crawlee** offers maximum control with permissive licensing but requires 2-4 weeks of development.
+- The primary decision driver is **license tolerance** (AGPL vs Apache 2.0) and **backend language** (Node.js vs Python).</result>
+<usage><total_tokens>22542</total_tokens><tool_uses>3</tool_uses><duration_ms>137906</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>acc5f44caa38fb4a3</task-id>
+<tool-use-id>toolu_01G81oZUe89wvw2Fm1iRCs4Q</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Draft interaction layer approaches" completed</summary>
+<result>Here is what was done:
+
+- Drafted a comprehensive interaction layer approaches document evaluating 3 architectural patterns for Raven's client surfaces
+- Covered all 5 requested topics: embeddable chatbot (iframe vs web component vs JS SDK), voice agent architecture (LiveKit Agents vs Pipecat vs hybrid), WebRTC integration, WhatsApp connectivity, and latency considerations
+- Built on findings from the existing research in `docs/voice-agent-webrtc-research.md`
+
+**File created:** `/Users/jobinlawrance/Project/raven/docs/research/interaction-layer-approaches.md`
+
+**Key recommendations in the document:**
+
+1. **Chatbot**: Start with a Web Component (`<raven-chat>`), extract headless SDK in Phase 2. Iframe is too limiting; full SDK is over-engineering for launch.
+2. **Voice Agent**: LiveKit Agents (Approach A) -- single framework for WebRTC transport + agent orchestration, self-hostable, with Deepgram + Cartesia APIs initially, migrating to faster-whisper + Piper for cost control.
+3. **WhatsApp**: Direct WebRTC bridge from Meta's Calling API into a LiveKit Room -- avoids unnecessary hops since both sides already speak WebRTC.
+4. **Shared RAG**: Single gRPC streaming service (`RavenRAG.Query()`) called by all three surfaces, with tenant isolation and conversation history.
+5. **Latency**: Target sub-1-second speech-to-speech via streaming at every stage, sentence-boundary TTS dispatch, and co-located infrastructure. Detailed latency budgets are included per pipeline stage.</result>
+<usage><total_tokens>29108</total_tokens><tool_uses>5</tool_uses><duration_ms>185516</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a5595227dd6a412fa</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Draft RAG pipeline approaches" completed</summary>
+<result>Done. Here is a summary:
+
+**Actions taken:**
+- Reviewed existing Raven research docs (`paradedb-pgvector-research.md`, `voice-agent-webrtc-research.md`) to align with established architectural decisions (Postgres + pgvector + ParadeDB, multi-tenant, voice agent via WebRTC).
+- Drafted a comprehensive RAG pipeline approaches document with three distinct approaches and cross-cutting analysis.
+
+**File created:**
+- `/Users/jobinlawrance/Project/raven/docs/research/rag-pipeline-approaches.md` -- RAG pipeline research covering three approaches with component tables, architecture diagrams, pros/cons, and a phased roadmap.
+
+**Three approaches documented:**
+1. **Approach A (Pragmatic Hybrid)** -- Recommended starting point. Custom pipeline, OpenAI embeddings, Claude LLM, hybrid vector+BM25 via RRF, Cohere reranking, no knowledge graph. Fastest to ship.
+2. **Approach B (Self-Hosted & Cost-Optimized)** -- `nomic-embed-text` or BGE embeddings, Llama 3.1 70B, self-hosted cross-encoder reranker, Haystack orchestration. For high-volume or data-sovereignty scenarios.
+3. **Approach C (Knowledge-Graph-Enhanced)** -- Adds Neo4j + LlamaIndex PropertyGraphIndex for multi-hop relational queries. Highest ceiling, highest complexity.
+
+**Key recommendation:** Start with Approach A (4-6 week MVP), then layer in B or C components based on real usage patterns -- cost pressure favors B, relational query needs favor C.</result>
+<usage><total_tokens>31766</total_tokens><tool_uses>6</tool_uses><duration_ms>182383</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a2c610ad6a6f5d23c</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Draft data model approaches" completed</summary>
+<result>Here is a summary of what was done:
+
+**Actions taken:**
+- Reviewed existing research (`paradedb-pgvector-research.md`, `voice-agent-webrtc-research.md`) to align the data model with prior architectural decisions
+- Drafted a comprehensive data model design document covering all six requested areas
+
+**File created:**
+- `/Users/jobinlawrance/Project/raven/docs/research/data-model-approaches.md`
+
+**Key findings and decisions in the document:**
+
+1. **Multi-tenancy:** Three approaches detailed with trade-off matrix. Approach A (shared schema + row-level `application_id` + PostgreSQL RLS) recommended as starting point due to Strapi compatibility, operational simplicity, and sufficient isolation for most SaaS use cases. Migration path to schema-per-tenant outlined if compliance demands evolve.
+
+2. **Core entities:** 13 tables designed -- `applications`, `organizations`, `users`, `organization_members`, `knowledge_bases`, `documents`, `sources`, `chunks`, `embeddings`, `chat_sessions`, `chat_messages`, `voice_sessions`, `voice_turns`, plus `api_keys` and `processing_events`.
+
+3. **Strapi mapping:** Clear split -- Strapi manages CRUD for config entities (Application, Organization, KnowledgeBase, Document metadata, Source); PostgreSQL directly manages high-throughput tables (chunks, embeddings, sessions, messages). Lifecycle hooks in Strapi trigger processing pipelines.
+
+4. **pgvector design:** Chunks and embeddings are separate tables (supporting re-embedding and multiple models). HNSW index with cosine similarity. Hybrid search pattern using RRF fusion of pgvector semantic search + ParadeDB BM25 keyword search. Default: 512-token chunks, 50-token overlap, `text-embedding-3-small` at 1536 dimensions.
+
+5. **Access control:** Four-layer defense-in-depth -- Keycloak authentication, API middleware authorization, organization-role-based access (owner/admin/member/viewer), and PostgreSQL RLS as the final safety net.
+
+6. **Processing state machine:** Seven states (`queued` -> `parsing` -> `chunking` -> `embedding` -> `ready`, with `failed` and `reprocessing`), plus an audit `processing_events` table for observability.</result>
+<usage><total_tokens>38157</total_tokens><tool_uses>6</tool_uses><duration_ms>249996</duration_ms></usage>
+</task-notification>
+
+---
+
+For the backend language preference, I would go with Golang as the main backend language, with probably a framework like Gin or FastHTTP. It will be a hybrid one, wherein to deal with AI code and LLMs like Llama light passer, we will use Python as well, so the Golang code and the Python code can communicate with each other either via gRPC or by direct function calling from Golang to the Python code, whatever will be efficient and secure.
+LLM provider for the chat will be multi-provider. We will let the user choose per organization. We will start only with the hosted ones, not the self-hosted ones, mainly focusing on Anthropic cloud, but again the user should have the option to select any of the providers that they want, along with the keys that they can get.
+The application concept is just like a multi-tenant organization, so let's say MIT can be an organization as well, and inside that we will have multiple sub-organizations. I don't know how to name it; what is a proper way to do it? Basically, let's say if we have a company conglomerate like Alphabet, Google's Alphabet, and each team will be sub-organizations like Chrome, Android, and so forth. It's just an example, so let's name what will be appropriate here.
+Deployment target will be Docker Compose, simple self-hosted, or along with that we will give a priced version for a cloud-managed one. They can either install it using our AWS plugins or script that we will create, or they can just use it via our hosted cloud. We will come up with the pricing strategy later so that at least we can break even to begin with before we start making profit.
+MVP scope:
+- voice one, the first one, chatbot
+- web RTC
+- later knowledge graph
+I think we will start with a hybrid vector BM25 with PG vector and parade DB. We will add Neo4j or Quadrant later.
+
+---
+
+<task-notification>
+<task-id>a1e397df3d0292c72</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Draft ingestion pipeline design" completed</summary>
+<result>
+
+## Ingestion Pipeline
+
+### Overview
+
+The ingestion pipeline transforms raw documents and web pages into searchable, retrievable knowledge. Every input — whether a file upload or a URL — follows the same lifecycle: **Submit → Queue → Parse/Scrape → Chunk → Embed → Index → Ready**.
+
+### Supported Input Types
+
+| Category | Formats |
+|----------|---------|
+| Documents | PDF, DOCX, Markdown (.md) |
+| Images | PNG, JPG, TIFF (OCR via LiteParse) |
+| Web | Any public URL (rendered and scraped) |
+
+### Pipeline Stages
+
+```
+┌──────────────┐    ┌───────┐    ┌──────────────┐    ┌───────┐    ┌───────┐    ┌───────┐    ┌───────┐
+│ Upload / URL │───▶│ Queue │───▶│ Parse/Scrape │───▶│ Chunk │───▶│ Embed │───▶│ Index │───▶│ Ready │
+└──────────────┘    └───────┘    └──────────────┘    └───────┘    └───────┘    └───────┘    └───────┘
+     Go API          Redis         Python Worker      Python       Ext. API    pgvector +
+                                                      Worker       (BYOK)      ParadeDB
+```
+
+### File Processing Path
+
+1. **Go API** receives the multipart upload, validates file type and size, and writes the file to **object storage** (S3/MinIO). A metadata record is created in PostgreSQL with status `queued`.
+2. The API enqueues an ingestion job onto the **Redis job queue** containing the file reference, org ID, and embedding provider config.
+3. **Python AI worker** picks up the job via gRPC, downloads the file from object storage, and invokes **LiteParse** (Node.js CLI, Apache 2.0) as a subprocess: `liteparse <file> --output json`. LiteParse handles PDF text extraction, DOCX conversion, image OCR, and Markdown normalization.
+4. The extracted text proceeds through chunking → embedding → indexing (see below).
+
+### URL Processing Path
+
+1. **Go API** receives the URL, validates it, and enqueues a scrape job onto **Redis**.
+2. **Python AI worker** picks up the job and invokes the **web scraper** (see recommendation below) to fetch and render the page, extracting clean Markdown/text content.
+3. The extracted content proceeds through the same chunking → embedding → indexing path as file-based inputs.
+
+### Chunking Strategy
+
+The pipeline uses **recursive text splitting**:
+
+- **Target chunk size:** ~512 tokens
+- **Overlap:** 50 tokens between consecutive chunks
+- Split hierarchy: paragraph boundaries → sentence boundaries → word boundaries
+- Metadata preserved per chunk: source document ID, chunk index, section heading (if available), character offsets
+
+This balances retrieval precision (chunks small enough to be topically coherent) with context retention (overlap prevents information loss at boundaries).
+
+### Multi-Provider Embeddings (BYOK)
+
+Each organization configures its embedding provider at the org level:
+
+| Setting | Example |
+|---------|---------|
+| `embedding_provider` | `openai`, `cohere`, `voyage`, etc. |
+| `embedding_model` | `text-embedding-3-small` |
+| `embedding_api_key` | Encrypted, org-scoped |
+| `embedding_dimensions` | 1536 |
+
+The Python worker reads the org's embedding config from PostgreSQL and dispatches to the appropriate provider client. A thin adapter interface normalizes the call:
+
+```python
+class EmbeddingProvider(Protocol):
+    def embed(self, texts: list[str]) -> list[list[float]]: ...
+```
+
+**Constraint:** All documents within a single org must use the same model/dimensions, since pgvector columns are fixed-width. Changing providers requires re-indexing.
+
+Chunks are embedded in batches (up to provider rate limits) to minimize API round-trips.
+
+### Indexing
+
+Each chunk is written to PostgreSQL with:
+
+- **pgvector** — stores the embedding vector for similarity search
+- **ParadeDB BM25** — indexes the raw chunk text for full-text keyword search
+
+At query time, both indexes are queried and results are merged via **Reciprocal Rank Fusion (RRF)**.
+
+### Error Handling and Retry Strategy
+
+| Failure | Behavior |
+|---------|----------|
+| Parse failure (corrupt file, unsupported format) | Mark document as `failed`, surface error to user. No retry. |
+| Scrape failure (timeout, 4xx/5xx) | Retry up to **3 times** with exponential backoff (5s, 30s, 120s). Then mark `failed`. |
+| Embedding API error (rate limit, 5xx) | Retry up to **5 times** with exponential backoff. Job remains in queue. |
+| Embedding API auth error (invalid key) | Fail immediately, mark `failed`, notify user of bad API key. |
+| Partial failure (some chunks embedded, then error) | Resume from last successful chunk on retry (checkpoint-based). Already-indexed chunks are not re-processed. |
+
+All jobs carry a **maximum TTL of 30 minutes** in the queue. Jobs exceeding this are moved to a dead-letter queue for inspection.
+
+Document status is exposed via the API: `queued → processing → ready | failed`.
+
+### Web Scraper Recommendation: Firecrawl vs Crawl4AI
+
+| Criterion | Firecrawl | Crawl4AI |
+|-----------|-----------|----------|
+| **License** | AGPL-3.0 | Apache 2.0 |
+| **Deployment** | Self-hosted or cloud API | Self-hosted (Python library) |
+| **JS rendering** | Yes (built-in) | Yes (Playwright-based) |
+| **Output quality** | Excellent — clean Markdown, LLM-optimized | Good — Markdown output, improving rapidly |
+| **Crawl modes** | Single page + site-wide crawl + sitemap | Single page + multi-page crawl |
+| **Integration effort** | REST API or Python SDK | Native Python, direct function calls |
+| **License risk** | AGPL requires open-sourcing derivative work if distributed; self-hosted SaaS use is debated | No license risk |
+
+**Recommendation: Crawl4AI (Apache 2.0).**
+
+Firecrawl produces marginally better output, but its AGPL license creates legal complexity for a multi-tenant SaaS platform. Crawl4AI is Apache 2.0, integrates natively into the Python worker (no sidecar service needed), and its output quality is sufficient for the chunking and embedding pipeline. If scrape quality proves insufficient for specific sites, a future iteration can add site-specific extraction rules or swap in Firecrawl's cloud API as an optional premium tier behind a clean interface boundary.</result>
+<usage><total_tokens>8862</total_tokens><tool_uses>0</tool_uses><duration_ms>38048</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ac3da20a086a87626</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Draft interaction layer design" completed</summary>
+<result>
+
+# Interaction Layer — Raven Platform
+
+## Phase 1: Embeddable Chatbot (MVP)
+
+### 1.1 Architecture — Web Component
+
+Raven ships a framework-agnostic **Web Component** (`<raven-chat>`) built as a single JS bundle. Site owners embed it with one script tag:
+
+```html
+<script src="https://cdn.raven.dev/chat.js"></script>
+<raven-chat kb="kb_abc123" api-key="rk_live_..."></raven-chat>
+```
+
+The component uses Shadow DOM for style isolation, ensuring no CSS collisions with the host page. It renders a floating launcher button, expandable chat window, and message thread. Appearance (colors, logo, welcome message, position) is configured via attributes or the admin dashboard and fetched at init time from a lightweight `/v1/chatbot/{kb}/config` endpoint.
+
+### 1.2 Authentication
+
+- Each **knowledge base** has one or more **publishable API keys** (`rk_live_...`). These are domain-scoped — the Go API validates the key and checks the `Origin` / `Referer` header against an allow-list configured by the org admin.
+- No end-user login is required. The API key identifies the tenant and knowledge base; rate limiting and usage metering are applied per key.
+- Admin operations (dashboard, config changes) use a separate **secret key** authenticated via standard Bearer tokens over HTTPS.
+
+### 1.3 Chat API — Streaming via SSE
+
+The chat endpoint uses **Server-Sent Events (SSE)** over `POST /v1/chat/{kb}/completions`:
+
+- SSE is chosen over WebSocket for the MVP because it is simpler to deploy behind CDNs/load balancers, works naturally with HTTP/2, and the interaction pattern is request-response (not bidirectional).
+- The client sends a JSON body (`message`, `conversation_id`, optional `metadata`). The server responds with `Content-Type: text/event-stream`, streaming tokens as `data:` frames and a final `[DONE]` sentinel.
+- Each event includes a `type` field: `token`, `source` (retrieved document references), `error`, or `done`.
+
+### 1.4 RAG Query Flow
+
+```
+User message
+  │
+  ▼
+Go API (auth, rate-limit, load conversation history)
+  │  gRPC call
+  ▼
+Python AI Worker
+  ├─ 1. Embed query  (provider-specific embedding model)
+  ├─ 2. Hybrid search
+  │     ├─ Vector similarity search  (pgvector / Qdrant)
+  │     └─ BM25 keyword search       (Tantivy / Elasticsearch)
+  ├─ 3. Reciprocal Rank Fusion (RRF) to merge results
+  ├─ 4. Rerank top-K (Cohere Rerank or cross-encoder)
+  └─ 5. LLM generation (BYOK: Anthropic Claude default, org-selected provider)
+         │  stream tokens via gRPC server-streaming
+         ▼
+Go API  ──► SSE stream ──► Client
+```
+
+The Go API opens a **gRPC server-streaming** call to the Python worker. Tokens are forwarded to the client as SSE events with minimal buffering. Source citations are sent as a discrete event before the `done` frame.
+
+### 1.5 Conversation History Management
+
+- Each conversation is identified by a `conversation_id` (UUID), returned on the first response and reused by the client on subsequent messages.
+- The Go API stores messages in **PostgreSQL** (`conversations` and `messages` tables), scoped to the knowledge base.
+- Before calling the AI worker, the Go API loads the last **N turns** (configurable, default 10) and passes them as context. A sliding window with token-budget awareness is used to stay within LLM context limits.
+- Conversations have a configurable **TTL** (default 24 h for anonymous sessions). Admins can enable persistent history if they authenticate end-users via a JWT pass-through.
+
+### 1.6 Admin Dashboard (Vue.js + Tailwind Plus)
+
+The Vue.js SPA provides:
+
+- **Chatbot Configurator** — live preview of widget appearance (theme colors, avatar, welcome text, suggested questions).
+- **Test Sandbox** — embedded `<raven-chat>` instance pointed at a staging key so admins can test against their knowledge base before going live.
+- **Analytics** — conversation volume, unanswered-question rate, top queries, source-hit frequency.
+- **API Key Management** — create/revoke publishable keys, set domain allow-lists and rate limits.
+
+---
+
+## Phase 2: Voice Agent (Deferred)
+
+- Built on the **LiveKit Agents** framework, running as a Python worker alongside the existing AI worker.
+- **STT**: faster-whisper (self-hosted, low latency) or Deepgram (managed, higher accuracy) — configurable per org.
+- **TTS**: Piper (open-source, on-prem) or Cartesia (low-latency streaming) — configurable per org.
+- The voice agent transcribes speech, feeds the text through the **same RAG pipeline** (hybrid search → RRF → rerank → LLM), and streams the response back as synthesized audio.
+- LiveKit handles participant management, room state, and media transport.
+
+---
+
+## Phase 3: WebRTC / WhatsApp (Deferred)
+
+- **WhatsApp**: Integrate via the **WhatsApp Business Calling API**, which uses WebRTC natively. Inbound calls are routed to a LiveKit room where the Raven voice agent joins as a participant.
+- **WebRTC (browser)**: Expose a LiveKit room token endpoint so web clients can join a voice session directly, enabling a "call the assistant" button in the chatbot widget.
+- **Room bridging**: A lightweight Go service manages LiveKit room lifecycle — creating rooms on inbound call, attaching the AI agent participant, and tearing down on hangup.</result>
+<usage><total_tokens>8808</total_tokens><tool_uses>0</tool_uses><duration_ms>37343</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a4cf623988f45d035</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Draft deployment and auth design" completed</summary>
+<result>
+
+Here is the **Deployment & Auth** section for the Raven design document:
+
+---
+
+## Deployment & Infrastructure
+
+### Docker Compose Setup (Self-Hosted Primary)
+
+**Service Definitions:**
+
+| Service | Image / Build | Exposed | Purpose |
+|---|---|---|---|
+| `go-api` | Custom build | Yes (`:8080`) | Main API gateway, JWT validation, routing |
+| `python-worker` | Custom build | No | AI/ML tasks: embeddings, RAG, inference |
+| `strapi` | Custom build | Yes (`:1337`) | CMS for knowledge-base content management |
+| `keycloak` | `quay.io/keycloak/keycloak` | Yes (`:8443`) | Identity provider, OIDC/OAuth2 |
+| `postgres` | `pgvector/pgvector:pg16` + ParadeDB extensions | No | Primary datastore with vector search |
+| `redis` | `redis:7-alpine` | No | Job queue (worker tasks), caching, sessions |
+| `minio` *(optional)* | `minio/minio` | No (internal) | S3-compatible object storage for uploads |
+
+**Network Topology:**
+
+```
+                    ┌─── External Network (host-exposed) ───┐
+                    │  go-api :8080                         │
+                    │  strapi :1337                         │
+                    │  keycloak :8443                       │
+                    └───────────────┬───────────────────────┘
+                                    │
+                    ┌─── raven-internal (bridge) ───────────┐
+                    │  postgres, redis, python-worker, minio│
+                    │  (no host port bindings)              │
+                    └───────────────────────────────────────┘
+```
+
+All services join `raven-internal`. Only `go-api`, `strapi`, and `keycloak` bind host ports. In production, a reverse proxy (Traefik/Caddy) sits in front for TLS termination.
+
+**Volume Mounts:**
+
+| Volume | Mount Target | Purpose |
+|---|---|---|
+| `pg-data` | `/var/lib/postgresql/data` | Persistent database storage |
+| `kc-config` | `/opt/keycloak/data` | Keycloak realm exports, themes, SPI JARs |
+| `uploads` | Strapi `/uploads` + minio `/data` | User-uploaded files and documents |
+| `redis-data` | `/data` | Optional Redis persistence (AOF/RDB) |
+
+**Environment Configuration:**
+
+- **`.env`** at project root holds non-secret defaults (`POSTGRES_DB`, `KEYCLOAK_REALM`, `STRAPI_URL`).
+- **`.env.secrets`** (git-ignored) holds credentials: `POSTGRES_PASSWORD`, `KEYCLOAK_ADMIN_PASSWORD`, `JWT_SECRET`, `REDIS_PASSWORD`.
+- Services reference these via `env_file:` in Compose. No secrets baked into images.
+- For production self-hosted: document use of Docker secrets or mounting encrypted files. A `raven init` CLI command can scaffold `.env.secrets` interactively.
+
+---
+
+## Authentication & Authorization
+
+### Keycloak as Identity Provider
+
+Raven uses Keycloak for all end-user authentication via **OIDC Authorization Code flow with PKCE**:
+
+1. Client (web app) redirects to Keycloak's `/auth/realms/raven/protocol/openid-connect/auth`.
+2. User authenticates (credentials, SSO, or social login configured in Keycloak).
+3. Keycloak issues an **ID token** + **access token** (JWT) + **refresh token**.
+4. Client sends access token as `Authorization: Bearer <token>` to Go API.
+
+### "reavencloak" Custom SPI
+
+The `reavencloak` SPI (built and maintained by the team) extends Keycloak with:
+
+- **Custom User Federation** — syncs organization membership and roles into Keycloak from Raven's Postgres tables.
+- **Custom Token Mapper** — injects Raven-specific claims into JWTs: `org_id`, `org_role`, `kb_permissions[]`.
+- **Event Listener** — propagates user lifecycle events (registration, deletion) back to Raven's Go API via internal webhook.
+
+Deployed as a JAR in the `kc-config` volume, loaded at Keycloak startup. Configuration is managed through Keycloak's admin realm settings.
+
+### JWT Validation in Go API
+
+The Go API middleware:
+
+1. Extracts the `Bearer` token from the `Authorization` header.
+2. Validates signature against Keycloak's JWKS endpoint (`/realms/raven/protocol/openid-connect/certs`), cached with TTL.
+3. Checks `iss`, `aud`, `exp`, `nbf` standard claims.
+4. Extracts custom claims (`org_id`, `org_role`) and populates the request context.
+5. Rejects with `401` on invalid/expired tokens. Downstream handlers check roles for `403`.
+
+### Role-Based Access Control
+
+Organization-scoped roles, carried in the JWT:
+
+| Role | Permissions |
+|---|---|
+| **Owner** | Full control: billing, delete org, manage all members |
+| **Admin** | Manage knowledge bases, invite/remove members, configure integrations |
+| **Member** | Create/edit knowledge bases, query, upload documents |
+| **Viewer** | Read-only access to knowledge bases they are granted access to |
+
+Enforcement happens in Go API middleware and per-handler authorization checks. Keycloak realm roles map 1:1 to these, managed via `reavencloak` SPI sync.
+
+### API Key Auth (Embeddable Chatbot)
+
+For public-facing chatbot embeds:
+
+- Organization admins generate **scoped API keys** via the Go API (`POST /api/v1/keys`).
+- Each key is tied to a specific **knowledge base ID** and permits only `query` operations.
+- Keys are hashed (SHA-256) and stored in Postgres; the plaintext is shown once at creation.
+- Go API checks `X-API-Key` header, resolves the associated org/KB scope, and enforces rate limits via Redis.
+- No user identity — requests are anonymous, scoped, and read-only.
+
+### Strapi Authentication
+
+Strapi runs with its **own admin auth** for CMS administrators (separate credentials, not Keycloak). For API-level access:
+
+- Strapi's REST/GraphQL API is consumed **only by the Go API internally** (not exposed to end users directly for data mutations).
+- Go API authenticates to Strapi using a **service account API token** stored in `.env.secrets`.
+- End users never interact with Strapi auth. Content permissions are enforced at the Go API layer based on Keycloak JWT claims.
+
+---
+
+## Future Cloud Deployment (High-Level)
+
+### AWS Architecture Sketch
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Route 53 → CloudFront → ALB                        │
+│       ├── ECS Fargate: go-api (auto-scaled)         │
+│       ├── ECS Fargate: strapi                       │
+│       └── ECS Fargate: keycloak                     │
+│                                                      │
+│  ECS Fargate (private subnet): python-worker         │
+│       ← SQS/Redis queue                             │
+│                                                      │
+│  RDS PostgreSQL (pgvector, Multi-AZ)                │
+│  ElastiCache Redis (cluster mode)                   │
+│  S3 (document uploads, static assets)               │
+│  Secrets Manager (credentials, API keys)            │
+└─────────────────────────────────────────────────────┘
+```
+
+- **Compute:** ECS Fargate (preferred for simplicity) or EKS if Kubernetes is needed for complex scheduling of AI workers.
+- **Database:** RDS PostgreSQL with `pgvector` extension enabled. ParadeDB features may require a custom RDS snapshot or Aurora with extensions.
+- **Cache/Queue:** ElastiCache Redis replaces the self-hosted Redis container.
+- **Storage:** S3 replaces MinIO. Pre-signed URLs for uploads.
+
+### Infrastructure as Code
+
+- **Terraform** (preferred) with modular structure: `modules/networking`, `modules/ecs`, `modules/rds`, `modules/keycloak`.
+- State stored in S3 + DynamoDB locking.
+- Environment promotion: `dev` → `staging` → `prod` via Terraform workspaces or separate state files.
+- Alternative: Pulumi if the team prefers TypeScript/Go for IaC.
+
+### Multi-Tenant Isolation in Cloud
+
+- **Logical isolation** (shared infrastructure): all tenants share the same database, ECS cluster, and Redis. Isolation enforced by `org_id` in every query and JWT claim.
+- **Row-level security (RLS)** in PostgreSQL keyed on `org_id` as an additional defense layer.
+- **Future option — dedicated isolation tier:** large enterprise tenants get a dedicated RDS instance and separate ECS task group, provisioned via Terraform with a tenant-id variable.
+- **Data residency:** region-specific deployments handled by replicating the Terraform stack per region.
+
+---</result>
+<usage><total_tokens>8842</total_tokens><tool_uses>0</tool_uses><duration_ms>49792</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ae88b7659a60c4d5e</task-id>
+<tool-use-id>toolu_01RwTTnjz7tcpkzhpLzrSUxX</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Draft system architecture design" completed</summary>
+<result>
+
+# System Architecture
+
+## 1. High-Level Component Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                            CLIENTS                                      │
+│                  Vue.js + Tailwind Plus (SPA)                           │
+└──────────────────────────┬──────────────────────────────────────────────┘
+                           │ HTTPS
+                           ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│                        REVERSE PROXY (Nginx/Traefik)                     │
+│          /api/* ──► Go API    /cms/* ──► Strapi    /auth/* ──► Keycloak  │
+└────┬─────────────────┬────────────────────┬─────────────────┬───────────┘
+     │                 │                    │                 │
+     ▼                 ▼                    ▼                 ▼
+┌─────────┐    ┌──────────────┐    ┌──────────────┐   ┌──────────────┐
+│ Keycloak │    │  Go API      │    │   Strapi     │   │   Redis      │
+│ + reaven-│◄──│  Server      │───►│   CMS        │   │  (Job Queue) │
+│   cloak  │   │  (Gin/Fast)  │    │              │   │              │
+│   SPI    │   └──┬───┬───┬───┘    └──────┬───────┘   └──────┬───────┘
+└──────────┘      │   │   │               │                  │
+                  │   │   │  gRPC         │                  │
+                  │   │   ▼               │                  │
+                  │   │ ┌─────────────────┴──────────────────┴──┐
+                  │   │ │         Python AI Worker               │
+                  │   │ │  ┌───────────┐  ┌───────────────────┐ │
+                  │   │ │  │ Embedding │  │   RAG Query       │ │
+                  │   │ │  │ Pipeline  │  │   Engine          │ │
+                  │   │ │  └─────┬─────┘  └───────────────────┘ │
+                  │   │ │        │ subprocess/CLI                │
+                  │   │ │  ┌─────▼─────────────┐                │
+                  │   │ │  │ LiteParse (Node)   │                │
+                  │   │ │  │ Document Parsing    │                │
+                  │   │ │  └────────────────────┘                │
+                  │   │ └────────────────────────────────────────┘
+                  │   │            │
+                  ▼   ▼            ▼
+              ┌─────────────────────────────┐
+              │       PostgreSQL             │
+              │  + pgvector (embeddings)     │
+              │  + ParadeDB (full-text/BM25) │
+              └─────────────────────────────┘
+```
+
+## 2. Service Breakdown
+
+### Go API Server (Gin or FastHTTP)
+
+- **Role:** Primary API gateway for all client requests. Handles routing, tenant resolution, authorization enforcement, and orchestration.
+- **Responsibilities:**
+  - REST API for CRUD operations (orgs, users, documents, knowledge bases)
+  - JWT validation against Keycloak (OIDC token introspection / JWKS verification)
+  - Multi-tenant middleware: extracts tenant context from JWT claims or request headers; scopes all DB queries via `org_id`
+  - Enqueues async jobs (document processing) into Redis
+  - Delegates AI workloads to the Python worker via gRPC
+  - Direct PostgreSQL access for transactional data
+
+### Python AI Worker
+
+- **Role:** Dedicated service for all AI/ML workloads. Exposes a gRPC server consumed exclusively by the Go API server.
+- **Responsibilities:**
+  - Document parsing orchestration (invokes LiteParse)
+  - Text chunking and embedding generation (OpenAI, Cohere, or local models)
+  - Vector upsert into PostgreSQL/pgvector
+  - RAG query execution: embedding the query, vector similarity search, LLM completion with retrieved context
+  - Consumes jobs from Redis for async document processing
+
+### LiteParse (Node.js)
+
+- **Role:** Document-to-text extraction. Handles PDF, DOCX, PPTX, HTML, and other formats.
+- **Integration:** The Python worker invokes LiteParse as a subprocess via CLI. A thin wrapper script (`liteparse-cli`) accepts a file path on stdin/args and emits structured JSON (extracted text, metadata, page boundaries) on stdout.
+- **Deployed** as a sidecar container or bundled into the Python worker image with Node.js runtime.
+
+### Strapi CMS
+
+- **Role:** Content management for platform-level content (landing pages, help articles, template definitions, knowledge-base schemas).
+- **Responsibilities:**
+  - Admin UI for non-developer content operations
+  - REST/GraphQL API consumed by the Vue.js frontend and optionally by the Go API server
+  - Manages its own PostgreSQL schema (separate logical database or schema prefix)
+
+### Keycloak + reavencloak SPI
+
+- **Role:** Identity provider and authorization server.
+- **Responsibilities:**
+  - User registration, login, MFA, password reset
+  - OAuth 2.0 / OIDC token issuance (access + refresh tokens)
+  - Multi-tenant realm or single-realm with org-scoped roles/groups
+  - **reavencloak SPI:** Custom Keycloak Service Provider that injects tenant-specific claims (`org_id`, `org_role`) into tokens, enforces org-level invitation flows, and synchronizes user records to the Go API server's PostgreSQL via event listeners
+
+### PostgreSQL + pgvector + ParadeDB
+
+- **Role:** Single database engine serving relational, vector, and full-text search workloads.
+- **Schema isolation:** Row-level tenant isolation using `org_id` on every tenant-scoped table; enforced via RLS policies.
+- **pgvector:** Stores document chunk embeddings; supports IVFFlat or HNSW indexes for ANN queries.
+- **ParadeDB:** BM25 full-text search extension; enables hybrid retrieval (vector similarity + keyword relevance) for RAG.
+
+### Redis
+
+- **Role:** Job queue and ephemeral cache.
+- **Responsibilities:**
+  - Async job queue for document processing pipeline (upload → parse → chunk → embed → index)
+  - Rate limiting / request deduplication
+  - Optional session or response caching
+
+## 3. Request Flows
+
+### 3.1 User Login
+
+```
+Client ──► Keycloak /auth/realms/{realm}/protocol/openid-connect/token
+       ◄── { access_token (JWT w/ org_id, roles), refresh_token }
+
+Client ──► Go API /api/v1/me  [Authorization: Bearer <token>]
+  Go API: validate JWT signature via Keycloak JWKS
+  Go API: extract org_id, user_id, roles from claims
+  Go API: upsert user record if first login (synced from reavencloak event)
+       ◄── { user profile, org context }
+```
+
+### 3.2 Create Organization
+
+```
+Client ──► Go API  POST /api/v1/orgs  { name, slug, plan }
+  Go API: validate JWT (must be authenticated)
+  Go API: BEGIN TX
+    ├── INSERT org into `organizations` table
+    ├── INSERT membership (creator as owner) into `org_members`
+    ├── Call Keycloak Admin API: create group/role for org
+    └── COMMIT
+       ◄── 201 { org_id, slug }
+```
+
+### 3.3 Upload Document
+
+```
+Client ──► Go API  POST /api/v1/orgs/{org}/documents  [multipart: file + metadata]
+  Go API: validate JWT + org membership
+  Go API: store file to object storage / local volume
+  Go API: INSERT document record (status: "pending") into PostgreSQL
+  Go API: ENQUEUE job into Redis  { job_type: "process_document", doc_id, file_path, org_id }
+       ◄── 202 { doc_id, status: "pending" }
+
+--- Async (Python AI Worker) ---
+
+  Worker: DEQUEUE job from Redis
+  Worker: invoke LiteParse CLI  →  liteparse --input /files/doc.pdf --format json
+       ◄── { pages: [...], text: "...", metadata: {...} }
+  Worker: chunk extracted text (fixed-size with overlap or semantic boundaries)
+  Worker: generate embeddings for each chunk (batch API call to LLM provider)
+  Worker: BEGIN TX
+    ├── INSERT chunks into `document_chunks` (text, embedding vector, metadata)
+    ├── ParadeDB: auto-indexes text column for BM25
+    ├── UPDATE document status → "ready"
+    └── COMMIT
+  Worker: ACK job in Redis
+```
+
+### 3.4 Chat / RAG Query
+
+```
+Client ──► Go API  POST /api/v1/orgs/{org}/chat  { query, conversation_id?, filters? }
+  Go API: validate JWT + org membership
+  Go API: call Python AI Worker via gRPC  →  QueryRAG(query, org_id, filters)
+
+  --- Python AI Worker (gRPC handler) ---
+    1. Embed the query string → query_vector
+    2. Execute hybrid retrieval against PostgreSQL:
+       - pgvector: SELECT ... ORDER BY embedding <=> query_vector LIMIT k
+       - ParadeDB: SELECT ... WHERE text @@@ 'search terms' LIMIT k
+       - Reciprocal Rank Fusion to merge results
+    3. Assemble prompt: system instructions + retrieved chunks + user query
+    4. Stream LLM completion (OpenAI / Anthropic API)
+    5. Return via gRPC server-streaming → Go API
+
+  Go API: stream SSE response to client
+       ◄── data: { chunk: "...", sources: [...] }   (streamed)
+```
+
+## 4. Go ↔ Python gRPC Interface
+
+### Proto Definition (summary)
+
+```protobuf
+service AIWorker {
+  rpc ParseAndEmbed (ParseRequest)      returns (ParseResponse);        // sync, small docs
+  rpc QueryRAG      (RAGRequest)        returns (stream RAGChunk);      // server-streaming
+  rpc GetEmbedding  (EmbeddingRequest)  returns (EmbeddingResponse);    // utility
+}
+
+message ParseRequest {
+  string document_id = 1;
+  string file_path   = 2;
+  string org_id      = 3;
+}
+
+message RAGRequest {
+  string query           = 1;
+  string org_id          = 2;
+  repeated string kb_ids = 3;
+  map<string, string> filters = 4;
+}
+
+message RAGChunk {
+  string text            = 1;
+  bool   is_final        = 2;
+  repeated Source sources = 3;
+}
+```
+
+### Interaction Model
+
+- **Synchronous calls** (`GetEmbedding`): Go blocks on the gRPC call; used for lightweight operations.
+- **Server-streaming** (`QueryRAG`): Python streams LLM tokens as `RAGChunk` messages; Go forwards each chunk to the client via SSE. This avoids buffering the full response.
+- **Async via queue** (`ParseAndEmbed`): For document uploads, Go does NOT call gRPC directly. Instead, it enqueues a Redis job. The Python worker picks it up, avoiding backpressure on the API server. The gRPC `ParseAndEmbed` RPC exists for on-demand/small-doc sync processing if needed.
+
+### Connection Management
+
+- Go maintains a gRPC connection pool to the Python worker (persistent connections, health-checked).
+- Deadline propagation: Go sets gRPC deadlines per call; Python respects cancellation.
+- Retry policy: exponential backoff with jitter for transient failures, configured in the gRPC service config.
+
+## 5. LiteParse Integration
+
+```
+┌──────────────┐    subprocess     ┌──────────────────┐
+│ Python AI    │ ──────────────►   │ liteparse-cli    │
+│ Worker       │   stdin: filepath │ (Node.js)        │
+│              │ ◄──────────────   │                  │
+│              │   stdout: JSON    │                  │
+└──────────────┘                   └──────────────────┘
+```
+
+- **Invocation:** `subprocess.run(["node", "liteparse-cli.js", "--input", path, "--output", "json"], capture_output=True)`
+- **Contract:** LiteParse emits a JSON object on stdout: `{ "pages": [...], "full_text": "...", "metadata": { "page_count": N, "format": "pdf" } }`. Exit code 0 on success, non-zero with error JSON on stderr on failure.
+- **Performance considerations:**
+  - Node.js cold start is amortized by keeping a long-running LiteParse daemon (optional optimization: HTTP sidecar on localhost, called via `httpx` from Python).
+  - For large documents, LiteParse streams page-by-page via newline-delimited JSON (NDJSON) to allow the Python worker to begin chunking before parsing completes.
+- **Deployment:** LiteParse is installed into the Python worker Docker image (`apt-get install nodejs` + `npm install liteparse`), keeping it co-located for minimal latency.
+
+## 6. Job Queue Design
+
+### Queue Topology (Redis)
+
+```
+Queue Name                          Consumer         Purpose
+─────────────────────────────────   ──────────────   ─────────────────────────────
+raven:jobs:document_process         Python Worker    Parse, chunk, embed, index
+raven:jobs:document_process:failed  —                Dead-letter queue
+raven:jobs:reindex                  Python Worker    Re-embed on model change
+raven:jobs:notifications            Go API Server    Post-processing notifications
+```
+
+### Job Lifecycle
+
+```
+ENQUEUE (Go API)                    PROCESS (Python Worker)
+     │                                   │
+     ▼                                   ▼
+┌──────────┐  BRPOPLPUSH  ┌──────────────────┐   ACK    ┌───────┐
+│ pending   │─────────────►│   processing      │────────►│ done  │
+│ (list)    │              │ (sorted set w/    │         │       │
+└──────────┘              │  visibility TMO)  │         └───────┘
+                           └────────┬─────────┘
+                                    │ timeout / error
+                                    ▼
+                           ┌──────────────────┐   retry < 3  ┌──────────┐
+                           │  retry            │─────────────►│ pending  │
+                           └──────────────────┘              └──────────┘
+                                    │ retry >= 3
+                                    ▼
+                           ┌──────────────────┐
+                           │  failed (DLQ)     │
+                           └──────────────────┘
+```
+
+### Job Schema
+
+```json
+{
+  "job_id": "uuid",
+  "job_type": "document_process",
+  "org_id": "uuid",
+  "payload": {
+    "document_id": "uuid",
+    "file_path": "/storage/orgs/{org_id}/docs/{doc_id}.pdf",
+    "callback_url": null
+  },
+  "priority": 1,
+  "retry_count": 0,
+  "max_retries": 3,
+  "created_at": "2026-03-27T00:00:00Z",
+  "visibility_timeout_sec": 300
+}
+```
+
+### Worker Behavior
+
+- **Concurrency:** Each Python worker instance runs N consumer coroutines (configurable, default 4). Each coroutine long-polls Redis via `BRPOPLPUSH`.
+- **Visibility timeout:** When a job is popped, it moves to a processing sorted set keyed by expiry timestamp. A sweeper goroutine (or Python asyncio task) periodically checks for expired jobs and re-enqueues them.
+- **Idempotency:** Workers check `document_chunks` for existing entries by `document_id` before inserting; re-processing deletes stale chunks first (DELETE + INSERT in a transaction).
+- **Progress tracking:** Workers update the `documents` table with `status` transitions: `pending → parsing → chunking → embedding → ready` (or `failed`). The Go API exposes `GET /api/v1/orgs/{org}/documents/{doc}/status` for polling or webhook callback.
+- **Scaling:** Additional Python worker replicas join the same Redis consumer group. Redis list semantics guarantee each job is delivered to exactly one worker.
+
+---
+
+*All services are containerized and orchestrated via Docker Compose. A single `docker-compose.yml` defines: `api` (Go), `ai-worker` (Python + LiteParse), `strapi`, `keycloak`, `postgres`, `redis`, and `nginx` (reverse proxy).*</result>
+<usage><total_tokens>8099</total_tokens><tool_uses>0</tool_uses><duration_ms>88847</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a18d3e3971a0aa0a1</task-id>
+<tool-use-id>toolu_01QPBTGaGcsRYBNh51LYYX5x</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Draft data model design section" completed</summary>
+<result>The data model design document has been written to `/Users/jobinlawrance/Project/raven/docs/design/data-model.md`.
+
+**What was done:**
+- Reviewed the existing research docs (`data-model-approaches.md`, `paradedb-pgvector-research.md`) to align with prior decisions
+- Wrote a concise data model section covering all 7 requested topics
+- Adapted the existing 3-tier hierarchy (Application -> Organization -> KB) to the confirmed 2-tier hierarchy (Organization -> Workspace -> KB) with the recommended "Workspace" naming
+
+**Key decisions in the document:**
+- **Naming: Organization -> Workspace -> Knowledge Base.** "Workspace" wins over Team (too small for the Alphabet/Google example), Project (too ephemeral), and the 3-tier Tenant->Org->Project (over-engineered). Aligns with Slack/Notion conventions.
+- **Tenant column renamed from `application_id` to `org_id`** to match the flattened hierarchy where Organization is the tenant boundary.
+- **LLM provider config** uses AES-256-GCM encryption with a master key in a secrets manager, per-org data encryption keys, and `api_key_hint` for safe UI display. Workspaces select providers via their `settings` JSONB.
+- **Embedding storage** keeps chunks and embeddings in separate tables for multi-model support and re-embedding flexibility.
+- **Full state machine** with 7 states (queued, crawling, parsing, chunking, embedding, ready, failed, reprocessing) and an audit log table.
+- **4-layer access control:** Keycloak auth -> API middleware tenant scoping -> business logic role checks -> PostgreSQL RLS as defense-in-depth.</result>
+<usage><total_tokens>42783</total_tokens><tool_uses>10</tool_uses><duration_ms>152591</duration_ms></usage>
+</task-notification>
+
+---
+
+I have gone through all the documents that you have created. I don't know why you went with the backend approach of Node.js as recommended when I explicitly provided you with the information that we are going to go with Golang or maximum Kotlin. You decide which one is better.
+
+Let me know both the pros and cons of both Golang as well as Kotlin JS, maybe on Spring Boot 3 or 4, or maybe Quarkus, whichever is fast and can support GraalVM. If we are going on the JVM route, also I would like to minimize the amount of code that we have to write. I would like it to be some industry-standard, open-source software that are being used, so something like a 10 framework will work well. Can you suggest why our approach with live kit and everything ad hoc is better than the 10 framework?
+
+Let me know also the licenses of everything that we use. Everything should be open-source, license-free that I can use to monetize myself; I don't need any licensing issues. Are there already any existing competitions for what I am trying to build here?
+
+---
+
+<task-notification>
+<task-id>a44bf624b144722e0</task-id>
+<tool-use-id>toolu_01NTsEhYwPCtR96vS8tPNsgt</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Go vs Kotlin backend comparison" completed</summary>
+<result>Please run /login · API Error: 401 {"type":"error","error":{"type":"authentication_error","message":"Invalid authentication credentials"},"request_id":"REDACTED"}</result>
+<usage><total_tokens>8</total_tokens><tool_uses>3</tool_uses><duration_ms>173546</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a5fe09d32caacdb19</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "License audit all dependencies" completed</summary>
+<result>Please run /login · API Error: 401 {"type":"error","error":{"type":"authentication_error","message":"Invalid authentication credentials"},"request_id":"req_011CZTJX1VV3hTmisvZLmHqA"}</result>
+<usage><total_tokens>503</total_tokens><tool_uses>25</tool_uses><duration_ms>166116</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ad031134d41256c86</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Competitive analysis for Raven" completed</summary>
+<result>The competitive analysis has been written to `/Users/jobinlawrance/Project/raven/docs/research/competitive-analysis.md`.
+
+**Actions taken:**
+- Read all existing Raven design and research docs to understand the platform's architecture and roadmap
+- Researched and analyzed 18 competitors across three categories
+- Wrote a comprehensive competitive analysis document
+
+**Key findings:**
+
+1. **No competitor offers Raven's full stack.** The combination of document ingestion + RAG chatbot + voice agent + WebRTC + WhatsApp in a self-hostable, multi-tenant platform does not exist today.
+
+2. **Chatbot-over-docs is crowded; voice + RAG is not.** Simple chatbot builders (Chatbase, CustomGPT) are commoditizing. Voice AI platforms (Vapi, Retell) lack integrated knowledge bases. The intersection is underserved.
+
+3. **Multi-tenancy is a real moat.** No open-source RAG platform (Dify, Flowise, RAGFlow, AnythingLLM) supports true multi-tenancy. This is critical for the B2B/agency use case.
+
+4. **Hybrid search + reranking is a quality differentiator.** Most competitors use basic vector-only search. Raven's pgvector + ParadeDB BM25 + RRF + reranking pipeline should produce measurably better retrieval.
+
+5. **WhatsApp Business Calling API integration is a first-mover opportunity** -- launched July 2025, and no competitor has integrated it yet.</result>
+<usage><total_tokens>50653</total_tokens><tool_uses>8</tool_uses><duration_ms>287180</duration_ms></usage>
+</task-notification>
+
+---
+
+Where did we get the information, and are you going to present it to me on the screen here itself or in the documentation?
+
+---
+
+Also, whenever we get an opportunity, when we are creating or writing code using a certain framework, we will make sure that we will use the most optimized and memory-efficient version of it so that it can be deployed on any small CPU as well. Let's say, for example, if you're going with Kotlin, it would be GraalVM, or if you are going with TypeScript in Node.js, it will be Bun, which is the most optimized, or Dino, depending on which is better in that particular situation. I want it to be native speed, and the UI using Tailwind CSS should be optimized for mobile phones as well. I want it to be used everywhere on each and every device of different operating systems, even to a point where I should be able to launch it in a Raspberry Pi or edge node.
+
+---
+
+<task-notification>
+<task-id>a0f394b4194b90385</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Research TEN framework vs LiveKit" completed</summary>
+<result>**Actions taken:**
+- Fetched and analyzed TEN Framework (core repo + TEN-Agent) GitHub data: architecture, extensions, license, examples, deployment model
+- Fetched and analyzed LiveKit Agents GitHub data: plugin ecosystem (~63 plugins), features, license, architecture
+- Wrote detailed comparison document with recommendation
+
+**File created:**
+- `/Users/jobinlawrance/Project/raven/docs/research/ten-framework-vs-livekit.md`
+
+**Key findings:**
+
+1. **License is a dealbreaker.** TEN Framework uses Apache 2.0 with Agora-imposed restrictions prohibiting deployment that "competes with Agora's offerings" or "enables third parties to develop or deploy Applications." For a multi-tenant knowledge-base platform like Raven, this creates unacceptable legal risk.
+
+2. **Agora vendor lock-in.** TEN's only WebRTC transport is proprietary Agora RTC (paid service). LiveKit provides a fully open-source, self-hostable WebRTC SFU.
+
+3. **RAG integration is harder in TEN.** You must build a formal extension package (manifest.json, addon.py, extension.py). LiveKit Agents offers `function_tool` decorators and a LangChain plugin -- standard Python code.
+
+4. **LiveKit wins on multi-tenancy.** Its room + dispatch + token model maps naturally to multi-tenant SaaS. TEN has no multi-tenancy primitives.
+
+5. **LiveKit has a broader plugin ecosystem** with more STT/TTS/LLM providers (63 vs. TEN's handful of user-facing integrations).
+
+**Recommendation: Stay with LiveKit Agents + Custom RAG Pipeline.** TEN is impressive for prototyping but its license restrictions, Agora lock-in, and lack of multi-tenancy primitives make it unsuitable for Raven.</result>
+<usage><total_tokens>57774</total_tokens><tool_uses>7</tool_uses><duration_ms>351881</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ad441984b5836880d</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Go vs Kotlin backend comparison" completed</summary>
+<result>The comparison document has been written.
+
+**Actions taken:**
+- Created the directory `/Users/jobinlawrance/Project/raven/docs/research/`
+- Wrote a comprehensive Go vs Kotlin comparison to `/Users/jobinlawrance/Project/raven/docs/research/go-vs-kotlin-comparison.md`
+
+**File created:**
+- `/Users/jobinlawrance/Project/raven/docs/research/go-vs-kotlin-comparison.md` -- Full research document covering all requested dimensions
+
+**Key findings:**
+
+1. **Weighted scores are nearly tied:** Go (Echo) scored 8.3, Spring Boot and Quarkus both scored 8.35. The decision depends more on team experience than technical superiority.
+
+2. **Go wins on operations:** 10-25 MB Docker images vs 50-400 MB for Kotlin. 10-50ms startup with zero configuration. No GraalVM build complexity (2-8 minute native builds eliminated). CI pipelines run in 1-3 minutes instead of 8-15.
+
+3. **Kotlin wins on boilerplate:** Typical service is 400-800 lines (Ktor/Spring) vs 800-1200 lines (Go). Kotlin coroutines + Flow map elegantly to gRPC streaming with ~5-8 lines vs Go's ~15-20. Explicit `if err != nil` handling adds ~20-30% more code in Go.
+
+4. **gRPC streaming is excellent in both:** Go's grpc-go is the reference implementation (natural fit). Kotlin's grpc-kotlin with Flow provides more declarative/composable streaming. Both handle LLM token streaming trivially.
+
+5. **Primary recommendation: Go with Echo** -- gRPC is Raven's core communication pattern, and Go is gRPC's native home. Operational simplicity (tiny images, instant startup, no JVM/GraalVM tuning) is a persistent advantage. The boilerplate gap shrinks significantly with sqlc and grpc code generation.
+
+6. **Secondary recommendation: Spring Boot 3/4 with Kotlin** -- if the team is JVM-experienced. Largest ecosystem, best multi-tenancy patterns, new Spring gRPC project provides clean coroutine integration. Use GraalVM native for production.
+
+7. **Avoid Fiber (Go)** for this project due to fasthttp/grpc-go incompatibility. **Avoid Ktor** as primary framework due to ecosystem gaps for a platform of Raven's complexity.</result>
+<usage><total_tokens>24798</total_tokens><tool_uses>3</tool_uses><duration_ms>185848</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a0850ae3a49c7fbb3</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "License audit all dependencies" completed</summary>
+<result>The license audit is complete. Here is the summary:
+
+**File written:** `/Users/jobinlawrance/Project/raven/docs/research/license-audit.md`
+
+**Actions taken:**
+- Researched licenses for all 32+ components via web search against official GitHub repos, package registries, and project documentation
+- Classified each as GREEN (permissive, SaaS-safe), YELLOW (conditional/review needed), or RED (incompatible with closed-source SaaS)
+- Wrote comprehensive audit with actionable alternatives for every flagged component
+
+**Key findings -- 6 RED FLAGS:**
+
+1. **ParadeDB Community (AGPL-3.0)** -- Network copyleft triggers source disclosure for SaaS. Buy commercial license or replace with native PostgreSQL FTS + pgvector.
+2. **Redis (RSALv2/SSPLv1/AGPLv3 tri-license)** -- All options restrict SaaS use. Recommend switching to **Valkey** (BSD-3-Clause, Linux Foundation fork) as a drop-in replacement.
+3. **Firecrawl (AGPL-3.0)** -- Self-hosting triggers copyleft. Switch to **Crawl4AI** (Apache 2.0, already in the stack) or consume Firecrawl's hosted API.
+4. **MinIO (AGPL-3.0)** -- Network copyleft. Switch to **SeaweedFS** (Apache 2.0), use cloud S3, or buy a commercial MinIO license.
+5. **Coqui TTS/XTTS model weights (CPML)** -- Non-commercial only, and Coqui is defunct so commercial licenses cannot be purchased. Use the code (MPL-2.0) with your own trained models, or switch to Piper TTS (MIT archived version) or another TTS solution.
+6. **Docker Desktop (Proprietary)** -- Requires paid subscription for companies with >=250 employees or >=$10M revenue. Only affects developer workstations, not production (Docker Engine is Apache 2.0).
+
+**3 YELLOW warnings:** TEN Framework (Apache 2.0 + unspecified additional restrictions -- needs LICENSE file review), Piper TTS (MIT archived vs GPL-3.0 active fork), Docker Desktop (size-gated subscription).
+
+**24 components are fully GREEN** (MIT, Apache 2.0, BSD, or PostgreSQL License) and safe for commercial SaaS without any restrictions.</result>
+<usage><total_tokens>57493</total_tokens><tool_uses>51</tool_uses><duration_ms>326134</duration_ms></usage>
+</task-notification>
+
+---
+
+Let's go with Golang as the recommended backend, this based on whatever framework is the best that you decided on in the previous documentation that you created. Also, when we are going with parade DB, make sure we are going with Postgres version 18. The versions of all the applications should be the latest long-term supported or the one with the latest features and the memory efficiency. Even if you're going with parade DB, we will go with parade DB with Postgres 18, Springboard for all libraries with the latest version.
+
+Also, we will install Dependabot to catch security vulnerabilities. Also, we have to make sure that the code that we write is compliant in most of the global markets, like the European Union, with GDPR compliance, SOC compliance, and so on. Also, we will install Code Rabbit, since this is a public repository, to review all the AI code.
+
+Once we have all the information that we require, compile it down to a single document that we are going to follow, based on which we can create a wiki page for our GitHub repository, as well as issues in project road maps and milestones and everything else and the whistles. Before we go ahead and do that, let me take a look at the final documentation that you compile out of all the documentation that you created for each and every component and each and every language that you are going to use for that particular component.

@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "9d74eed36e0a",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/research/license-audit.md",
+    "docs/superpowers/specs/2026-03-27-raven-platform-design-final.md",
+    "docs/superpowers/specs/2026-03-27-raven-platform-design.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9d/74eed36e0a/0/metadata.json",
+      "transcript": "/9d/74eed36e0a/0/full.jsonl",
+      "context": "/9d/74eed36e0a/0/context.md",
+      "content_hash": "/9d/74eed36e0a/0/content_hash.txt",
+      "prompt": "/9d/74eed36e0a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 38,
+    "cache_creation_tokens": 30082,
+    "cache_read_tokens": 2149657,
+    "output_tokens": 11546,
+    "api_call_count": 20
+  }
+}
