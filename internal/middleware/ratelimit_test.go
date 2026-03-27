@@ -268,7 +268,7 @@ func TestByUserID(t *testing.T) {
 	r := gin.New()
 	// Inject user_id into gin context before the rate-limit middleware.
 	r.Use(func(c *gin.Context) {
-		c.Set(ContextKeyUserID, "user-abc")
+		c.Set(string(ContextKeyUserID), "user-abc")
 		c.Next()
 	})
 	r.Use(ByUserID(rl, limit))
@@ -295,7 +295,7 @@ func TestByOrgID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.Use(func(c *gin.Context) {
-		c.Set(ContextKeyOrgID, "org-xyz")
+		c.Set(string(ContextKeyOrgID), "org-xyz")
 		c.Next()
 	})
 	r.Use(ByOrgID(rl, limit))

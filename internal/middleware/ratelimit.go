@@ -14,12 +14,9 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// Context keys used by upstream JWT/auth middleware to store identity values.
-const (
-	ContextKeyUserID = "user_id"
-	ContextKeyOrgID  = "org_id"
-	ContextKeyAPIKey = "api_key"
-)
+// ContextKeyAPIKey is the Gin context key under which the raw API key is stored
+// by the auth middleware so the rate limiter can hash and bucket by it.
+const ContextKeyAPIKey = "api_key"
 
 // Valkey key prefixes for each rate-limit scope.
 const (
@@ -265,7 +262,7 @@ func ByAPIKey(rl *RateLimiter, limit int) gin.HandlerFunc {
 // The user ID is read from gin.Context key ContextKeyUserID (set by JWT middleware).
 func ByUserID(rl *RateLimiter, limit int) gin.HandlerFunc {
 	return RateLimitMiddleware(rl, limit, func(c *gin.Context) string {
-		raw, ok := c.Get(ContextKeyUserID)
+		raw, ok := c.Get(string(ContextKeyUserID))
 		if !ok {
 			return ""
 		}
@@ -281,7 +278,7 @@ func ByUserID(rl *RateLimiter, limit int) gin.HandlerFunc {
 // The org ID is read from gin.Context key ContextKeyOrgID (set by JWT middleware).
 func ByOrgID(rl *RateLimiter, limit int) gin.HandlerFunc {
 	return RateLimitMiddleware(rl, limit, func(c *gin.Context) string {
-		raw, ok := c.Get(ContextKeyOrgID)
+		raw, ok := c.Get(string(ContextKeyOrgID))
 		if !ok {
 			return ""
 		}

@@ -14,8 +14,19 @@ type Config struct {
 	Valkey    ValkeyConfig
 	GRPC      GRPCConfig
 	OTel      OTelConfig
+	Keycloak  KeycloakConfig
 	CORS      CORSConfig
 	RateLimit RateLimitConfig
+}
+
+// KeycloakConfig holds Keycloak/OIDC settings for JWT validation.
+type KeycloakConfig struct {
+	IssuerURL string `mapstructure:"issuer_url"`
+	Audience  string `mapstructure:"audience"`
+	// APIKeyEnabled enables the unvalidated API-key stub (see issue-24).
+	// Disabled by default; set RAVEN_KEYCLOAK_APIKEYENABLED=true only in
+	// development environments until the real DB-backed lookup is implemented.
+	APIKeyEnabled bool `mapstructure:"api_key_enabled"`
 }
 
 // CORSConfig holds Cross-Origin Resource Sharing settings.
@@ -68,6 +79,8 @@ func Load() (*Config, error) {
 	v.SetDefault("otel.endpoint", "")
 	v.SetDefault("otel.service_name", "raven-api")
 	v.SetDefault("otel.enabled", false)
+	v.SetDefault("keycloak.issuer_url", "http://localhost:8080/auth/realms/raven")
+	v.SetDefault("keycloak.audience", "raven")
 	// CORS allowed origins can be overridden via the RAVEN_CORS_ALLOWED_ORIGINS
 	// environment variable as a comma-separated list.
 	// Example: RAVEN_CORS_ALLOWED_ORIGINS=https://app1.com,https://app2.com
