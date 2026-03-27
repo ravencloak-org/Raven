@@ -29,6 +29,18 @@ func NewOrgHandler(svc OrgServicer) *OrgHandler {
 }
 
 // Create handles POST /api/v1/orgs.
+//
+// @Summary     Create organisation
+// @Tags        organisations
+// @Accept      json
+// @Produce     json
+// @Security    BearerAuth
+// @Param       request body model.CreateOrgRequest true "Organisation payload"
+// @Success     201 {object} model.Organization
+// @Failure     422 {object} apierror.AppError
+// @Failure     401 {object} apierror.AppError
+// @Failure     403 {object} apierror.AppError
+// @Router      /orgs [post]
 func (h *OrgHandler) Create(c *gin.Context) {
 	var req model.CreateOrgRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -49,6 +61,16 @@ func (h *OrgHandler) Create(c *gin.Context) {
 }
 
 // Get handles GET /api/v1/orgs/:org_id.
+//
+// @Summary     Get organisation
+// @Tags        organisations
+// @Produce     json
+// @Security    BearerAuth
+// @Param       org_id path string true "Organisation ID"
+// @Success     200 {object} model.Organization
+// @Failure     404 {object} apierror.AppError
+// @Failure     401 {object} apierror.AppError
+// @Router      /orgs/{org_id} [get]
 func (h *OrgHandler) Get(c *gin.Context) {
 	orgID := c.Param("org_id")
 	org, err := h.svc.GetByID(c.Request.Context(), orgID)
@@ -61,6 +83,19 @@ func (h *OrgHandler) Get(c *gin.Context) {
 }
 
 // Update handles PUT /api/v1/orgs/:org_id.
+//
+// @Summary     Update organisation
+// @Tags        organisations
+// @Accept      json
+// @Produce     json
+// @Security    BearerAuth
+// @Param       org_id  path string true "Organisation ID"
+// @Param       request body model.UpdateOrgRequest true "Update payload"
+// @Success     200 {object} model.Organization
+// @Failure     422 {object} apierror.AppError
+// @Failure     403 {object} apierror.AppError
+// @Failure     404 {object} apierror.AppError
+// @Router      /orgs/{org_id} [put]
 func (h *OrgHandler) Update(c *gin.Context) {
 	orgID := c.Param("org_id")
 	callerOrgID, _ := c.Get(string(middleware.ContextKeyOrgID))
@@ -93,6 +128,15 @@ func (h *OrgHandler) Update(c *gin.Context) {
 }
 
 // Delete handles DELETE /api/v1/orgs/:org_id.
+//
+// @Summary     Delete (deactivate) organisation
+// @Tags        organisations
+// @Security    BearerAuth
+// @Param       org_id path string true "Organisation ID"
+// @Success     204
+// @Failure     404 {object} apierror.AppError
+// @Failure     403 {object} apierror.AppError
+// @Router      /orgs/{org_id} [delete]
 func (h *OrgHandler) Delete(c *gin.Context) {
 	orgID := c.Param("org_id")
 	if err := h.svc.Delete(c.Request.Context(), orgID); err != nil {

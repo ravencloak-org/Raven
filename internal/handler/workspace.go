@@ -38,6 +38,18 @@ func orgIDFromContext(c *gin.Context) string {
 }
 
 // Create handles POST /api/v1/orgs/:org_id/workspaces.
+//
+// @Summary     Create workspace
+// @Tags        workspaces
+// @Accept      json
+// @Produce     json
+// @Security    BearerAuth
+// @Param       org_id  path string true "Organisation ID"
+// @Param       request body model.CreateWorkspaceRequest true "Workspace payload"
+// @Success     201 {object} model.Workspace
+// @Failure     422 {object} apierror.AppError
+// @Failure     403 {object} apierror.AppError
+// @Router      /orgs/{org_id}/workspaces [post]
 func (h *WorkspaceHandler) Create(c *gin.Context) {
 	orgID := orgIDFromContext(c)
 	var req model.CreateWorkspaceRequest
@@ -73,6 +85,15 @@ func (h *WorkspaceHandler) Get(c *gin.Context) {
 }
 
 // List handles GET /api/v1/orgs/:org_id/workspaces.
+//
+// @Summary     List workspaces for an organisation
+// @Tags        workspaces
+// @Produce     json
+// @Security    BearerAuth
+// @Param       org_id path string true "Organisation ID"
+// @Success     200 {array} model.Workspace
+// @Failure     401 {object} apierror.AppError
+// @Router      /orgs/{org_id}/workspaces [get]
 func (h *WorkspaceHandler) List(c *gin.Context) {
 	orgID := orgIDFromContext(c)
 	workspaces, err := h.svc.ListByOrg(c.Request.Context(), orgID)

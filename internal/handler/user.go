@@ -30,6 +30,15 @@ func NewUserHandler(svc UserServicer) *UserHandler {
 }
 
 // GetMe handles GET /api/v1/me.
+//
+// @Summary     Get current user profile
+// @Tags        users
+// @Produce     json
+// @Security    BearerAuth
+// @Success     200 {object} model.User
+// @Failure     401 {object} apierror.AppError
+// @Failure     404 {object} apierror.AppError
+// @Router      /me [get]
 func (h *UserHandler) GetMe(c *gin.Context) {
 	sub, _ := c.Get(string(middleware.ContextKeyUserID))
 	subStr, _ := sub.(string)
@@ -48,6 +57,17 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 }
 
 // UpdateMe handles PUT /api/v1/me.
+//
+// @Summary     Update current user profile
+// @Tags        users
+// @Accept      json
+// @Produce     json
+// @Security    BearerAuth
+// @Param       request body model.UpdateUserRequest true "Update payload"
+// @Success     200 {object} model.User
+// @Failure     422 {object} apierror.AppError
+// @Failure     401 {object} apierror.AppError
+// @Router      /me [put]
 func (h *UserHandler) UpdateMe(c *gin.Context) {
 	userID, _ := c.Get(string(middleware.ContextKeyUserID))
 	userIDStr, _ := userID.(string)
@@ -72,6 +92,13 @@ func (h *UserHandler) UpdateMe(c *gin.Context) {
 }
 
 // DeleteMe handles DELETE /api/v1/me (GDPR right to erasure).
+//
+// @Summary     Delete current user account (GDPR)
+// @Tags        users
+// @Security    BearerAuth
+// @Success     204
+// @Failure     401 {object} apierror.AppError
+// @Router      /me [delete]
 func (h *UserHandler) DeleteMe(c *gin.Context) {
 	userID, _ := c.Get(string(middleware.ContextKeyUserID))
 	userIDStr, _ := userID.(string)
@@ -84,6 +111,16 @@ func (h *UserHandler) DeleteMe(c *gin.Context) {
 }
 
 // GetUser handles GET /api/v1/users/:user_id (admin only).
+//
+// @Summary     Get user by ID (org_admin only)
+// @Tags        users
+// @Produce     json
+// @Security    BearerAuth
+// @Param       user_id path string true "User ID"
+// @Success     200 {object} model.User
+// @Failure     404 {object} apierror.AppError
+// @Failure     403 {object} apierror.AppError
+// @Router      /users/{user_id} [get]
 func (h *UserHandler) GetUser(c *gin.Context) {
 	userID := c.Param("user_id")
 	user, err := h.svc.GetByID(c.Request.Context(), userID)

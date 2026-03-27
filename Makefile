@@ -1,4 +1,4 @@
-.PHONY: build run dev test lint migrate-up migrate-down proto
+.PHONY: build run dev test lint migrate-up migrate-down proto swagger
 
 build:
 	go build -o bin/api ./cmd/api
@@ -23,3 +23,6 @@ migrate-down:
 
 proto:
 	@echo "protoc generation placeholder - will be configured when proto files are added"
+
+swagger:
+	swag init -g cmd/api/main.go --output docs/swagger --parseDependency --parseInternal

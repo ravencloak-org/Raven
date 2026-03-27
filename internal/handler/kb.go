@@ -30,6 +30,19 @@ func NewKBHandler(svc KBServicer) *KBHandler {
 
 // Create handles POST /api/v1/orgs/:org_id/workspaces/:ws_id/knowledge-bases.
 // Requires minimum workspace role "member" (enforced at route registration).
+//
+// @Summary     Create knowledge base
+// @Tags        knowledge-bases
+// @Accept      json
+// @Produce     json
+// @Security    BearerAuth
+// @Param       org_id  path string true "Organisation ID"
+// @Param       ws_id   path string true "Workspace ID"
+// @Param       request body model.CreateKBRequest true "Knowledge base payload"
+// @Success     201 {object} model.KnowledgeBase
+// @Failure     422 {object} apierror.AppError
+// @Failure     403 {object} apierror.AppError
+// @Router      /orgs/{org_id}/workspaces/{ws_id}/knowledge-bases [post]
 func (h *KBHandler) Create(c *gin.Context) {
 	orgID := c.Param("org_id")
 	wsID := c.Param("ws_id")
@@ -66,6 +79,16 @@ func (h *KBHandler) Get(c *gin.Context) {
 }
 
 // List handles GET /api/v1/orgs/:org_id/workspaces/:ws_id/knowledge-bases.
+//
+// @Summary     List knowledge bases in a workspace
+// @Tags        knowledge-bases
+// @Produce     json
+// @Security    BearerAuth
+// @Param       org_id path string true "Organisation ID"
+// @Param       ws_id  path string true "Workspace ID"
+// @Success     200 {array} model.KnowledgeBase
+// @Failure     401 {object} apierror.AppError
+// @Router      /orgs/{org_id}/workspaces/{ws_id}/knowledge-bases [get]
 func (h *KBHandler) List(c *gin.Context) {
 	orgID := c.Param("org_id")
 	wsID := c.Param("ws_id")
@@ -106,6 +129,17 @@ func (h *KBHandler) Update(c *gin.Context) {
 
 // Archive handles DELETE /api/v1/orgs/:org_id/workspaces/:ws_id/knowledge-bases/:kb_id.
 // Requires workspace role "admin" (enforced at route registration).
+//
+// @Summary     Archive (soft-delete) knowledge base
+// @Tags        knowledge-bases
+// @Security    BearerAuth
+// @Param       org_id path string true "Organisation ID"
+// @Param       ws_id  path string true "Workspace ID"
+// @Param       kb_id  path string true "Knowledge base ID"
+// @Success     204
+// @Failure     404 {object} apierror.AppError
+// @Failure     403 {object} apierror.AppError
+// @Router      /orgs/{org_id}/workspaces/{ws_id}/knowledge-bases/{kb_id} [delete]
 func (h *KBHandler) Archive(c *gin.Context) {
 	orgID := c.Param("org_id")
 	kbID := c.Param("kb_id")
