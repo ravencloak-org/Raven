@@ -1,0 +1,379 @@
+openapi: "3.1.0"
+info:
+  title: Raven API (stub for frontend development)
+  description: |
+    Stub contract used by the frontend stream during parallel development.
+    Reflects the real API shape that the backend stream will implement.
+    Replace with real OpenAPI spec once backend PRs merge.
+  version: "1.0.0"
+
+servers:
+  - url: /api/v1
+    description: Local dev
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Organization:
+      type: object
+      properties:
+        id:        { type: string, format: uuid }
+        name:      { type: string }
+        slug:      { type: string }
+        status:    { type: string, enum: [active, deactivated] }
+        settings:  { type: object }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+      required: [id, name, slug, status, created_at, updated_at]
+
+    CreateOrgRequest:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 255 }
+      required: [name]
+
+    UpdateOrgRequest:
+      type: object
+      properties:
+        name:     { type: string, minLength: 2, maxLength: 255 }
+        settings: { type: object }
+
+    OrgMember:
+      type: object
+      properties:
+        user_id:  { type: string, format: uuid }
+        email:    { type: string, format: email }
+        org_role: { type: string, enum: [org_admin, member] }
+        joined_at: { type: string, format: date-time }
+      required: [user_id, email, org_role]
+
+    Workspace:
+      type: object
+      properties:
+        id:        { type: string, format: uuid }
+        org_id:    { type: string, format: uuid }
+        name:      { type: string }
+        slug:      { type: string }
+        settings:  { type: object }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+      required: [id, org_id, name, slug, created_at, updated_at]
+
+    CreateWorkspaceRequest:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 255 }
+      required: [name]
+
+    WorkspaceMember:
+      type: object
+      properties:
+        user_id:        { type: string, format: uuid }
+        email:          { type: string, format: email }
+        workspace_role: { type: string, enum: [owner, admin, member, viewer] }
+      required: [user_id, email, workspace_role]
+
+    KnowledgeBase:
+      type: object
+      properties:
+        id:           { type: string, format: uuid }
+        org_id:       { type: string, format: uuid }
+        workspace_id: { type: string, format: uuid }
+        name:         { type: string }
+        slug:         { type: string }
+        settings:     { type: object }
+        status:       { type: string, enum: [active, archived] }
+        doc_count:    { type: integer }
+        created_at:   { type: string, format: date-time }
+        updated_at:   { type: string, format: date-time }
+      required: [id, org_id, workspace_id, name, slug, status, created_at, updated_at]
+
+    User:
+      type: object
+      properties:
+        id:       { type: string, format: uuid }
+        email:    { type: string, format: email }
+        username: { type: string }
+        org_id:   { type: string, format: uuid }
+        org_role: { type: string, enum: [org_admin, member] }
+      required: [id, email, org_id, org_role]
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:    { type: integer }
+        message: { type: string }
+        detail:  { type: string }
+      required: [code, message]
+
+    PaginatedList:
+      type: object
+      properties:
+        items:  { type: array, items: {} }
+        total:  { type: integer }
+        offset: { type: integer }
+        limit:  { type: integer }
+      required: [items, total]
+
+paths:
+  /orgs:
+    post:
+      summary: Create organization
+      tags: [Organizations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateOrgRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Organization' }
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /orgs/{org_id}:
+    get:
+      summary: Get organization
+      tags: [Organizations]
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Organization' }
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+    put:
+      summary: Update organization
+      tags: [Organizations]
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateOrgRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Organization' }
+    delete:
+      summary: Soft-delete organization
+      tags: [Organizations]
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: Deleted
+
+  /orgs/{org_id}/members:
+    get:
+      summary: List organization members
+      tags: [Organizations]
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/OrgMember' }
+
+  /orgs/{org_id}/workspaces:
+    get:
+      summary: List workspaces
+      tags: [Workspaces]
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginatedList' }
+    post:
+      summary: Create workspace
+      tags: [Workspaces]
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateWorkspaceRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Workspace' }
+
+  /orgs/{org_id}/workspaces/{ws_id}:
+    get:
+      summary: Get workspace
+      tags: [Workspaces]
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: ws_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Workspace' }
+    delete:
+      summary: Soft-delete workspace
+      tags: [Workspaces]
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: ws_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: Deleted
+
+  /orgs/{org_id}/workspaces/{ws_id}/members:
+    post:
+      summary: Add workspace member
+      tags: [Workspaces]
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: ws_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id: { type: string, format: uuid }
+                role:    { type: string, enum: [owner, admin, member, viewer] }
+              required: [user_id, role]
+      responses:
+        '201':
+          description: Added
+
+  /orgs/{org_id}/workspaces/{ws_id}/knowledge-bases:
+    get:
+      summary: List knowledge bases
+      tags: [KnowledgeBases]
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: ws_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/KnowledgeBase' }
+    post:
+      summary: Create knowledge base
+      tags: [KnowledgeBases]
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: ws_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:     { type: string }
+                settings: { type: object }
+              required: [name]
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeBase' }
+
+  /me:
+    get:
+      summary: Get current user profile
+      tags: [Users]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
