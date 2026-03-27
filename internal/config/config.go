@@ -13,6 +13,12 @@ type Config struct {
 	Valkey   ValkeyConfig
 	GRPC     GRPCConfig
 	OTel     OTelConfig
+	CORS     CORSConfig
+}
+
+// CORSConfig holds Cross-Origin Resource Sharing settings.
+type CORSConfig struct {
+	AllowedOrigins []string `mapstructure:"allowed_origins"`
 }
 
 // ServerConfig holds HTTP server settings.
@@ -54,6 +60,10 @@ func Load() (*Config, error) {
 	v.SetDefault("otel.endpoint", "")
 	v.SetDefault("otel.service_name", "raven-api")
 	v.SetDefault("otel.enabled", false)
+	v.SetDefault("cors.allowed_origins", []string{
+		"http://localhost:5173",
+		"https://raven-frontend.pages.dev",
+	})
 
 	// Config file (optional)
 	v.SetConfigName("config")
