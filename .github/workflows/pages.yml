@@ -51,6 +51,7 @@ jobs:
           VITE_KEYCLOAK_URL: ${{ vars.VITE_KEYCLOAK_URL || 'https://auth.ravencloak.org' }}
 
       - name: Deploy to Cloudflare Pages
+        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
