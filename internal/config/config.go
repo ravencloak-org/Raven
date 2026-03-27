@@ -60,6 +60,8 @@ func Load() (*Config, error) {
 	v.SetDefault("otel.endpoint", "")
 	v.SetDefault("otel.service_name", "raven-api")
 	v.SetDefault("otel.enabled", false)
+	// CORS_ORIGINS accepts a comma-separated list of allowed origins.
+	// Example: RAVEN_CORS_ALLOWED_ORIGINS=https://app1.com,https://app2.com
 	v.SetDefault("cors.allowed_origins", []string{
 		"http://localhost:5173",
 		"https://raven-frontend.pages.dev",

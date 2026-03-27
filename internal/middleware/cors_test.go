@@ -94,7 +94,7 @@ func TestCORSAllowedOrigin(t *testing.T) {
 }
 
 // TestCORSDisallowedOrigin verifies that a preflight from an unknown origin
-// does not receive an Access-Control-Allow-Origin header.
+// is rejected with a 403 and no Access-Control-Allow-Origin header.
 func TestCORSDisallowedOrigin(t *testing.T) {
 	r := newTestRouter(defaultCORSConfig())
 
@@ -104,9 +104,13 @@ func TestCORSDisallowedOrigin(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403 for disallowed origin preflight, got %d", w.Code)
+	}
+
 	allowOrigin := w.Header().Get("Access-Control-Allow-Origin")
-	if allowOrigin == "https://evil.example.com" {
-		t.Error("disallowed origin should not appear in Access-Control-Allow-Origin")
+	if allowOrigin != "" {
+		t.Errorf("disallowed origin must not appear in Access-Control-Allow-Origin, got %q", allowOrigin)
 	}
 }
 

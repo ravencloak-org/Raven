@@ -15,13 +15,16 @@ import (
 // both use one consistent source of truth; the comment block marks the place
 // where per-key allowed_domains will be wired in during a later milestone.
 func CORSMiddleware(cfg *config.CORSConfig) gin.HandlerFunc {
+	if cfg == nil {
+		cfg = &config.CORSConfig{}
+	}
+
 	allowedSet := make(map[string]struct{}, len(cfg.AllowedOrigins))
 	for _, o := range cfg.AllowedOrigins {
 		allowedSet[o] = struct{}{}
 	}
 
 	corsConfig := cors.Config{
-		AllowOrigins: cfg.AllowedOrigins,
 		AllowMethods: []string{
 			"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH",
 		},
