@@ -22,7 +22,7 @@ Before cataloging gaps, here is what already exists:
 
 | Category | Component |
 |----------|-----------|
-| Backend API | Go (Echo framework), pgx, sqlc, goose migrations |
+| Backend API | Go (Gin framework), pgx, sqlc, goose migrations |
 | AI Workers | Python (gRPC), LangChain/LlamaIndex ecosystem |
 | Frontend | Vue.js 3.5 + Tailwind CSS 4 + Tailwind Plus |
 | CMS | Strapi 5 (Community, MIT) |
@@ -185,16 +185,16 @@ Without generated, versioned API documentation, every integration becomes a supp
 
 ### Recommended Approach
 
-The Go API server using Echo already has a natural path to API docs:
+The Go API server using Gin already has a natural path to API docs:
 
 | Tool | License | Description |
 |------|---------|-------------|
-| **swaggo/swag** | MIT | Generates OpenAPI 2.0/3.0 spec from Go struct annotations and Echo route definitions. Produces `swagger.json` at build time. |
+| **swaggo/swag** | MIT | Generates OpenAPI 2.0/3.0 spec from Go struct annotations and Gin route definitions. Produces `swagger.json` at build time. |
 | **Scalar** | MIT | Modern, beautiful API reference UI. Drop-in replacement for Swagger UI. Reads OpenAPI spec, renders interactive docs. |
 
 **Recommendation:**
 
-1. Add `swaggo/swag` annotations to Echo route handlers. Run `swag init` in CI to generate `docs/swagger.json`.
+1. Add `swaggo/swag` annotations to Gin route handlers. Run `swag init` in CI to generate `docs/swagger.json`.
 2. Serve Scalar UI at `/api/docs` from the Go API server, loading the generated spec. Zero external dependencies.
 3. Publish the OpenAPI spec as a versioned artifact alongside each release.
 
@@ -607,7 +607,7 @@ Once external customers integrate with Raven's REST API, breaking changes (renam
 | When to bump | Only for breaking changes (removed fields, changed types, removed endpoints) |
 | Deprecation policy | Announce deprecation 6 months before removal. Add `Sunset` header (RFC 8594) to responses from deprecated endpoints. |
 | Non-breaking changes | Add new fields, new endpoints, new enum values without bumping version. |
-| Implementation | Echo route groups: `v1 := e.Group("/api/v1")`, `v2 := e.Group("/api/v2")`. Shared handlers where possible, version-specific adapters where needed. |
+| Implementation | Gin route groups: `v1 := r.Group("/api/v1")`, `v2 := r.Group("/api/v2")`. Shared handlers where possible, version-specific adapters where needed. |
 
 **Recommendation:** This is a design decision, not a tool. Lock in `/api/v1/` for the MVP. Document the versioning policy in the API docs. Use the `swaggo/swag` annotations to generate per-version OpenAPI specs.
 
@@ -716,7 +716,7 @@ This is a configuration task across Traefik and the Go API server:
 
 | Header | Configuration |
 |--------|--------------|
-| **CORS** | Go API Echo middleware: `middleware.CORSWithConfig()`. For admin dashboard: restrict to dashboard origin. For chatbot widget: read `allowed_domains` from the `api_keys` table and set `Access-Control-Allow-Origin` dynamically per API key. |
+| **CORS** | Go API Gin CORS middleware. For admin dashboard: restrict to dashboard origin. For chatbot widget: read `allowed_domains` from the `api_keys` table and set `Access-Control-Allow-Origin` dynamically per API key. |
 | **HSTS** | Traefik middleware: `headers.stsSeconds=63072000, headers.stsIncludeSubdomains=true, headers.stsPreload=true` |
 | **CSP** | Traefik middleware or Go response header. Restrictive policy for dashboard; looser for widget embed context. |
 | **X-Content-Type-Options** | `nosniff` -- prevents MIME-type sniffing |
@@ -724,7 +724,7 @@ This is a configuration task across Traefik and the Go API server:
 | **Referrer-Policy** | `strict-origin-when-cross-origin` |
 | **Permissions-Policy** | Restrict camera, microphone, geolocation access (except microphone for voice agent) |
 
-**Recommendation:** Configure Traefik's `headers` middleware for global security headers. Implement dynamic CORS in the Go API's Echo middleware, reading per-API-key domain allowlists from Valkey-cached `api_keys.allowed_domains`. This is the highest-priority security gap because the embeddable chatbot literally will not work without CORS.
+**Recommendation:** Configure Traefik's `headers` middleware for global security headers. Implement dynamic CORS in the Go API's Gin middleware, reading per-API-key domain allowlists from Valkey-cached `api_keys.allowed_domains`. This is the highest-priority security gap because the embeddable chatbot literally will not work without CORS.
 
 ### Priority
 
@@ -964,7 +964,7 @@ Zero runtime resources. Linting and testing happen in CI/development.
 | 15 | API Versioning | URL-path versioning (design decision) | N/A | MUST-HAVE | No | Yes |
 | 16 | Admin Search | PostgreSQL pg_trgm | Already in stack | SHOULD-HAVE | No | Yes |
 | 17 | File Virus Scanning | ClamAV | GPL-2.0 | SHOULD-HAVE | Yes | No |
-| 18 | CORS / Security Headers | Traefik + Echo middleware config | Already in stack | MUST-HAVE | No | Yes |
+| 18 | CORS / Security Headers | Traefik + Gin middleware config | Already in stack | MUST-HAVE | No | Yes |
 | 19 | Scheduled Jobs / Cron | Asynq | MIT | MUST-HAVE | No | Yes |
 | 20 | Database Migrations | goose (already in stack) | MIT | -- (closed) | No | Yes |
 | 21 | Secrets Management | Infisical (production) / SOPS (edge) | MIT / MPL-2.0 | SHOULD-HAVE | Yes | Partial |
@@ -986,8 +986,8 @@ These 7 items block MVP launch:
 | 7 | Backups | Deploy pgBackRest, configure backup schedule, test restore procedure. | 2-3 days |
 | 8 | Rate Limiting | Implement Go middleware with Valkey sliding window counters. Configure Traefik rate limiter. | 2-3 days |
 | 13 | Legal Pages | Engage lawyer for ToS/Privacy Policy. Add cookie consent banner. Consent records table. | 1-2 weeks (legal dependent) |
-| 15 | API Versioning | Establish `/api/v1/` route group in Echo. Document versioning policy. | 1 day |
-| 18 | CORS / Security Headers | Configure Echo CORS middleware with per-API-key domain allowlists. Add Traefik security headers. | 1-2 days |
+| 15 | API Versioning | Establish `/api/v1/` route group in Gin. Document versioning policy. | 1 day |
+| 18 | CORS / Security Headers | Configure Gin CORS middleware with per-API-key domain allowlists. Add Traefik security headers. | 1-2 days |
 | 19 | Scheduled Jobs | Integrate Asynq for job queue + cron. Migrate existing Valkey queue design. | 3-5 days |
 
 **Total estimated effort for MUST-HAVE items: 4-6 weeks.**

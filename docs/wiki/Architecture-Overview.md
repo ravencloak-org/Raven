@@ -14,7 +14,7 @@
          v                v                    v
     +----------+   +-----------+         +-----------+
     |  Go API  |   |  Strapi   |         | Keycloak  |
-    |  (Echo)  |   |  CMS      |         | + reaven- |
+    |  (Gin)   |   |  CMS      |         | + reaven- |
     +----+-----+   +-----------+         |   cloak   |
          |                               +-----------+
          | gRPC
@@ -38,7 +38,7 @@
 
 | Service | Role | Exposed |
 |---------|------|---------|
-| **Go API (Echo)** | Primary API gateway. JWT validation, routing, tenant resolution, REST CRUD, enqueues async jobs, delegates AI to Python via gRPC. | Yes (:8080) |
+| **Go API (Gin)** | Primary API gateway. JWT validation, routing, tenant resolution, REST CRUD, enqueues async jobs, delegates AI to Python via gRPC. | Yes (:8080) |
 | **Python AI Worker** | All AI/ML workloads. gRPC server for RAG queries, embedding generation. Consumes Valkey jobs for async document processing. | No (gRPC) |
 | **LiteParse** | Document-to-text extraction. Invoked by Python worker as subprocess. | No (co-located) |
 | **Strapi** | Headless CMS for marketing content and rapid admin tooling. Not in critical request path. | Yes (:1337) |

@@ -92,10 +92,10 @@
 | **Migrations** | `goose` or `golang-migrate` | Both excellent |
 | **Multi-tenancy** | Manual (middleware + schema/row-level) | No framework magic; explicit is Go's way |
 
-### Go Recommendation: **Echo** or **Gin**
+### Go Recommendation: **Gin**
 
-- **Echo** if you want cleaner API grouping and slightly more modern design.
-- **Gin** if you want the largest ecosystem and most community resources.
+- **Gin** for the largest ecosystem, most community resources, and battle-tested performance at scale.
+- **Echo** is a solid alternative if you prefer slightly more modern API grouping and built-in validation.
 - **Avoid Fiber** for this project because gRPC incompatibility with fasthttp is a real blocker for a gRPC-heavy system.
 
 ---
@@ -262,7 +262,7 @@
 
 ### For Raven's Specific Requirements
 
-| Requirement | Go (Echo/Gin) | Kotlin (Best Framework) | Winner |
+| Requirement | Go (Gin) | Kotlin (Best Framework) | Winner |
 |---|---|---|---|
 | **Real-time chat (SSE)** | Trivial (~20 LOC) | Built-in (Spring WebFlux Flow, Ktor respondSse) | Tie |
 | **Real-time chat (WebSocket)** | nhooyr/websocket or gorilla | Built-in all frameworks | Slight Kotlin edge |
@@ -433,7 +433,7 @@ Both ecosystems have excellent Redis support. No differentiator here.
 
 ### Lines of Code for Common Patterns
 
-| Pattern | Go (Echo) | Spring Boot | Quarkus | Ktor | Micronaut |
+| Pattern | Go (Gin) | Spring Boot | Quarkus | Ktor | Micronaut |
 |---|---|---|---|---|---|
 | REST endpoint + JSON | 15 | 12 | 10 | 8 | 12 |
 | WebSocket handler | 30 | 20 | 25 | 15 | 25 |
@@ -453,7 +453,7 @@ Go's explicit error handling adds ~20-30% more lines. Kotlin's coroutines + exce
 
 User priorities: Minimize code > GraalVM support > Production-grade > gRPC streaming
 
-| Criterion (Weight) | Go (Echo) | Spring Boot 3/4 | Quarkus | Ktor | Micronaut |
+| Criterion (Weight) | Go (Gin) | Spring Boot 3/4 | Quarkus | Ktor | Micronaut |
 |---|---|---|---|---|---|
 | **Minimize code (30%)** | 6/10 | 7/10 | 7/10 | **9/10** | 7/10 |
 | **GraalVM / native (20%)** | **10/10** (not needed) | 8/10 | **10/10** | 5/10 | 9/10 |
@@ -471,7 +471,7 @@ User priorities: Minimize code > GraalVM support > Production-grade > gRPC strea
 
 The choice between Go and Kotlin is closer than most articles suggest. Here is the nuanced recommendation:
 
-### Choose Go (with Echo or Gin) if:
+### Choose Go (with Gin) if:
 
 1. **Your team has Go experience** or is willing to learn (it's fast to learn).
 2. **Operational simplicity is paramount** -- single static binary, tiny Docker images, instant startup, no JVM tuning.
@@ -481,7 +481,7 @@ The choice between Go and Kotlin is closer than most articles suggest. Here is t
 6. **CI/CD speed matters** -- Go compiles in seconds, not minutes.
 
 **Go stack for Raven:**
-- Framework: **Echo** (clean API, good middleware, idiomatic)
+- Framework: **Gin** (largest ecosystem, battle-tested, rich middleware)
 - gRPC: **grpc-go** (standard)
 - PostgreSQL: **pgx** + **sqlc** (type-safe, generated)
 - Redis: **go-redis/v9**
@@ -509,7 +509,7 @@ The choice between Go and Kotlin is closer than most articles suggest. Here is t
 
 ### Final Verdict for Raven
 
-**Primary recommendation: Go with Echo.**
+**Primary recommendation: Go with Gin.**
 
 Rationale:
 1. **gRPC is the heart of Raven** (AI worker communication, token streaming). Go is where gRPC lives natively.
@@ -531,7 +531,7 @@ Rationale:
 go mod init github.com/your-org/raven
 
 # Key dependencies
-go get github.com/labstack/echo/v4          # Web framework
+go get github.com/gin-gonic/gin              # Web framework
 go get google.golang.org/grpc               # gRPC
 go get github.com/jackc/pgx/v5              # PostgreSQL
 go get github.com/redis/go-redis/v9         # Redis

@@ -43,7 +43,7 @@ PostgreSQL serves as the single source of truth -- storing relational data, vect
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| **API Server** | Go + Echo | REST API, JWT validation, tenant routing, SSE streaming |
+| **API Server** | Go + Gin | REST API, JWT validation, tenant routing, SSE streaming |
 | **AI Worker** | Python + gRPC | RAG queries, embeddings, document parsing, web scraping |
 | **Database** | PostgreSQL 18 + pgvector | Relational data, vector search, BM25 full-text |
 | **Frontend** | Vue.js 3 + Tailwind CSS | Admin dashboard (SPA, mobile-first, PWA-capable) |

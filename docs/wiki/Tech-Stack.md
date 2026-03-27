@@ -2,7 +2,7 @@
 
 ## Decision Rationale
 
-**Go + Echo** was chosen over Node.js and Kotlin/JVM for the backend API based on:
+**Go + Gin** was chosen over Node.js and Kotlin/JVM for the backend API based on:
 - Native compilation to single static binary: 10-25 MB Docker images
 - Startup time under 50ms, RAM usage 5-10 MB at idle
 - Trivial ARM64 cross-compilation for Raspberry Pi / edge deployment
@@ -16,7 +16,7 @@
 | # | Component | Version | License | Purpose | SaaS-Safe? |
 |---|-----------|---------|---------|---------|------------|
 | 1 | **Go** | 1.23.x | BSD-3-Clause | Backend API language | YES |
-| 2 | **Echo** | v4.13.x | MIT | HTTP framework | YES |
+| 2 | **Gin** | v1.10.x | MIT | HTTP framework | YES |
 | 3 | **grpc-go** | 1.70.x | Apache 2.0 | Go <-> Python communication | YES |
 | 4 | **pgx** | v5.7.x | MIT | PostgreSQL driver | YES |
 | 5 | **sqlc** | 1.28.x | MIT | Type-safe SQL code generation | YES |

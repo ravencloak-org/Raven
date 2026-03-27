@@ -13,7 +13,7 @@
 
 | Label | Description |
 |-------|-------------|
-| `backend` | Go API server (Echo, gRPC client, middleware) |
+| `backend` | Go API server (Gin, gRPC client, middleware) |
 | `ai-worker` | Python AI worker (gRPC server, ML pipelines) |
 | `frontend` | Vue.js + Tailwind Plus admin dashboard and web component |
 | `infra` | Docker Compose, Traefik, database, Valkey, SeaweedFS |
@@ -32,19 +32,19 @@
 
 ---
 
-#### Task 1.1: Initialize Go Module with Echo and Project Structure
+#### Task 1.1: Initialize Go Module with Gin and Project Structure
 
 - **Milestone:** Project Scaffolding
 - **Priority:** P0 (blocker)
 - **Estimate:** 2 days
 - **Dependencies:** None
-- **Description:** Initialize the Go module (`github.com/raven-platform/raven`) with Echo v4 web framework. Set up the canonical Go project layout:
+- **Description:** Initialize the Go module (`github.com/raven-platform/raven`) with Gin web framework. Set up the canonical Go project layout:
   ```
   cmd/
     api/          -- main.go entry point for the Go API server
   internal/
     config/       -- viper-based configuration loading
-    handler/      -- Echo HTTP handlers (organized by domain)
+    handler/      -- Gin HTTP handlers (organized by domain)
     middleware/    -- JWT, RBAC, rate limiting, tenant resolution
     model/        -- domain types and database models
     repository/   -- database access layer (pgx + sqlc generated)
@@ -56,7 +56,7 @@
   migrations/     -- goose SQL migration files
   proto/          -- protobuf definitions (shared with Python worker)
   ```
-  Install core dependencies: Echo v4, pgx v5, go-redis v9, viper, goose v3, grpc-go. Configure `air` for hot-reload during development. Create a health check endpoint (`GET /healthz`) that returns 200.
+  Install core dependencies: Gin, pgx v5, go-redis v9, viper, goose v3, grpc-go. Configure `air` for hot-reload during development. Create a health check endpoint (`GET /healthz`) that returns 200.
 - **Acceptance criteria:**
   - `go build ./cmd/api` produces a working binary
   - `air` hot-reload works in development
@@ -289,7 +289,7 @@
   1. **Go API:**
      - Install `go.opentelemetry.io/otel` SDK
      - Create an OTel initialization function that configures a TracerProvider and MeterProvider
-     - Add Echo middleware that auto-creates spans per request (method, path, status code)
+     - Add Gin middleware that auto-creates spans per request (method, path, status code)
      - Add trace context propagation to gRPC client calls
      - OTLP exporter configurable via environment variable (`OTEL_EXPORTER_OTLP_ENDPOINT`)
   2. **Python Worker:**
@@ -320,7 +320,7 @@
 - **Priority:** P0 (blocker)
 - **Estimate:** 2 days
 - **Dependencies:** 1.1, 1.6
-- **Description:** Implement Echo middleware that:
+- **Description:** Implement Gin middleware that:
   1. Extracts the Bearer token from the `Authorization` header
   2. Validates the JWT signature against Keycloak's JWKS endpoint (`/auth/realms/raven/protocol/openid-connect/certs`), with JWKS response cached (TTL 1 hour, refresh on signature failure)
   3. Validates standard claims: `iss` (must match Keycloak issuer), `aud`, `exp`, `nbf`
@@ -353,7 +353,7 @@
   - `DELETE /api/v1/orgs/:org_id` -- soft-delete organization (set status to `deactivated`)
   - `GET /api/v1/orgs/:org_id/members` -- list organization members
 
-  Use sqlc for type-safe database queries. Implement the repository and service layers following the project structure. Slugs are auto-generated from name (URL-safe, unique). Input validation via Echo's binder + custom validators.
+  Use sqlc for type-safe database queries. Implement the repository and service layers following the project structure. Slugs are auto-generated from name (URL-safe, unique). Input validation via Gin's binding + custom validators.
 - **Acceptance criteria:**
   - All CRUD operations work with valid JWT
   - Slug is auto-generated and unique
@@ -454,7 +454,7 @@
 - **Priority:** P0 (blocker)
 - **Estimate:** 2 days
 - **Dependencies:** 2.1
-- **Description:** Implement RBAC middleware as a reusable Echo middleware that enforces the four-layer access model:
+- **Description:** Implement RBAC middleware as a reusable Gin middleware that enforces the four-layer access model:
   1. **Org-level:** `org_admin` has full access to all resources within the org
   2. **Workspace-level:** `owner` > `admin` > `member` > `viewer`
   3. **Resource-level:** certain actions require minimum roles (e.g., delete KB requires `admin`)
@@ -515,14 +515,14 @@
 - **Estimate:** 1 day
 - **Dependencies:** 1.1
 - **Description:** Configure API infrastructure:
-  1. **API versioning:** All routes under `/api/v1/` group in Echo. Document versioning policy (v1 supported for minimum 12 months after v2 release). Add `Sunset` header support for future deprecation.
-  2. **CORS:** Echo CORS middleware configured with:
+  1. **API versioning:** All routes under `/api/v1/` group in Gin. Document versioning policy (v1 supported for minimum 12 months after v2 release). Add `Sunset` header support for future deprecation.
+  2. **CORS:** Gin CORS middleware configured with:
      - Default allowed origins: admin dashboard URL
      - Per-API-key allowed origins (from `api_keys.allowed_domains`)
      - Allowed methods: GET, POST, PUT, DELETE, OPTIONS
      - Allowed headers: Authorization, Content-Type, X-API-Key
      - Max age: 3600s
-  3. **Security headers** via Traefik middleware or Echo middleware:
+  3. **Security headers** via Traefik middleware or Gin middleware:
      - `Strict-Transport-Security: max-age=31536000; includeSubDomains`
      - `X-Content-Type-Options: nosniff`
      - `X-Frame-Options: DENY`
