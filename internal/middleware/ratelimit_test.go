@@ -1,7 +1,9 @@
 package middleware
 
 import (
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -164,7 +166,8 @@ func TestRateLimitWindowReset(t *testing.T) {
 }
 
 // TestRateLimitValkeyFailureFallback verifies that when Valkey is unavailable
-// the middleware admits the request (fail-open) rather than returning an error.
+// the middleware admits the request (fail-open) rather than returning an error,
+// and that all required X-RateLimit-* headers are still present on the response.
 func TestRateLimitValkeyFailureFallback(t *testing.T) {
 	rl, mr := newTestRateLimiter(t)
 
@@ -179,6 +182,15 @@ func TestRateLimitValkeyFailureFallback(t *testing.T) {
 	w := doRequest(r)
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected fail-open (200) when Valkey is unavailable, got %d", w.Code)
+	}
+	if w.Header().Get("X-RateLimit-Limit") == "" {
+		t.Error("expected X-RateLimit-Limit header in fail-open path")
+	}
+	if w.Header().Get("X-RateLimit-Remaining") == "" {
+		t.Error("expected X-RateLimit-Remaining header in fail-open path")
+	}
+	if w.Header().Get("X-RateLimit-Reset") == "" {
+		t.Error("expected X-RateLimit-Reset header in fail-open path")
 	}
 }
 
@@ -301,16 +313,18 @@ func TestByOrgID(t *testing.T) {
 	}
 }
 
-// TestByAPIKey verifies the ByAPIKey convenience wrapper hashes the raw key.
+// TestByAPIKey verifies the ByAPIKey convenience wrapper hashes the raw key
+// before using it as the Valkey key, and enforces rate limiting correctly.
 func TestByAPIKey(t *testing.T) {
-	rl, _ := newTestRateLimiter(t)
-
+	const rawKey = "raw-secret-key-123"
 	const limit = 2
+
+	rl, mr := newTestRateLimiter(t)
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.Use(func(c *gin.Context) {
-		c.Set(ContextKeyAPIKey, "raw-secret-key-123")
+		c.Set(ContextKeyAPIKey, rawKey)
 		c.Next()
 	})
 	r.Use(ByAPIKey(rl, limit))
@@ -325,6 +339,28 @@ func TestByAPIKey(t *testing.T) {
 	w := doRequest(r)
 	if w.Code != http.StatusTooManyRequests {
 		t.Fatalf("ByAPIKey: expected 429 after limit, got %d", w.Code)
+	}
+
+	// Assert that the raw key was NOT stored in Valkey, and that the hashed
+	// form IS present — confirming ByAPIKey hashes the key before use.
+	hash := sha256.Sum256([]byte(rawKey))
+	expectedValkeyKey := keyPrefixAPIKey + fmt.Sprintf("%x", hash)
+
+	allKeys := mr.Keys()
+	for _, k := range allKeys {
+		if k == rawKey {
+			t.Errorf("raw API key %q must not appear as a Valkey key", rawKey)
+		}
+	}
+	found := false
+	for _, k := range allKeys {
+		if k == expectedValkeyKey {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected hashed Valkey key %q to be present; keys in store: %v", expectedValkeyKey, allKeys)
 	}
 }
 

@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/ravencloak-org/Raven/internal/config"
 	"github.com/ravencloak-org/Raven/internal/handler"
@@ -49,6 +51,14 @@ func main() {
 	// Set Gin mode
 	gin.SetMode(cfg.Server.Mode)
 
+	// Initialise Valkey client for rate limiting.
+	valkeyClient := redis.NewClient(&redis.Options{
+		Addr: cfg.Valkey.URL,
+	})
+
+	// Build rate limiter using config-driven limits.
+	rl := middleware.NewRateLimiter(valkeyClient, slog.Default())
+
 	// Create router
 	router := gin.Default()
 
@@ -57,6 +67,10 @@ func main() {
 
 	// Register error handler middleware
 	router.Use(apierror.ErrorHandler())
+
+	// Apply rate limiting by user ID and org ID using config-driven defaults.
+	router.Use(middleware.ByUserID(rl, cfg.RateLimit.DefaultUserLimit))
+	router.Use(middleware.ByOrgID(rl, cfg.RateLimit.DefaultOrgLimit))
 
 	// Register routes
 	router.GET("/healthz", handler.HealthCheck)

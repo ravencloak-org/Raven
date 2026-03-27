@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -35,9 +36,12 @@ const (
 // ARGV[2] — window size in milliseconds
 // ARGV[3] — request limit
 //
-// Returns a two-element array: {current_count, remaining}.
+// Returns a three-element array: {current_count, remaining, oldest_ms}.
 //   - Admitted:  remaining >= 0  (0 means the last slot was just consumed)
 //   - Rejected:  remaining == -1 (count >= limit, request was NOT recorded)
+//   - oldest_ms: Unix timestamp in milliseconds of the oldest surviving hit,
+//     or 0 if the set is empty. Callers use this to compute the accurate reset
+//     time: oldest_ms + window_ms gives the moment the oldest hit expires.
 const slidingWindowLua = `
 local key    = KEYS[1]
 local now    = tonumber(ARGV[1])
@@ -45,12 +49,17 @@ local window = tonumber(ARGV[2])
 local limit  = tonumber(ARGV[3])
 redis.call('ZREMRANGEBYSCORE', key, 0, now - window)
 local count = redis.call('ZCARD', key)
+local oldest = 0
+local oldest_entry = redis.call('ZRANGE', key, 0, 0, 'WITHSCORES')
+if #oldest_entry > 0 then
+  oldest = tonumber(oldest_entry[2])
+end
 if count < limit then
   redis.call('ZADD', key, now, now .. math.random())
   redis.call('EXPIRE', key, math.ceil(window/1000) + 1)
-  return {count + 1, limit - count - 1}
+  return {count + 1, limit - count - 1, oldest}
 end
-return {count, -1}
+return {count, -1, oldest}
 `
 
 // RateLimiter holds the Valkey client and logger used by rate-limit middleware.
@@ -73,6 +82,10 @@ type rateLimitResult struct {
 	count     int64
 	remaining int64
 	admitted  bool
+	// resetAt is the Unix timestamp (seconds) at which the oldest in-window hit
+	// expires, i.e. when the rate-limit counter first drops.  Falls back to
+	// now+window when Valkey is unavailable or the window is empty.
+	resetAt int64
 }
 
 // redactKey returns a safe representation of a rate-limit key for logging.
@@ -91,6 +104,7 @@ func redactKey(key string) string {
 // error is logged as a warning.
 func (rl *RateLimiter) check(ctx context.Context, key string, limit int, windowMs int64) rateLimitResult {
 	now := time.Now().UnixMilli()
+	fallbackResetAt := time.Now().Add(time.Duration(windowMs) * time.Millisecond).Unix()
 
 	// Apply a short timeout to the Valkey call so a slow/unavailable server
 	// does not stall the request indefinitely.
@@ -111,23 +125,39 @@ func (rl *RateLimiter) check(ctx context.Context, key string, limit int, windowM
 			slog.String("error", err.Error()),
 		)
 		// Fail-open: treat as admitted with full remaining quota.
-		return rateLimitResult{count: 0, remaining: int64(limit), admitted: true}
+		return rateLimitResult{count: 0, remaining: int64(limit), admitted: true, resetAt: fallbackResetAt}
 	}
 
 	count := res[0]
 	remaining := res[1]
+	oldestMs := res[2]
+
+	// Compute the precise reset time: the oldest surviving hit expires at
+	// oldest_ms + window_ms.  When the window is empty (oldestMs == 0) fall
+	// back to now + window.
+	var resetAt int64
+	if oldestMs > 0 {
+		resetAt = (oldestMs + windowMs) / 1000
+	} else {
+		resetAt = fallbackResetAt
+	}
+
 	// remaining == -1 is the sentinel the Lua script uses for "rejected".
 	admitted := remaining >= 0
 	if remaining < 0 {
 		remaining = 0 // clamp for header display
 	}
-	return rateLimitResult{count: count, remaining: remaining, admitted: admitted}
+	return rateLimitResult{count: count, remaining: remaining, admitted: admitted, resetAt: resetAt}
 }
 
 // fallbackKey builds a rate-limit key from the request's remote address so
 // that anonymous or unidentified callers are still rate-limited rather than
 // silently bypassing the limiter.
 const keyPrefixFallback = "raven:rl:fallback:"
+
+// fallbackLogSeen deduplicates the "identity lookup missed" warning so it fires
+// at most once per IP per 5-minute window rather than on every request.
+var fallbackLogSeen sync.Map
 
 // RateLimitMiddleware is the generic Gin middleware factory.
 //
@@ -141,28 +171,46 @@ func RateLimitMiddleware(rl *RateLimiter, limit int, keyFn func(*gin.Context) st
 	return func(c *gin.Context) {
 		key := keyFn(c)
 		if key == "" {
-			// Identity lookup returned no key — log a warning and fall back to
-			// the client IP so the limiter still applies.  This avoids silently
-			// failing open for unauthenticated or misconfigured callers.
+			// Identity lookup returned no key — fall back to the client IP so
+			// the limiter still applies.  Log a warning, but deduplicate per IP
+			// to avoid flooding logs under sustained anonymous traffic.
 			ip := c.ClientIP()
-			rl.logger.WarnContext(c.Request.Context(),
-				"rate limiter: identity lookup missed, using IP fallback",
-				slog.String("ip", ip),
-				slog.String("path", c.FullPath()),
-			)
+			const logTTL = 5 * time.Minute
+			now := time.Now()
+			if v, loaded := fallbackLogSeen.LoadOrStore(ip, now); loaded {
+				if now.Sub(v.(time.Time)) >= logTTL {
+					// Entry is stale — refresh and log again.
+					fallbackLogSeen.Store(ip, now)
+					rl.logger.WarnContext(c.Request.Context(),
+						"rate limiter: identity lookup missed, using IP fallback",
+						slog.String("ip", ip),
+						slog.String("path", c.FullPath()),
+					)
+				}
+				// else: recently logged for this IP — stay silent
+			} else {
+				// First time we've seen this IP fall back — log immediately.
+				rl.logger.WarnContext(c.Request.Context(),
+					"rate limiter: identity lookup missed, using IP fallback",
+					slog.String("ip", ip),
+					slog.String("path", c.FullPath()),
+				)
+			}
 			key = keyPrefixFallback + ip
 		}
 
-		resetAt := time.Now().Add(time.Minute).Unix()
 		result := rl.check(c.Request.Context(), key, limit, windowMs)
 
 		// Always set informational headers.
 		c.Header("X-RateLimit-Limit", strconv.Itoa(limit))
 		c.Header("X-RateLimit-Remaining", strconv.FormatInt(result.remaining, 10))
-		c.Header("X-RateLimit-Reset", strconv.FormatInt(resetAt, 10))
+		c.Header("X-RateLimit-Reset", strconv.FormatInt(result.resetAt, 10))
 
 		if !result.admitted {
-			retryAfter := int64(60) // worst-case: a full window
+			retryAfter := result.resetAt - time.Now().Unix()
+			if retryAfter < 1 {
+				retryAfter = 1
+			}
 			c.Header("Retry-After", strconv.FormatInt(retryAfter, 10))
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
 				"error":       "rate_limit_exceeded",
