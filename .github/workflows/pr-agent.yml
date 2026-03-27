@@ -22,6 +22,7 @@ jobs:
     name: PR-Agent Review
     steps:
       - name: PR-Agent Auto Review
+        continue-on-error: true
         uses: qodo-ai/pr-agent@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
