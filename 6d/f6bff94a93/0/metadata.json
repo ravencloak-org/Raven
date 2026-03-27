@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "6df6bff94a93",
+  "session_id": "25edfaf0-87c0-4b2a-b464-1825d1e95d71",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-27T10:20:32.640332Z",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/superpowers/specs/2026-03-27-raven-platform-design-final.md",
+    "docs/superpowers/specs/2026-03-27-raven-platform-design.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "147e24f9-f160-423c-aa6d-8f56ed9b2bca",
+  "checkpoint_transcript_start": 532,
+  "transcript_lines_at_start": 532,
+  "token_usage": {
+    "input_tokens": 19,
+    "cache_creation_tokens": 11376,
+    "cache_read_tokens": 1619322,
+    "output_tokens": 6005,
+    "api_call_count": 11
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-27T10:20:32.516449Z",
+    "agent_lines": 85,
+    "human_added": 2784,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2869,
+    "agent_percentage": 2.9627047751829907
+  }
+}
