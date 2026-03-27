@@ -85,7 +85,7 @@ func startJWKSServer(t *testing.T, kp *rsaKeyPair) *httptest.Server {
 // keycloakCfg returns a KeycloakConfig whose IssuerURL points at the given
 // httptest server, using the server URL directly as issuer.
 func keycloakCfg(issuerURL string) *config.KeycloakConfig {
-	return &config.KeycloakConfig{IssuerURL: issuerURL, Audience: "raven"}
+	return &config.KeycloakConfig{IssuerURL: issuerURL, Audience: "raven", APIKeyEnabled: true}
 }
 
 // setupRouter wires a test Gin router with the JWT middleware and a simple
@@ -230,6 +230,19 @@ func TestJWTMiddleware(t *testing.T) {
 			},
 			wantStatus: http.StatusOK,
 			wantUserID: "api-key-subject-placeholder",
+		},
+		{
+			name: "wrong audience returns invalid_token",
+			buildRequest: func() *http.Request {
+				claims := validClaims(issuerURL, "user-bad-aud")
+				claims.Audience = jwt.ClaimStrings{"wrong-audience"}
+				tok := kp.sign(t, claims)
+				req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+				req.Header.Set("Authorization", "Bearer "+tok)
+				return req
+			},
+			wantStatus:  http.StatusUnauthorized,
+			wantErrCode: "invalid_token",
 		},
 		{
 			name: "empty Bearer token returns invalid_token",

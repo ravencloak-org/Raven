@@ -20,6 +20,10 @@ type Config struct {
 type KeycloakConfig struct {
 	IssuerURL string `mapstructure:"issuer_url"`
 	Audience  string `mapstructure:"audience"`
+	// APIKeyEnabled enables the unvalidated API-key stub (see issue-24).
+	// Disabled by default; set RAVEN_KEYCLOAK_APIKEYENABLED=true only in
+	// development environments until the real DB-backed lookup is implemented.
+	APIKeyEnabled bool `mapstructure:"api_key_enabled"`
 }
 
 // ServerConfig holds HTTP server settings.

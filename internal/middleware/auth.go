@@ -99,8 +99,10 @@ func (c *jwksCache) keyFunc(forceRefresh bool) jwt.Keyfunc {
 	c.mu.RUnlock()
 
 	if forceRefresh || expired {
-		// Refresh in place; ignore error — continue with stale keys.
-		_ = c.refresh()
+		// Refresh in place; log any error but continue with stale keys.
+		if err := c.refresh(); err != nil {
+			log.Printf("[WARN] JWT middleware: JWKS refresh from %s failed: %v — continuing with cached keys", c.jwksURL, err)
+		}
 		c.mu.RLock()
 		kf = c.keyfunc
 		c.mu.RUnlock()
@@ -130,11 +132,24 @@ func (c *jwksCache) keyFunc(forceRefresh bool) jwt.Keyfunc {
 func JWTMiddleware(cfg *config.KeycloakConfig) gin.HandlerFunc {
 	jwksURL := cfg.IssuerURL + "/protocol/openid-connect/certs"
 
-	cache, err := newJWKSCache(jwksURL)
+	const maxAttempts = 3
+	var (
+		cache *jwksCache
+		err   error
+	)
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		cache, err = newJWKSCache(jwksURL)
+		if err == nil {
+			break
+		}
+		log.Printf("[WARN] JWT middleware: JWKS fetch attempt %d/%d from %s failed: %v", attempt, maxAttempts, jwksURL, err)
+		if attempt < maxAttempts {
+			time.Sleep(2 * time.Second)
+		}
+	}
 	if err != nil {
-		// If JWKS is unavailable at startup, log a clear warning and serve 503 on
-		// every protected request. This typically means Keycloak is not reachable.
-		log.Printf("[WARN] JWT middleware: initial JWKS fetch from %s failed: %v — all protected endpoints will return 503 until the service restarts with a reachable Keycloak instance", jwksURL, err)
+		// All attempts exhausted — serve 503 on every protected request until restart.
+		log.Printf("[ERROR] JWT middleware: all %d JWKS fetch attempts failed; all protected endpoints will return 503", maxAttempts)
 		return func(c *gin.Context) {
 			c.AbortWithStatusJSON(http.StatusServiceUnavailable, authError{Error: "jwks_unavailable"})
 		}
@@ -143,6 +158,10 @@ func JWTMiddleware(cfg *config.KeycloakConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// --- Detect auth method ---
 		if apiKey := c.GetHeader("X-API-Key"); apiKey != "" {
+			if !cfg.APIKeyEnabled {
+				abortUnauthorized(c, "api_key_auth_disabled")
+				return
+			}
 			handleAPIKey(c, apiKey)
 			return
 		}
@@ -208,12 +227,10 @@ func parseJWT(rawToken, issuerURL, audience string, cache *jwksCache, forceRefre
 
 // isKeyError reports whether the error is likely caused by an unknown/unresolvable
 // key or a stale key (suggesting a JWKS rotation rather than a malformed token).
-// Signature-invalid errors are included because a key rotation can produce them
-// when the cached JWKS is stale.
+// ErrTokenSignatureInvalid is included because a key rotation can produce it when
+// the cached JWKS is stale.
 func isKeyError(err error) bool {
 	return strings.Contains(err.Error(), "unable to find") ||
-		strings.Contains(err.Error(), "key") ||
-		strings.Contains(err.Error(), "signature") ||
 		errors.Is(err, jwt.ErrTokenUnverifiable) ||
 		errors.Is(err, jwt.ErrTokenSignatureInvalid)
 }
@@ -233,6 +250,10 @@ func abortUnauthorized(c *gin.Context, code string) {
 	c.AbortWithStatusJSON(http.StatusUnauthorized, authError{Error: code})
 }
 
+// apiKeyWarnOnce ensures the stub warning is logged at most once per process
+// to avoid flooding structured log sinks.
+var apiKeyWarnOnce sync.Once
+
 // handleAPIKey stubs the API-key authentication path.
 // The lookup against the database is not yet implemented; a placeholder
 // Claims struct is stored in the context so downstream handlers can read it.
@@ -242,7 +263,9 @@ func abortUnauthorized(c *gin.Context, code string) {
 //
 // TODO(issue-24): replace stub with real DB lookup and key hashing.
 func handleAPIKey(c *gin.Context, _ string) {
-	log.Printf("[WARN] API key authentication is not yet validated — stub in use (see issue-24)")
+	apiKeyWarnOnce.Do(func() {
+		log.Printf("[WARN] API key authentication is not yet validated — stub in use (see issue-24)")
+	})
 	stub := &Claims{}
 	stub.Subject = "api-key-subject-placeholder"
 
