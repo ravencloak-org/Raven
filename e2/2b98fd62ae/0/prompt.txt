@@ -1,0 +1,269 @@
+Let's brainstorm and check if we can use a low-level Golang feature called as EBPF: I am attaching a link to an article that explains it. Let me know if that can be of any use to our current Raven project and, if so, how we will benefit from it. https://sazak.io/articles/an-applied-introduction-to-ebpf-with-go-2024-06-06
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.5/skills/brainstorming
+
+# Brainstorming Ideas Into Designs
+
+Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
+
+Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design and get user approval.
+
+<HARD-GATE>
+Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
+</HARD-GATE>
+
+## Anti-Pattern: "This Is Too Simple To Need A Design"
+
+Every project goes through this process. A todo list, a single-function utility, a config change — all of them. "Simple" projects are where unexamined assumptions cause the most wasted work. The design can be short (a few sentences for truly simple projects), but you MUST present it and get approval.
+
+## Checklist
+
+You MUST create a task for each of these items and complete them in order:
+
+1. **Explore project context** — check files, docs, recent commits
+2. **Offer visual companion** (if topic will involve visual questions) — this is its own message, not combined with a clarifying question. See the Visual Companion section below.
+3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
+4. **Propose 2-3 approaches** — with trade-offs and your recommendation
+5. **Present design** — in sections scaled to their complexity, get user approval after each section
+6. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit
+7. **Spec review loop** — dispatch spec-document-reviewer subagent with precisely crafted review context (never your session history); fix issues and re-dispatch until approved (max 3 iterations, then surface to human)
+8. **User reviews written spec** — ask user to review the spec file before proceeding
+9. **Transition to implementation** — invoke writing-plans skill to create implementation plan
+
+## Process Flow
+
+```dot
+digraph brainstorming {
+    "Explore project context" [shape=box];
+    "Visual questions ahead?" [shape=diamond];
+    "Offer Visual Companion\n(own message, no other content)" [shape=box];
+    "Ask clarifying questions" [shape=box];
+    "Propose 2-3 approaches" [shape=box];
+    "Present design sections" [shape=box];
+    "User approves design?" [shape=diamond];
+    "Write design doc" [shape=box];
+    "Spec review loop" [shape=box];
+    "Spec review passed?" [shape=diamond];
+    "User reviews spec?" [shape=diamond];
+    "Invoke writing-plans skill" [shape=doublecircle];
+
+    "Explore project context" -> "Visual questions ahead?";
+    "Visual questions ahead?" -> "Offer Visual Companion\n(own message, no other content)" [label="yes"];
+    "Visual questions ahead?" -> "Ask clarifying questions" [label="no"];
+    "Offer Visual Companion\n(own message, no other content)" -> "Ask clarifying questions";
+    "Ask clarifying questions" -> "Propose 2-3 approaches";
+    "Propose 2-3 approaches" -> "Present design sections";
+    "Present design sections" -> "User approves design?";
+    "User approves design?" -> "Present design sections" [label="no, revise"];
+    "User approves design?" -> "Write design doc" [label="yes"];
+    "Write design doc" -> "Spec review loop";
+    "Spec review loop" -> "Spec review passed?";
+    "Spec review passed?" -> "Spec review loop" [label="issues found,\nfix and re-dispatch"];
+    "Spec review passed?" -> "User reviews spec?" [label="approved"];
+    "User reviews spec?" -> "Write design doc" [label="changes requested"];
+    "User reviews spec?" -> "Invoke writing-plans skill" [label="approved"];
+}
+```
+
+**The terminal state is invoking writing-plans.** Do NOT invoke frontend-design, mcp-builder, or any other implementation skill. The ONLY skill you invoke after brainstorming is writing-plans.
+
+## The Process
+
+**Understanding the idea:**
+
+- Check out the current project state first (files, docs, recent commits)
+- Before asking detailed questions, assess scope: if the request describes multiple independent subsystems (e.g., "build a platform with chat, file storage, billing, and analytics"), flag this immediately. Don't spend questions refining details of a project that needs to be decomposed first.
+- If the project is too large for a single spec, help the user decompose into sub-projects: what are the independent pieces, how do they relate, what order should they be built? Then brainstorm the first sub-project through the normal design flow. Each sub-project gets its own spec → plan → implementation cycle.
+- For appropriately-scoped projects, ask questions one at a time to refine the idea
+- Prefer multiple choice questions when possible, but open-ended is fine too
+- Only one question per message - if a topic needs more exploration, break it into multiple questions
+- Focus on understanding: purpose, constraints, success criteria
+
+**Exploring approaches:**
+
+- Propose 2-3 different approaches with trade-offs
+- Present options conversationally with your recommendation and reasoning
+- Lead with your recommended option and explain why
+
+**Presenting the design:**
+
+- Once you believe you understand what you're building, present the design
+- Scale each section to its complexity: a few sentences if straightforward, up to 200-300 words if nuanced
+- Ask after each section whether it looks right so far
+- Cover: architecture, components, data flow, error handling, testing
+- Be ready to go back and clarify if something doesn't make sense
+
+**Design for isolation and clarity:**
+
+- Break the system into smaller units that each have one clear purpose, communicate through well-defined interfaces, and can be understood and tested independently
+- For each unit, you should be able to answer: what does it do, how do you use it, and what does it depend on?
+- Can someone understand what a unit does without reading its internals? Can you change the internals without breaking consumers? If not, the boundaries need work.
+- Smaller, well-bounded units are also easier for you to work with - you reason better about code you can hold in context at once, and your edits are more reliable when files are focused. When a file grows large, that's often a signal that it's doing too much.
+
+**Working in existing codebases:**
+
+- Explore the current structure before proposing changes. Follow existing patterns.
+- Where existing code has problems that affect the work (e.g., a file that's grown too large, unclear boundaries, tangled responsibilities), include targeted improvements as part of the design - the way a good developer improves code they're working in.
+- Don't propose unrelated refactoring. Stay focused on what serves the current goal.
+
+## After the Design
+
+**Documentation:**
+
+- Write the validated design (spec) to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
+  - (User preferences for spec location override this default)
+- Use elements-of-style:writing-clearly-and-concisely skill if available
+- Commit the design document to git
+
+**Spec Review Loop:**
+After writing the spec document:
+
+1. Dispatch spec-document-reviewer subagent (see spec-document-reviewer-prompt.md)
+2. If Issues Found: fix, re-dispatch, repeat until Approved
+3. If loop exceeds 3 iterations, surface to human for guidance
+
+**User Review Gate:**
+After the spec review loop passes, ask the user to review the written spec before proceeding:
+
+> "Spec written and committed to `<path>`. Please review it and let me know if you want to make any changes before we start writing out the implementation plan."
+
+Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
+
+**Implementation:**
+
+- Invoke the writing-plans skill to create a detailed implementation plan
+- Do NOT invoke any other skill. writing-plans is the next step.
+
+## Key Principles
+
+- **One question at a time** - Don't overwhelm with multiple questions
+- **Multiple choice preferred** - Easier to answer than open-ended when possible
+- **YAGNI ruthlessly** - Remove unnecessary features from all designs
+- **Explore alternatives** - Always propose 2-3 approaches before settling
+- **Incremental validation** - Present design, get approval before moving on
+- **Be flexible** - Go back and clarify when something doesn't make sense
+
+## Visual Companion
+
+A browser-based companion for showing mockups, diagrams, and visual options during brainstorming. Available as a tool — not a mode. Accepting the companion means it's available for questions that benefit from visual treatment; it does NOT mean every question goes through the browser.
+
+**Offering the companion:** When you anticipate that upcoming questions will involve visual content (mockups, layouts, diagrams), offer it once for consent:
+> "Some of what we're working on might be easier to explain if I can show it to you in a web browser. I can put together mockups, diagrams, comparisons, and other visuals as we go. This feature is still new and can be token-intensive. Want to try it? (Requires opening a local URL)"
+
+**This offer MUST be its own message.** Do not combine it with clarifying questions, context summaries, or any other content. The message should contain ONLY the offer above and nothing else. Wait for the user's response before continuing. If they decline, proceed with text-only brainstorming.
+
+**Per-question decision:** Even after the user accepts, decide FOR EACH QUESTION whether to use the browser or the terminal. The test: **would the user understand this better by seeing it than reading it?**
+
+- **Use the browser** for content that IS visual — mockups, wireframes, layout comparisons, architecture diagrams, side-by-side visual designs
+- **Use the terminal** for content that is text — requirements questions, conceptual choices, tradeoff lists, A/B/C/D text options, scope decisions
+
+A question about a UI topic is not automatically a visual question. "What does personality mean in this context?" is a conceptual question — use the terminal. "Which wizard layout works better?" is a visual question — use the browser.
+
+If they agree to the companion, read the detailed guide before proceeding:
+`skills/brainstorming/visual-companion.md`
+
+---
+
+Let's add the strongest fit and the strong fit, which is the eBPF-based
+  free filtering and kernel-level observability, as well as the security (or
+  drill 1, 2, and 3, all of them) in the good to have milestone or
+  something of that sort. Optimization, maybe, or not. Just note everything
+  down and keep it in the milestone so that we can pick it up later.
+
+---
+
+What is the utility difference between Open Observe and Cygnos? I know Open Observe does not use an OLAP database like ClickHouse, but is that actually beneficial when the files are residing in Open Observe and when we are collecting a lot of data? Will Cygnos, or any other wrapper stack on top of resilient OLAP like ClickHouse, make sense? Even if I don't go with Cygnos, there is a quick bit with Jaeger on top of it, which I am assuming still uses ClickHouse only. Will that be a better option? Let me know.
+
+---
+
+I wasn't thinking of Jaeger with ClickHouse as the community plugin, but there is some other software called QuickBit, which uses ClickHouse and also supports Jaeger. Just look into it. Running it on a Raspberry Pi is not the priority anyway. The server will be run on my cloud for the enterprise users. It's only for the experimental, self-hostable people. The Raspberry Pi will be an option, and even then they can choose not to install the observability stack or swap a particular observability stack with the OpenObserve or anything with a less memory footprint than that. That's up to the user, so we don't really have to care about running it on weak hardware.
+
+---
+
+Also, do you think, as data grows infinitely large, instead of Postgres DB, should we, at an enterprise level, think about adding ClickHouse and its vector capabilities? Which one would be faster, efficient, and something that can handle a lot of data? I'm thinking in that sense, because now that we can ingest any sort of data from our ingestion pipeline using parsers, OCRs, and crawlers, this can be used by educational institutions as well to ingest:
+- a whole research paper
+- a whole book
+- a whole curriculum
+- a whole particular course
+- a whole graduation course, if you may
+Then you can query anything and everything out of it, so this is more like Wikipedia but with a better interface.
+
+---
+
+Also, as an enterprise pro version, we can sell a take-it-to-your-own-premise enterprise version where In R Stack will run on the data that any particular company already has, instead of them having to manually upload their files, their database dumps, or whatever. Why don't we create something called connectors and allow these connectors to connect to a database, to a file storage system, to parakeet files, and you name it, whatever an enterprise software company will have? Based on that, the user can then choose what part of the data they want to use and what classification they want to create.
+
+Also, let's check if there is an industry standard way of connecting a large amount of data set. It could be probably a data warehouse or a data lake as well, but we need something smart that can be used to classify the data so that we know, while creating the knowledge graph, that this particular data in a database belongs to this particular organization or a particular feature. It could be any classification, right, so then the knowledge base could be created accordingly without having to then sit and label the data. If labeling is a part of data lakes and data warehouses, then we can just rely on that. If not, if we're just connecting to a ClickHouse database of the particular client, or if they have a postless database in which they have all their data, or a WordPress CRM in which they have all their brochures and whatnot, then we should create a simple classifier or an option to label that particular data, which the admin should be okay doing, since it won't be that huge like a data warehouse or a data lake.
+
+---
+
+Also, about the open telemetry option that I was saying about Jaeger with ClickHouse, it's called Quickwit, and I'm sharing a link for that as well. https://quickwit.io/blog/quickwit-0.5
+
+---
+
+And yes, let's brainstorm first. Everything we'll note down are the recommended things that we can pick up and then move forward after that.
+
+---
+
+Now let's first finish brainstorming. I understood that we can't use Quickwit. Let's go with OpenObserve for now, and maybe SigNoz; we'll reevaluate which UI I like better later. Again, the ClickHouse with Qubit Vector URL that I shared with you, will that make sense for vector embeddings or vector use purposes of ours when we grow to that scale and data level, as I mentioned earlier?
+
+---
+
+You can continue.
+
+---
+
+Actually, I would like to go with option C.
+
+---
+
+What is the trade-off if I'm using Postgres connector via Airbyte Postgres or ClickHouse or whatever?
+
+---
+
+Let's not go with native connectors to begin with. Let's just rely on Airbyte. I understand that the CDC will be handled by the right after log, but what about the existing data? How will that be pulled from Airbyte? Will that have a trade-off? By trade-off, I don't mean the compute or the CPU usage or the memory usage that will anyway be running in the clients or my powerful servers, right? That is not an issue, but is there any other speed trade-off or efficiency trade-off or data corruption issues that can happen via Airbyte? Those are the trade-offs that I want to know about.
+
+---
+
+Yeah, then it makes sense. For the later future roadmaps, when we go about doing Raven Pro, which means using Raven on clients' premises, or when we open up Airbyte and the plethora of connectors, all of these won't be one of the MVP, obviously. Let's move it to one of the roadmaps and then go to the next item that I had addressed.
+
+---
+
+Yeah, so you didn't tell me: does ClickHouse plus Qubit make sense for a larger vector embedding as a knowledge database? I am not talking about ClickHouse plus Qubit vector path for observability. I am not sure what that entails, but I was talking about a replacement for Postgres and ParadeDB, perhaps. Whenever the data scale becomes that huge, I am sure it won't be happening anytime soon, but I just like to explore the possibility.
+
+---
+
+Yeah, I'm not sure. Is there any industry standard way of labeling data? While I was pondering data warehouses and data lakes having a labeling feature built in, I'm not sure if it actually does. Just check if data lakes and data warehouses like Snowflake, etc., have their own internal labeling. I'm sure companies label their data, I mean, storing it in different tables in itself is labeling, but I am talking about something a little more on top of that. What if a single table can contain data for two particular different institutions and what not?
+
+---
+
+I don't want to build a labeling system on my own. We will just rely on something that is already there. If, by any chance, there are no labels that exist in a database like Postgres or something, then we can just give us a very simple labeling feature, or not even labeling. Basically, they will come up with the sections that they want to expose to their voice agent and their chatbot. Let's say it's a particular program in a college, so only MBA data needs to be enabled for voice and stuff, so then they can label it based on a column field for that institute or for that particular course or something like that, very simple.
+
+Otherwise, we will always use Snowflake tags, dbt data hub, and what they already provide, and then the admins just have to select it and map it to a particular topic that they want to expose.
+
+---
+
+I think Both would be great. I mean, if they are not tech-savvy, then I don't think they will go for YAML and stuff. If it is a self-hosting situation, then yeah, if they can self-host, I'm sure they can also configure it. You're correct that we will keep the labeling UI as part of the cloud-providing feature, and it will be paid. That is the next topic that I want to discuss with you: how are we going to separate some particular features only for paid enterprise users or pro users? How do we price, maybe according to the number of users that are there in the Keycloak? I don't think users will come to Keycloak, because strangers will be using the users on Keycloak; the users in Keycloak will only be the admin and the employees and stuff, so I don't know how we will monetize that.
+
+---
+
+Ah yeah, that sounds about great also, since we can't charge per seat for the strangers and since we will be deploying Google Analytics or maybe post hoc, which will actually capture the end user as well, so we can charge based on the user information that they need.
+- Users coming in being converted automatically will be one aspect of it; that's fine. The company gets the money if the user actually goes ahead and buys it, but let's say if the company wants to further pursue them and needs the user detail back from us, that should be paid.
+- If there is a web hook for when a lead is generated, that should be paid.
+- Blocking the use of a stranger user if there is a bad actor; then the ability to have blocked them should also be part of the paid services.
+- Also extra protection, like DDoS attack protections and all of those additional security benefits (not the simple ones, which should be available for everyone, but additional ones, like rules and all of those things, can also be paid).
+
+---
+
+Also, self-hosting, I think, would make sense for a startup or a place where their revenue is lower than a certain amount. If an enterprise company wants to self-host, then I think after a point it should be chargeable, because they will be eligible for upstream fixes and new features in the future as well. Why should it be free? Let's say we have a very smart SaaS company. I don't want them to just self-host and rip off my product entirely without having to pay me.
+
+---
+
+Yes, let's go ahead and do that. What tier boundaries do you want me to adjust? Can you explain?
+
+Also, I had a question about how we restrict these features if it is being self-forced. I am guessing the binary that is generated will have all of these features baked into it, right? If it is baked into it, then how do we stop it? Feature flag? I mean, any smart company can just clone my repo and remove those flags and run it for free. How does this work?
+
+---
+
+Then let's also set up the directories responsible for enterprise ones with different enterprise license and the other ones with the Apache or the MIT license that you suggested. Also update our milestones, the existing ones as well, because some of the features we are building right now might be a Pro or an Enterprise one. If any of them were existing, let's move it to the EE folder. If upcoming milestones and issues have any Pro feature or business feature, then let's develop it in the Enterprise Folder. Do that right now in a separate worktree.

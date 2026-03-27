@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "e22b98fd62ae",
+  "session_id": "49d36a53-fe40-4d89-b1b8-699b7e008f53",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-27T23:59:44.110458Z",
+  "branch": "fix/dockerfile-and-coderabbit",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/research/analytics-observability-research.md",
+    "docs/research/ebpf-edge-optimization.md",
+    "docs/research/monetization-strategy.md",
+    "docs/wiki/Roadmap.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "a92b1c41-b2fe-474a-836e-68e5f087ae3c",
+  "checkpoint_transcript_start": 305,
+  "transcript_lines_at_start": 305,
+  "token_usage": {
+    "input_tokens": 9,
+    "cache_creation_tokens": 16430,
+    "cache_read_tokens": 673287,
+    "output_tokens": 6655,
+    "api_call_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-27T23:59:44.01165Z",
+    "agent_lines": 0,
+    "human_added": 0,
+    "human_modified": 26,
+    "human_removed": 186,
+    "total_committed": 26,
+    "agent_percentage": 0
+  }
+}
