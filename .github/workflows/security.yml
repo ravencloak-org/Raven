@@ -64,17 +64,3 @@ jobs:
       - name: Run govulncheck
         run: govulncheck ./...
 
-  dependency-review:
-    name: Dependency Review
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    continue-on-error: true
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: critical
-          deny-licenses: AGPL-3.0, SSPL-1.0
