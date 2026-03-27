@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Pre-push hook: runs golangci-lint and go vet before pushing.
+# Install: make setup-hooks (or: git config core.hooksPath .githooks)
+set -euo pipefail
+
+echo "→ Running golangci-lint..."
+if ! golangci-lint run; then
+  echo "✗ Lint failed. Fix errors above before pushing."
+  exit 1
+fi
+
+echo "→ Running go vet..."
+if ! go vet ./...; then
+  echo "✗ go vet failed. Fix errors above before pushing."
+  exit 1
+fi
+
+echo "✓ All checks passed."
