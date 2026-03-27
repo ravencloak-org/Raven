@@ -1,0 +1,50 @@
+# Binaries
+/api
+/bin/
+/tmp/
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+.venv/
+venv/
+
+# Node
+node_modules/
+frontend/dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.secrets
+.env.local
+.env.*.local
+
+# Docker
+docker-compose.override.yml
+
+# Coverage
+coverage.txt
+coverage.html
+htmlcov/
+.coverage
