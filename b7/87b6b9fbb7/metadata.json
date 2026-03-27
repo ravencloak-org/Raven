@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "b787b6b9fbb7",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "contracts/openapi-stub.yaml",
+    "docs/research/ebpf-edge-optimization.md",
+    "docs/superpowers/specs/2026-03-28-three-stream-parallel-development-design.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b7/87b6b9fbb7/0/metadata.json",
+      "transcript": "/b7/87b6b9fbb7/0/full.jsonl",
+      "context": "/b7/87b6b9fbb7/0/context.md",
+      "content_hash": "/b7/87b6b9fbb7/0/content_hash.txt",
+      "prompt": "/b7/87b6b9fbb7/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 13,
+    "cache_creation_tokens": 14454,
+    "cache_read_tokens": 906276,
+    "output_tokens": 7772,
+    "api_call_count": 7
+  }
+}
