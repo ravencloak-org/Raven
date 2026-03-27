@@ -11,17 +11,16 @@ linters:
     - staticcheck
     - ineffassign
     - revive
-
-linters-settings:
-  revive:
-    rules:
-      - name: exported
-      - name: blank-imports
-      - name: context-as-argument
-      - name: error-return
-      - name: error-strings
-      - name: increment-decrement
-      - name: var-naming
+  settings:
+    revive:
+      rules:
+        - name: exported
+        - name: blank-imports
+        - name: context-as-argument
+        - name: error-return
+        - name: error-strings
+        - name: increment-decrement
+        - name: var-naming
 
 issues:
   max-issues-per-linter: 0
