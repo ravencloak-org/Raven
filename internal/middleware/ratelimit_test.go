@@ -43,12 +43,6 @@ func doRequest(r *gin.Engine) *httptest.ResponseRecorder {
 	return w
 }
 
-// doRequestWithContext fires a GET /test, pre-setting gin context values via a
-// setup middleware.
-func doRequestWithContext(r *gin.Engine) *httptest.ResponseRecorder {
-	return doRequest(r)
-}
-
 // ── TestRateLimitBasic ───────────────────────────────────────────────────────
 
 // TestRateLimitBasic verifies that requests under the limit are admitted and
