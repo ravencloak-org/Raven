@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "f4dfa7d2215c",
+  "session_id": "25edfaf0-87c0-4b2a-b464-1825d1e95d71",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-27T15:58:53.407979Z",
+  "branch": "feat/cloudflare-pages-deployment",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/go.yml",
+    ".github/workflows/pr-agent.yml",
+    ".github/workflows/security.yml",
+    ".golangci.yml"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "84a25e9a-0b69-44d4-9fd9-9344d2e5e713",
+  "checkpoint_transcript_start": 2091,
+  "transcript_lines_at_start": 2091,
+  "token_usage": {
+    "input_tokens": 21,
+    "cache_creation_tokens": 37279,
+    "cache_read_tokens": 1766685,
+    "output_tokens": 7973,
+    "api_call_count": 15
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-27T15:58:53.055573Z",
+    "agent_lines": 5,
+    "human_added": 45823,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 45828,
+    "agent_percentage": 0.010910360478310203
+  }
+}

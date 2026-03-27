@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "f4dfa7d2215c",
+  "strategy": "manual-commit",
+  "branch": "feat/cloudflare-pages-deployment",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/go.yml",
+    ".github/workflows/pr-agent.yml",
+    ".github/workflows/security.yml",
+    ".golangci.yml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f4/dfa7d2215c/0/metadata.json",
+      "transcript": "/f4/dfa7d2215c/0/full.jsonl",
+      "context": "/f4/dfa7d2215c/0/context.md",
+      "content_hash": "/f4/dfa7d2215c/0/content_hash.txt",
+      "prompt": "/f4/dfa7d2215c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 21,
+    "cache_creation_tokens": 37279,
+    "cache_read_tokens": 1766685,
+    "output_tokens": 7973,
+    "api_call_count": 15
+  }
+}
