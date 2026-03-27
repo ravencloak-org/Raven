@@ -5,6 +5,7 @@ import "time"
 // KBStatus represents the lifecycle state of a knowledge base.
 type KBStatus string
 
+// KBStatusActive and KBStatusArchived are the valid lifecycle states for a KnowledgeBase.
 const (
 	KBStatusActive   KBStatus = "active"
 	KBStatusArchived KBStatus = "archived"

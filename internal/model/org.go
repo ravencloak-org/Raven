@@ -5,6 +5,7 @@ import "time"
 // OrgStatus represents the lifecycle state of an organisation.
 type OrgStatus string
 
+// OrgStatusActive, OrgStatusSuspended, and OrgStatusDeactivated are the valid lifecycle states for an Organization.
 const (
 	OrgStatusActive      OrgStatus = "active"
 	OrgStatusSuspended   OrgStatus = "suspended"

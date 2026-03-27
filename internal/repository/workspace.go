@@ -108,7 +108,7 @@ func (r *WorkspaceRepository) Update(ctx context.Context, tx pgx.Tx, orgID, wsID
 	return ws, nil
 }
 
-// SoftDelete deletes a workspace (hard delete; workspace data cascades).
+// Delete removes a workspace (hard delete; workspace data cascades).
 func (r *WorkspaceRepository) Delete(ctx context.Context, tx pgx.Tx, orgID, wsID string) error {
 	tag, err := tx.Exec(ctx,
 		`DELETE FROM workspaces WHERE id = $1 AND org_id = $2`,

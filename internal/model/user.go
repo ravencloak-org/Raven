@@ -5,6 +5,7 @@ import "time"
 // UserStatus represents the lifecycle state of a user.
 type UserStatus string
 
+// UserStatusActive and UserStatusDisabled are the valid lifecycle states for a User.
 const (
 	UserStatusActive   UserStatus = "active"
 	UserStatusDisabled UserStatus = "disabled"
