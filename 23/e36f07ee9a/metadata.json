@@ -1,0 +1,58 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "23e36f07ee9a",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 3,
+  "files_touched": [
+    ".claude/worktrees/agent-a0a982e4/.github/workflows/pages.yml",
+    ".claude/worktrees/agent-a0a982e4/.golangci.yml",
+    ".claude/worktrees/agent-a0a982e4/migrations/migrations_test.go",
+    ".claude/worktrees/agent-a8b51ba7/.github/workflows/claude.yml",
+    ".claude/worktrees/agent-a8b51ba7/.github/workflows/pages.yml",
+    ".claude/worktrees/agent-a8b51ba7/frontend/wrangler.toml",
+    ".claude/worktrees/agent-a8b51ba7/internal/middleware/ratelimit.go",
+    ".claude/worktrees/agent-acea8599/.github/workflows/pages.yml",
+    ".claude/worktrees/agent-acea8599/frontend/wrangler.toml",
+    ".claude/worktrees/agent-aeb5cb69/.github/workflows/claude.yml",
+    ".claude/worktrees/agent-aeb5cb69/.github/workflows/pages.yml",
+    ".claude/worktrees/agent-aeb5cb69/.golangci.yml",
+    ".claude/worktrees/agent-aeb5cb69/frontend/wrangler.toml",
+    ".claude/worktrees/agent-aeb5cb69/internal/config/config.go",
+    ".claude/worktrees/agent-aeb5cb69/internal/middleware/auth.go",
+    ".claude/worktrees/agent-aeb5cb69/internal/middleware/auth_test.go",
+    ".claude/worktrees/agent-aeb5cb69/migrations/00002_roles.sql",
+    ".claude/worktrees/agent-aeb5cb69/migrations/00003_organizations.sql",
+    ".claude/worktrees/agent-af98e113/.github/workflows/claude.yml",
+    ".claude/worktrees/agent-af98e113/.github/workflows/pages.yml",
+    ".claude/worktrees/agent-af98e113/frontend/wrangler.toml",
+    ".claude/worktrees/agent-af98e113/migrations/migrations_test.go",
+    ".github/workflows/pages.yml",
+    ".golangci.yml",
+    "cmd/api/main.go",
+    "internal/config/config.go",
+    "internal/middleware/auth.go",
+    "internal/middleware/auth_test.go",
+    "internal/middleware/ratelimit.go",
+    "internal/middleware/ratelimit_test.go",
+    "migrations/00002_roles.sql",
+    "migrations/00003_organizations.sql",
+    "migrations/migrations_test.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/23/e36f07ee9a/0/metadata.json",
+      "transcript": "/23/e36f07ee9a/0/full.jsonl",
+      "context": "/23/e36f07ee9a/0/context.md",
+      "content_hash": "/23/e36f07ee9a/0/content_hash.txt",
+      "prompt": "/23/e36f07ee9a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 288,
+    "cache_creation_tokens": 398703,
+    "cache_read_tokens": 24983354,
+    "output_tokens": 111145,
+    "api_call_count": 236
+  }
+}
