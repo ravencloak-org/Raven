@@ -26,6 +26,5 @@ class WebScraper:
         """
         logger.info("scrape_url", url=url)
         raise NotImplementedError(
-            f"Web scraping not yet implemented for url={url}. "
-            "Crawl4AI integration is pending."
+            f"Web scraping not yet implemented for url={url}. Crawl4AI integration is pending."
         )
