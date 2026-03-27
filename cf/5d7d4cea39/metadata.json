@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "cf5d7d4cea39",
+  "strategy": "manual-commit",
+  "branch": "fix/echo-to-gin",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".dockerignore",
+    ".github/workflows/docker.yml",
+    ".github/workflows/frontend.yml",
+    ".github/workflows/go.yml",
+    ".github/workflows/pr-agent.yml",
+    ".github/workflows/security.yml",
+    ".gitignore",
+    "Dockerfile",
+    "ai-worker/raven_worker/server.py",
+    "deploy/postgres/init.sql",
+    "docker-compose.yml",
+    "docs/research/saas-stack-gaps.md",
+    "docs/superpowers/specs/2026-03-27-raven-implementation-plan.md",
+    "docs/superpowers/specs/2026-03-27-raven-platform-design-final.md",
+    "docs/superpowers/specs/2026-03-27-raven-platform-design.md",
+    "scripts/test-ci-workflows.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/cf/5d7d4cea39/0/metadata.json",
+      "transcript": "/cf/5d7d4cea39/0/full.jsonl",
+      "context": "/cf/5d7d4cea39/0/context.md",
+      "content_hash": "/cf/5d7d4cea39/0/content_hash.txt",
+      "prompt": "/cf/5d7d4cea39/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 39,
+    "cache_creation_tokens": 22918,
+    "cache_read_tokens": 7354715,
+    "output_tokens": 8522,
+    "api_call_count": 31
+  }
+}
