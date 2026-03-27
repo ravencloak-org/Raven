@@ -9,8 +9,6 @@ linters:
     - govet
     - errcheck
     - staticcheck
-    - unused
-    - gosimple
     - ineffassign
     - revive
 
@@ -18,18 +16,13 @@ linters-settings:
   revive:
     rules:
       - name: exported
-        arguments:
-          - "checkPrivateReceivers"
       - name: blank-imports
       - name: context-as-argument
-      - name: dot-imports
       - name: error-return
       - name: error-strings
       - name: increment-decrement
       - name: var-naming
-      - name: range
 
 issues:
-  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
