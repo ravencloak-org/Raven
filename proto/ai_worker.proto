@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package raven.ai.v1;
+
+option go_package = "github.com/ravencloak-org/Raven/internal/grpc/pb";
+
+service AIWorker {
+  rpc ParseAndEmbed (ParseRequest)      returns (ParseResponse);
+  rpc QueryRAG      (RAGRequest)        returns (stream RAGChunk);
+  rpc GetEmbedding  (EmbeddingRequest)  returns (EmbeddingResponse);
+}
+
+message ParseRequest {
+  string document_id = 1;
+  string org_id      = 2;
+  string kb_id       = 3;
+  bytes  content     = 4;
+  string mime_type   = 5;
+  string file_name   = 6;
+}
+
+message ParseResponse {
+  string document_id   = 1;
+  int32  chunk_count   = 2;
+  string status        = 3;
+  string error_message = 4;
+}
+
+message RAGRequest {
+  string query            = 1;
+  string org_id           = 2;
+  repeated string kb_ids  = 3;
+  string session_id       = 4;
+  map<string, string> filters = 5;
+  string model            = 6;
+  string provider         = 7;
+}
+
+message RAGChunk {
+  string text             = 1;
+  bool   is_final         = 2;
+  repeated Source sources = 3;
+}
+
+message Source {
+  string document_id   = 1;
+  string document_name = 2;
+  string chunk_text    = 3;
+  float  score         = 4;
+}
+
+message EmbeddingRequest {
+  string text     = 1;
+  string org_id   = 2;
+  string model    = 3;
+  string provider = 4;
+}
+
+message EmbeddingResponse {
+  repeated float embedding = 1;
+  int32 dimensions         = 2;
+}
