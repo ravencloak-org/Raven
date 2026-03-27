@@ -1,0 +1,65 @@
+language: en-US
+
+reviews:
+  profile: assertive
+  request_changes_workflow: true
+
+  path_instructions:
+    - path: "cmd/**"
+      instructions: >
+        Review for clean entry-point design, proper signal handling, and
+        graceful shutdown. Ensure no business logic leaks into cmd layer.
+
+    - path: "internal/handler/**"
+      instructions: >
+        Review for input validation, proper HTTP status codes, and XSS
+        prevention. Ensure handlers delegate to service layer and never
+        access the database directly.
+
+    - path: "internal/middleware/**"
+      instructions: >
+        Review for security: authentication, authorization, CORS, rate
+        limiting, and request logging. Verify JWT/OIDC token validation
+        is robust against common bypass attacks.
+
+    - path: "internal/repository/**"
+      instructions: >
+        Review for SQL injection prevention (parameterized queries only),
+        correct use of Row-Level Security (RLS) policies, and proper
+        transaction handling. Ensure no raw string concatenation in queries.
+
+    - path: "internal/service/**"
+      instructions: >
+        Review for business logic correctness, proper error handling,
+        and separation of concerns. Ensure services do not import
+        handler or transport-level packages.
+
+    - path: "migrations/**"
+      instructions: >
+        Review for backward compatibility, presence of both UP and DOWN
+        migrations, correct RLS policy definitions, and safe index
+        creation (CONCURRENTLY where possible).
+
+    - path: "ai-worker/**"
+      instructions: >
+        Review for secure API key handling, prompt injection prevention,
+        proper error handling for LLM API calls, and resource limits.
+        Ensure no secrets are hardcoded.
+
+    - path: "frontend/**"
+      instructions: >
+        Review for XSS prevention, proper sanitization of user input,
+        accessibility (WCAG 2.1 AA), and no hardcoded API keys or
+        secrets in client-side code.
+
+    - path: "proto/**"
+      instructions: >
+        Review for backward-compatible protobuf changes, correct field
+        numbering (no reuse of deleted field numbers), and proper use
+        of optional/repeated/oneof.
+
+tools:
+  github-checks:
+    enabled: true
+  shellcheck:
+    enabled: true
