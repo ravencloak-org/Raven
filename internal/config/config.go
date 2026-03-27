@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -8,12 +9,14 @@ import (
 
 // Config holds all configuration for the application.
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
-	Valkey   ValkeyConfig
-	GRPC     GRPCConfig
-	OTel     OTelConfig
-	Keycloak KeycloakConfig
+	Server    ServerConfig
+	Database  DatabaseConfig
+	Valkey    ValkeyConfig
+	GRPC      GRPCConfig
+	OTel      OTelConfig
+	Keycloak  KeycloakConfig
+	CORS      CORSConfig
+	RateLimit RateLimitConfig
 }
 
 // KeycloakConfig holds Keycloak/OIDC settings for JWT validation.
@@ -24,6 +27,17 @@ type KeycloakConfig struct {
 	// Disabled by default; set RAVEN_KEYCLOAK_APIKEYENABLED=true only in
 	// development environments until the real DB-backed lookup is implemented.
 	APIKeyEnabled bool `mapstructure:"api_key_enabled"`
+}
+
+// CORSConfig holds Cross-Origin Resource Sharing settings.
+type CORSConfig struct {
+	AllowedOrigins []string `mapstructure:"allowed_origins"`
+}
+
+// RateLimitConfig holds rate limiting defaults.
+type RateLimitConfig struct {
+	DefaultUserLimit int `mapstructure:"default_user_limit"`
+	DefaultOrgLimit  int `mapstructure:"default_org_limit"`
 }
 
 // ServerConfig holds HTTP server settings.
@@ -67,6 +81,17 @@ func Load() (*Config, error) {
 	v.SetDefault("otel.enabled", false)
 	v.SetDefault("keycloak.issuer_url", "http://localhost:8080/auth/realms/raven")
 	v.SetDefault("keycloak.audience", "raven")
+	// CORS allowed origins can be overridden via the RAVEN_CORS_ALLOWED_ORIGINS
+	// environment variable as a comma-separated list.
+	// Example: RAVEN_CORS_ALLOWED_ORIGINS=https://app1.com,https://app2.com
+	v.SetDefault("cors.allowed_origins", []string{
+		"http://localhost:5173",
+		"https://raven-frontend.pages.dev",
+	})
+	// Explicitly bind so Viper surfaces the env var when unmarshaling slice fields.
+	_ = v.BindEnv("cors.allowed_origins", "RAVEN_CORS_ALLOWED_ORIGINS")
+	v.SetDefault("ratelimit.default_user_limit", 1000)
+	v.SetDefault("ratelimit.default_org_limit", 10000)
 
 	// Config file (optional)
 	v.SetConfigName("config")
@@ -85,6 +110,13 @@ func Load() (*Config, error) {
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, err
+	}
+
+	if cfg.RateLimit.DefaultUserLimit <= 0 {
+		return nil, fmt.Errorf("ratelimit.default_user_limit must be > 0, got %d", cfg.RateLimit.DefaultUserLimit)
+	}
+	if cfg.RateLimit.DefaultOrgLimit <= 0 {
+		return nil, fmt.Errorf("ratelimit.default_org_limit must be > 0, got %d", cfg.RateLimit.DefaultOrgLimit)
 	}
 
 	return &cfg, nil

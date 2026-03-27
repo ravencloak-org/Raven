@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/ravencloak-org/Raven/internal/config"
 	"github.com/ravencloak-org/Raven/internal/handler"
@@ -49,16 +51,28 @@ func main() {
 	// Set Gin mode
 	gin.SetMode(cfg.Server.Mode)
 
+	// Initialise Valkey client for rate limiting.
+	valkeyClient := redis.NewClient(&redis.Options{
+		Addr: cfg.Valkey.URL,
+	})
+
+	// Build rate limiter using config-driven limits.
+	rl := middleware.NewRateLimiter(valkeyClient, slog.Default())
+
 	// Create router
 	router := gin.Default()
 
-	// Register OpenTelemetry middleware
+	// Global middleware order: OTel → SecurityHeaders → CORS → ErrorHandler
 	router.Use(middleware.OTelMiddleware())
-
-	// Register error handler middleware
+	router.Use(middleware.SecurityHeadersMiddleware())
+	router.Use(middleware.CORSMiddleware(&cfg.CORS))
 	router.Use(apierror.ErrorHandler())
 
-	// Register routes
+	// Apply rate limiting by user ID and org ID using config-driven defaults.
+	router.Use(middleware.ByUserID(rl, cfg.RateLimit.DefaultUserLimit))
+	router.Use(middleware.ByOrgID(rl, cfg.RateLimit.DefaultOrgLimit))
+
+	// Infrastructure endpoint — intentionally outside the versioned group.
 	router.GET("/healthz", handler.HealthCheck)
 
 	// Protected API routes — JWT validation applied per-group, not globally.
@@ -69,6 +83,9 @@ func main() {
 	// using the org_id stored in the Gin context key middleware.ContextKeyOrgID.
 	api := router.Group("/api/v1")
 	api.Use(middleware.JWTMiddleware(&cfg.Keycloak))
+	{
+		api.GET("/ping", handler.Ping)
+	}
 
 	// Create HTTP server
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
