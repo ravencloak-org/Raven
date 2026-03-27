@@ -1,0 +1,46 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "681331f18481",
+  "strategy": "manual-commit",
+  "branch": "feat/cloudflare-pages-deployment",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".dockerignore",
+    ".github/workflows/claude-code-review.yml",
+    ".github/workflows/docker.yml",
+    ".github/workflows/frontend.yml",
+    ".github/workflows/go.yml",
+    ".github/workflows/pages.yml",
+    ".github/workflows/pr-agent.yml",
+    ".github/workflows/security.yml",
+    ".gitignore",
+    ".golangci.yml",
+    "Dockerfile",
+    "ai-worker/raven_worker/server.py",
+    "deploy/postgres/init.sql",
+    "docker-compose.yml",
+    "docs/research/saas-stack-gaps.md",
+    "docs/superpowers/specs/2026-03-27-raven-implementation-plan.md",
+    "docs/superpowers/specs/2026-03-27-raven-platform-design-final.md",
+    "docs/superpowers/specs/2026-03-27-raven-platform-design.md",
+    "frontend/wrangler.toml",
+    "migrations/migrations_test.go",
+    "scripts/test-ci-workflows.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/68/1331f18481/0/metadata.json",
+      "transcript": "/68/1331f18481/0/full.jsonl",
+      "context": "/68/1331f18481/0/context.md",
+      "content_hash": "/68/1331f18481/0/content_hash.txt",
+      "prompt": "/68/1331f18481/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 104,
+    "cache_creation_tokens": 110820,
+    "cache_read_tokens": 7741902,
+    "output_tokens": 39132,
+    "api_call_count": 90
+  }
+}

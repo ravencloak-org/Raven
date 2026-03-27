@@ -1,0 +1,52 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "681331f18481",
+  "session_id": "25edfaf0-87c0-4b2a-b464-1825d1e95d71",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-27T16:55:22.069867Z",
+  "branch": "feat/cloudflare-pages-deployment",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".dockerignore",
+    ".github/workflows/claude-code-review.yml",
+    ".github/workflows/docker.yml",
+    ".github/workflows/frontend.yml",
+    ".github/workflows/go.yml",
+    ".github/workflows/pages.yml",
+    ".github/workflows/pr-agent.yml",
+    ".github/workflows/security.yml",
+    ".gitignore",
+    ".golangci.yml",
+    "Dockerfile",
+    "ai-worker/raven_worker/server.py",
+    "deploy/postgres/init.sql",
+    "docker-compose.yml",
+    "docs/research/saas-stack-gaps.md",
+    "docs/superpowers/specs/2026-03-27-raven-implementation-plan.md",
+    "docs/superpowers/specs/2026-03-27-raven-platform-design-final.md",
+    "docs/superpowers/specs/2026-03-27-raven-platform-design.md",
+    "frontend/wrangler.toml",
+    "migrations/migrations_test.go",
+    "scripts/test-ci-workflows.sh"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "d7921341-7b82-4882-95db-330c8a0b1b7a",
+  "checkpoint_transcript_start": 2161,
+  "transcript_lines_at_start": 2161,
+  "token_usage": {
+    "input_tokens": 104,
+    "cache_creation_tokens": 110820,
+    "cache_read_tokens": 7741902,
+    "output_tokens": 39132,
+    "api_call_count": 90
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-27T16:55:21.668551Z",
+    "agent_lines": 12,
+    "human_added": 45859,
+    "human_modified": 44,
+    "human_removed": 0,
+    "total_committed": 45915,
+    "agent_percentage": 0.026135249918327344
+  }
+}
