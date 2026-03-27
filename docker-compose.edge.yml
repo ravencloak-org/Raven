@@ -1,0 +1,66 @@
+# Edge deployment -- lightweight subset for Raspberry Pi / edge nodes.
+# The python-worker runs in the cloud; set RAVEN_GRPC_WORKER_ADDR to its
+# remote address in your .env file.
+
+services:
+  go-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - raven-internal
+    restart: unless-stopped
+
+  postgres:
+    image: pgvector/pgvector:pg18
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-raven}
+      POSTGRES_USER: ${POSTGRES_USER:-raven}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-raven} -d ${POSTGRES_DB:-raven}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - raven-internal
+    restart: unless-stopped
+
+  valkey:
+    image: valkey/valkey:8.1-alpine
+    command: ["valkey-server", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - valkey-data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - raven-internal
+    restart: unless-stopped
+
+volumes:
+  pg-data:
+  valkey-data:
+
+networks:
+  raven-internal:
+    driver: bridge

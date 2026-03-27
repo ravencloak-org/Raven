@@ -1,0 +1,181 @@
+services:
+  # ─── Go API ────────────────────────────────────────────────────────────────
+  go-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - raven-internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=PathPrefix(`/api`)"
+      - "traefik.http.services.api.loadbalancer.server.port=8080"
+    restart: unless-stopped
+
+  # ─── Python AI Worker (gRPC) ───────────────────────────────────────────────
+  python-worker:
+    build:
+      context: ./ai-worker
+      dockerfile: Dockerfile
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    networks:
+      - raven-internal
+    restart: unless-stopped
+
+  # ─── PostgreSQL + pgvector ─────────────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg18
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-raven}
+      POSTGRES_USER: ${POSTGRES_USER:-raven}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-raven} -d ${POSTGRES_DB:-raven}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - raven-internal
+    restart: unless-stopped
+
+  # ─── Valkey (Redis-compatible cache) ───────────────────────────────────────
+  valkey:
+    image: valkey/valkey:8.1-alpine
+    command: ["valkey-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - valkey-data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - raven-internal
+    restart: unless-stopped
+
+  # ─── Keycloak IAM ─────────────────────────────────────────────────────────
+  keycloak:
+    image: quay.io/keycloak/keycloak:26
+    command: start-dev --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: ${KC_DB_URL:-jdbc:postgresql://postgres:5432/keycloak}
+      KC_DB_USERNAME: ${KC_DB_USERNAME:-raven}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD:?KC_DB_PASSWORD is required}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?KEYCLOAK_ADMIN_PASSWORD is required}
+    ports:
+      - "8443:8080"
+    volumes:
+      - ./deploy/keycloak:/opt/keycloak/data/import
+      - kc-data:/opt/keycloak/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - raven-internal
+    restart: unless-stopped
+
+  # ─── SeaweedFS Master ──────────────────────────────────────────────────────
+  seaweedfs-master:
+    image: chrislusf/seaweedfs
+    command: "master -ip=seaweedfs-master -ip.bind=0.0.0.0"
+    networks:
+      - raven-internal
+    restart: unless-stopped
+
+  # ─── SeaweedFS Volume ──────────────────────────────────────────────────────
+  seaweedfs-volume:
+    image: chrislusf/seaweedfs
+    command: "volume -mserver=seaweedfs-master:9333 -ip.bind=0.0.0.0 -dir=/data"
+    volumes:
+      - seaweedfs-data:/data
+    depends_on:
+      - seaweedfs-master
+    networks:
+      - raven-internal
+    restart: unless-stopped
+
+  # ─── SeaweedFS Filer (S3 API) ─────────────────────────────────────────────
+  seaweedfs-filer:
+    image: chrislusf/seaweedfs
+    command: "filer -master=seaweedfs-master:9333 -ip.bind=0.0.0.0 -s3"
+    ports:
+      - "8888:8888"
+    depends_on:
+      - seaweedfs-master
+      - seaweedfs-volume
+    networks:
+      - raven-internal
+    restart: unless-stopped
+
+  # ─── Traefik Reverse Proxy ────────────────────────────────────────────────
+  traefik:
+    image: traefik:v3.3
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=raven-internal"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8082:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - raven-internal
+    restart: unless-stopped
+
+  # ─── OpenObserve (Observability) ───────────────────────────────────────────
+  openobserve:
+    image: public.ecr.aws/zinclabs/openobserve:latest
+    ports:
+      - "5080:5080"
+    environment:
+      ZO_ROOT_USER_EMAIL: ${ZO_ROOT_USER_EMAIL:-admin@raven.local}
+      ZO_ROOT_USER_PASSWORD: ${ZO_ROOT_USER_PASSWORD:?ZO_ROOT_USER_PASSWORD is required}
+    volumes:
+      - openobserve-data:/data
+    networks:
+      - raven-internal
+    restart: unless-stopped
+
+# ─── Volumes ──────────────────────────────────────────────────────────────────
+volumes:
+  pg-data:
+  kc-data:
+  seaweedfs-data:
+  valkey-data:
+  openobserve-data:
+
+# ─── Networks ─────────────────────────────────────────────────────────────────
+networks:
+  raven-internal:
+    driver: bridge
