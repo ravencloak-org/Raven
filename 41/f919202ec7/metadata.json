@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "41f919202ec7",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".dockerignore",
+    ".gitignore",
+    "Dockerfile",
+    "ai-worker/raven_worker/server.py",
+    "deploy/postgres/init.sql",
+    "docker-compose.yml",
+    "docs/superpowers/specs/2026-03-27-raven-platform-design-final.md",
+    "docs/superpowers/specs/2026-03-27-raven-platform-design.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/41/f919202ec7/0/metadata.json",
+      "transcript": "/41/f919202ec7/0/full.jsonl",
+      "context": "/41/f919202ec7/0/context.md",
+      "content_hash": "/41/f919202ec7/0/content_hash.txt",
+      "prompt": "/41/f919202ec7/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 70,
+    "cache_creation_tokens": 37386,
+    "cache_read_tokens": 7850065,
+    "output_tokens": 15186,
+    "api_call_count": 66
+  }
+}
