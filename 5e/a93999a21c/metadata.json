@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "5ea93999a21c",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/docker.yml",
+    ".github/workflows/go.yml",
+    ".github/workflows/security.yml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/5e/a93999a21c/0/metadata.json",
+      "transcript": "/5e/a93999a21c/0/full.jsonl",
+      "context": "/5e/a93999a21c/0/context.md",
+      "content_hash": "/5e/a93999a21c/0/content_hash.txt",
+      "prompt": "/5e/a93999a21c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 9588,
+    "cache_read_tokens": 2529492,
+    "output_tokens": 2726,
+    "api_call_count": 18
+  }
+}
