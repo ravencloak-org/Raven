@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "9289b8621ac1",
+  "session_id": "25edfaf0-87c0-4b2a-b464-1825d1e95d71",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-27T14:18:11.110203Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/pr-agent.yml"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "bf31e132-011f-4998-aea5-e53f9cadce32",
+  "checkpoint_transcript_start": 1449,
+  "transcript_lines_at_start": 1449,
+  "token_usage": {
+    "input_tokens": 53,
+    "cache_creation_tokens": 14164,
+    "cache_read_tokens": 8211950,
+    "output_tokens": 7639,
+    "api_call_count": 43
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-27T14:18:10.866657Z",
+    "agent_lines": 0,
+    "human_added": 70,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 70,
+    "agent_percentage": 0
+  }
+}
