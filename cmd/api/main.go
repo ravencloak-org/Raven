@@ -61,6 +61,15 @@ func main() {
 	// Register routes
 	router.GET("/healthz", handler.HealthCheck)
 
+	// Protected API routes — JWT validation applied per-group, not globally.
+	// This allows health checks and other public endpoints to remain unauthenticated.
+	//
+	// NOTE: The repository layer is responsible for applying RLS by executing
+	//   SET LOCAL app.current_org_id = '<uuid>'
+	// using the org_id stored in the Gin context key middleware.ContextKeyOrgID.
+	api := router.Group("/api/v1")
+	api.Use(middleware.JWTMiddleware(&cfg.Keycloak))
+
 	// Create HTTP server
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	srv := &http.Server{

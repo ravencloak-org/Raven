@@ -13,6 +13,12 @@ type Config struct {
 	Valkey   ValkeyConfig
 	GRPC     GRPCConfig
 	OTel     OTelConfig
+	Keycloak KeycloakConfig
+}
+
+// KeycloakConfig holds Keycloak/OIDC settings for JWT validation.
+type KeycloakConfig struct {
+	IssuerURL string `mapstructure:"issuer_url"`
 }
 
 // ServerConfig holds HTTP server settings.
@@ -54,6 +60,7 @@ func Load() (*Config, error) {
 	v.SetDefault("otel.endpoint", "")
 	v.SetDefault("otel.service_name", "raven-api")
 	v.SetDefault("otel.enabled", false)
+	v.SetDefault("keycloak.issuer_url", "http://localhost:8080/auth/realms/raven")
 
 	// Config file (optional)
 	v.SetConfigName("config")
