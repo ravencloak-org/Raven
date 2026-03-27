@@ -35,6 +35,9 @@ const (
 	ContextKeyEmail contextKey = "email"
 	// ContextKeyClaims is the context key for the full parsed Claims struct.
 	ContextKeyClaims contextKey = "claims"
+	// ContextKeyWorkspaceRole is the context key for the resolved workspace role,
+	// set by workspace-scoped middleware after a membership DB lookup.
+	ContextKeyWorkspaceRole contextKey = "workspace_role"
 
 	jwksCacheTTL = time.Hour
 )
