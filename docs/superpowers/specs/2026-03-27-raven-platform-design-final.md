@@ -3,7 +3,7 @@
 **Status:** Final
 **Date:** 2026-03-27
 **Authors:** Jobin Lawrance, Claude
-**Version:** 1.0
+**Version:** 1.1
 
 > This is the single source of truth for the Raven platform. All GitHub wiki pages, issues, milestones, and roadmaps derive from this document.
 
@@ -23,6 +23,9 @@
 10. [Developer Tooling](#10-developer-tooling)
 11. [Competitive Positioning](#11-competitive-positioning)
 12. [MVP Roadmap and Phasing](#12-mvp-roadmap-and-phasing)
+13. [Analytics and Observability](#13-analytics-and-observability)
+14. [Hardware Requirements](#14-hardware-requirements)
+15. [SaaS Stack Completeness](#15-saas-stack-completeness)
 
 ---
 
@@ -109,6 +112,23 @@ Organization (tenant boundary -- billing, auth, data isolation)
 | 34 | **Anthropic Claude** | API | Proprietary (API usage) | Primary LLM provider (BYOK) | YES |
 | 35 | **OpenAI** | API | Proprietary (API usage) | Embedding + fallback LLM provider (BYOK) | YES |
 | 36 | **Cohere** | API | Proprietary (API usage) | Reranking provider (BYOK) | YES |
+| 37 | **PostHog** | Cloud | MIT core, cloud free tier | Product analytics, feature flags, session replay | YES |
+| 38 | **OpenObserve** | 0.70+ | AGPL-3.0 | Logs, metrics, traces via OpenTelemetry | **CAUTION** |
+| 39 | **OpenTelemetry Go SDK** | 1.34.x | Apache 2.0 | Go service instrumentation (traces, metrics, logs) | YES |
+| 40 | **OpenTelemetry Python SDK** | Latest | Apache 2.0 | Python worker instrumentation | YES |
+| 41 | **Asynq** | Latest | MIT | Scheduled jobs and cron, Valkey-backed | YES |
+| 42 | **pgBackRest** | Latest | BSD | PostgreSQL backup and point-in-time recovery | YES |
+| 43 | **Restic** | Latest | BSD-2-Clause | Object storage backup (encrypted, deduplicated) | YES |
+| 44 | **GlitchTip** | Latest | MIT | Error tracking, Sentry-compatible (v1.0) | YES |
+| 45 | **ClamAV** | Latest | GPL-2.0 (separate process) | File virus scanning (v1.0) | YES |
+| 46 | **Infisical** | Latest | MIT | Secrets management (v1.0) | YES |
+| 47 | **VitePress** | Latest | MIT | Documentation site (v1.0) | YES |
+| 48 | **Upptime** | Latest | MIT | Status page via GitHub Actions (v1.0) | YES |
+| 49 | **cookieconsent** | Latest | MIT | GDPR cookie consent banner | YES |
+| 50 | **swaggo/swag + Scalar** | Latest | MIT | API documentation (OpenAPI generation + UI) | YES |
+| 51 | **Stripe** | API | Proprietary (SaaS) | Payment processing and billing | YES |
+| 52 | **go-mail** | Latest | MIT | Transactional email from Go API | YES |
+| 53 | **k6** | Latest | AGPL-3.0 (dev tool, not deployed) | Load testing | YES |
 
 ### License Risk Notes
 
@@ -126,6 +146,12 @@ The codebase MUST abstract the full-text search layer behind an interface so the
 **Firecrawl replaced by Crawl4AI:** Firecrawl is AGPL-3.0. Crawl4AI (Apache 2.0) is Python-native, integrates directly into the Python AI worker, and has built-in chunking strategies.
 
 **Coqui TTS replaced by Piper TTS:** Coqui XTTS model weights are non-commercial only (CPML) and the company is defunct. Piper TTS (MIT, archived rhasspy/piper version) is the license-safe replacement. The active fork (OHF-Voice/piper1-gpl) is GPL-3.0 which is acceptable for server-side SaaS use (not triggered by network access, only distribution).
+
+**OpenObserve (AGPL-3.0):** Safe when used as an unmodified infrastructure service. Raven communicates with OpenObserve via standard OTLP/HTTP endpoints; AGPL copyleft applies only to OpenObserve itself, not to Raven's code. Any modifications to OpenObserve's source must be released under AGPL. Enterprise edition available for strict no-AGPL policies.
+
+**k6 (AGPL-3.0):** k6 is a CLI load-testing tool run by developers and CI pipelines. It is never deployed as part of Raven's production stack. AGPL does not apply to tools used internally.
+
+**ClamAV (GPL-2.0):** Runs as a separate daemon process (`clamd`). Raven communicates via TCP socket. GPL-2.0 is server-side safe for SaaS (no distribution to end users).
 
 **TEN Framework REJECTED:** License includes anti-competition clauses and restrictions on enabling third parties. Agora RTC is the only WebRTC transport (proprietary, paid). LiveKit (Apache 2.0, fully self-hostable) is used instead.
 
@@ -1085,7 +1111,7 @@ Raven operates at the intersection of three markets: RAG-as-a-Service, Voice AI 
 - Organization + Workspace + Knowledge Base CRUD (Go API + Echo)
 - User auth via Keycloak + reavencloak SPI
 - PostgreSQL 18 + pgvector + tsvector (ParadeDB optional)
-- Valkey job queue
+- Valkey job queue with Asynq (MIT) for task processing and cron scheduling
 - SeaweedFS object storage (or local filesystem)
 
 **Ingestion:**
@@ -1110,6 +1136,17 @@ Raven operates at the intersection of three markets: RAG-as-a-Service, Voice AI 
 - Analytics (conversation volume, top queries)
 - API key management
 
+**SaaS Infrastructure (MVP Blockers):**
+- Transactional email via external SMTP relay (AWS SES / Resend) + `go-mail` for Go-side templating; Keycloak SMTP configured for password resets and invitations
+- Stripe integration: customer/subscription model, Checkout, webhooks; billing columns in organizations table
+- SSL/TLS via Traefik ACME resolver (Let's Encrypt, DNS-01 challenge)
+- PostgreSQL backups via pgBackRest (daily full + continuous WAL archiving, 30-day retention); Restic for SeaweedFS object backups
+- Rate limiting: Go middleware with Valkey sliding window counters (per-org, per-API-key, per-endpoint) + Traefik global per-IP rate limiter
+- Legal pages: Privacy Policy, Terms of Service (lawyer-drafted); `cookieconsent` (MIT) banner in Vue.js SPA; consent records table in PostgreSQL
+- API versioning: `/api/v1/` route group in Echo from day one
+- CORS and security headers: Echo CORS middleware with per-API-key domain allowlists; Traefik HSTS, CSP, X-Content-Type-Options headers
+- Scheduled jobs via Asynq cron scheduler: web source re-crawling, session cleanup, API key expiration, usage aggregation
+
 **Deployment:**
 - Docker Compose for all services
 - Edge deployment mode (Go API on ARM64 + remote Python worker)
@@ -1124,6 +1161,30 @@ Raven operates at the intersection of three markets: RAG-as-a-Service, Voice AI 
 - Same RAG pipeline, voice-optimized (sentence-boundary TTS dispatch)
 - Voice session management
 - "Call the assistant" button in chatbot widget
+
+### v1.0 GA Readiness -- Target: alongside Phase 2/3
+
+These items are expected by paying customers before general availability:
+
+**Observability and Error Tracking:**
+- GlitchTip (MIT) for error tracking with Sentry SDK integration (Go, Python, Vue.js)
+- PostHog Cloud for product analytics, feature flags, session replay
+- OpenObserve self-hosted for logs, metrics, traces (OpenTelemetry instrumented)
+- OpenTelemetry Go SDK + Python SDK for full observability pipeline
+
+**Developer Experience:**
+- API documentation via swaggo/swag + Scalar UI at `/api/docs`
+- VitePress documentation site (getting started, integration guides, API reference)
+- Webhook system for async event notifications (document processed, KB reindexed)
+
+**Operational Maturity:**
+- Upptime status page (MIT, GitHub Actions/Pages, zero infra)
+- ClamAV virus scanning on file uploads (separate daemon, Go API streams files to `clamd`)
+- Infisical (MIT) for centralized secrets management with audit logging
+- CDN via Cloudflare free tier (Vue.js SPA + `<raven-chat>` widget bundle)
+- Feature flags via PostHog (gradual rollout, plan-gated features)
+- Admin search via PostgreSQL `pg_trgm` (fuzzy matching on orgs, users, workspaces)
+- k6 load testing in CI/staging for capacity validation
 
 ### Phase 3 -- WebRTC / WhatsApp -- Target: 4-6 weeks after Phase 2
 
@@ -1141,7 +1202,7 @@ Raven operates at the intersection of three markets: RAG-as-a-Service, Voice AI 
 - Entity-centric retrieval alongside existing hybrid search
 - Graph-enhanced RAG for relational queries
 
-### Phase 5 -- Cloud Managed
+### Phase 5 -- Cloud Managed and Polish
 
 - AWS deployment scripts (Terraform modules)
 - Hosted cloud offering (managed multi-tenant)
@@ -1149,6 +1210,204 @@ Raven operates at the intersection of three markets: RAG-as-a-Service, Voice AI 
 - Multi-region support (EU, US, APAC)
 - SOC 2 Type II certification
 - GDPR compliance audit
+- Changelog automation: Conventional Commits + git-cliff (MIT) + GitHub Releases
+- Internationalization (i18n): Vue I18n for admin dashboard and `<raven-chat>` widget
+- Accessibility (a11y): WCAG 2.1 AA compliance, axe-core testing in CI, `eslint-plugin-vuejs-accessibility`
+
+---
+
+## 13. Analytics and Observability
+
+Raven uses two complementary platforms: **PostHog** for product analytics and **OpenObserve** for system observability. They solve different problems and are deployed differently.
+
+### 13.1 Product Analytics (PostHog Cloud)
+
+**Deployment:** PostHog Cloud (SaaS). Self-hosting PostHog requires 4+ GB RAM (ClickHouse, Kafka, PostgreSQL, Redis) and is not viable for edge deployment.
+
+**Free tier (generous for early-stage):**
+
+| Product | Monthly Free Allowance |
+|---------|----------------------|
+| Product Analytics | 1 million events |
+| Session Replay | 5,000 recordings |
+| Feature Flags | 1 million API requests |
+| Error Tracking | 100,000 exceptions |
+| Surveys | 1,500 responses |
+
+**Integration pattern:**
+
+| Surface | SDK | Purpose |
+|---------|-----|---------|
+| Vue.js admin dashboard | PostHog JavaScript SDK | Page views, feature usage, session replay, user funnels |
+| `<raven-chat>` web component | PostHog JavaScript SDK (minimal) | Widget interaction events, conversation starts, satisfaction signals |
+| Go API server | `posthog-go` SDK | Server-side event tracking, feature flag evaluation |
+| Python AI worker | `posthog-python` SDK | RAG query performance, embedding costs, processing times |
+
+**Feature flags:** PostHog feature flags replace the need for a separate feature flag service. Use `org_id` as the group key for per-tenant targeting. Local evaluation SDK avoids per-request API calls.
+
+### 13.2 System Observability (OpenObserve Self-Hosted)
+
+**Deployment:** Self-hosted via Docker. Single Rust binary with no external dependencies. Runs on edge deployments (~256-512 MB RAM).
+
+**Capabilities:** Unified platform for logs, metrics, traces, and alerts. Native OTLP (OpenTelemetry Protocol) ingestion over HTTP and gRPC.
+
+**What to instrument and track:**
+
+| Category | Metrics | Source |
+|----------|---------|--------|
+| API performance | Request latency (p50/p95/p99), throughput, error rates | Go API (OTel middleware) |
+| RAG query performance | Retrieval latency, reranking time, LLM TTFT, total query time | Python worker (OTel spans) |
+| Document processing | Parse time, chunk count, embedding duration, queue wait time | Python worker (OTel spans) |
+| Embedding API costs | Token count per request, cost per provider, batch sizes | Python worker (OTel metrics) |
+| Infrastructure | CPU, memory, disk per service; PostgreSQL connection pool usage; Valkey queue depth | OTel host metrics + custom gauges |
+| Error rates | 4xx/5xx by endpoint, gRPC error codes, failed jobs per queue | Go API + Python worker (OTel) |
+
+### 13.3 OpenTelemetry Instrumentation
+
+**Go API (`go.opentelemetry.io/otel`):**
+- Trace middleware on Echo routes (auto-creates spans per request)
+- Custom spans for database queries, gRPC calls, Valkey operations
+- Metrics: request count, latency histogram, active connections
+- OTLP exporter pointed at OpenObserve's ingest endpoint
+
+**Python AI Worker (`opentelemetry-sdk` + `opentelemetry-exporter-otlp`):**
+- Trace instrumentation on gRPC handlers, RAG pipeline stages, document processing
+- Custom spans: LiteParse parsing, Crawl4AI scraping, embedding API calls, reranking
+- Metrics: processing time histograms, queue consumer lag, embedding token counts
+- OTLP exporter pointed at OpenObserve
+
+### 13.4 Edge Deployment Note
+
+| Platform | Deployment | RAM |
+|----------|-----------|-----|
+| OpenObserve | Self-hosted (single binary, edge-compatible) | ~256-512 MB |
+| PostHog | Cloud only (too heavy for edge) | 0 MB (SaaS) |
+
+On edge devices, OpenObserve runs locally for system observability. PostHog events are sent to PostHog Cloud over the network. If the edge device is offline, OTel spans are buffered locally and flushed when connectivity resumes.
+
+---
+
+## 14. Hardware Requirements
+
+Three deployment tiers are supported. See the detailed hardware research document for deep dives on per-service resource profiles, HNSW index memory analysis, and Crawl4AI/Chromium resource profiling.
+
+### 14.1 Per-Service RAM Breakdown
+
+| Service | Idle/Baseline | Light Load | Heavy Load |
+|---------|--------------|------------|------------|
+| Go API Server | 15 MB | 50 MB | 150 MB |
+| Python AI Worker | 120 MB | 400 MB | 2 GB (peak) |
+| PostgreSQL 18 + pgvector | 300 MB | 800 MB | 2 GB |
+| Valkey | 10 MB | 50 MB | 300 MB |
+| Keycloak | 600 MB | 700 MB | 1 GB |
+| Strapi | 150 MB | 300 MB | 400 MB |
+| SeaweedFS | 150 MB | 200 MB | 300 MB |
+| Traefik | 40 MB | 60 MB | 120 MB |
+| LiveKit (Phase 2) | 40 MB | 200 MB | 500 MB |
+| OpenObserve (optional) | 150 MB | 400 MB | 1 GB |
+
+### 14.2 Tier 1: Edge / Raspberry Pi
+
+Only the Go API and Traefik run on the edge device. All heavy services (Python worker, PostgreSQL, Keycloak, etc.) run on a remote server.
+
+| Spec | Minimum (Pi 4, 2 GB) | Recommended (Pi 4, 4 GB) |
+|------|----------------------|--------------------------|
+| CPU | 4 cores ARM Cortex-A72 | 4 cores ARM64 |
+| RAM | 2 GB (Go API ~40 MB + Traefik ~50 MB + OS ~300 MB) | 4 GB (headroom for spikes) |
+| Disk | 16 GB microSD (Class 10) | 32 GB NVMe/SSD |
+| Network | 1 Gbps Ethernet | 1 Gbps |
+| Cost | ~$35 one-time + ~$1/month power | ~$55 one-time or $0-6/month VPS |
+
+### 14.3 Tier 2: Self-Hosted Single Server
+
+All services run on one machine via Docker Compose.
+
+| Spec | Minimum (barely runs) | Recommended |
+|------|-----------------------|-------------|
+| CPU | 4 cores (x86_64 or ARM64) | 8 cores (x86_64) |
+| RAM | 4 GB (extremely tight, no OpenObserve/LiveKit) | 16 GB (all services + headroom) |
+| Disk | 40 GB SSD | 200 GB NVMe SSD |
+| Network | 10 Mbps | 100 Mbps-1 Gbps |
+| VPS cost | ~$28/month (Hetzner CPX41) | ~$50-55/month (Hetzner AX42/CCX33) |
+
+**Warning:** 4 GB is the functional floor. Keycloak alone consumes 512-768 MB. The Python worker cannot process large PDFs or run Crawl4AI (headless Chromium) without risking OOM at this tier.
+
+### 14.4 Tier 3: Production Cloud (Multi-Tenant SaaS)
+
+AWS-based estimates with services decomposed for independent scaling.
+
+| Tier | Tenants | Concurrent Users | Embeddings | Phase 1 Cost | Full Stack Cost |
+|------|---------|-----------------|------------|-------------|----------------|
+| Small | 10 | 50 | 500K | ~$590/month | ~$700/month |
+| Medium | 100 | 500 | 5M | ~$2,395/month | ~$2,825/month |
+| Large | 1000 | 5000 | 50M | ~$10,120/month | ~$11,930/month |
+| Large (optimized) | 1000 | 5000 | 50M | ~$6,500/month | ~$8,000/month |
+
+**Optimization levers:** Reserved Instances (30-50% savings), Spot Instances for Python workers (up to 70% savings), Graviton ARM64 instances (20% cheaper), halfvec quantization (halves PostgreSQL memory/storage), S3 instead of SeaweedFS at scale.
+
+**Key scaling insight:** PostgreSQL with HNSW indexes is the primary cost driver. At 5M+ embeddings (float32, 1536d), the index exceeds 40 GB and requires either halfvec quantization, table partitioning by org_id, or a dedicated vector database.
+
+For full per-service breakdowns, CPU allocation guides, and deep dives on HNSW memory, Crawl4AI resource profiling, and LiveKit bandwidth calculations, see the [hardware requirements research document](../../research/hardware-requirements.md).
+
+---
+
+## 15. SaaS Stack Completeness
+
+This section tracks every gap between the core platform and a production-ready, multi-tenant SaaS product. Each item is classified by priority and mapped to the roadmap.
+
+### 15.1 MVP Blockers (Must Ship Before Launch)
+
+These 9 items block MVP launch. Total estimated effort: 4-6 weeks.
+
+| # | Gap | Solution | Effort |
+|---|-----|----------|--------|
+| 1 | Email / Notifications | External SMTP relay (SES/Resend) + `go-mail` (MIT). Keycloak SMTP for auth flows. | 2-3 days |
+| 2 | Payment / Billing | Stripe direct integration (Checkout, subscriptions, webhooks). Billing columns in orgs table. | 1-2 weeks |
+| 3 | SSL/TLS Certificates | Traefik ACME (Let's Encrypt) with DNS-01 challenge. Already in stack, needs configuration. | 1 day |
+| 4 | Backup Strategy | pgBackRest for PostgreSQL PITR + Restic for SeaweedFS. 30-day retention. Test restores monthly. | 2-3 days |
+| 5 | Rate Limiting | Go middleware with Valkey sliding window counters + Traefik global per-IP limiter. | 2-3 days |
+| 6 | Legal Pages | Privacy Policy + ToS (lawyer-drafted). `cookieconsent` (MIT) banner. Consent records table. | 1-2 weeks |
+| 7 | API Versioning | `/api/v1/` route group in Echo. Versioning policy documented. `Sunset` header for deprecation. | 1 day |
+| 8 | CORS / Security Headers | Echo CORS middleware (per-API-key domain allowlists). Traefik HSTS, CSP, `nosniff`. | 1-2 days |
+| 9 | Scheduled Jobs / Cron | Asynq (MIT, Valkey-backed) for cron + job queue. Source re-crawling, session cleanup, billing aggregation. | 3-5 days |
+
+### 15.2 v1.0 GA Additions (Before Paying Customers)
+
+| # | Gap | Solution | New Service? |
+|---|-----|----------|-------------|
+| 1 | Error Tracking | GlitchTip (MIT, ~512 MB RAM). Sentry SDK for Go, Python, Vue.js. | Yes |
+| 2 | API Documentation | swaggo/swag (MIT) + Scalar UI at `/api/docs`. Zero runtime cost. | No |
+| 3 | CDN | Cloudflare free tier in front of Traefik. | No (SaaS) |
+| 4 | Status Page | Upptime (MIT). GitHub Actions + Pages. Zero infra. | No |
+| 5 | Documentation Site | VitePress (MIT). Markdown docs, Vue.js aligned, deployed to CDN/GH Pages. | No |
+| 6 | Webhook System | Custom Go implementation. Valkey queue, HMAC-SHA256 signed, exponential retry. | No |
+| 7 | File Virus Scanning | ClamAV (GPL-2.0, ~1 GB RAM). Sidecar container. Go API streams files to `clamd`. | Yes |
+| 8 | Secrets Management | Infisical (MIT, ~512 MB RAM). Go SDK for secret retrieval. SOPS for edge. | Yes |
+| 9 | Feature Flags | PostHog (already in stack). Per-org targeting via `org_id` group key. | No |
+| 10 | Admin Search | PostgreSQL `pg_trgm` extension for fuzzy matching on orgs, users, workspaces. | No |
+| 11 | Load Testing | k6 (AGPL-3.0, CLI tool). CI/staging load tests for capacity validation. | No |
+
+**New services for v1.0:** Only GlitchTip, ClamAV, and Infisical require deploying additional containers. Everything else is configuration, libraries, or SaaS.
+
+### 15.3 Future Roadmap
+
+| # | Item | Solution | Notes |
+|---|------|----------|-------|
+| 1 | Changelog / Release Notes | Conventional Commits + git-cliff (MIT) + GitHub Releases | Automate when release cadence increases |
+| 2 | Internationalization (i18n) | Vue I18n (MIT) for dashboard and widget. Go `text/template` for email/error messages. | Externalize all strings from MVP to avoid retrofitting |
+| 3 | Accessibility (a11y) | axe-core (MPL-2.0) in Playwright tests. `eslint-plugin-vuejs-accessibility` (MIT). WCAG 2.1 AA target. | Basic keyboard nav + ARIA roles for `<raven-chat>` from day one |
+
+### 15.4 Edge Deployment Exclusions
+
+These v1.0 services are NOT suitable for edge/Pi deployment due to resource requirements:
+
+| Service | RAM | Edge Alternative |
+|---------|-----|-----------------|
+| GlitchTip | ~512 MB | Forward errors to cloud GlitchTip instance |
+| ClamAV | ~1 GB | Skip scanning on edge; scan on cloud upload path |
+| Infisical | ~512 MB | SOPS with age encryption (zero runtime cost) |
+
+The edge device should run only: Go API, PostgreSQL, Valkey, Traefik, and optionally SeaweedFS/local FS + OpenObserve. All heavy ancillary services run on the cloud component.
 
 ---
 
