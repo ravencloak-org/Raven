@@ -63,7 +63,7 @@ assert data is not None and 'jobs' in data and len(data['jobs']) >= 1
 done
 echo ""
 
-# ── 4. Go workflow uses go-version '1.23' ────────────────────────────────────
+# ── 4. Go workflow uses go-version '1.26' ────────────────────────────────────
 echo "--- Checking Go version ---"
 GO_WF="$WORKFLOWS_DIR/go.yml"
 if [ -f "$GO_WF" ]; then
@@ -74,13 +74,13 @@ found = False
 for job in data.get('jobs', {}).values():
     for step in job.get('steps', []):
         w = step.get('with', {})
-        if w.get('go-version') == '1.23':
+        if w.get('go-version') == '1.26':
             found = True
 assert found
 " "$GO_WF" 2>/dev/null; then
-    pass "go.yml uses go-version '1.23'"
+    pass "go.yml uses go-version '1.26'"
   else
-    fail "go.yml does NOT use go-version '1.23'"
+    fail "go.yml does NOT use go-version '1.26'"
   fi
 else
   fail "go.yml not found"
