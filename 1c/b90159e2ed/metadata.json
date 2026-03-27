@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "1cb90159e2ed",
+  "strategy": "manual-commit",
+  "branch": "chore/badges-and-codecov",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/go.yml",
+    "README.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/1c/b90159e2ed/0/metadata.json",
+      "transcript": "/1c/b90159e2ed/0/full.jsonl",
+      "context": "/1c/b90159e2ed/0/context.md",
+      "content_hash": "/1c/b90159e2ed/0/content_hash.txt",
+      "prompt": "/1c/b90159e2ed/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 13806,
+    "cache_read_tokens": 1772124,
+    "output_tokens": 7196,
+    "api_call_count": 18
+  }
+}
