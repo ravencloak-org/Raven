@@ -22,6 +22,10 @@
 
 Raven is a multi-tenant knowledge-base platform. Organizations ingest documents (PDF, DOCX, images) and web content into knowledge bases, which are then queryable via:
 
+> **Note on research docs:** The research documents in `docs/research/` were drafted before key decisions were finalized. Two significant changes were made during brainstorming:
+> 1. **Hierarchy:** Research used Application -> Organization -> Knowledge Base (3-tier). After discussion, this was simplified to **Organization -> Workspace -> Knowledge Base** (2-tier), with Organization as the tenant boundary and Workspace replacing the old Organization concept.
+> 2. **Backend language:** Research recommended Node.js + Python hybrid. The user chose **Go + Python hybrid** instead, for performance, concurrency, and personal preference. This changes LiteParse integration (subprocess in Python container), job queue (plain Redis instead of BullMQ), and removes the shared-TypeScript benefit with Strapi.
+
 1. **Embeddable Chatbot** (MVP) -- a `<raven-chat>` web component for any website
 2. **Voice Agent** (Phase 2) -- voice interface via LiveKit Agents
 3. **WebRTC / WhatsApp** (Phase 3) -- real-time voice via WhatsApp Business Calling API
@@ -108,9 +112,9 @@ Organization (tenant boundary -- billing, auth, data isolation)
 | **Go API** | Primary API gateway. JWT validation, routing, tenant resolution, orchestration. REST API for CRUD, enqueues async jobs, delegates AI to Python via gRPC. | Yes (:8080) |
 | **Python AI Worker** | All AI/ML workloads. gRPC server for RAG queries, embedding generation. Consumes Redis jobs for async document processing. | No (internal gRPC) |
 | **LiteParse** | Document-to-text extraction (PDF, DOCX, images/OCR). Invoked by Python worker as subprocess. | No (co-located) |
-| **Strapi** | CMS for platform content, admin CRUD for orgs/workspaces/KBs. REST/GraphQL API consumed by Go API internally. | Yes (:1337) |
+| **Strapi** | Headless CMS for platform marketing content (landing pages, docs, help articles) and as a quick admin UI for seed data/content management during early development. Not in the critical request path -- Go API owns all tenant CRUD. Strapi's value is editorial content + rapid admin tooling, not core business logic. Can be dropped if the Vue.js admin dashboard covers all needs. | Yes (:1337) |
 | **Keycloak** | Identity provider. OIDC/OAuth2, user management, reavencloak SPI for custom claims. | Yes (:8443) |
-| **PostgreSQL** | Primary datastore. pgvector for embeddings, ParadeDB for BM25 full-text. RLS for tenant isolation. | No (internal) |
+| **PostgreSQL** | Primary datastore. pgvector for embeddings, ParadeDB for BM25 full-text. RLS for tenant isolation. **Note:** ParadeDB Community Edition lacks WAL support -- data loss possible on crash. For production, either use ParadeDB Enterprise (WAL-enabled) or fall back to PostgreSQL's built-in `tsvector` full-text search as a simpler BM25 alternative until ParadeDB matures. | No (internal) |
 | **Redis** | Job queue for async processing, rate limiting, caching. | No (internal) |
 | **MinIO** | S3-compatible object storage for uploaded files. | No (internal) |
 
@@ -346,7 +350,7 @@ HNSW index: `CREATE INDEX ON embeddings USING hnsw (embedding vector_cosine_ops)
 
 Encryption: AES-256-GCM with master key in secrets manager. Per-org data encryption keys (DEKs). Keys never logged or returned in API responses.
 
-**Chat Sessions / Messages, Voice Sessions / Turns** -- high-throughput tables managed directly by PostgreSQL (not Strapi).
+**Chat Sessions / Messages, Voice Sessions / Turns** -- high-throughput tables managed directly by PostgreSQL (not Strapi). `user_id` is **nullable** to support anonymous chatbot widget users (who authenticate via API key, not user login). Anonymous sessions use a client-generated `session_id` with TTL-based cleanup (default 24h). Authenticated users get persistent history.
 
 ### 3.3 Multi-Tenancy via RLS
 
@@ -437,7 +441,7 @@ class EmbeddingProvider(Protocol):
     def embed(self, texts: list[str]) -> list[list[float]]: ...
 ```
 
-**Constraint:** All documents within an org must use the same model/dimensions (pgvector columns are fixed-width). Changing providers requires re-indexing.
+**Constraint:** All documents within a single **knowledge base** must use the same embedding model/dimensions. The HNSW index is built per-model-dimension pair. If an org switches embedding providers, existing KBs keep their current index and a re-index job is required. Different KBs within the same org may use different models since embeddings are filtered by `knowledge_base_id` at query time. The `embeddings.dimensions` column allows the system to validate consistency at insert time.
 
 ### 4.7 Hybrid Retrieval (Vector + BM25 via RRF)
 
