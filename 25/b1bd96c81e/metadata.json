@@ -1,0 +1,53 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "25b1bd96c81e",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".env.test",
+    ".github/workflows/docker.yml",
+    ".github/workflows/frontend.yml",
+    ".github/workflows/go.yml",
+    ".github/workflows/python.yml",
+    ".github/workflows/security.yml",
+    ".gitignore",
+    "ai-worker/raven_worker/telemetry.py",
+    "ai-worker/tests/test_telemetry.py",
+    "deploy/postgres/init.sql",
+    "docs/superpowers/specs/2026-03-27-raven-platform-design-final.md",
+    "docs/superpowers/specs/2026-03-27-raven-platform-design.md",
+    "internal/middleware/otel.go",
+    "internal/middleware/otel_test.go",
+    "internal/telemetry/telemetry.go",
+    "migrations/00002_roles.sql",
+    "migrations/00007_knowledge_bases.sql",
+    "migrations/00008_documents.sql",
+    "migrations/00009_sources.sql",
+    "migrations/00010_chunks_and_embeddings.sql",
+    "migrations/00011_llm_provider_configs.sql",
+    "migrations/00012_api_keys.sql",
+    "migrations/00013_chat.sql",
+    "migrations/00014_processing_events.sql",
+    "migrations/migrations_test.go",
+    "scripts/test-ci-workflows.sh",
+    "scripts/test-compose.sh",
+    "scripts/validate-migrations.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/25/b1bd96c81e/0/metadata.json",
+      "transcript": "/25/b1bd96c81e/0/full.jsonl",
+      "context": "/25/b1bd96c81e/0/context.md",
+      "content_hash": "/25/b1bd96c81e/0/content_hash.txt",
+      "prompt": "/25/b1bd96c81e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 89,
+    "cache_creation_tokens": 210123,
+    "cache_read_tokens": 7198998,
+    "output_tokens": 39829,
+    "api_call_count": 61
+  }
+}
