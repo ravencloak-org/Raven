@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "23e36f07ee9a",
+  "session_id": "49d36a53-fe40-4d89-b1b8-699b7e008f53",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-27T22:50:42.780204Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/research/ebpf-edge-optimization.md",
+    "docs/wiki/Roadmap.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "489097c2-08dd-4b10-88ed-ce7d428a5623",
+  "token_usage": {
+    "input_tokens": 35,
+    "cache_creation_tokens": 35854,
+    "cache_read_tokens": 667066,
+    "output_tokens": 7946,
+    "api_call_count": 20
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-27T22:50:42.765375Z",
+    "agent_lines": 0,
+    "human_added": 1910,
+    "human_modified": 122,
+    "human_removed": 0,
+    "total_committed": 2032,
+    "agent_percentage": 0
+  }
+}
