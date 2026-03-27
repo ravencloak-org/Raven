@@ -8,11 +8,18 @@ import (
 
 // Config holds all configuration for the application.
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
-	Valkey   ValkeyConfig
-	GRPC     GRPCConfig
-	OTel     OTelConfig
+	Server    ServerConfig
+	Database  DatabaseConfig
+	Valkey    ValkeyConfig
+	GRPC      GRPCConfig
+	OTel      OTelConfig
+	RateLimit RateLimitConfig
+}
+
+// RateLimitConfig holds rate limiting defaults.
+type RateLimitConfig struct {
+	DefaultUserLimit int `mapstructure:"default_user_limit"`
+	DefaultOrgLimit  int `mapstructure:"default_org_limit"`
 }
 
 // ServerConfig holds HTTP server settings.
@@ -54,6 +61,8 @@ func Load() (*Config, error) {
 	v.SetDefault("otel.endpoint", "")
 	v.SetDefault("otel.service_name", "raven-api")
 	v.SetDefault("otel.enabled", false)
+	v.SetDefault("ratelimit.default_user_limit", 1000)
+	v.SetDefault("ratelimit.default_org_limit", 10000)
 
 	// Config file (optional)
 	v.SetConfigName("config")
