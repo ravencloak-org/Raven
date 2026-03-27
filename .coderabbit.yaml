@@ -57,9 +57,3 @@ reviews:
         Review for backward-compatible protobuf changes, correct field
         numbering (no reuse of deleted field numbers), and proper use
         of optional/repeated/oneof.
-
-tools:
-  github-checks:
-    enabled: true
-  shellcheck:
-    enabled: true
