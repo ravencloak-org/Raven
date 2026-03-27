@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -73,8 +74,12 @@ func newJWKSCache(jwksURL string) (*jwksCache, error) {
 }
 
 // refresh fetches the JWKS from the remote endpoint and replaces the cached keyfunc.
+// A 10-second timeout is applied to the fetch to prevent indefinite blocking.
 func (c *jwksCache) refresh() error {
-	kf, err := keyfunc.NewDefaultCtx(context.Background(), []string{c.jwksURL})
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	kf, err := keyfunc.NewDefaultCtx(ctx, []string{c.jwksURL})
 	if err != nil {
 		return err
 	}
@@ -127,8 +132,9 @@ func JWTMiddleware(cfg *config.KeycloakConfig) gin.HandlerFunc {
 
 	cache, err := newJWKSCache(jwksURL)
 	if err != nil {
-		// If JWKS is unavailable at startup, log a warning and serve 503 on
-		// every protected request until the cache can be populated.
+		// If JWKS is unavailable at startup, log a clear warning and serve 503 on
+		// every protected request. This typically means Keycloak is not reachable.
+		log.Printf("[WARN] JWT middleware: initial JWKS fetch from %s failed: %v — all protected endpoints will return 503 until the service restarts with a reachable Keycloak instance", jwksURL, err)
 		return func(c *gin.Context) {
 			c.AbortWithStatusJSON(http.StatusServiceUnavailable, authError{Error: "jwks_unavailable"})
 		}
@@ -155,12 +161,12 @@ func JWTMiddleware(cfg *config.KeycloakConfig) gin.HandlerFunc {
 		rawToken := parts[1]
 
 		// --- Parse & validate JWT ---
-		claims, err := parseJWT(rawToken, cfg.IssuerURL, cache, false)
+		claims, err := parseJWT(rawToken, cfg.IssuerURL, cfg.Audience, cache, false)
 		if err != nil {
 			// On any key-related error, retry once with a forced JWKS refresh
 			// (handles key rotation / cache staleness).
 			if isKeyError(err) {
-				claims, err = parseJWT(rawToken, cfg.IssuerURL, cache, true)
+				claims, err = parseJWT(rawToken, cfg.IssuerURL, cfg.Audience, cache, true)
 			}
 			if err != nil {
 				abortWithTokenError(c, err)
@@ -182,13 +188,15 @@ func JWTMiddleware(cfg *config.KeycloakConfig) gin.HandlerFunc {
 }
 
 // parseJWT validates the raw token string and returns the parsed Claims.
-func parseJWT(rawToken, issuerURL string, cache *jwksCache, forceRefresh bool) (*Claims, error) {
+// It validates the issuer, audience, and expiry claims in addition to the signature.
+func parseJWT(rawToken, issuerURL, audience string, cache *jwksCache, forceRefresh bool) (*Claims, error) {
 	claims := &Claims{}
 	_, err := jwt.ParseWithClaims(
 		rawToken,
 		claims,
 		cache.keyFunc(forceRefresh),
 		jwt.WithIssuer(issuerURL),
+		jwt.WithAudience(audience),
 		jwt.WithExpirationRequired(),
 		jwt.WithLeeway(5*time.Second),
 	)
@@ -199,11 +207,15 @@ func parseJWT(rawToken, issuerURL string, cache *jwksCache, forceRefresh bool) (
 }
 
 // isKeyError reports whether the error is likely caused by an unknown/unresolvable
-// key (suggesting a JWKS rotation rather than a malformed token).
+// key or a stale key (suggesting a JWKS rotation rather than a malformed token).
+// Signature-invalid errors are included because a key rotation can produce them
+// when the cached JWKS is stale.
 func isKeyError(err error) bool {
 	return strings.Contains(err.Error(), "unable to find") ||
 		strings.Contains(err.Error(), "key") ||
-		errors.Is(err, jwt.ErrTokenUnverifiable)
+		strings.Contains(err.Error(), "signature") ||
+		errors.Is(err, jwt.ErrTokenUnverifiable) ||
+		errors.Is(err, jwt.ErrTokenSignatureInvalid)
 }
 
 // abortWithTokenError maps jwt parse errors to structured 401 responses.
@@ -225,8 +237,12 @@ func abortUnauthorized(c *gin.Context, code string) {
 // The lookup against the database is not yet implemented; a placeholder
 // Claims struct is stored in the context so downstream handlers can read it.
 //
+// WARNING: This stub accepts ANY non-empty X-API-Key value without validation.
+// It MUST be replaced before production use.
+//
 // TODO(issue-24): replace stub with real DB lookup and key hashing.
 func handleAPIKey(c *gin.Context, _ string) {
+	log.Printf("[WARN] API key authentication is not yet validated — stub in use (see issue-24)")
 	stub := &Claims{}
 	stub.Subject = "api-key-subject-placeholder"
 

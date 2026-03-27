@@ -85,7 +85,7 @@ func startJWKSServer(t *testing.T, kp *rsaKeyPair) *httptest.Server {
 // keycloakCfg returns a KeycloakConfig whose IssuerURL points at the given
 // httptest server, using the server URL directly as issuer.
 func keycloakCfg(issuerURL string) *config.KeycloakConfig {
-	return &config.KeycloakConfig{IssuerURL: issuerURL}
+	return &config.KeycloakConfig{IssuerURL: issuerURL, Audience: "raven"}
 }
 
 // setupRouter wires a test Gin router with the JWT middleware and a simple
