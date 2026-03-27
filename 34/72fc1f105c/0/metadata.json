@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "3472fc1f105c",
+  "session_id": "25edfaf0-87c0-4b2a-b464-1825d1e95d71",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-27T08:39:20.272091Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "docs/research/paradedb-pgvector-research.md",
+    "docs/superpowers/specs/2026-03-27-raven-platform-design-review.md",
+    "docs/superpowers/specs/2026-03-27-raven-platform-design.md",
+    "docs/voice-agent-webrtc-research.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "e3d00fcf-cee1-4bdc-8367-a0cfb2398ab7",
+  "token_usage": {
+    "input_tokens": 708,
+    "cache_creation_tokens": 81301,
+    "cache_read_tokens": 3035082,
+    "output_tokens": 26858,
+    "api_call_count": 52
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-27T08:39:20.208835Z",
+    "agent_lines": 824,
+    "human_added": 3117,
+    "human_modified": 388,
+    "human_removed": 0,
+    "total_committed": 4329,
+    "agent_percentage": 19.034419034419034
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "3472fc1f105c",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "docs/research/paradedb-pgvector-research.md",
+    "docs/superpowers/specs/2026-03-27-raven-platform-design-review.md",
+    "docs/superpowers/specs/2026-03-27-raven-platform-design.md",
+    "docs/voice-agent-webrtc-research.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/34/72fc1f105c/0/metadata.json",
+      "transcript": "/34/72fc1f105c/0/full.jsonl",
+      "context": "/34/72fc1f105c/0/context.md",
+      "content_hash": "/34/72fc1f105c/0/content_hash.txt",
+      "prompt": "/34/72fc1f105c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 708,
+    "cache_creation_tokens": 81301,
+    "cache_read_tokens": 3035082,
+    "output_tokens": 26858,
+    "api_call_count": 52
+  }
+}
