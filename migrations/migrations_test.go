@@ -152,7 +152,7 @@ func TestMigrationsUpAndDown(t *testing.T) {
 	}
 	defer func() {
 		if err := db.Close(); err != nil {
-			t.Logf("failed to close database: %v", err)
+			t.Errorf("failed to close database: %v", err)
 		}
 	}()
 
@@ -275,7 +275,11 @@ func TestMigrationsUpAndDown(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to query tables after rollback: %v", err)
 		}
-		defer func() { _ = rows.Close() }()
+		defer func() {
+			if err := rows.Close(); err != nil {
+				t.Errorf("failed to close rows: %v", err)
+			}
+		}()
 
 		var remaining []string
 		for rows.Next() {
@@ -286,7 +290,7 @@ func TestMigrationsUpAndDown(t *testing.T) {
 			remaining = append(remaining, name)
 		}
 		if err := rows.Err(); err != nil {
-			t.Fatalf("error iterating rows after rollback: %v", err)
+			t.Fatalf("error iterating rows: %v", err)
 		}
 
 		// goose_db_version is expected to remain.
