@@ -716,7 +716,7 @@ This is a configuration task across Traefik and the Go API server:
 
 | Header | Configuration |
 |--------|--------------|
-| **CORS** | Go API Gin CORS middleware. For admin dashboard: restrict to dashboard origin. For chatbot widget: read `allowed_domains` from the `api_keys` table and set `Access-Control-Allow-Origin` dynamically per API key. |
+| **CORS** | `gin-contrib/cors` with `AllowOriginFunc` for dynamic origin validation. Admin dashboard: restrict to dashboard origin. Chatbot widget: `AllowOriginFunc` reads `api_keys.allowed_domains` from Valkey cache and validates per-request. |
 | **HSTS** | Traefik middleware: `headers.stsSeconds=63072000, headers.stsIncludeSubdomains=true, headers.stsPreload=true` |
 | **CSP** | Traefik middleware or Go response header. Restrictive policy for dashboard; looser for widget embed context. |
 | **X-Content-Type-Options** | `nosniff` -- prevents MIME-type sniffing |

@@ -71,6 +71,14 @@ Organization (tenant boundary -- billing, auth, data isolation)
 - 1-5 second compile times, 1-3 minute CI pipelines
 - Goroutines handle thousands of concurrent SSE/WebSocket connections trivially
 
+**Why Gin specifically:** Gin uses a radix tree router (httprouter) making it one of the fastest Go HTTP frameworks. Key features leveraged in Raven:
+- `gin.Context` carries request-scoped data (org_id, user claims) through the middleware chain
+- Struct binding with validation tags (`c.ShouldBindJSON(&req)` + `binding:"required"`) for input validation
+- Route grouping (`r.Group("/api/v1")`) for versioned API namespaces
+- Built-in `gin.Default()` includes Logger and Recovery middleware out of the box
+- `gin-contrib/cors` for per-API-key CORS configuration
+- `otelgin` instrumentation package for automatic OpenTelemetry spans per request
+
 **Python AI Worker** runs separately, connected via gRPC, to access the full ML/AI ecosystem (LangChain, LlamaIndex, sentence-transformers, faster-whisper, etc.).
 
 ### Complete Dependency Table
@@ -78,7 +86,7 @@ Organization (tenant boundary -- billing, auth, data isolation)
 | # | Component | Version | License | Purpose | SaaS-Safe? |
 |---|-----------|---------|---------|---------|------------|
 | 1 | **Go** | 1.23.x | BSD-3-Clause + Patent Grant | Backend API language | YES |
-| 2 | **Gin** | v1.10.x | MIT | Go HTTP framework (routing, middleware, grouping) | YES |
+| 2 | **Gin** | v1.10.x | MIT | Go HTTP framework (radix-tree router, struct binding, middleware chain) | YES |
 | 3 | **grpc-go** | 1.70.x | Apache 2.0 | gRPC client/server for Go <-> Python communication | YES |
 | 4 | **pgx** | v5.7.x | MIT | PostgreSQL driver for Go (connection pooling built-in) | YES |
 | 5 | **sqlc** | 1.28.x | MIT | Type-safe Go code generation from SQL queries | YES |
@@ -1520,17 +1528,23 @@ Included voice minutes per tier (60/300/1,000) are designed to let customers val
 ## Appendix A: Go Dependency Quick Reference
 
 ```bash
-go mod init github.com/raven-platform/raven
+go mod init github.com/ravencloak-org/Raven
 
-# Key dependencies
-go get github.com/gin-gonic/gin              # Web framework
-go get google.golang.org/grpc               # gRPC
-go get github.com/jackc/pgx/v5              # PostgreSQL
-go get github.com/redis/go-redis/v9         # Valkey (Redis-compatible)
-go get github.com/coder/websocket           # WebSocket
-go get github.com/pressly/goose/v3          # Migrations
-go get github.com/spf13/viper               # Configuration
-go get go.opentelemetry.io/otel             # Observability
+# Core framework
+go get github.com/gin-gonic/gin              # HTTP framework (radix-tree router)
+go get github.com/gin-contrib/cors           # CORS middleware for Gin
+
+# Infrastructure
+go get google.golang.org/grpc               # gRPC client for Python AI worker
+go get github.com/jackc/pgx/v5              # PostgreSQL driver (connection pooling)
+go get github.com/redis/go-redis/v9         # Valkey/Redis client
+go get github.com/coder/websocket           # WebSocket (SSE streaming)
+go get github.com/pressly/goose/v3          # Database migrations
+go get github.com/spf13/viper               # Configuration (env + file)
+
+# Observability
+go get go.opentelemetry.io/otel                                              # OTel SDK
+go get go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin  # Gin auto-instrumentation
 ```
 
 ## Appendix B: Full-Text Search Abstraction

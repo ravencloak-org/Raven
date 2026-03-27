@@ -516,12 +516,12 @@
 - **Dependencies:** 1.1
 - **Description:** Configure API infrastructure:
   1. **API versioning:** All routes under `/api/v1/` group in Gin. Document versioning policy (v1 supported for minimum 12 months after v2 release). Add `Sunset` header support for future deprecation.
-  2. **CORS:** Gin CORS middleware configured with:
-     - Default allowed origins: admin dashboard URL
-     - Per-API-key allowed origins (from `api_keys.allowed_domains`)
-     - Allowed methods: GET, POST, PUT, DELETE, OPTIONS
-     - Allowed headers: Authorization, Content-Type, X-API-Key
-     - Max age: 3600s
+  2. **CORS:** `gin-contrib/cors` middleware with `cors.Config{}`:
+     - `AllowOrigins`: admin dashboard URL (default), plus per-API-key origins from `api_keys.allowed_domains`
+     - `AllowMethods`: GET, POST, PUT, DELETE, OPTIONS
+     - `AllowHeaders`: Authorization, Content-Type, X-API-Key
+     - `MaxAge`: 3600 (1 hour preflight cache)
+     - Dynamic origin validation via `AllowOriginFunc` for chatbot widget API keys
   3. **Security headers** via Traefik middleware or Gin middleware:
      - `Strict-Transport-Security: max-age=31536000; includeSubDomains`
      - `X-Content-Type-Options: nosniff`
