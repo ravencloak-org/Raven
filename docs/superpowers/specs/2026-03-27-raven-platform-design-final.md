@@ -1137,7 +1137,7 @@ Raven operates at the intersection of three markets: RAG-as-a-Service, Voice AI 
 - API key management
 
 **SaaS Infrastructure (MVP Blockers):**
-- Transactional email via external SMTP relay (AWS SES / Resend) + `go-mail` for Go-side templating; Keycloak SMTP configured for password resets and invitations
+- Keycloak SMTP configured for password resets and invitations (minimal email, no transactional email service in MVP)
 - Stripe integration: customer/subscription model, Checkout, webhooks; billing columns in organizations table
 - SSL/TLS via Traefik ACME resolver (Let's Encrypt, DNS-01 challenge)
 - PostgreSQL backups via pgBackRest (daily full + continuous WAL archiving, 30-day retention); Restic for SeaweedFS object backups
@@ -1151,8 +1151,9 @@ Raven operates at the intersection of three markets: RAG-as-a-Service, Voice AI 
 - Docker Compose for all services
 - Edge deployment mode (Go API on ARM64 + remote Python worker)
 
-### Phase 2 -- Voice Agent -- Target: 4-6 weeks after Phase 1
+### Phase 2 -- Voice Agent + Smart Caching -- Target: 4-6 weeks after Phase 1
 
+**Voice Agent:**
 - LiveKit Server deployment (self-hosted)
 - LiveKit Agents integration (Python worker)
 - STT: Deepgram Nova-3 (API) initially, faster-whisper (self-hosted) for scale
@@ -1161,6 +1162,27 @@ Raven operates at the intersection of three markets: RAG-as-a-Service, Voice AI 
 - Same RAG pipeline, voice-optimized (sentence-boundary TTS dispatch)
 - Voice session management
 - "Call the assistant" button in chatbot widget
+
+**Email Notifications (moved from MVP):**
+- Transactional email via AWS SES / Resend + `go-mail` (MIT)
+- Post-conversation email summaries: "Here's a summary of your voice chat. Resume the conversation [link]."
+- Digest notifications for org admins (new documents processed, usage reports)
+
+**PostHog User Analytics:**
+- Track user identity across sessions and channels (chat, voice, WebRTC)
+- Use PostHog to retrieve conversation history and link sessions per user
+- Analytics: which users are most active, which KBs get the most queries
+
+**Smart Response Caching Layer (token cost optimization):**
+- Goal: minimize LLM API calls to reduce token costs — the #1 operational expense
+- **Semantic cache**: before hitting the LLM, check if a semantically similar question was already answered for this knowledge base
+- Cache lookup: embed the incoming query, search a dedicated `response_cache` table via pgvector cosine similarity with a high threshold (>0.95)
+- If cache hit: serve the cached response, optionally adapted to the current user's tone/style
+- **In-database LLM adaptation**: run a small LLM model (e.g., TinyLlama, Phi-3-mini) inside PostgreSQL via ParadeDB's ML extensions or pg_ml — concept from "Getting compute down to the data layer"
+- The in-DB model takes the cached response + user profile (tone, formality, language) and produces a personalized variant without calling the external LLM API
+- **Cache learning**: every LLM response is cached with its query embedding, metadata (KB ID, topic, timestamp), and usage count
+- **Cache invalidation**: when a knowledge base is updated (new documents, re-indexed), invalidate affected cache entries
+- Phase 1 can include a simple exact-match cache as a foundation; Phase 2 adds semantic similarity + in-DB adaptation
 
 ### v1.0 GA Readiness -- Target: alongside Phase 2/3
 
