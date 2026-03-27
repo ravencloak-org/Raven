@@ -275,7 +275,11 @@ func TestMigrationsUpAndDown(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to query tables after rollback: %v", err)
 		}
-		defer func() { _ = rows.Close() }()
+		defer func() {
+			if err := rows.Close(); err != nil {
+				t.Errorf("failed to close rows: %v", err)
+			}
+		}()
 
 		var remaining []string
 		for rows.Next() {
