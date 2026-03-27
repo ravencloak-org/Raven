@@ -8,9 +8,12 @@ linters:
   enable:
     - govet
     - errcheck
-    - staticcheck
+    - staticcheck  # subsumes 'unused' and 'gosimple' (both are staticcheck analysers in v2)
     - ineffassign
     - revive
+  # Notes on omitted linters:
+  # - unused/gosimple: rolled into staticcheck in golangci-lint v2; enabling them separately is a no-op
+  # - typecheck: removed as a standalone linter in v2; type-checking is now always run as a built-in pass
   settings:
     revive:
       rules:
@@ -23,6 +26,5 @@ linters:
         - name: var-naming
 
 issues:
-  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0

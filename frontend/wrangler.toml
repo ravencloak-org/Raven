@@ -1,0 +1,8 @@
+name = "raven-frontend"
+pages_build_output_dir = "./dist"
+
+[build]
+command = "npm run build"
+
+[env.production]
+name = "raven-frontend"
