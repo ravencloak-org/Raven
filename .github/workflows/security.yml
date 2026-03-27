@@ -10,6 +10,7 @@ on:
       - 'ai-worker/**'
       - 'Dockerfile'
       - 'ai-worker/Dockerfile'
+      - '.github/workflows/security.yml'
   pull_request:
     branches: [main]
     paths:
@@ -19,6 +20,7 @@ on:
       - 'ai-worker/**'
       - 'Dockerfile'
       - 'ai-worker/Dockerfile'
+      - '.github/workflows/security.yml'
   schedule:
     - cron: '0 6 * * 1'  # Weekly on Monday at 06:00 UTC
 
@@ -35,7 +37,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@v0.35.0
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: fs
           scan-ref: .
@@ -61,3 +63,17 @@ jobs:
 
       - name: Run govulncheck
         run: govulncheck ./...
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: critical
+          deny-licenses: AGPL-3.0, SSPL-1.0
