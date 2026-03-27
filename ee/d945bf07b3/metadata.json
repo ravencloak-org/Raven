@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "eed945bf07b3",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/research/monetization-strategy.md",
+    "docs/superpowers/specs/2026-03-27-raven-platform-design-final.md",
+    "docs/superpowers/specs/2026-03-27-raven-platform-design.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ee/d945bf07b3/0/metadata.json",
+      "transcript": "/ee/d945bf07b3/0/full.jsonl",
+      "context": "/ee/d945bf07b3/0/context.md",
+      "content_hash": "/ee/d945bf07b3/0/content_hash.txt",
+      "prompt": "/ee/d945bf07b3/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 33,
+    "cache_creation_tokens": 19551,
+    "cache_read_tokens": 2516464,
+    "output_tokens": 10994,
+    "api_call_count": 19
+  }
+}

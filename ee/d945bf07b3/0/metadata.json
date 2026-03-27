@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "eed945bf07b3",
+  "session_id": "25edfaf0-87c0-4b2a-b464-1825d1e95d71",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-27T10:00:00.105204Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/research/monetization-strategy.md",
+    "docs/superpowers/specs/2026-03-27-raven-platform-design-final.md",
+    "docs/superpowers/specs/2026-03-27-raven-platform-design.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "147e24f9-f160-423c-aa6d-8f56ed9b2bca",
+  "checkpoint_transcript_start": 430,
+  "transcript_lines_at_start": 430,
+  "token_usage": {
+    "input_tokens": 33,
+    "cache_creation_tokens": 19551,
+    "cache_read_tokens": 2516464,
+    "output_tokens": 10994,
+    "api_call_count": 19
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-27T09:59:59.98962Z",
+    "agent_lines": 285,
+    "human_added": 1363,
+    "human_modified": 751,
+    "human_removed": 0,
+    "total_committed": 2399,
+    "agent_percentage": 11.879949979157981
+  }
+}
