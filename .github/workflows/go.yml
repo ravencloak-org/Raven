@@ -44,10 +44,16 @@ jobs:
         run: go build ./cmd/api
 
       - name: Test
-        run: go test -race -short -coverprofile=coverage.txt ./...
+        run: go test -race -coverprofile=coverage.txt ./...
 
       - name: Test (migrations integration)
         run: go test -race -run '^TestMigrationsUpAndDown$' ./migrations/...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.txt
+          fail_ci_if_error: false
 
       - name: Vet
         run: go vet ./...

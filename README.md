@@ -7,7 +7,12 @@
 <p align="center">Open-source multi-tenant knowledge base platform with AI-powered chat, voice, and WhatsApp</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/build-passing-brightgreen" alt="Build Status" />
+  <a href="https://github.com/ravencloak-org/Raven/actions/workflows/go.yml"><img src="https://github.com/ravencloak-org/Raven/actions/workflows/go.yml/badge.svg" alt="Go CI" /></a>
+  <a href="https://github.com/ravencloak-org/Raven/actions/workflows/frontend.yml"><img src="https://github.com/ravencloak-org/Raven/actions/workflows/frontend.yml/badge.svg" alt="Frontend CI" /></a>
+  <a href="https://github.com/ravencloak-org/Raven/actions/workflows/python.yml"><img src="https://github.com/ravencloak-org/Raven/actions/workflows/python.yml/badge.svg" alt="Python CI" /></a>
+  <a href="https://github.com/ravencloak-org/Raven/actions/workflows/docker.yml"><img src="https://github.com/ravencloak-org/Raven/actions/workflows/docker.yml/badge.svg" alt="Docker Build" /></a>
+  <a href="https://github.com/ravencloak-org/Raven/actions/workflows/security.yml"><img src="https://github.com/ravencloak-org/Raven/actions/workflows/security.yml/badge.svg" alt="Security" /></a>
+  <a href="https://codecov.io/gh/ravencloak-org/Raven"><img src="https://codecov.io/gh/ravencloak-org/Raven/branch/main/graph/badge.svg" alt="Coverage" /></a>
   <img src="https://img.shields.io/badge/license-TBD-lightgrey" alt="License" />
   <img src="https://img.shields.io/badge/PRs-welcome-blue" alt="PRs Welcome" />
 </p>
