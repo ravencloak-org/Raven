@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -8,17 +9,24 @@ import (
 
 // Config holds all configuration for the application.
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
-	Valkey   ValkeyConfig
-	GRPC     GRPCConfig
-	OTel     OTelConfig
-	CORS     CORSConfig
+	Server    ServerConfig
+	Database  DatabaseConfig
+	Valkey    ValkeyConfig
+	GRPC      GRPCConfig
+	OTel      OTelConfig
+	CORS      CORSConfig
+	RateLimit RateLimitConfig
 }
 
 // CORSConfig holds Cross-Origin Resource Sharing settings.
 type CORSConfig struct {
 	AllowedOrigins []string `mapstructure:"allowed_origins"`
+}
+
+// RateLimitConfig holds rate limiting defaults.
+type RateLimitConfig struct {
+	DefaultUserLimit int `mapstructure:"default_user_limit"`
+	DefaultOrgLimit  int `mapstructure:"default_org_limit"`
 }
 
 // ServerConfig holds HTTP server settings.
@@ -69,6 +77,8 @@ func Load() (*Config, error) {
 	})
 	// Explicitly bind so Viper surfaces the env var when unmarshaling slice fields.
 	_ = v.BindEnv("cors.allowed_origins", "RAVEN_CORS_ALLOWED_ORIGINS")
+	v.SetDefault("ratelimit.default_user_limit", 1000)
+	v.SetDefault("ratelimit.default_org_limit", 10000)
 
 	// Config file (optional)
 	v.SetConfigName("config")
@@ -87,6 +97,13 @@ func Load() (*Config, error) {
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, err
+	}
+
+	if cfg.RateLimit.DefaultUserLimit <= 0 {
+		return nil, fmt.Errorf("ratelimit.default_user_limit must be > 0, got %d", cfg.RateLimit.DefaultUserLimit)
+	}
+	if cfg.RateLimit.DefaultOrgLimit <= 0 {
+		return nil, fmt.Errorf("ratelimit.default_org_limit must be > 0, got %d", cfg.RateLimit.DefaultOrgLimit)
 	}
 
 	return &cfg, nil
