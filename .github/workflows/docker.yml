@@ -3,8 +3,16 @@ name: Docker Build Validation
 on:
   push:
     branches: [main]
+    paths:
+      - 'Dockerfile'
+      - 'ai-worker/Dockerfile'
+      - 'docker-compose.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'Dockerfile'
+      - 'ai-worker/Dockerfile'
+      - 'docker-compose.yml'
 
 permissions:
   contents: read
