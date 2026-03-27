@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "657bcec15bf7",
+  "strategy": "manual-commit",
+  "branch": "fix/ci-failures",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/docker.yml",
+    ".github/workflows/go.yml",
+    ".github/workflows/security.yml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/65/7bcec15bf7/0/metadata.json",
+      "transcript": "/65/7bcec15bf7/0/full.jsonl",
+      "context": "/65/7bcec15bf7/0/context.md",
+      "content_hash": "/65/7bcec15bf7/0/content_hash.txt",
+      "prompt": "/65/7bcec15bf7/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 69,
+    "cache_creation_tokens": 28542,
+    "cache_read_tokens": 13697455,
+    "output_tokens": 11978,
+    "api_call_count": 65
+  }
+}

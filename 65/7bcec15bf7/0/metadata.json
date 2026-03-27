@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "657bcec15bf7",
+  "session_id": "25edfaf0-87c0-4b2a-b464-1825d1e95d71",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-27T14:52:11.636135Z",
+  "branch": "fix/ci-failures",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/docker.yml",
+    ".github/workflows/go.yml",
+    ".github/workflows/security.yml"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "f72e3b8e-c78f-42ca-8c04-aa27afcb6fa0",
+  "checkpoint_transcript_start": 1591,
+  "transcript_lines_at_start": 1591,
+  "token_usage": {
+    "input_tokens": 69,
+    "cache_creation_tokens": 28542,
+    "cache_read_tokens": 13697455,
+    "output_tokens": 11978,
+    "api_call_count": 65
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-27T14:52:11.379905Z",
+    "agent_lines": 15,
+    "human_added": 8548,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 8563,
+    "agent_percentage": 0.1751722527151699
+  }
+}
