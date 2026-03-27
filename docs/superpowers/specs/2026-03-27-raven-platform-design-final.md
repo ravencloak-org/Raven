@@ -63,13 +63,21 @@ Organization (tenant boundary -- billing, auth, data isolation)
 
 ### Decision Rationale
 
-**Go + Echo** was chosen over Node.js and Kotlin/JVM for the backend API based on:
+**Go + Gin** was chosen over Node.js and Kotlin/JVM for the backend API based on:
 - Native compilation to single static binary: 10-25 MB Docker images on distroless
 - Startup time under 50ms, RAM usage 5-10 MB at idle
 - Trivial ARM64 cross-compilation (`GOOS=linux GOARCH=arm64`) for Raspberry Pi / edge deployment
 - gRPC is Go-native (grpc-go is the reference implementation)
 - 1-5 second compile times, 1-3 minute CI pipelines
 - Goroutines handle thousands of concurrent SSE/WebSocket connections trivially
+
+**Why Gin specifically:** Gin uses a radix tree router (httprouter) making it one of the fastest Go HTTP frameworks. Key features leveraged in Raven:
+- `gin.Context` carries request-scoped data (org_id, user claims) through the middleware chain
+- Struct binding with validation tags (`c.ShouldBindJSON(&req)` + `binding:"required"`) for input validation
+- Route grouping (`r.Group("/api/v1")`) for versioned API namespaces
+- Built-in `gin.Default()` includes Logger and Recovery middleware out of the box
+- `gin-contrib/cors` for per-API-key CORS configuration
+- `otelgin` instrumentation package for automatic OpenTelemetry spans per request
 
 **Python AI Worker** runs separately, connected via gRPC, to access the full ML/AI ecosystem (LangChain, LlamaIndex, sentence-transformers, faster-whisper, etc.).
 
@@ -78,7 +86,7 @@ Organization (tenant boundary -- billing, auth, data isolation)
 | # | Component | Version | License | Purpose | SaaS-Safe? |
 |---|-----------|---------|---------|---------|------------|
 | 1 | **Go** | 1.23.x | BSD-3-Clause + Patent Grant | Backend API language | YES |
-| 2 | **Echo** | v4.13.x | MIT | Go HTTP framework (routing, middleware, grouping) | YES |
+| 2 | **Gin** | v1.10.x | MIT | Go HTTP framework (radix-tree router, struct binding, middleware chain) | YES |
 | 3 | **grpc-go** | 1.70.x | Apache 2.0 | gRPC client/server for Go <-> Python communication | YES |
 | 4 | **pgx** | v5.7.x | MIT | PostgreSQL driver for Go (connection pooling built-in) | YES |
 | 5 | **sqlc** | 1.28.x | MIT | Type-safe Go code generation from SQL queries | YES |
@@ -178,7 +186,7 @@ The codebase MUST abstract the full-text search layer behind an interface so the
 +---------+    +--------------+    +--------------+   +--------------+
 | Keycloak|    |  Go API      |    |   Strapi     |   |   Valkey     |
 | + reaven|<---|  Server      |--->|   CMS        |   |  (Job Queue) |
-|   cloak |    |  (Echo)      |    |              |   |              |
+|   cloak |    |  (Gin)       |    |              |   |              |
 |   SPI   |    +--+-+-+-------+    +------+-------+   +------+-------+
 +---------+       | | |                   |                  |
                   | | |  gRPC             |                  |
@@ -225,7 +233,7 @@ For Raspberry Pi and edge devices, Raven runs in a split configuration:
 +---------------------------+          +---------------------------+
 |   EDGE DEVICE (Pi 5)     |          |   REMOTE SERVER (Cloud)   |
 |                           |   gRPC   |                           |
-|  Go API Server (Echo)     |<-------->|  Python AI Worker         |
+|  Go API Server (Gin)      |<-------->|  Python AI Worker         |
 |  - JWT validation         |  over    |  - Embedding generation   |
 |  - REST API serving       |  network |  - RAG query engine       |
 |  - Valkey (embedded/tiny) |          |  - LiteParse subprocess   |
@@ -1109,7 +1117,7 @@ Raven operates at the intersection of three markets: RAG-as-a-Service, Voice AI 
 ### Phase 1 -- MVP (Chatbot) -- Target: 8-12 weeks
 
 **Core:**
-- Organization + Workspace + Knowledge Base CRUD (Go API + Echo)
+- Organization + Workspace + Knowledge Base CRUD (Go API + Gin)
 - User auth via Keycloak + reavencloak SPI
 - PostgreSQL 18 + pgvector + tsvector (ParadeDB optional)
 - Valkey job queue with Asynq (MIT) for task processing and cron scheduling
@@ -1144,8 +1152,8 @@ Raven operates at the intersection of three markets: RAG-as-a-Service, Voice AI 
 - PostgreSQL backups via pgBackRest (daily full + continuous WAL archiving, 30-day retention); Restic for SeaweedFS object backups
 - Rate limiting: Go middleware with Valkey sliding window counters (per-org, per-API-key, per-endpoint) + Traefik global per-IP rate limiter
 - Legal pages: Privacy Policy, Terms of Service (lawyer-drafted); `cookieconsent` (MIT) banner in Vue.js SPA; consent records table in PostgreSQL
-- API versioning: `/api/v1/` route group in Echo from day one
-- CORS and security headers: Echo CORS middleware with per-API-key domain allowlists; Traefik HSTS, CSP, X-Content-Type-Options headers
+- API versioning: `/api/v1/` route group in Gin from day one
+- CORS and security headers: Gin CORS middleware with per-API-key domain allowlists; Traefik HSTS, CSP, X-Content-Type-Options headers
 - Scheduled jobs via Asynq cron scheduler: web source re-crawling, session cleanup, API key expiration, usage aggregation
 
 **Deployment:**
@@ -1288,7 +1296,7 @@ Raven uses two complementary platforms: **PostHog** for product analytics and **
 ### 13.3 OpenTelemetry Instrumentation
 
 **Go API (`go.opentelemetry.io/otel`):**
-- Trace middleware on Echo routes (auto-creates spans per request)
+- Trace middleware on Gin routes (auto-creates spans per request)
 - Custom spans for database queries, gRPC calls, Valkey operations
 - Metrics: request count, latency histogram, active connections
 - OTLP exporter pointed at OpenObserve's ingest endpoint
@@ -1390,8 +1398,8 @@ These 9 items block MVP launch. Total estimated effort: 4-6 weeks.
 | 4 | Backup Strategy | pgBackRest for PostgreSQL PITR + Restic for SeaweedFS. 30-day retention. Test restores monthly. | 2-3 days |
 | 5 | Rate Limiting | Go middleware with Valkey sliding window counters + Traefik global per-IP limiter. | 2-3 days |
 | 6 | Legal Pages | Privacy Policy + ToS (lawyer-drafted). `cookieconsent` (MIT) banner. Consent records table. | 1-2 weeks |
-| 7 | API Versioning | `/api/v1/` route group in Echo. Versioning policy documented. `Sunset` header for deprecation. | 1 day |
-| 8 | CORS / Security Headers | Echo CORS middleware (per-API-key domain allowlists). Traefik HSTS, CSP, `nosniff`. | 1-2 days |
+| 7 | API Versioning | `/api/v1/` route group in Gin. Versioning policy documented. `Sunset` header for deprecation. | 1 day |
+| 8 | CORS / Security Headers | Gin CORS middleware (per-API-key domain allowlists). Traefik HSTS, CSP, `nosniff`. | 1-2 days |
 | 9 | Scheduled Jobs / Cron | Asynq (MIT, Valkey-backed) for cron + job queue. Source re-crawling, session cleanup, billing aggregation. | 3-5 days |
 
 ### 15.2 v1.0 GA Additions (Before Paying Customers)
@@ -1520,17 +1528,23 @@ Included voice minutes per tier (60/300/1,000) are designed to let customers val
 ## Appendix A: Go Dependency Quick Reference
 
 ```bash
-go mod init github.com/raven-platform/raven
+go mod init github.com/ravencloak-org/Raven
 
-# Key dependencies
-go get github.com/labstack/echo/v4          # Web framework
-go get google.golang.org/grpc               # gRPC
-go get github.com/jackc/pgx/v5              # PostgreSQL
-go get github.com/redis/go-redis/v9         # Valkey (Redis-compatible)
-go get github.com/coder/websocket           # WebSocket
-go get github.com/pressly/goose/v3          # Migrations
-go get github.com/spf13/viper               # Configuration
-go get go.opentelemetry.io/otel             # Observability
+# Core framework
+go get github.com/gin-gonic/gin              # HTTP framework (radix-tree router)
+go get github.com/gin-contrib/cors           # CORS middleware for Gin
+
+# Infrastructure
+go get google.golang.org/grpc               # gRPC client for Python AI worker
+go get github.com/jackc/pgx/v5              # PostgreSQL driver (connection pooling)
+go get github.com/redis/go-redis/v9         # Valkey/Redis client
+go get github.com/coder/websocket           # WebSocket (SSE streaming)
+go get github.com/pressly/goose/v3          # Database migrations
+go get github.com/spf13/viper               # Configuration (env + file)
+
+# Observability
+go get go.opentelemetry.io/otel                                              # OTel SDK
+go get go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin  # Gin auto-instrumentation
 ```
 
 ## Appendix B: Full-Text Search Abstraction

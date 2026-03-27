@@ -19,7 +19,7 @@ Raven is an open-source, multi-tenant knowledge base platform that lets organiza
 
 **Hierarchy:** Organization > Workspace > Knowledge Base
 
-**Stack:** Go (Echo) + Python AI Worker + PostgreSQL 18 (pgvector + ParadeDB) + Vue.js + Keycloak
+**Stack:** Go (Gin) + Python AI Worker + PostgreSQL 18 (pgvector + ParadeDB) + Vue.js + Keycloak
 
 ## Getting Started
 

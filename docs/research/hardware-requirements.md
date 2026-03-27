@@ -22,7 +22,7 @@
 
 | Service | Language/Runtime | Role | Deployment Phase |
 |---------|-----------------|------|-----------------|
-| Go API Server | Go (Echo) | REST API gateway, JWT validation, routing | Phase 1 |
+| Go API Server | Go (Gin) | REST API gateway, JWT validation, routing | Phase 1 |
 | Python AI Worker | Python 3.11+ | Embedding generation, RAG queries, doc processing | Phase 1 |
 | PostgreSQL 18 | C | Primary database + pgvector + ParadeDB (BM25) | Phase 1 |
 | Valkey | C (Redis-compatible) | Cache, job queue (BullMQ-compatible) | Phase 1 |
@@ -38,7 +38,7 @@
 
 ## 2. Per-Service Resource Profiles
 
-### 2.1 Go API Server (Echo)
+### 2.1 Go API Server (Gin)
 
 | State | CPU | RAM | Disk | Notes |
 |-------|-----|-----|------|-------|
