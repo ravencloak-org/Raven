@@ -54,7 +54,7 @@ func TestRateLimitBasic(t *testing.T) {
 
 	mw := RateLimitMiddleware(rl, 5, func(c *gin.Context) string {
 		return "raven:rl:test:basic"
-	})
+	}, keyPrefixFallback)
 	r := newRateLimitRouter(mw)
 
 	for i := 1; i <= 5; i++ {
@@ -82,7 +82,7 @@ func TestRateLimitExceeded(t *testing.T) {
 	const limit = 3
 	mw := RateLimitMiddleware(rl, limit, func(c *gin.Context) string {
 		return "raven:rl:test:exceeded"
-	})
+	}, keyPrefixFallback)
 	r := newRateLimitRouter(mw)
 
 	// Exhaust the limit.
@@ -137,7 +137,7 @@ func TestRateLimitWindowReset(t *testing.T) {
 	const limit = 2
 	mw := RateLimitMiddleware(rl, limit, func(c *gin.Context) string {
 		return "raven:rl:test:window"
-	})
+	}, keyPrefixFallback)
 	r := newRateLimitRouter(mw)
 
 	// Exhaust the limit.
@@ -176,7 +176,7 @@ func TestRateLimitValkeyFailureFallback(t *testing.T) {
 
 	mw := RateLimitMiddleware(rl, 1, func(c *gin.Context) string {
 		return "raven:rl:test:failure"
-	})
+	}, keyPrefixFallback)
 	r := newRateLimitRouter(mw)
 
 	w := doRequest(r)
@@ -204,7 +204,7 @@ func TestRateLimitDifferentKeysIndependent(t *testing.T) {
 	makeRouter := func(key string) *gin.Engine {
 		mw := RateLimitMiddleware(rl, limit, func(c *gin.Context) string {
 			return key
-		})
+		}, keyPrefixFallback)
 		return newRateLimitRouter(mw)
 	}
 
@@ -237,7 +237,7 @@ func TestRateLimitRemainingDecrement(t *testing.T) {
 	const limit = 5
 	mw := RateLimitMiddleware(rl, limit, func(c *gin.Context) string {
 		return "raven:rl:test:decrement"
-	})
+	}, keyPrefixFallback)
 	r := newRateLimitRouter(mw)
 
 	prev := limit
@@ -373,7 +373,7 @@ func TestNoKeyUsesFallbackKey(t *testing.T) {
 	const limit = 2
 	mw := RateLimitMiddleware(rl, limit, func(c *gin.Context) string {
 		return "" // no key — simulates identity lookup miss
-	})
+	}, keyPrefixFallback)
 	r := newRateLimitRouter(mw)
 
 	// Requests up to the limit should succeed (fallback key is rate-limited).
@@ -398,7 +398,7 @@ func TestResetHeaderIsUnixTimestamp(t *testing.T) {
 
 	mw := RateLimitMiddleware(rl, 10, func(c *gin.Context) string {
 		return "raven:rl:test:reset-ts"
-	})
+	}, keyPrefixFallback)
 	r := newRateLimitRouter(mw)
 
 	w := doRequest(r)

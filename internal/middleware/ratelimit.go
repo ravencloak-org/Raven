@@ -150,9 +150,8 @@ func (rl *RateLimiter) check(ctx context.Context, key string, limit int, windowM
 	return rateLimitResult{count: count, remaining: remaining, admitted: admitted, resetAt: resetAt}
 }
 
-// fallbackKey builds a rate-limit key from the request's remote address so
-// that anonymous or unidentified callers are still rate-limited rather than
-// silently bypassing the limiter.
+// keyPrefixFallback is the default fallback prefix used when no scope-specific
+// prefix is provided to RateLimitMiddleware.
 const keyPrefixFallback = "raven:rl:fallback:"
 
 // fallbackLogSeen deduplicates the "identity lookup missed" warning so it fires
@@ -161,12 +160,18 @@ var fallbackLogSeen sync.Map
 
 // RateLimitMiddleware is the generic Gin middleware factory.
 //
-//   - limit    — maximum requests per minute for this scope
-//   - keyFn    — extracts the rate-limit key from the request context;
+//   - limit          — maximum requests per minute for this scope
+//   - keyFn          — extracts the rate-limit key from the request context;
 //     returning "" means identity could not be determined; a fallback
 //     IP-based key is used instead so the limiter is never silently skipped.
-func RateLimitMiddleware(rl *RateLimiter, limit int, keyFn func(*gin.Context) string) gin.HandlerFunc {
+//   - fallbackPrefix — key prefix used when keyFn returns ""; each scope
+//     should pass its own prefix so that stacked middlewares do not share
+//     the same anonymous bucket (e.g. keyPrefixUser+"fallback:" for ByUserID).
+func RateLimitMiddleware(rl *RateLimiter, limit int, keyFn func(*gin.Context) string, fallbackPrefix string) gin.HandlerFunc {
 	const windowMs = int64(60_000) // 1 minute sliding window
+	if fallbackPrefix == "" {
+		fallbackPrefix = keyPrefixFallback
+	}
 
 	return func(c *gin.Context) {
 		key := keyFn(c)
@@ -196,15 +201,24 @@ func RateLimitMiddleware(rl *RateLimiter, limit int, keyFn func(*gin.Context) st
 					slog.String("path", c.FullPath()),
 				)
 			}
-			key = keyPrefixFallback + ip
+			key = fallbackPrefix + ip
 		}
 
 		result := rl.check(c.Request.Context(), key, limit, windowMs)
 
-		// Always set informational headers.
-		c.Header("X-RateLimit-Limit", strconv.Itoa(limit))
-		c.Header("X-RateLimit-Remaining", strconv.FormatInt(result.remaining, 10))
-		c.Header("X-RateLimit-Reset", strconv.FormatInt(result.resetAt, 10))
+		// Set X-RateLimit-* headers, keeping the tightest (lowest remaining)
+		// when multiple rate-limit middlewares are stacked on the same route.
+		// This ensures clients always observe the binding constraint.
+		prevRemStr := c.Writer.Header().Get("X-RateLimit-Remaining")
+		if prevRemStr == "" {
+			c.Header("X-RateLimit-Limit", strconv.Itoa(limit))
+			c.Header("X-RateLimit-Remaining", strconv.FormatInt(result.remaining, 10))
+			c.Header("X-RateLimit-Reset", strconv.FormatInt(result.resetAt, 10))
+		} else if prevRem, err := strconv.ParseInt(prevRemStr, 10, 64); err == nil && result.remaining < prevRem {
+			c.Header("X-RateLimit-Limit", strconv.Itoa(limit))
+			c.Header("X-RateLimit-Remaining", strconv.FormatInt(result.remaining, 10))
+			c.Header("X-RateLimit-Reset", strconv.FormatInt(result.resetAt, 10))
+		}
 
 		if !result.admitted {
 			retryAfter := result.resetAt - time.Now().Unix()
@@ -244,7 +258,7 @@ func ByAPIKey(rl *RateLimiter, limit int) gin.HandlerFunc {
 			return ""
 		}
 		return keyPrefixAPIKey + apiKeyHash(key)
-	})
+	}, keyPrefixAPIKey+"fallback:")
 }
 
 // ByUserID returns a Gin middleware that rate-limits by authenticated user ID.
@@ -260,7 +274,7 @@ func ByUserID(rl *RateLimiter, limit int) gin.HandlerFunc {
 			return ""
 		}
 		return keyPrefixUser + id
-	})
+	}, keyPrefixUser+"fallback:")
 }
 
 // ByOrgID returns a Gin middleware that rate-limits by organisation ID.
@@ -276,6 +290,6 @@ func ByOrgID(rl *RateLimiter, limit int) gin.HandlerFunc {
 			return ""
 		}
 		return keyPrefixOrg + id
-	})
+	}, keyPrefixOrg+"fallback:")
 }
 
