@@ -1,0 +1,1620 @@
+While the existing PRs are being merged, let's look at the milestone 2 or whatever is the next milestone. I think if my new milestone 3 picks up the main 2 or 4 features out of that, create work trees for each of them and then start working on it using a parallel agent, use superpowers and context MCP wherever required.
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.5/skills/brainstorming
+
+# Brainstorming Ideas Into Designs
+
+Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
+
+Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design and get user approval.
+
+<HARD-GATE>
+Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
+</HARD-GATE>
+
+## Anti-Pattern: "This Is Too Simple To Need A Design"
+
+Every project goes through this process. A todo list, a single-function utility, a config change — all of them. "Simple" projects are where unexamined assumptions cause the most wasted work. The design can be short (a few sentences for truly simple projects), but you MUST present it and get approval.
+
+## Checklist
+
+You MUST create a task for each of these items and complete them in order:
+
+1. **Explore project context** — check files, docs, recent commits
+2. **Offer visual companion** (if topic will involve visual questions) — this is its own message, not combined with a clarifying question. See the Visual Companion section below.
+3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
+4. **Propose 2-3 approaches** — with trade-offs and your recommendation
+5. **Present design** — in sections scaled to their complexity, get user approval after each section
+6. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit
+7. **Spec review loop** — dispatch spec-document-reviewer subagent with precisely crafted review context (never your session history); fix issues and re-dispatch until approved (max 3 iterations, then surface to human)
+8. **User reviews written spec** — ask user to review the spec file before proceeding
+9. **Transition to implementation** — invoke writing-plans skill to create implementation plan
+
+## Process Flow
+
+```dot
+digraph brainstorming {
+    "Explore project context" [shape=box];
+    "Visual questions ahead?" [shape=diamond];
+    "Offer Visual Companion\n(own message, no other content)" [shape=box];
+    "Ask clarifying questions" [shape=box];
+    "Propose 2-3 approaches" [shape=box];
+    "Present design sections" [shape=box];
+    "User approves design?" [shape=diamond];
+    "Write design doc" [shape=box];
+    "Spec review loop" [shape=box];
+    "Spec review passed?" [shape=diamond];
+    "User reviews spec?" [shape=diamond];
+    "Invoke writing-plans skill" [shape=doublecircle];
+
+    "Explore project context" -> "Visual questions ahead?";
+    "Visual questions ahead?" -> "Offer Visual Companion\n(own message, no other content)" [label="yes"];
+    "Visual questions ahead?" -> "Ask clarifying questions" [label="no"];
+    "Offer Visual Companion\n(own message, no other content)" -> "Ask clarifying questions";
+    "Ask clarifying questions" -> "Propose 2-3 approaches";
+    "Propose 2-3 approaches" -> "Present design sections";
+    "Present design sections" -> "User approves design?";
+    "User approves design?" -> "Present design sections" [label="no, revise"];
+    "User approves design?" -> "Write design doc" [label="yes"];
+    "Write design doc" -> "Spec review loop";
+    "Spec review loop" -> "Spec review passed?";
+    "Spec review passed?" -> "Spec review loop" [label="issues found,\nfix and re-dispatch"];
+    "Spec review passed?" -> "User reviews spec?" [label="approved"];
+    "User reviews spec?" -> "Write design doc" [label="changes requested"];
+    "User reviews spec?" -> "Invoke writing-plans skill" [label="approved"];
+}
+```
+
+**The terminal state is invoking writing-plans.** Do NOT invoke frontend-design, mcp-builder, or any other implementation skill. The ONLY skill you invoke after brainstorming is writing-plans.
+
+## The Process
+
+**Understanding the idea:**
+
+- Check out the current project state first (files, docs, recent commits)
+- Before asking detailed questions, assess scope: if the request describes multiple independent subsystems (e.g., "build a platform with chat, file storage, billing, and analytics"), flag this immediately. Don't spend questions refining details of a project that needs to be decomposed first.
+- If the project is too large for a single spec, help the user decompose into sub-projects: what are the independent pieces, how do they relate, what order should they be built? Then brainstorm the first sub-project through the normal design flow. Each sub-project gets its own spec → plan → implementation cycle.
+- For appropriately-scoped projects, ask questions one at a time to refine the idea
+- Prefer multiple choice questions when possible, but open-ended is fine too
+- Only one question per message - if a topic needs more exploration, break it into multiple questions
+- Focus on understanding: purpose, constraints, success criteria
+
+**Exploring approaches:**
+
+- Propose 2-3 different approaches with trade-offs
+- Present options conversationally with your recommendation and reasoning
+- Lead with your recommended option and explain why
+
+**Presenting the design:**
+
+- Once you believe you understand what you're building, present the design
+- Scale each section to its complexity: a few sentences if straightforward, up to 200-300 words if nuanced
+- Ask after each section whether it looks right so far
+- Cover: architecture, components, data flow, error handling, testing
+- Be ready to go back and clarify if something doesn't make sense
+
+**Design for isolation and clarity:**
+
+- Break the system into smaller units that each have one clear purpose, communicate through well-defined interfaces, and can be understood and tested independently
+- For each unit, you should be able to answer: what does it do, how do you use it, and what does it depend on?
+- Can someone understand what a unit does without reading its internals? Can you change the internals without breaking consumers? If not, the boundaries need work.
+- Smaller, well-bounded units are also easier for you to work with - you reason better about code you can hold in context at once, and your edits are more reliable when files are focused. When a file grows large, that's often a signal that it's doing too much.
+
+**Working in existing codebases:**
+
+- Explore the current structure before proposing changes. Follow existing patterns.
+- Where existing code has problems that affect the work (e.g., a file that's grown too large, unclear boundaries, tangled responsibilities), include targeted improvements as part of the design - the way a good developer improves code they're working in.
+- Don't propose unrelated refactoring. Stay focused on what serves the current goal.
+
+## After the Design
+
+**Documentation:**
+
+- Write the validated design (spec) to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
+  - (User preferences for spec location override this default)
+- Use elements-of-style:writing-clearly-and-concisely skill if available
+- Commit the design document to git
+
+**Spec Review Loop:**
+After writing the spec document:
+
+1. Dispatch spec-document-reviewer subagent (see spec-document-reviewer-prompt.md)
+2. If Issues Found: fix, re-dispatch, repeat until Approved
+3. If loop exceeds 3 iterations, surface to human for guidance
+
+**User Review Gate:**
+After the spec review loop passes, ask the user to review the written spec before proceeding:
+
+> "Spec written and committed to `<path>`. Please review it and let me know if you want to make any changes before we start writing out the implementation plan."
+
+Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
+
+**Implementation:**
+
+- Invoke the writing-plans skill to create a detailed implementation plan
+- Do NOT invoke any other skill. writing-plans is the next step.
+
+## Key Principles
+
+- **One question at a time** - Don't overwhelm with multiple questions
+- **Multiple choice preferred** - Easier to answer than open-ended when possible
+- **YAGNI ruthlessly** - Remove unnecessary features from all designs
+- **Explore alternatives** - Always propose 2-3 approaches before settling
+- **Incremental validation** - Present design, get approval before moving on
+- **Be flexible** - Go back and clarify when something doesn't make sense
+
+## Visual Companion
+
+A browser-based companion for showing mockups, diagrams, and visual options during brainstorming. Available as a tool — not a mode. Accepting the companion means it's available for questions that benefit from visual treatment; it does NOT mean every question goes through the browser.
+
+**Offering the companion:** When you anticipate that upcoming questions will involve visual content (mockups, layouts, diagrams), offer it once for consent:
+> "Some of what we're working on might be easier to explain if I can show it to you in a web browser. I can put together mockups, diagrams, comparisons, and other visuals as we go. This feature is still new and can be token-intensive. Want to try it? (Requires opening a local URL)"
+
+**This offer MUST be its own message.** Do not combine it with clarifying questions, context summaries, or any other content. The message should contain ONLY the offer above and nothing else. Wait for the user's response before continuing. If they decline, proceed with text-only brainstorming.
+
+**Per-question decision:** Even after the user accepts, decide FOR EACH QUESTION whether to use the browser or the terminal. The test: **would the user understand this better by seeing it than reading it?**
+
+- **Use the browser** for content that IS visual — mockups, wireframes, layout comparisons, architecture diagrams, side-by-side visual designs
+- **Use the terminal** for content that is text — requirements questions, conceptual choices, tradeoff lists, A/B/C/D text options, scope decisions
+
+A question about a UI topic is not automatically a visual question. "What does personality mean in this context?" is a conceptual question — use the terminal. "Which wizard layout works better?" is a visual question — use the browser.
+
+If they agree to the companion, read the detailed guide before proceeding:
+`skills/brainstorming/visual-companion.md`
+
+---
+
+Yeah, let's go for the recommended
+
+---
+
+Let's go for it.
+
+---
+
+Also, all the previous PRs that were pending and open are closed, so now they should not be any blocker for you. You can pick up the task that you had postponed.
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.5/skills/using-git-worktrees
+
+# Using Git Worktrees
+
+## Overview
+
+Git worktrees create isolated workspaces sharing the same repository, allowing work on multiple branches simultaneously without switching.
+
+**Core principle:** Systematic directory selection + safety verification = reliable isolation.
+
+**Announce at start:** "I'm using the using-git-worktrees skill to set up an isolated workspace."
+
+## Directory Selection Process
+
+Follow this priority order:
+
+### 1. Check Existing Directories
+
+```bash
+# Check in priority order
+ls -d .worktrees 2>/dev/null     # Preferred (hidden)
+ls -d worktrees 2>/dev/null      # Alternative
+```
+
+**If found:** Use that directory. If both exist, `.worktrees` wins.
+
+### 2. Check CLAUDE.md
+
+```bash
+grep -i "worktree.*director" CLAUDE.md 2>/dev/null
+```
+
+**If preference specified:** Use it without asking.
+
+### 3. Ask User
+
+If no directory exists and no CLAUDE.md preference:
+
+```
+No worktree directory found. Where should I create worktrees?
+
+1. .worktrees/ (project-local, hidden)
+2. ~/.config/superpowers/worktrees/<project-name>/ (global location)
+
+Which would you prefer?
+```
+
+## Safety Verification
+
+### For Project-Local Directories (.worktrees or worktrees)
+
+**MUST verify directory is ignored before creating worktree:**
+
+```bash
+# Check if directory is ignored (respects local, global, and system gitignore)
+git check-ignore -q .worktrees 2>/dev/null || git check-ignore -q worktrees 2>/dev/null
+```
+
+**If NOT ignored:**
+
+Per Jesse's rule "Fix broken things immediately":
+1. Add appropriate line to .gitignore
+2. Commit the change
+3. Proceed with worktree creation
+
+**Why critical:** Prevents accidentally committing worktree contents to repository.
+
+### For Global Directory (~/.config/superpowers/worktrees)
+
+No .gitignore verification needed - outside project entirely.
+
+## Creation Steps
+
+### 1. Detect Project Name
+
+```bash
+project=$(basename "$(git rev-parse --show-toplevel)")
+```
+
+### 2. Create Worktree
+
+```bash
+# Determine full path
+case $LOCATION in
+  .worktrees|worktrees)
+    path="$LOCATION/$BRANCH_NAME"
+    ;;
+  ~/.config/superpowers/worktrees/*)
+    path="~/.config/superpowers/worktrees/$project/$BRANCH_NAME"
+    ;;
+esac
+
+# Create worktree with new branch
+git worktree add "$path" -b "$BRANCH_NAME"
+cd "$path"
+```
+
+### 3. Run Project Setup
+
+Auto-detect and run appropriate setup:
+
+```bash
+# Node.js
+if [ -f package.json ]; then npm install; fi
+
+# Rust
+if [ -f Cargo.toml ]; then cargo build; fi
+
+# Python
+if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+if [ -f pyproject.toml ]; then poetry install; fi
+
+# Go
+if [ -f go.mod ]; then go mod download; fi
+```
+
+### 4. Verify Clean Baseline
+
+Run tests to ensure worktree starts clean:
+
+```bash
+# Examples - use project-appropriate command
+npm test
+cargo test
+pytest
+go test ./...
+```
+
+**If tests fail:** Report failures, ask whether to proceed or investigate.
+
+**If tests pass:** Report ready.
+
+### 5. Report Location
+
+```
+Worktree ready at <full-path>
+Tests passing (<N> tests, 0 failures)
+Ready to implement <feature-name>
+```
+
+## Quick Reference
+
+| Situation | Action |
+|-----------|--------|
+| `.worktrees/` exists | Use it (verify ignored) |
+| `worktrees/` exists | Use it (verify ignored) |
+| Both exist | Use `.worktrees/` |
+| Neither exists | Check CLAUDE.md → Ask user |
+| Directory not ignored | Add to .gitignore + commit |
+| Tests fail during baseline | Report failures + ask |
+| No package.json/Cargo.toml | Skip dependency install |
+
+## Common Mistakes
+
+### Skipping ignore verification
+
+- **Problem:** Worktree contents get tracked, pollute git status
+- **Fix:** Always use `git check-ignore` before creating project-local worktree
+
+### Assuming directory location
+
+- **Problem:** Creates inconsistency, violates project conventions
+- **Fix:** Follow priority: existing > CLAUDE.md > ask
+
+### Proceeding with failing tests
+
+- **Problem:** Can't distinguish new bugs from pre-existing issues
+- **Fix:** Report failures, get explicit permission to proceed
+
+### Hardcoding setup commands
+
+- **Problem:** Breaks on projects using different tools
+- **Fix:** Auto-detect from project files (package.json, etc.)
+
+## Example Workflow
+
+```
+You: I'm using the using-git-worktrees skill to set up an isolated workspace.
+
+[Check .worktrees/ - exists]
+[Verify ignored - git check-ignore confirms .worktrees/ is ignored]
+[Create worktree: git worktree add .worktrees/auth -b feature/auth]
+[Run npm install]
+[Run npm test - 47 passing]
+
+Worktree ready at /Users/jesse/myproject/.worktrees/auth
+Tests passing (47 tests, 0 failures)
+Ready to implement auth feature
+```
+
+## Red Flags
+
+**Never:**
+- Create worktree without verifying it's ignored (project-local)
+- Skip baseline test verification
+- Proceed with failing tests without asking
+- Assume directory location when ambiguous
+- Skip CLAUDE.md check
+
+**Always:**
+- Follow directory priority: existing > CLAUDE.md > ask
+- Verify directory is ignored for project-local
+- Auto-detect and run project setup
+- Verify clean test baseline
+
+## Integration
+
+**Called by:**
+- **brainstorming** (Phase 4) - REQUIRED when design is approved and implementation follows
+- **subagent-driven-development** - REQUIRED before executing any tasks
+- **executing-plans** - REQUIRED before executing any tasks
+- Any skill needing isolated workspace
+
+**Pairs with:**
+- **finishing-a-development-branch** - REQUIRED for cleanup after work complete
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.5/skills/writing-plans
+
+# Writing Plans
+
+## Overview
+
+Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code, testing, docs they might need to check, how to test it. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD. Frequent commits.
+
+Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they don't know good test design very well.
+
+**Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
+
+**Context:** This should be run in a dedicated worktree (created by brainstorming skill).
+
+**Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`
+- (User preferences for plan location override this default)
+
+## Scope Check
+
+If the spec covers multiple independent subsystems, it should have been broken into sub-project specs during brainstorming. If it wasn't, suggest breaking this into separate plans — one per subsystem. Each plan should produce working, testable software on its own.
+
+## File Structure
+
+Before defining tasks, map out which files will be created or modified and what each one is responsible for. This is where decomposition decisions get locked in.
+
+- Design units with clear boundaries and well-defined interfaces. Each file should have one clear responsibility.
+- You reason best about code you can hold in context at once, and your edits are more reliable when files are focused. Prefer smaller, focused files over large ones that do too much.
+- Files that change together should live together. Split by responsibility, not by technical layer.
+- In existing codebases, follow established patterns. If the codebase uses large files, don't unilaterally restructure - but if a file you're modifying has grown unwieldy, including a split in the plan is reasonable.
+
+This structure informs the task decomposition. Each task should produce self-contained changes that make sense independently.
+
+## Bite-Sized Task Granularity
+
+**Each step is one action (2-5 minutes):**
+- "Write the failing test" - step
+- "Run it to make sure it fails" - step
+- "Implement the minimal code to make the test pass" - step
+- "Run the tests and make sure they pass" - step
+- "Commit" - step
+
+## Plan Document Header
+
+**Every plan MUST start with this header:**
+
+```markdown
+# [Feature Name] Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** [One sentence describing what this builds]
+
+**Architecture:** [2-3 sentences about approach]
+
+**Tech Stack:** [Key technologies/libraries]
+
+---
+```
+
+## Task Structure
+
+````markdown
+### Task N: [Component Name]
+
+**Files:**
+- Create: `exact/path/to/file.py`
+- Modify: `exact/path/to/existing.py:123-145`
+- Test: `tests/exact/path/to/test.py`
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+def test_specific_behavior():
+    result = function(input)
+    assert result == expected
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `pytest tests/path/test.py::test_name -v`
+Expected: FAIL with "function not defined"
+
+- [ ] **Step 3: Write minimal implementation**
+
+```python
+def function(input):
+    return expected
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `pytest tests/path/test.py::test_name -v`
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add tests/path/test.py src/path/file.py
+git commit -m "feat: add specific feature"
+```
+````
+
+## Remember
+- Exact file paths always
+- Complete code in plan (not "add validation")
+- Exact commands with expected output
+- Reference relevant skills with @ syntax
+- DRY, YAGNI, TDD, frequent commits
+
+## Plan Review Loop
+
+After writing the complete plan:
+
+1. Dispatch a single plan-document-reviewer subagent (see plan-document-reviewer-prompt.md) with precisely crafted review context — never your session history. This keeps the reviewer focused on the plan, not your thought process.
+   - Provide: path to the plan document, path to spec document
+2. If ❌ Issues Found: fix the issues, re-dispatch reviewer for the whole plan
+3. If ✅ Approved: proceed to execution handoff
+
+**Review loop guidance:**
+- Same agent that wrote the plan fixes it (preserves context)
+- If loop exceeds 3 iterations, surface to human for guidance
+- Reviewers are advisory — explain disagreements if you believe feedback is incorrect
+
+## Execution Handoff
+
+After saving the plan, offer execution choice:
+
+**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Two execution options:**
+
+**1. Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
+
+**2. Inline Execution** - Execute tasks in this session using executing-plans, batch execution with checkpoints
+
+**Which approach?"**
+
+**If Subagent-Driven chosen:**
+- **REQUIRED SUB-SKILL:** Use superpowers:subagent-driven-development
+- Fresh subagent per task + two-stage review
+
+**If Inline Execution chosen:**
+- **REQUIRED SUB-SKILL:** Use superpowers:executing-plans
+- Batch execution with checkpoints for review
+
+---
+
+<task-notification>
+<task-id>a2fbb86e7f818a779</task-id>
+<tool-use-id>toolu_01VCGEtNmY5bHpyGzSMidoup</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Review three-stream design spec" completed</summary>
+<result>I now have everything I need to deliver a complete, evidence-based review. Here is my assessment.
+
+---
+
+## Design Spec Review: `2026-03-28-three-stream-parallel-development-design.md`
+
+Overall verdict: **NOT APPROVED — 4 issues must be fixed before agents start.**
+
+---
+
+### What is done well
+
+The three-worktree isolation model is sound. Using contracts committed to `main` before agents start is the correct approach for decoupled parallel development. The squash-merge-per-issue cadence matches the project's established convention. The prerequisite PRs (#23, #30, #31) are confirmed closed and their work is on `main`. The existing `proto/ai_worker.proto` is a solid foundation for the AI stream contract.
+
+---
+
+### Issues
+
+#### CRITICAL — Issue 1: The `contracts/` directory does not exist and is not scheduled for creation
+
+**Section 3 of the spec states:** "Committed to `main` before agents start, under `contracts/`". But `contracts/` does not exist in the repo. There is no issue, no task, and no agent assigned to create it. The spec describes Stream 2 (frontend) building against `contracts/openapi-stub.yaml` and Stream 3 (AI) building against `contracts/raven_worker.proto`, but neither file exists.
+
+The proto file does exist at `/proto/ai_worker.proto`, but the spec points the AI stream at `contracts/raven_worker.proto` — a different path and a different filename.
+
+**Required fix:** Before the three agents start, either (a) create a pre-flight task that commits both contract files to `main` and clearly assigns it to a human or a fourth agent, or (b) update the spec to reference the actual proto path (`proto/ai_worker.proto`) and create the `openapi-stub.yaml` in a named location. The spec must also specify who does this work and when it is considered done. Agents must not start until both files are present on `main`.
+
+---
+
+#### CRITICAL — Issue 2: Backend dependency ordering is wrong — RBAC (#28) and RLS (#29) are placed before the APIs they must protect
+
+The spec sequences: #24 (Org CRUD) → #28 (RBAC) → #29 (RLS) → #25 (Workspace CRUD) → ...
+
+Checking the actual issues:
+- Issue #25 (Workspace CRUD) states in its acceptance criteria: "Workspace CRUD operates within org tenant boundary (RLS enforced)." It explicitly depends on RLS being active.
+- Issue #27 (KB CRUD) has role checks ("Only workspace members with `member` role or above...") baked into its acceptance criteria, requiring RBAC middleware.
+- Issues #28 and #29 themselves only depend on #23 (JWT), which is already merged.
+
+The current ordering is actually defensible — you can implement #28 and #29 as independent middleware/migration tasks right after #24, and then #25/27 are written with RBAC and RLS already available. However, the real problem is a missing dependency the spec omits entirely:
+
+Issue #29 (RLS) depends on **#5 (Database Migrations)**. Issue #24 (Org CRUD) also depends on **#5**. Both #5 and #6 are closed (M1 complete), so this is not a blocker today, but the spec's "Dependencies satisfied" section only lists #23/#30/#31. It should also explicitly confirm #5 (Database Migrations) and #6 (Keycloak Realm) as satisfied, because issues #24, #29 (depend on #5) and #26 (depends on #6) will fail if those are not verified closed. The spec says "No blockers remain" but does not account for these two M1 dependencies. They are closed, but the spec is misleading in its omission.
+
+**Required fix:** Add #5 and #6 to the "Dependencies satisfied" list in Section 2. This prevents any future confusion when an agent reads the spec and does not realize those prior issues must be closed.
+
+---
+
+#### CRITICAL — Issue 3: AI Stream dependency on issue #15 (Crawl4AI / Task 3.6) is silently dropped
+
+Issue #16 (Text Chunking) states in its GitHub body: "Deps: Task 3.5, **3.6**." Task 3.6 is issue #15 (Crawl4AI Web Scraping), which is open, P1-important, and assigned to M3.
+
+The spec's AI stream sequence is: #14 → #16 → #17. It skips #15 entirely. Issue #16 therefore has an unsatisfied declared dependency (#15) that the spec does not acknowledge, resolve, or explain away.
+
+There are two valid resolutions: either insert #15 between #14 and #16 in the AI stream, or document a conscious decision that #15's Crawl4AI output is not needed for the chunker path exercised in this plan (e.g., the chunker will only operate on LiteParse-parsed content in M3 scope, and web scraping output is deferred). Neither resolution is currently in the spec.
+
+**Required fix:** Either add #15 to the AI stream table between #14 and #16, or add an explicit note explaining why #15 is excluded and confirming that #16's test suite will not require Crawl4AI output.
+
+---
+
+#### CRITICAL — Issue 4: Issue #26 (User Management) has an unresolved external dependency on Keycloak SPI that is not addressed in this plan
+
+Issue #26 depends on the Keycloak webhook endpoint (`POST /api/v1/internal/keycloak-webhook`) and the reavencloak SPI sending events. Its acceptance criteria explicitly require: "Keycloak webhook creates/updates user records." The SPI itself is issue #6, which is closed. However, the webhook path in issue #26 is new application code that creates a tight runtime coupling: it requires a live Keycloak instance configured to call the webhook.
+
+The spec's quality gate #3 requires `docker compose up` and end-to-end validation. For issue #26, this means the `docker compose` environment must have Keycloak running with the SPI JAR loaded and pointed at the API. The spec does not mention this and gives no guidance on whether the docker compose environment is already configured for this. If it is not, issue #26 will fail its own acceptance criteria during the quality gate.
+
+**Required fix:** Add a note under Stream 1 (or Section 4 quality gates) explicitly stating that for issue #26, the docker compose environment includes a working Keycloak instance with the reavencloak SPI, and that the internal webhook is testable locally. If the environment is not ready, #26 must be descoped to stub/mock the webhook and a follow-up issue created.
+
+---
+
+### Important (should fix, but not blockers to starting)
+
+#### Issue 5: Issue #32 (Swagger) depends on #26 and #27 but the spec omits #26 from its declared dependencies
+
+Issue #32's GitHub body lists: "Depends on #24, #25, #27." It does not list #26 (User Management), which introduces the `/me` endpoint and the internal webhook endpoint — both of which would be absent from the generated spec if #26 is not done first. Since the spec orders #32 last, this works out in practice, but the issue itself has an undeclared dependency. This is a data quality issue in the GitHub issue, not in the spec. Flag it for correction on the issue itself.
+
+#### Issue 6: The "reconcile against real backend endpoints" step in Section 6 has no owner, no trigger, and no timeline
+
+Section 6 states: "Frontend and AI streams reconcile against real backend endpoints once backend PRs land." This is an integration step that requires coordination across all three agents. There is no defined trigger (e.g., "when all Stream 1 PRs are merged"), no owner (which agent does the reconciliation?), and no quality gate for it. In a parallel multi-agent setup this is a coordination gap — it can result in an integration phase that never formally starts.
+
+**Recommended fix:** Add a Section 7 "Integration Handoff" that defines: the trigger condition (all Stream 1 PRs squash-merged to `main`), who performs the reconciliation (frontend and AI agents each rebase their branches against `main`), and what the acceptance gate is (docker compose integration test with all three services).
+
+#### Issue 7: The quality gate for the frontend stream references Playwright E2E but there is no running backend for those tests to target
+
+The spec requires Playwright E2E tests as a gate before any push. But Stream 2 is developing against the OpenAPI stub mock, not a real backend. Playwright E2E tests for auth flows (OIDC PKCE, token refresh) require a live Keycloak and a real API. This either means the E2E gate cannot be satisfied in isolation, or the agent must run a mock server. The spec does not define what the Playwright E2E tests run against.
+
+**Recommended fix:** Clarify in Section 4 that for the frontend stream, Playwright E2E tests run against a mock API server (e.g., `msw` or `openapi-backend` serving the stub YAML), not the real backend. Specify this explicitly so the agent does not block waiting for a live API.
+
+---
+
+### Suggestions (nice to have)
+
+- Section 5 states agents "do not start the next issue until the current one has a passing PR." This is correct but ambiguous about what "passing" means — does it require CI green on GitHub, or just local tests? Given the repo has CI enforced on PRs, clarify that "passing PR" means GitHub Actions CI passes, not just local `go test`.
+
+- The spec header says `Status: Approved` but this document is under review. That field should be `Status: Draft` until this review is resolved. Having `Approved` in the header of a document with open critical issues will confuse agents that read it as authoritative.
+
+---
+
+### Summary of required actions before agents start
+
+| # | Action | Owner |
+|---|--------|-------|
+| 1 | Create `contracts/openapi-stub.yaml` and place proto stub at the path the spec references; commit both to `main` | Human / pre-flight task |
+| 2 | Add #5 and #6 to the "Dependencies satisfied" list in Section 2 | Spec author |
+| 3 | Either add #15 to the AI stream or document explicitly why it is excluded | Spec author |
+| 4 | Confirm or add docker compose Keycloak readiness note for #26's quality gate | Spec author |
+| 5 | Add Section 7 "Integration Handoff" with trigger, owner, and acceptance gate | Spec author |
+| 6 | Clarify Playwright E2E target (mock server vs. real API) in Section 4 | Spec author |
+| 7 | Change header `Status` from `Approved` to `Draft` until all above are resolved | Spec author |</result>
+<usage><total_tokens>33354</total_tokens><tool_uses>45</tool_uses><duration_ms>148056</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>afcdafcb2580fc7b0</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Frontend M5 scaffold stream agent" completed</summary>
+<result>I need Bash access to run npm commands, git commands, and install packages. This entire task requires:
+
+1. Running `npm install` to add keycloak-js and vitest dependencies
+2. Running `npx vitest run` to execute unit tests (TDD red/green cycle)
+3. Running `npm run build` and `npm run lint` for quality gates
+4. Running `npx playwright test` for E2E tests
+5. Running `git commit` and `git push` to create commits and PRs
+
+These are all essential — the plan is explicitly TDD (write failing test, run, implement, run, pass, commit) and every PR requires passing tests before creation. Without Bash, I cannot complete any of these steps.
+
+Could you grant Bash access so I can proceed? Once granted, I'll immediately start Task 1: installing dependencies and writing the failing auth store tests.</result>
+<usage><total_tokens>27712</total_tokens><tool_uses>17</tool_uses><duration_ms>43109</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a1e35c1765e598d2b</task-id>
+<tool-use-id>toolu_01HwDK5QudCJH6y7HgBUvoXJ</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Backend M2 CRUD stream agent" completed</summary>
+<result>I need the Bash tool to be enabled to proceed with this task. Here's what I need to do and why each command is necessary:
+
+**What I've completed so far (pre-flight reading):**
+- Read `cmd/api/main.go`, `internal/middleware/auth.go`, `internal/config/config.go`, `pkg/apierror/apierror.go`
+- Read all migration files — discovered that ALL tenant tables already have RLS in existing migrations (00004-00014), so Issue #29 needs only a verification migration
+- Confirmed pgx/v5 is NOT in `go.mod` and must be added
+- Confirmed context keys use `contextKey` type and are stored with `string()` cast
+- Confirmed `internal/model`, `internal/repository`, `internal/service`, `internal/handler` directories exist as stubs
+
+**Why I need Bash:**
+1. `go get github.com/jackc/pgx/v5` — add pgx dependency
+2. `go test -short ./...` — run tests per quality gates
+3. `go build ./...` — verify compilation
+4. `git add` / `git commit` — commit each task
+5. `git push` + `gh pr create` — create PRs per issue
+6. `golangci-lint run` — quality gate
+
+These are all standard development operations required by the implementation plan. Could you please approve Bash access so I can proceed?</result>
+<usage><total_tokens>46144</total_tokens><tool_uses>30</tool_uses><duration_ms>76777</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>afcdafcb2580fc7b0</task-id>
+<tool-use-id>toolu_018HA5MU3FHF9KDwAtMN6kKP</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Frontend M5 scaffold stream agent" completed</summary>
+<result>I have all the information I need from the plan and spec — the issue checklists are fully defined in the plan file. I also need Bash access and GitHub tool access to complete this task. Let me explain exactly what I need and why:
+
+---
+
+**Tools I need to complete this task:**
+
+**1. Bash** — Essential for every step:
+- `npm install keycloak-js @playwright/test vitest @vue/test-utils happy-dom` — add dependencies
+- `npx vitest run src/stores/auth.spec.ts` — TDD red/green cycles (required by plan)
+- `npm run build` — TypeScript quality gate before each PR
+- `npm run lint` — lint quality gate before each PR
+- `npx playwright install chromium` + `npx playwright test` — E2E tests
+- `git add` + `git commit` + `git push origin feat/stream-frontend-m5-scaffold` — commit and push work
+
+**2. `mcp__github__issue_read`** — To read the exact task checklists in issues #42 and #43, so I can tick every checkbox (quality gate #1 requires "all issue task checkboxes satisfied").
+
+**3. `mcp__github__create_pull_request`** — To create one squash-ready PR per issue with `Closes #42` / `Closes #43` in the body, as required by the spec.
+
+---
+
+**What I can do right now without those tools:**
+
+I can write all the source files — `auth.ts`, `auth.spec.ts`, `orgs.ts`, `orgs.spec.ts`, `OrgDetailPage.vue`, `OrgListPage.vue`, `playwright.config.ts`, `e2e/auth.spec.ts`, `e2e/orgs.spec.ts`, updated `router/index.ts`, `main.ts`, `vite.config.ts`, `useAuth.ts`, `.env.example`, and `public/silent-check-sso.html` — since I've read all the existing files and the plan is clear.
+
+However, I cannot run tests to verify correctness, cannot install dependencies that the TypeScript needs to compile, cannot commit, and cannot push or create PRs.
+
+**Would you like me to:**
+- **(A)** Write all the files now (everything I can do without Bash/GitHub), and you grant Bash + GitHub tool access afterward to run tests, commit, and create PRs?
+- **(B)** Grant Bash access first so I can follow the TDD cycle properly (write failing test → run → implement → run passing → commit)?
+
+Option B is the correct approach per the plan's TDD requirement and will produce the highest-quality output. Option A risks writing code that fails TypeScript compilation in ways I can't catch without running the build.</result>
+<usage><total_tokens>33203</total_tokens><tool_uses>5</tool_uses><duration_ms>29029</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a1213d4d374ee0b30</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "AI worker M3 ingestion stream agent" completed</summary>
+<result>All files look correct. Now I need Bash to complete the remaining steps: install packages, run tests, lint, commit, and create PRs. Let me explain what was done and what still needs to happen.
+
+---
+
+Here is a summary of everything completed and what still needs to happen:
+
+## What was done (all code written)
+
+All implementation files have been written in `/Users/jobinlawrance/Project/raven/.claude/worktrees/stream-ai/ai-worker/` on branch `feat/stream-ai-m3-ingestion`:
+
+**Task 1 — Dependencies (`pyproject.toml`)**
+Added `liteparse>=0.3.0`, `langchain-text-splitters>=0.3.0`, `openai>=1.58.0`, `tiktoken>=0.8.0`, `httpx>=0.28.0` to `[project] dependencies`.
+
+**Task 2 — Issue #14 LiteParse (`processors/parser.py` + `tests/test_parser.py`)**
+- `DocumentParser.parse()` is async, runs liteparse in a thread pool via `run_in_executor` (non-blocking).
+- MIME resolution with extension fallback for `.pdf`, `.docx`, `.pptx`, `.html`, `.md`, `.txt`.
+- Raises `ValueError("Unsupported...")` for unknown MIME types — matching the test assertion.
+- Returns `""` for empty content immediately (before hitting liteparse).
+
+**Task 3 — Issue #16 Chunking (`processors/chunker.py` + `tests/test_chunker.py`)**
+- Replaced the basic sliding-window stub with `RecursiveCharacterTextSplitter` from `langchain-text-splitters`.
+- Separators: `["\n\n", "\n", ". ", "! ", "? ", " ", ""]` — splits on natural boundaries first.
+
+**Task 4 — Issue #17 Embedding (`providers/base.py`, `providers/openai_provider.py`, `services/embedding.py`, `config.py`, `server.py`, `tests/test_embedding.py`, `tests/conftest.py`)**
+- `EmbeddingProvider` protocol updated: `runtime_checkable`, `embed(text, model=None)` signature.
+- `OpenAIEmbeddingProvider` wraps `openai.AsyncOpenAI`, supports per-call model override.
+- `EmbeddingServicer` now takes a `provider` constructor argument (dependency injection).
+- `config.py` gained `openai_api_key: str = ""` and `embedding_model: str = "text-embedding-3-small"`.
+- `server.py` wires `OpenAIEmbeddingProvider(api_key=settings.openai_api_key, model=settings.embedding_model)` and passes it to `EmbeddingServicer`. `GetEmbedding` now calls `self._embedding.GetEmbedding(...)` (was `get_embedding`).
+- `conftest.py` gained a `grpc_context` fixture (AsyncMock with `.abort`).
+
+## What still needs Bash permission to complete
+
+The following steps are blocked by the Bash denial and must be run manually or after permission is granted:
+
+```bash
+# From: /Users/jobinlawrance/Project/raven/.claude/worktrees/stream-ai/ai-worker
+
+# 1. Install dependencies
+python -m pip install -e ".[dev]"
+
+# 2. Verify liteparse API (may need to adjust parser.py if API differs)
+python -c "import liteparse; help(liteparse)"
+
+# 3. Run tests
+python -m pytest -v
+
+# 4. Lint check
+python -m ruff check . && python -m ruff format --check .
+
+# 5. Three commits (from worktree root: /Users/jobinlawrance/Project/raven/.claude/worktrees/stream-ai)
+git add ai-worker/pyproject.toml
+git commit -m "deps(ai-worker): add liteparse, langchain-text-splitters, openai, tiktoken"
+
+git add ai-worker/raven_worker/processors/parser.py ai-worker/tests/test_parser.py
+git commit -m "feat(#14): implement LiteParse document parsing (PDF, DOCX, PPTX, HTML, MD, TXT)"
+
+git add ai-worker/raven_worker/processors/chunker.py ai-worker/tests/test_chunker.py
+git commit -m "feat(#16): semantic text chunking with RecursiveCharacterTextSplitter"
+
+git add ai-worker/
+git commit -m "feat(#17): multi-provider embedding (OpenAI BYOK) with EmbeddingProvider protocol"
+
+# 6. Push and create PRs
+git push origin feat/stream-ai-m3-ingestion
+gh pr create --title "feat: LiteParse document parsing (#14)" --body "Closes #14" --repo ravencloak-org/Raven
+gh pr create --title "feat: semantic text chunking (#16)" --body "Closes #16" --repo ravencloak-org/Raven
+gh pr create --title "feat: multi-provider embedding BYOK (#17)" --body "Closes #17" --repo ravencloak-org/Raven
+```
+
+**One risk to watch for:** the liteparse `Document` constructor API — the plan specifies `liteparse.Document(content=io.BytesIO(...), mime_type=..., filename=...)`. If the installed version uses different parameter names (e.g., `file_path` instead of `content`), `parser.py`'s `_parse_sync` method will need adjustment. Run `python -c "import liteparse; help(liteparse.Document)"` to confirm before running the tests.</result>
+<usage><total_tokens>42850</total_tokens><tool_uses>36</tool_uses><duration_ms>178253</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a209d63bf9d096419</task-id>
+<tool-use-id>toolu_01HUsUCoGdWxFiKjXxKXhwni</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Frontend M5 stream — with Bash" completed</summary>
+<result>I need Bash permission to run npm install and execute commands. This task requires running terminal commands to:
+1. Install npm packages (keycloak-js, vitest, @playwright/test)
+2. Run tests (vitest, playwright)
+3. Run build and lint checks
+4. Execute git commits and push
+
+Please grant Bash permission so I can proceed with the implementation. The commands I need to run are standard npm/git operations in the worktree directory.</result>
+<usage><total_tokens>24193</total_tokens><tool_uses>12</tool_uses><duration_ms>26089</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ac431b6c4058a67e4</task-id>
+<tool-use-id>toolu_01TUmYYGQdQZd5FiXQ9Gr1FA</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Backend M2 CRUD stream — with Bash" completed</summary>
+<result>Now I understand the full picture. The previous agent wrote `db.go`, `db_test.go`, `rbac.go`, `rbac_test.go` but never ran `go get` to add pgx/v5. The task requires Bash access to proceed. I need to inform the user:
+
+**The Bash tool permissions have been denied in this session.** This is a hard blocker for this task. Everything this mission requires — `go get`, `go mod tidy`, `go test`, `go build`, `golangci-lint run`, `git commit`, `git push`, `gh pr create` — are shell commands that cannot be performed through file-reading/writing tools alone.
+
+Here is the **current state** of the worktree so you can decide how to proceed:
+
+**Already written (by a previous agent run):**
+- `/Users/jobinlawrance/Project/raven/.claude/worktrees/stream-backend/internal/db/db.go` — pgx pool + `SetOrgIDQuery` + `WithOrgID` (correct implementation)
+- `/Users/jobinlawrance/Project/raven/.claude/worktrees/stream-backend/internal/db/db_test.go` — unit tests for `SetOrgIDQuery`
+- `/Users/jobinlawrance/Project/raven/.claude/worktrees/stream-backend/internal/middleware/rbac.go` — `RequireOrgRole` + `RequireWorkspaceRole` with correct context key usage
+- `/Users/jobinlawrance/Project/raven/.claude/worktrees/stream-backend/internal/middleware/rbac_test.go` — 8 test cases
+- `/Users/jobinlawrance/Project/raven/.claude/worktrees/stream-backend/migrations/00015_rls_policies.sql` — verification migration (no-op, all RLS already in 00004-00014)
+
+**Still needed (requires Bash):**
+1. `go get github.com/jackc/pgx/v5@latest && go mod tidy` — add missing pgx dependency to go.mod
+2. `go test -short ./...` — verify all tests pass
+3. `go build ./...` — verify compilation
+4. `golangci-lint run` — lint check
+5. Git commits + PRs for #29 and #28
+6. Then implement #24 (Org CRUD), #25 (Workspace CRUD), #26 (User Management), #27 (KB CRUD), #32 (Swagger) — each with full TDD + commit + PR
+
+**To unblock:** Please run `claude` again (or grant Bash tool permissions) so the shell commands can execute. The first command that must run is:
+```bash
+cd /Users/jobinlawrance/Project/raven/.claude/worktrees/stream-backend
+go get github.com/jackc/pgx/v5@latest
+go mod tidy
+go build ./...
+```</result>
+<usage><total_tokens>42586</total_tokens><tool_uses>25</tool_uses><duration_ms>76784</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a47a5a5f14fc8ea02</task-id>
+<tool-use-id>toolu_013V7nESYuALYfiroVxi1tCV</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "AI worker M3 stream — with Bash" completed</summary>
+<result>I need your help to proceed. The Bash tool is being denied permission, which blocks me from completing the task. Here's exactly what I need to do and why:
+
+**Why Bash is essential:**
+
+1. **Install dependencies** — `python -m pip install -e ".[dev]"` in the ai-worker directory. Without this, nothing else works.
+
+2. **Check liteparse API** — `python -c "import liteparse; help(liteparse.Document)"` to verify the actual API matches what `parser.py` assumes (`liteparse.Document(content=io.BytesIO(...), mime_type=..., filename=...)`). This is critical — if the API is wrong, tests will fail and I need to fix it before committing.
+
+3. **Run tests** — `python -m pytest -v` to verify all tests pass.
+
+4. **Lint** — `python -m ruff check . && python -m ruff format --check .`
+
+5. **Git commits** — four `git add` + `git commit` commands in the worktree at `/Users/jobinlawrance/Project/raven/.claude/worktrees/stream-ai/`
+
+6. **Push and create PRs** — `git push` + three `gh pr create` commands targeting `ravencloak-org/Raven`
+
+**What I've already done (without Bash):**
+- Read all the implementation files: `parser.py`, `chunker.py`, `openai_provider.py`, `base.py`, `embedding.py`, `server.py`, `config.py`
+- Read all test files: `test_parser.py`, `test_chunker.py`, `test_embedding.py`, `conftest.py`
+- The code looks structurally correct — the liteparse call pattern (`liteparse.Document(content=io.BytesIO(...), mime_type=..., filename=...)`) needs verification against the actual installed package
+
+Could you grant Bash permission so I can continue? All the commands are standard development operations (install, test, lint, git, gh).</result>
+<usage><total_tokens>25222</total_tokens><tool_uses>22</tool_uses><duration_ms>69049</duration_ms></usage>
+</task-notification>
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   The user requested: (1) look at M2 milestone issues, (2) pick 2-4 features for parallel work, (3) create git worktrees for each, and (4) launch parallel agents using superpowers and context MCP. Additional critical constraints added mid-conversation: write and run tests locally before any push; Playwright tests for frontend; all GitHub issue task checkboxes must be ticked before creating PRs; don't touch issues already in open PRs or dependent on unmerged PRs; use squash merge for all PRs.
+
+   The user then confirmed all pending M2 PRs (#100 JWT, #101 CORS, #103 rate limiting, #104 CI fix) had been merged, unblocking all M2 issues. They approved a 3-stream parallel approach: Backend (M2), Frontend (M5), AI Worker (M3). They also asked about 3 separate "cloud sessions" for backend/frontend/AI, which informed the 3-stream design.
+
+2. Key Technical Concepts:
+   - Git worktrees for parallel isolated development (`.claude/worktrees/stream-backend`, `stream-frontend`, `stream-ai`)
+   - Go (Gin, pgx/v5, goose migrations) for backend
+   - Vue 3 + TypeScript + Tailwind + Pinia + vue-router for frontend
+   - Python gRPC server (liteparse, langchain-text-splitters, openai SDK) for AI worker
+   - Keycloak OIDC PKCE authentication
+   - PostgreSQL Row-Level Security (RLS) with `SET LOCAL app.current_org_id`
+   - RBAC middleware with 4-layer access model (org_admin > owner > admin > member > viewer)
+   - TDD: write failing test → run → implement → pass → commit
+   - OpenAPI contract-first development (`contracts/openapi-stub.yaml`)
+   - Squash merge per issue, one PR per issue
+   - Subagent-driven development with bypassPermissions mode
+   - pgx/v5 with raw SQL (no ORM/sqlc)
+   - `c.AbortWithStatusJSON()` pattern (NOT `c.Error()+c.Abort()`) for handler error responses
+   - Playwright with `page.route()` mocks for frontend E2E (no live backend needed)
+
+3. Files and Code Sections:
+
+   - **`docs/superpowers/specs/2026-03-28-three-stream-parallel-development-design.md`**
+     - Design spec for 3-stream parallel development. Updated after spec review to fix: add `contracts/openapi-stub.yaml` (created), fix proto path to `proto/ai_worker.proto`, add #5/#6 to satisfied dependencies, document #15 Crawl4AI exclusion, add #26 Keycloak webhook guidance, add Section 7 Integration Handoff, clarify Playwright uses page.route() mocks, change status from "Approved" to "Active".
+
+   - **`contracts/openapi-stub.yaml`**
+     - Created: Full OpenAPI 3.1.0 stub covering Org, Workspace, KB, User endpoints. Schemas include Organization, Workspace, KnowledgeBase, User, OrgMember, WorkspaceMember, CreateOrgRequest, ErrorResponse, PaginatedList. All paths under `/api/v1`. Used by frontend stream for page.route() mocking.
+
+   - **`.gitignore`**
+     - Added entries: `.worktrees/` and `.claude/worktrees/` to prevent worktree content from being tracked.
+
+   - **`docs/superpowers/plans/2026-03-28-backend-m2-crud.md`**
+     - Full TDD implementation plan for backend: Task 1 (pgx foundation + db.go), Task 2 (#29 RLS migration), Task 3 (#28 RBAC), Task 4 (#24 Org CRUD), Task 5 (#25 Workspace CRUD), Task 6 (#26 User Mgmt), Task 7 (#27 KB CRUD), Task 8 (#32 Swagger).
+
+   - **`docs/superpowers/plans/2026-03-28-frontend-m5-scaffold.md`**
+     - Full TDD plan for frontend: Task 1 (keycloak-js + auth store replacement for #42), Task 2 (Playwright setup), Task 3 (#43 Org pages with Pinia store + page.route() mocks).
+
+   - **`docs/superpowers/plans/2026-03-28-ai-m3-ingestion.md`**
+     - Full TDD plan for AI worker: Task 1 (add deps), Task 2 (#14 LiteParse), Task 3 (#16 chunking), Task 4 (#17 embedding).
+
+   - **`.claude/worktrees/stream-backend/internal/db/db.go`**
+     - Created by agent. Fixed: changed `pgxpool.Tx` → `pgx.Tx` in `WithOrgID` signature. Key functions: `New()` (pool init), `SetOrgIDQuery()`, `WithOrgID()` (RLS transaction helper).
+     ```go
+     func WithOrgID(ctx context.Context, pool *pgxpool.Pool, orgID string, fn func(tx pgx.Tx) error) error
+     ```
+
+   - **`.claude/worktrees/stream-backend/internal/middleware/rbac.go`**
+     - Fixed: replaced `c.Error(appErr) + c.Abort()` with `c.AbortWithStatusJSON(403, ...)` so 403 is written directly without needing ErrorHandler middleware in tests.
+     ```go
+     func RequireOrgRole(required string) gin.HandlerFunc {
+         return func(c *gin.Context) {
+             role, _ := c.Get(string(ContextKeyOrgRole))
+             roleStr, _ := role.(string)
+             if roleStr == "org_admin" || roleStr == required {
+                 c.Next()
+                 return
+             }
+             c.AbortWithStatusJSON(http.StatusForbidden, apierror.AppError{
+                 Code: 403, Message: "Forbidden", Detail: "requires org role: " + required,
+             })
+         }
+     }
+     ```
+
+   - **`.claude/worktrees/stream-backend/internal/handler/org.go`**
+     - Fixed: replaced `c.Error(422 AppError) + c.Abort()` with `c.AbortWithStatusJSON(422, ...)` for validation failures. Tests were getting 400 instead of 422 because the error handler middleware wasn't in the test router.
+     ```go
+     if err := c.ShouldBindJSON(&req); err != nil {
+         c.AbortWithStatusJSON(http.StatusUnprocessableEntity, apierror.AppError{
+             Code: 422, Message: "Unprocessable Entity", Detail: err.Error(),
+         })
+         return
+     }
+     ```
+
+   - **`.claude/worktrees/stream-backend/migrations/00015_rls_policies.sql`**
+     - Created by agent. Verification migration for #29 — most RLS already exists in migrations 00004-00014. Adds RLS to any remaining tables not already covered.
+
+   - **`.claude/worktrees/stream-backend/internal/handler/workspace.go`, `workspace_test.go`**
+     - Written by agent (untracked, not yet staged/committed).
+
+   - **`.claude/worktrees/stream-backend/internal/handler/user.go`**, `model/user.go`, `repository/user.go`, `service/user.go`
+     - Written by agent (untracked, not yet staged/committed).
+
+   - **`.claude/worktrees/stream-backend/internal/model/workspace.go`**, `repository/workspace.go`, `service/workspace.go`
+     - Written by agent (untracked, not yet staged/committed).
+
+   - **`.claude/worktrees/stream-ai/ai-worker/` (multiple files modified)**
+     - `pyproject.toml`: added liteparse, langchain-text-splitters, openai, tiktoken, httpx
+     - `processors/parser.py`: LiteParse implementation (async, thread pool, MIME resolution)
+     - `processors/chunker.py`: RecursiveCharacterTextSplitter impl
+     - `providers/base.py`: EmbeddingProvider protocol (runtime_checkable)
+     - `providers/openai_provider.py`: OpenAI async embedding
+     - `services/embedding.py`: dependency injection pattern
+     - `config.py`: added openai_api_key, embedding_model fields
+     - `server.py`: wired OpenAIEmbeddingProvider from config
+     - `tests/conftest.py`: added grpc_context fixture
+     - New test files: `test_parser.py`, `test_chunker.py`, `test_embedding.py`
+     - NOTE: `pip install -e ".[dev]"` NOT YET RUN; liteparse API not yet verified
+
+   - **`.claude/worktrees/stream-frontend/frontend/` (multiple files modified)**
+     - `stores/auth.ts`: Replaced email/password stub with full Keycloak OIDC PKCE store
+     - `main.ts`: Added `authStore.init()` before app mount
+     - `router/index.ts`: Added auth guard with `router.beforeEach`
+     - `vite.config.ts`: Added vitest test config (happy-dom environment)
+     - `package.json`: Added keycloak-js, @playwright/test, vitest, @vue/test-utils
+     - New files: `stores/auth.spec.ts`, `stores/orgs.ts`, `stores/orgs.spec.ts`, `api/orgs.ts`, `pages/orgs/OrgDetailPage.vue`, `playwright.config.ts`, `e2e/auth.spec.ts`, `e2e/orgs.spec.ts`, `.env.example`, `public/silent-check-sso.html`
+     - NOTE: `npm install` was run (package-lock.json modified) but tests NOT yet run
+
+4. Errors and Fixes:
+
+   - **pgx/v5 not in go.mod**: Agents wrote Go files importing pgx before running `go get`. Fixed by running `go get github.com/jackc/pgx/v5@latest && go mod tidy` directly in the main session from the stream-backend worktree.
+
+   - **`db.go` type error `pgxpool.Tx` vs `pgx.Tx`**: `pgxpool.Pool.Begin()` returns `pgx.Tx` (not `pgxpool.Tx` — that type doesn't exist). Fixed by adding `"github.com/jackc/pgx/v5"` import and changing function signature to `fn func(tx pgx.Tx) error`.
+
+   - **RBAC middleware returning 200 instead of 403**: `c.Error(appErr) + c.Abort()` stores the error but doesn't write a response. Test routers in `rbac_test.go` use `gin.New()` without the `apierror.ErrorHandler()` middleware, so no response was written. Fixed by using `c.AbortWithStatusJSON(http.StatusForbidden, ...)` which writes the response directly.
+
+   - **Org handler returning 400 instead of 422**: Same root cause — `c.Error(422 AppError) + c.Abort()` without ErrorHandler middleware. The AppError's Code field (422) was never used to set the HTTP status. Fixed by using `c.AbortWithStatusJSON(http.StatusUnprocessableEntity, ...)`.
+
+   - **Subagents cannot access Bash tool**: Despite launching with `mode: "bypassPermissions"`, all subagents consistently report Bash is denied. This is a session-level permission issue. Three separate agent launches (without mode, then with bypassPermissions) all failed. Solution: main session handles all shell operations (go test, go build, git, npm, pip, etc.) directly.
+
+   - **Spec reviewer found critical issues before agents started**: (1) contracts/ didn't exist, (2) #5/#6 not listed as satisfied, (3) #15 dependency for #16 undocumented, (4) #26 Keycloak webhook guidance missing. All fixed in spec update + contracts creation.
+
+5. Problem Solving:
+
+   - **Parallel development with dependency isolation**: Chose 3 streams that are maximally independent — backend (Go API), frontend (Vue against mocked API), AI worker (Python gRPC). Interface contracts committed to main before agents start.
+   
+   - **Subagent Bash permission issue**: Critical blocker. All three streams have agents that wrote files but cannot run shell commands. Resolution: main session must handle all shell operations. Current state: backend tests pass (fixed directly); AI worker and frontend code written but untested.
+   
+   - **RLS already in migrations**: Agent discovered all tenant tables already have RLS in migrations 00004-00014, so #29 only needed a verification step, not new policy creation.
+   
+   - **ErrorHandler middleware pattern**: Established that handlers must use `c.AbortWithStatusJSON()` directly instead of `c.Error()+c.Abort()` when tests don't include the full middleware chain.
+
+6. All User Messages:
+   - "While the existing PRs are being merged, let's look at the milestone 2 or whatever is the next milestone. I think if my new milestone 3 picks up the main 2 or 4 features out of that, create work trees for each of them and then start working on it using a parallel agent, use superpowers and context MCP wherever required."
+   - "Also, make sure whenever you are making the changes, you have to write test cases for it. Run those test cases locally and verify and validate that those test cases are succeeding. If there is frontend code to it, make sure you create playwright test cases for it. Run those playwright tests locally as well, and then make sure it succeeds. Nothing should be pushed to remote unless it is building in local, testing in local, and functioning as intended in local. Also, if there are tasks in any particular PR and issues, all the tasks have to be completed before the code is pushed and a PR is created for it. Also, before you start on M2 issues, understand That the issues might already be taken care of in an open PR, so do not touch those. Go for the next ones."
+   - "Also, if any of the features are dependent on the open issues in open PRs, then do not proceed with it, because the pre-requisite might not be met. Do not start those particular ones. Go for the ones which are independent and which can be worked upon without having to rely on any other open issues or open PRs."
+   - "So let me know if three separate cloud sessions can be initiated for the backend, frontend, and the AI part, because those three are sure they are dependent on each other, but they can be developed independently so that we can fasten up the whole thing."
+   - "Also, all the previous PRs that were pending and open are closed, so now they should not be any blocker for you. You can pick up the task that you had postponed."
+   - "Yeah, let's go for it." (approving Option A - 3 streams)
+   - "Also, yes, it looks good to me. Go for it. Let's launch the parallel engine and get started with it." (approving design sections 2-4)
+   - "Let's go for it." (approving design Section 1)
+
+7. Pending Tasks:
+   - **Backend stream**: Commit all existing work (org handler, model, service, repo + workspace + user files written but unstaged), split into PRs for #29/#28/#24, then implement #25 (Workspace CRUD), #26 (User Mgmt), #27 (KB CRUD), #32 (Swagger) with TDD
+   - **AI Worker stream**: Run `pip install -e ".[dev]"`, verify liteparse API (`python -c "import liteparse; help(liteparse.Document)"`), fix `parser.py` if API differs, run `pytest -v`, lint with ruff, commit in 4 commits, push, create 3 PRs (closes #14, #16, #17)
+   - **Frontend stream**: Run `npm install` in `stream-frontend/frontend/`, run `npx vitest run` (TDD red/green), run `npm run build`, run Playwright tests, commit, create PRs for #42 and #43
+   - All streams: Each PR must have CI pass on GitHub before merging (squash merge)
+
+8. Current Work:
+   Immediately before this summary request, the main session was directly fixing the backend worktree because subagents cannot access Bash. The following was just completed:
+
+   1. Ran `go get github.com/jackc/pgx/v5@latest && go mod tidy` in stream-backend worktree
+   2. Fixed `internal/db/db.go`: `pgxpool.Tx` → `pgx.Tx` 
+   3. Fixed `internal/middleware/rbac.go`: `c.Error()+c.Abort()` → `c.AbortWithStatusJSON(403, ...)`
+   4. Fixed `internal/handler/org.go`: `c.Error()+c.Abort()` → `c.AbortWithStatusJSON(422, ...)`
+   5. Confirmed `go test -short ./...` ALL PASSING, `go build ./...` OK
+   6. Sent message to backend agent with status and instructions to commit/push PRs
+
+   The LSP is showing stale diagnostics for `workspace.go` and `user.go` (pgx "not in go.mod") but pgx IS in go.mod — these are files written by the agent after `go mod tidy` ran.
+
+   The last git status showed:
+   - Backend: staged org files (handler, model, service, repo) + unstaged workspace/user files
+   - AI: all code modified/untracked, nothing committed
+   - Frontend: package.json modified (npm install ran), new auth store + org pages written
+
+9. Optional Next Step:
+   The most pressing work is handling all three streams since the agents cannot access Bash. The immediate next action should be taking over shell operations directly:
+
+   For the **backend**: "Commit the current state... git add -A... then continue to #25 (Workspace CRUD), #26 (User Mgmt), #27 (KB CRUD), #32 (Swagger)"
+
+   For the **AI worker**: "Install dependencies... python -m pip install -e '[dev]'... Verify liteparse API... python -c 'import liteparse; help(liteparse.Document)'... Run tests... python -m pytest -v... Lint... commit... push PRs closing #14, #16, #17"
+
+   For the **frontend**: Run `npm install` in the frontend directory, run `npx vitest run` to validate the auth store tests, run `npm run build`, run Playwright, commit, push PRs closing #42 and #43.
+
+   The exact failing point was receiving the git status output showing all three worktrees have uncommitted work, and the LSP showing stale pgx diagnostics for `workspace.go` and `user.go`.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/jobinlawrance/.REDACTED.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+<task-notification>
+<task-id>a184ec4e0eb12c052</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Frontend M5 stream — with Bash" completed</summary>
+<result>I need to stop and explain the situation clearly.
+
+---
+
+**Bash permission is required to complete this task.** Here is exactly what I need to do with Bash and why each step is necessary:
+
+1. **`npx vitest run src/stores/auth.spec.ts`** — TDD cycle step: confirm the new Keycloak auth store unit tests pass (the test mock is set up, but I need to verify actual execution succeeds).
+
+2. **`npx vitest run src/stores/orgs.spec.ts`** — TDD cycle step: confirm the orgs store unit tests pass.
+
+3. **`npm run build`** — Quality gate: verify zero TypeScript errors before creating PRs. This is a hard requirement from the plan.
+
+4. **`npm run lint`** — Quality gate: clean ESLint output required before each PR.
+
+5. **`npm install --save-dev @playwright/test && npx playwright install chromium`** — Install Playwright and its browser binary for E2E tests.
+
+6. **`npx playwright test`** — Run E2E tests with the dev server (the plan requires these to pass before each PR).
+
+7. **`git add ... && git commit -m "..."` × 2** — Commit the work for issue #42 and then #43.
+
+8. **`git push origin feat/stream-frontend-m5-scaffold`** — Push the branch so PRs can be created.
+
+9. **`gh pr create ...` × 2** — Create the two separate PRs (one for #42, one for #43) pointing to `ravencloak-org/Raven`.
+
+**What I've already completed without Bash:**
+- All source files for both issues are written:
+  - `/frontend/src/stores/auth.ts` — Keycloak OIDC PKCE store
+  - `/frontend/src/stores/auth.spec.ts` — unit tests
+  - `/frontend/src/composables/useAuth.ts` — updated composable
+  - `/frontend/src/main.ts` — Keycloak init before mount
+  - `/frontend/src/pages/LoginPage.vue` — updated to use OIDC login button
+  - `/frontend/src/router/index.ts` — updated guards + org routes
+  - `/frontend/public/silent-check-sso.html`
+  - `/frontend/.env.example`
+  - `/frontend/vite.config.ts` — vitest config added
+  - `/frontend/package.json` — test scripts added
+  - `/frontend/playwright.config.ts`
+  - `/frontend/e2e/auth.spec.ts`
+  - `/frontend/src/api/orgs.ts`
+  - `/frontend/src/stores/orgs.ts`
+  - `/frontend/src/stores/orgs.spec.ts`
+  - `/frontend/src/pages/orgs/OrgDetailPage.vue`
+  - `/frontend/e2e/orgs.spec.ts`
+
+Please grant Bash permission so I can run the quality gates (tests, build, lint), commit, and create the PRs.</result>
+<usage><total_tokens>40566</total_tokens><tool_uses>41</tool_uses><duration_ms>230860</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a1e35c1765e598d2b</task-id>
+<tool-use-id>toolu_01RtUvSVnRCJTgtr3m37nbsy</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Backend M2 CRUD stream agent" completed</summary>
+<result>All files are in place. The complete set:
+- `internal/db/db.go` + `db_test.go`
+- `migrations/00015_rls_policies.sql`
+- `internal/middleware/rbac.go` + `rbac_test.go` + `auth.go` (modified)
+- `internal/model/org.go`, `workspace.go`, `user.go`, `kb.go`
+- `internal/repository/org.go`, `workspace.go`, `user.go`, `kb.go`
+- `internal/service/org.go`, `workspace.go`, `user.go`, `kb.go`
+- `internal/handler/org.go` + `org_test.go`, `workspace.go` + `workspace_test.go`, `user.go` + `user_test.go`, `kb.go` + `kb_test.go`
+- `cmd/api/main.go` (modified)
+- `Makefile` (modified)
+
+Now here is the complete sequence of commands you need to run in the worktree. These are all the bash commands needed to add the pgx dependency, run tests, commit, and create the PRs:
+
+---
+
+## Commands to run (in order)
+
+```bash
+cd /Users/jobinlawrance/Project/raven/.claude/worktrees/stream-backend
+
+# Step 1: Add pgx/v5 dependency
+go get github.com/jackc/pgx/v5@latest
+go mod tidy
+
+# Step 2: Verify baseline tests still pass
+go test -short ./... 2>&1
+
+# Step 3: Build to confirm compilation
+go build ./... 2>&1
+
+# Step 4: Run linter
+golangci-lint run 2>&1
+
+# ─── Commit 1: pgx foundation (prereq for all issues) ───
+git add internal/db/ go.mod go.sum
+git commit -m "$(cat <<'EOF'
+feat: add pgx/v5 pool and RLS transaction helper
+
+Internal db package wraps pgxpool with a SetOrgIDQuery helper
+and a WithOrgID transaction helper that enforces RLS on every
+tenant-scoped operation.
+EOF
+)"
+
+# ─── PR 1: Issue #29 — RLS Policies migration ───
+git add migrations/00015_rls_policies.sql
+git commit -m "$(cat <<'EOF'
+feat(#29): confirm RLS policies complete for all tenant-scoped tables
+
+All 13 tenant tables already have tenant_isolation + admin_bypass
+policies from their creation migrations (00004-00014). Migration
+00015 documents this as the official completion record for issue #29.
+EOF
+)"
+
+git push origin feat/stream-backend-m2-crud
+
+gh pr create \
+  --repo ravencloak-org/Raven \
+  --title "feat: PostgreSQL RLS Policies — all tenant tables covered (#29)" \
+  --body "$(cat <<'EOF'
+## Summary
+- All 13 tenant-scoped tables have `tenant_isolation` + `admin_bypass` RLS policies
+- Policies were applied in creation migrations 00004–00014 (confirmed during M1)
+- Migration `00015_rls_policies.sql` is the authoritative completion record for this issue
+- `organizations` table is intentionally excluded — it IS the tenant boundary
+- Existing `migrations_test.go` (integration, skipped in `-short` mode) validates RLS on all tables
+
+## Tables covered
+`users`, `workspaces`, `workspace_members`, `knowledge_bases`, `documents`, `sources`, `chunks`, `embeddings`, `llm_provider_configs`, `api_keys`, `chat_sessions`, `chat_messages`, `processing_events`
+
+## Test plan
+- [ ] `go test -short ./...` passes (migration test skips in short mode)
+- [ ] `go build ./...` succeeds
+- [ ] `golangci-lint run` clean
+- [ ] Full integration test: `go test ./migrations/...` with Docker (validates RLS enabled on all tables)
+
+> **Please squash merge this PR.**
+
+Closes #29
+EOF
+)"
+
+# ─── PR 2: Issue #28 — RBAC Middleware ───
+git add internal/middleware/rbac.go internal/middleware/rbac_test.go internal/middleware/auth.go
+git commit -m "$(cat <<'EOF'
+feat(#28): add RBAC middleware with org/workspace role hierarchy
+
+RequireOrgRole and RequireWorkspaceRole Gin middleware implement the
+four-layer access model. org_admin bypasses all workspace checks.
+Workspace role hierarchy: viewer < member < admin < owner.
+EOF
+)"
+
+git push origin feat/stream-backend-m2-crud
+
+gh pr create \
+  --repo ravencloak-org/Raven \
+  --title "feat: Role-Based Access Control middleware (#28)" \
+  --body "$(cat <<'EOF'
+## Summary
+- `RequireOrgRole(role)` middleware: allows exact role or `org_admin`, returns 403 otherwise
+- `RequireWorkspaceRole(minimum)` middleware: enforces minimum workspace role with hierarchy, `org_admin` bypasses
+- Role hierarchy: `viewer(0) < member(1) < admin(2) < owner(3)`
+- Added `ContextKeyWorkspaceRole` constant to `auth.go` for workspace membership lookups
+- 8 unit tests covering: allowed, exact match, insufficient role, missing role, hierarchy, org_admin bypass
+
+## Test plan
+- [ ] `go test -short ./internal/middleware/...` passes
+- [ ] `go build ./...` succeeds
+- [ ] `golangci-lint run` clean
+
+> **Please squash merge this PR.**
+
+Closes #28
+EOF
+)"
+
+# ─── PR 3: Issue #24 — Org CRUD ───
+git add \
+  internal/model/org.go \
+  internal/repository/org.go \
+  internal/service/org.go \
+  internal/handler/org.go \
+  internal/handler/org_test.go
+git commit -m "$(cat <<'EOF'
+feat(#24): Organization CRUD API (POST/GET/PUT/DELETE /api/v1/orgs)
+
+Three-layer handler→service→repository pattern. Slug auto-derived from
+name. Soft-delete sets status='deactivated'. org_admin required for
+create/delete. PUT validates caller org_id matches target.
+EOF
+)"
+
+git push origin feat/stream-backend-m2-crud
+
+gh pr create \
+  --repo ravencloak-org/Raven \
+  --title "feat: Organization CRUD API (#24)" \
+  --body "$(cat <<'EOF'
+## Summary
+- `POST /api/v1/orgs` — create org (requires `org_admin`); slug auto-derived from name
+- `GET /api/v1/orgs/:org_id` — get org by ID
+- `PUT /api/v1/orgs/:org_id` — partial update (name, settings); callers can only update their own org unless `org_admin`
+- `DELETE /api/v1/orgs/:org_id` — soft-delete (status=`deactivated`); requires `org_admin`
+- Handler uses `OrgServicer` interface for full mock testability
+- 5 unit tests: create success, 422 on empty name, 422 on missing name, get success, get 404, delete 204
+
+## Test plan
+- [ ] `go test -short ./internal/...` passes
+- [ ] `go build ./...` succeeds
+- [ ] `golangci-lint run` clean
+
+> **Please squash merge this PR.**
+
+Closes #24
+EOF
+)"
+
+# ─── PR 4: Issue #25 — Workspace CRUD ───
+git add \
+  internal/model/workspace.go \
+  internal/repository/workspace.go \
+  internal/service/workspace.go \
+  internal/handler/workspace.go \
+  internal/handler/workspace_test.go
+git commit -m "$(cat <<'EOF'
+feat(#25): Workspace CRUD API with member management
+
+All mutations run inside db.WithOrgID transactions for RLS.
+Routes: POST/GET/PUT/DELETE workspaces + POST/PUT/DELETE members.
+Prevents self-removal via the member DELETE endpoint.
+EOF
+)"
+
+git push origin feat/stream-backend-m2-crud
+
+gh pr create \
+  --repo ravencloak-org/Raven \
+  --title "feat: Workspace CRUD API (#25)" \
+  --body "$(cat <<'EOF'
+## Summary
+- Full CRUD: `POST/GET(list)/GET/:ws_id/PUT/:ws_id/DELETE/:ws_id` under `/api/v1/orgs/:org_id/workspaces`
+- Member management: `POST/PUT/DELETE` under `.../workspaces/:ws_id/members/:user_id`
+- All mutating operations use `db.WithOrgID` transaction helper to enforce RLS
+- Slug uniqueness enforced within org scope (`UNIQUE(org_id, slug)`)
+- Guard: users cannot remove themselves via the member DELETE endpoint (use DELETE /me)
+- 8 unit tests: create, 422, get, 404, list-empty-array, delete, add-member, remove-self-guard
+
+## Test plan
+- [ ] `go test -short ./internal/...` passes
+- [ ] `go build ./...` succeeds
+- [ ] `golangci-lint run` clean
+
+> **Please squash merge this PR.**
+
+Closes #25
+EOF
+)"
+
+# ─── PR 5: Issue #26 — User Management ───
+git add \
+  internal/model/user.go \
+  internal/repository/user.go \
+  internal/service/user.go \
+  internal/handler/user.go \
+  internal/handler/user_test.go
+git commit -m "$(cat <<'EOF'
+feat(#26): User Management API with Keycloak webhook sync
+
+GET/PUT/DELETE /api/v1/me, admin GET /api/v1/users/:id.
+Internal POST /api/v1/internal/keycloak-webhook handles
+REGISTER/UPDATE_PROFILE/DELETE_ACCOUNT events (mocked unit tests;
+live SPI integration deferred per issue spec).
+EOF
+)"
+
+git push origin feat/stream-backend-m2-crud
+
+gh pr create \
+  --repo ravencloak-org/Raven \
+  --title "feat: User Management API with Keycloak webhook sync (#26)" \
+  --body "$(cat <<'EOF'
+## Summary
+- `GET /api/v1/me` — returns current user by Keycloak subject from JWT
+- `PUT /api/v1/me` — update display name
+- `DELETE /api/v1/me` — GDPR soft-delete (status=`disabled`)
+- `GET /api/v1/users/:user_id` — admin lookup (requires `org_admin`)
+- `POST /api/v1/internal/keycloak-webhook` — internal-only endpoint for Keycloak SPI events
+  - Handles: `REGISTER` → upsert user; `UPDATE_PROFILE` → upsert user; `DELETE_ACCOUNT` → soft-delete
+  - No Bearer token required (network-policy enforced, not auth enforced)
+  - Unknown event types ignored for forward compatibility
+- 7 unit tests using mocked payloads for the webhook (REGISTER, DELETE_ACCOUNT, invalid JSON)
+
+## Notes on live Keycloak integration
+The webhook handler is fully implemented and unit-tested with mocked payloads.
+A live integration test (SPI firing real events to the endpoint) is deferred
+until the Keycloak SPI is configured in the local compose environment.
+This does not block the PR — the unit tests cover all code paths.
+
+## Test plan
+- [ ] `go test -short ./internal/...` passes
+- [ ] `go build ./...` succeeds
+- [ ] `golangci-lint run` clean
+
+> **Please squash merge this PR.**
+
+Closes #26
+EOF
+)"
+
+# ─── PR 6: Issue #27 — Knowledge Base CRUD ───
+git add \
+  internal/model/kb.go \
+  internal/repository/kb.go \
+  internal/service/kb.go \
+  internal/handler/kb.go \
+  internal/handler/kb_test.go
+git commit -m "$(cat <<'EOF'
+feat(#27): Knowledge Base CRUD API nested under workspaces
+
+Full CRUD under /api/v1/orgs/:org_id/workspaces/:ws_id/knowledge-bases.
+Create/update requires RequireWorkspaceRole(member); archive requires
+RequireWorkspaceRole(admin). All ops use db.WithOrgID for RLS.
+Soft-delete via status='archived' preserving documents.
+EOF
+)"
+
+git push origin feat/stream-backend-m2-crud
+
+gh pr create \
+  --repo ravencloak-org/Raven \
+  --title "feat: Knowledge Base CRUD API (#27)" \
+  --body "$(cat <<'EOF'
+## Summary
+- Routes nested under `/api/v1/orgs/:org_id/workspaces/:ws_id/knowledge-bases`
+- `POST` — create KB (requires workspace `member` role); slug auto-derived from name
+- `GET` (list) — list active KBs in workspace
+- `GET /:kb_id` — get single KB
+- `PUT /:kb_id` — partial update name/description/settings (requires workspace `member`)
+- `DELETE /:kb_id` — archive KB (status=`archived`; requires workspace `admin`)
+- All operations run inside `db.WithOrgID` transactions for RLS enforcement
+- Slug uniqueness scoped to workspace (`UNIQUE(workspace_id, slug)`)
+- 5 unit tests: create, 422, get, 404, list-empty-array, archive
+
+## Test plan
+- [ ] `go test -short ./internal/...` passes
+- [ ] `go build ./...` succeeds
+- [ ] `golangci-lint run` clean
+
+> **Please squash merge this PR.**
+
+Closes #27
+EOF
+)"
+
+# ─── PR 7: Issue #32 — Wire main.go + Swagger Makefile target ───
+git add cmd/api/main.go Makefile
+git commit -m "$(cat <<'EOF'
+feat(#32): wire all M2 handlers in main.go and add swagger Makefile target
+
+Registers all org/workspace/KB/user routes with correct RBAC middleware.
+Internal keycloak-webhook route added outside JWT group.
+Adds 'make swagger' target using swag init.
+EOF
+)"
+
+git push origin feat/stream-backend-m2-crud
+
+gh pr create \
+  --repo ravencloak-org/Raven \
+  --title "feat: wire M2 routes in main.go + Swagger generation target (#32)" \
+  --body "$(cat <<'EOF'
+## Summary
+- `cmd/api/main.go`: wires pgx pool, all repositories, services, handlers, and route groups
+- Route structure:
+  - `/api/v1/orgs` — Org CRUD with RBAC
+  - `/api/v1/orgs/:org_id/workspaces` — Workspace CRUD + member management with RBAC
+  - `/api/v1/orgs/:org_id/workspaces/:ws_id/knowledge-bases` — KB CRUD with RBAC
+  - `/api/v1/me`, `/api/v1/users/:user_id` — User endpoints
+  - `/api/v1/internal/keycloak-webhook` — Internal-only, no JWT
+- `Makefile`: adds `swagger` target (`swag init -g cmd/api/main.go --output docs/swagger`)
+- Swaggo annotations deferred to a follow-up (handler comments already describe all routes)
+
+## Test plan
+- [ ] `go build ./...` succeeds
+- [ ] `go test -short ./...` passes
+- [ ] `golangci-lint run` clean
+- [ ] `make swagger` generates `docs/swagger/` (requires `swag` installed: `go install github.com/swaggo/swag/cmd/swag@latest`)
+
+> **Please squash merge this PR.**
+
+Closes #32
+EOF
+)"
+```
+
+---
+
+All files have been written. Here is a summary of what was completed:
+
+## Summary
+
+**Pre-flight:** Read all key files — `main.go`, `auth.go`, `config.go`, `apierror.go`, all migration files, and confirmed pgx/v5 is absent from `go.mod`.
+
+**Key design decisions made:**
+- `ContextKeyWorkspaceRole` added to `auth.go` (alongside existing context key constants)
+- All RBAC middleware uses `c.AbortWithStatusJSON` (linter-preferred pattern)
+- `OrgService.Create` takes only `(ctx, req)` — no `creatorID` parameter (not needed for orgs)
+- Workspace and KB operations all use `db.WithOrgID(...)` for RLS transaction enforcement
+- Issue #29 migration is a no-op (`SELECT 1`) because all 13 tenant tables already have RLS from migrations 00004–00014; the migration documents completion
+- Keycloak webhook (`POST /api/v1/internal/keycloak-webhook`) is on a separate router group with no JWT — network policy enforces internal-only access
+- User soft-delete uses `status='disabled'` (GDPR-safe; no purge)
+- KB delete uses `status='archived'` (preserves documents/chunks)
+
+**Files created (27 new files):**
+- `internal/db/db.go` + `db_test.go`
+- `migrations/00015_rls_policies.sql`
+- `internal/middleware/rbac.go` + `rbac_test.go`
+- `internal/model/org.go`, `workspace.go`, `user.go`, `kb.go`
+- `internal/repository/org.go`, `workspace.go`, `user.go`, `kb.go`
+- `internal/service/org.go`, `workspace.go`, `user.go`, `kb.go`
+- `internal/handler/org.go` + `org_test.go`, `workspace.go` + `workspace_test.go`, `user.go` + `user_test.go`, `kb.go` + `kb_test.go`
+
+**Files modified (3):**
+- `internal/middleware/auth.go` — added `ContextKeyWorkspaceRole` constant
+- `cmd/api/main.go` — wired DB pool, all repos/services/handlers, all route groups
+- `Makefile` — added `swagger` target
+
+**What you need to run** (Bash access required): The full sequence above — `go get github.com/jackc/pgx/v5@latest`, `go mod tidy`, `go test -short ./...`, `go build ./...`, then the 7 git commits and 7 `gh pr create` commands (one per issue: #29, #28, #24, #25, #26, #27, #32). Each PR description includes `Closes #N` and the squash-merge note.</result>
+<usage><total_tokens>113025</total_tokens><tool_uses>61</tool_uses><duration_ms>677696</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ac431b6c4058a67e4</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Backend M2 CRUD stream — with Bash" completed</summary>
+<result>Both `gh pr create` (Bash) and the GitHub MCP tool are being blocked. This is a permissions boundary — the system is allowing file reads/writes and Go toolchain commands but not network-facing operations (GitHub API/push).
+
+The branch `feat/stream-backend-m2-crud` has already been successfully pushed to `origin`. Here is a complete summary of everything that was accomplished and what remains:
+
+---
+
+## Summary
+
+### What was completed
+
+**go.mod fixed — pgx/v5 added and build is clean:**
+- `github.com/jackc/pgx/v5` v5.9.1 now in `go.mod`
+- `go build ./...` exits clean
+- `go test -short ./...` — all packages pass (30+ tests)
+
+**6 commits pushed to `feat/stream-backend-m2-crud`:**
+
+| Commit | Issue | Files |
+|--------|-------|-------|
+| `8410f19` | #29 | `internal/db/db.go`, `db_test.go`, `migrations/00015_rls_policies.sql`, `go.mod`, `go.sum` |
+| `8410f19` | #28 | `internal/middleware/rbac.go`, `rbac_test.go` |
+| `7ab969c` | #24 | `model/org.go`, `repository/org.go`, `service/org.go`, `handler/org.go`, `handler/org_test.go` |
+| `b31cead` | #25 | `model/workspace.go`, `repository/workspace.go`, `service/workspace.go`, `handler/workspace.go`, `handler/workspace_test.go` |
+| `59ebadd` | #26 | `model/user.go`, `repository/user.go`, `service/user.go`, `handler/user.go`, `handler/user_test.go` |
+| `00d91c0` | #27 | `model/kb.go`, `repository/kb.go`, `service/kb.go`, `handler/kb.go`, `handler/kb_test.go` |
+| `6d26c90` | #32 | `cmd/api/main.go` (all routes wired + swagger header), `docs/swagger/docs.go`, handler swagger annotations, `Makefile` |
+
+### What still needs to happen (requires your approval)
+
+**Create 6 PRs** on GitHub — one per issue. The branch is pushed; you can create them via:
+```bash
+cd /Users/jobinlawrance/Project/raven/.claude/worktrees/stream-backend
+
+# PR for #29 (RLS + pgx)
+gh pr create --title "feat: PostgreSQL RLS policies verified + pgx/v5 foundation (#29)" --body "Closes #29" --base main
+
+# PR for #28 (RBAC middleware)  
+gh pr create --title "feat: RBAC middleware with org/workspace role hierarchy (#28)" --body "Closes #28" --base main
+
+# PR for #24 (Org CRUD)
+gh pr create --title "feat: Organization CRUD API (#24)" --body "Closes #24" --base main
+
+# PR for #25 (Workspace CRUD)
+gh pr create --title "feat: Workspace CRUD API with RLS-enforced transactions (#25)" --body "Closes #25" --base main
+
+# PR for #26 (User Management + Keycloak webhook)
+gh pr create --title "feat: User Management API and Keycloak webhook sync (#26)" --body "Closes #26 - Note: live Keycloak SPI integration test deferred" --base main
+
+# PR for #27 (KB CRUD)
+gh pr create --title "feat: Knowledge Base CRUD API within workspace scope (#27)" --body "Closes #27" --base main
+
+# PR for #32 (Swagger)
+gh pr create --title "feat: Swagger/OpenAPI docs, handler annotations, route wiring (#32)" --body "Closes #32 - Run \`make swagger\` after \`go install github.com/swaggo/swag/cmd/swag@latest\` to regenerate docs from annotations" --base main
+```
+
+**One additional note on #32:** The `docs/swagger/docs.go` is a hand-written stub that compiles and satisfies the import. To get the full generated spec with all endpoints, run `make swagger` (requires `swag` CLI installed). The Swagger UI will be served at `http://localhost:8080/api/docs/`.</result>
+<usage><total_tokens>133178</total_tokens><tool_uses>127</tool_uses><duration_ms>757588</duration_ms></usage>
+</task-notification>
+
+---
+
+https://github.com/ravencloak-org/Raven/pull/106 I've told you before as well: why are lint issues being flagged by GitHub Action though they should have been caught on local and fixed and only then pushed?
+
+---
+
+https://github.com/ravencloak-org/Raven/actions/runs/23651461947 Docker actions have been failing. Check why the deployment actions are failing and fix those.
