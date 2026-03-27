@@ -51,7 +51,7 @@ func TestSecurityHeaders(t *testing.T) {
 		"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 		"X-Content-Type-Options":    "nosniff",
 		"X-Frame-Options":           "DENY",
-		"X-Xss-Protection":          "1; mode=block",
+		"X-XSS-Protection":          "1; mode=block",
 		"Content-Security-Policy":   "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'",
 		"Referrer-Policy":           "strict-origin-when-cross-origin",
 		"Permissions-Policy":        "geolocation=(), microphone=(), camera=()",
@@ -111,6 +111,31 @@ func TestCORSDisallowedOrigin(t *testing.T) {
 	allowOrigin := w.Header().Get("Access-Control-Allow-Origin")
 	if allowOrigin != "" {
 		t.Errorf("disallowed origin must not appear in Access-Control-Allow-Origin, got %q", allowOrigin)
+	}
+}
+
+// TestCORSActualRequest verifies that an actual (non-preflight) cross-origin
+// request from an allowed origin receives the Access-Control-Allow-Origin header.
+func TestCORSActualRequest(t *testing.T) {
+	r := newTestRouter(defaultCORSConfig())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/ping", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	allowOrigin := w.Header().Get("Access-Control-Allow-Origin")
+	if allowOrigin != "http://localhost:5173" {
+		t.Errorf("Access-Control-Allow-Origin: got %q, want %q", allowOrigin, "http://localhost:5173")
+	}
+
+	allowCreds := w.Header().Get("Access-Control-Allow-Credentials")
+	if allowCreds != "true" {
+		t.Errorf("Access-Control-Allow-Credentials: got %q, want %q", allowCreds, "true")
 	}
 }
 
