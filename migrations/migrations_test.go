@@ -150,7 +150,7 @@ func TestMigrationsUpAndDown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Wait for DB to be fully ready.
 	for i := 0; i < 30; i++ {
@@ -271,7 +271,7 @@ func TestMigrationsUpAndDown(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to query tables after rollback: %v", err)
 		}
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 
 		var remaining []string
 		for rows.Next() {
