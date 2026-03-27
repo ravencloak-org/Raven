@@ -48,3 +48,7 @@ coverage.txt
 coverage.html
 htmlcov/
 .coverage
+
+# Worktrees
+.worktrees/
+.claude/worktrees/

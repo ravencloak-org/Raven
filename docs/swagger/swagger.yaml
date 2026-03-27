@@ -1,0 +1,570 @@
+basePath: /api/v1
+definitions:
+  github_com_ravencloak-org_Raven_internal_model.CreateKBRequest:
+    properties:
+      description:
+        type: string
+      name:
+        maxLength: 255
+        minLength: 2
+        type: string
+    required:
+    - name
+    type: object
+  github_com_ravencloak-org_Raven_internal_model.CreateOrgRequest:
+    properties:
+      name:
+        maxLength: 255
+        minLength: 2
+        type: string
+    required:
+    - name
+    type: object
+  github_com_ravencloak-org_Raven_internal_model.CreateWorkspaceRequest:
+    properties:
+      name:
+        maxLength: 255
+        minLength: 2
+        type: string
+    required:
+    - name
+    type: object
+  github_com_ravencloak-org_Raven_internal_model.KBStatus:
+    enum:
+    - active
+    - archived
+    type: string
+    x-enum-varnames:
+    - KBStatusActive
+    - KBStatusArchived
+  github_com_ravencloak-org_Raven_internal_model.KnowledgeBase:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      org_id:
+        type: string
+      settings:
+        additionalProperties: {}
+        type: object
+      slug:
+        type: string
+      status:
+        $ref: '#/definitions/github_com_ravencloak-org_Raven_internal_model.KBStatus'
+      updated_at:
+        type: string
+      workspace_id:
+        type: string
+    type: object
+  github_com_ravencloak-org_Raven_internal_model.OrgStatus:
+    enum:
+    - active
+    - suspended
+    - deactivated
+    type: string
+    x-enum-varnames:
+    - OrgStatusActive
+    - OrgStatusSuspended
+    - OrgStatusDeactivated
+  github_com_ravencloak-org_Raven_internal_model.Organization:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      keycloak_realm:
+        type: string
+      name:
+        type: string
+      settings:
+        additionalProperties: {}
+        type: object
+      slug:
+        type: string
+      status:
+        $ref: '#/definitions/github_com_ravencloak-org_Raven_internal_model.OrgStatus'
+      updated_at:
+        type: string
+    type: object
+  github_com_ravencloak-org_Raven_internal_model.UpdateOrgRequest:
+    properties:
+      name:
+        maxLength: 255
+        minLength: 2
+        type: string
+      settings:
+        additionalProperties: {}
+        type: object
+    type: object
+  github_com_ravencloak-org_Raven_internal_model.UpdateUserRequest:
+    properties:
+      display_name:
+        maxLength: 255
+        type: string
+    type: object
+  github_com_ravencloak-org_Raven_internal_model.User:
+    properties:
+      created_at:
+        type: string
+      display_name:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      keycloak_sub:
+        type: string
+      last_login_at:
+        type: string
+      org_id:
+        type: string
+      status:
+        $ref: '#/definitions/github_com_ravencloak-org_Raven_internal_model.UserStatus'
+      updated_at:
+        type: string
+    type: object
+  github_com_ravencloak-org_Raven_internal_model.UserStatus:
+    enum:
+    - active
+    - disabled
+    type: string
+    x-enum-varnames:
+    - UserStatusActive
+    - UserStatusDisabled
+  github_com_ravencloak-org_Raven_internal_model.Workspace:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      org_id:
+        type: string
+      settings:
+        additionalProperties: {}
+        type: object
+      slug:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_ravencloak-org_Raven_pkg_apierror.AppError:
+    properties:
+      code:
+        type: integer
+      detail:
+        type: string
+      message:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@ravencloak.io
+    name: Raven Support
+    url: https://ravencloak.io
+  description: Multi-tenant knowledge management and AI chat platform.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: https://ravencloak.io/terms
+  title: Raven API
+  version: 0.2.0
+paths:
+  /me:
+    delete:
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+      security:
+      - BearerAuth: []
+      summary: Delete current user account (GDPR)
+      tags:
+      - users
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_internal_model.User'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get current user profile
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Update payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_ravencloak-org_Raven_internal_model.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_internal_model.User'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+      security:
+      - BearerAuth: []
+      summary: Update current user profile
+      tags:
+      - users
+  /orgs:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Organisation payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_ravencloak-org_Raven_internal_model.CreateOrgRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_internal_model.Organization'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+      security:
+      - BearerAuth: []
+      summary: Create organisation
+      tags:
+      - organisations
+  /orgs/{org_id}:
+    delete:
+      parameters:
+      - description: Organisation ID
+        in: path
+        name: org_id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+      security:
+      - BearerAuth: []
+      summary: Delete (deactivate) organisation
+      tags:
+      - organisations
+    get:
+      parameters:
+      - description: Organisation ID
+        in: path
+        name: org_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_internal_model.Organization'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get organisation
+      tags:
+      - organisations
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Organisation ID
+        in: path
+        name: org_id
+        required: true
+        type: string
+      - description: Update payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_ravencloak-org_Raven_internal_model.UpdateOrgRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_internal_model.Organization'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+      security:
+      - BearerAuth: []
+      summary: Update organisation
+      tags:
+      - organisations
+  /orgs/{org_id}/workspaces:
+    get:
+      parameters:
+      - description: Organisation ID
+        in: path
+        name: org_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_ravencloak-org_Raven_internal_model.Workspace'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+      security:
+      - BearerAuth: []
+      summary: List workspaces for an organisation
+      tags:
+      - workspaces
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Organisation ID
+        in: path
+        name: org_id
+        required: true
+        type: string
+      - description: Workspace payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_ravencloak-org_Raven_internal_model.CreateWorkspaceRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_internal_model.Workspace'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+      security:
+      - BearerAuth: []
+      summary: Create workspace
+      tags:
+      - workspaces
+  /orgs/{org_id}/workspaces/{ws_id}/knowledge-bases:
+    get:
+      parameters:
+      - description: Organisation ID
+        in: path
+        name: org_id
+        required: true
+        type: string
+      - description: Workspace ID
+        in: path
+        name: ws_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/github_com_ravencloak-org_Raven_internal_model.KnowledgeBase'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+      security:
+      - BearerAuth: []
+      summary: List knowledge bases in a workspace
+      tags:
+      - knowledge-bases
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Organisation ID
+        in: path
+        name: org_id
+        required: true
+        type: string
+      - description: Workspace ID
+        in: path
+        name: ws_id
+        required: true
+        type: string
+      - description: Knowledge base payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_ravencloak-org_Raven_internal_model.CreateKBRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_internal_model.KnowledgeBase'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+      security:
+      - BearerAuth: []
+      summary: Create knowledge base
+      tags:
+      - knowledge-bases
+  /orgs/{org_id}/workspaces/{ws_id}/knowledge-bases/{kb_id}:
+    delete:
+      parameters:
+      - description: Organisation ID
+        in: path
+        name: org_id
+        required: true
+        type: string
+      - description: Workspace ID
+        in: path
+        name: ws_id
+        required: true
+        type: string
+      - description: Knowledge base ID
+        in: path
+        name: kb_id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+      security:
+      - BearerAuth: []
+      summary: Archive (soft-delete) knowledge base
+      tags:
+      - knowledge-bases
+  /users/{user_id}:
+    get:
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_internal_model.User'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_ravencloak-org_Raven_pkg_apierror.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get user by ID (org_admin only)
+      tags:
+      - users
+securityDefinitions:
+  BearerAuth:
+    description: 'Enter your Bearer token as: Bearer <token>'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
