@@ -110,6 +110,21 @@ func TestRateLimitExceeded(t *testing.T) {
 	if body["retry_after"] == nil {
 		t.Error("expected retry_after field in 429 body")
 	}
+
+	// Near-boundary assertion: X-RateLimit-Reset must be a Unix timestamp
+	// within [now, now+60] seconds — i.e. within the current 1-minute window.
+	resetStr := w.Header().Get("X-RateLimit-Reset")
+	if resetStr == "" {
+		t.Fatal("expected X-RateLimit-Reset header on 429 response")
+	}
+	resetTs, err := strconv.ParseInt(resetStr, 10, 64)
+	if err != nil {
+		t.Fatalf("X-RateLimit-Reset is not a valid int64: %q", resetStr)
+	}
+	now := time.Now().Unix()
+	if resetTs < now || resetTs > now+60 {
+		t.Errorf("X-RateLimit-Reset %d is not within [now(%d), now+60(%d)]", resetTs, now, now+60)
+	}
 }
 
 // TestRateLimitWindowReset verifies that the sliding window allows requests
@@ -313,20 +328,30 @@ func TestByAPIKey(t *testing.T) {
 	}
 }
 
-// TestNoKeySkipsRateLimit verifies that when the key function returns "" the
-// middleware passes the request through without checking Valkey.
-func TestNoKeySkipsRateLimit(t *testing.T) {
+// TestNoKeyUsesFallbackKey verifies that when the key function returns "" the
+// middleware falls back to an IP-based key and still enforces rate limiting,
+// rather than silently passing the request through (fail-open).
+func TestNoKeyUsesFallbackKey(t *testing.T) {
 	rl, _ := newTestRateLimiter(t)
 
-	// Limit of 0 would block everything if the key were used.
-	mw := RateLimitMiddleware(rl, 0, func(c *gin.Context) string {
-		return "" // no key
+	const limit = 2
+	mw := RateLimitMiddleware(rl, limit, func(c *gin.Context) string {
+		return "" // no key — simulates identity lookup miss
 	})
 	r := newRateLimitRouter(mw)
 
+	// Requests up to the limit should succeed (fallback key is rate-limited).
+	for i := 0; i < limit; i++ {
+		w := doRequest(r)
+		if w.Code != http.StatusOK {
+			t.Fatalf("fallback key: request %d expected 200, got %d", i+1, w.Code)
+		}
+	}
+
+	// Once the fallback key's limit is exhausted the request must be rejected.
 	w := doRequest(r)
-	if w.Code != http.StatusOK {
-		t.Fatalf("empty key: expected 200 (pass-through), got %d", w.Code)
+	if w.Code != http.StatusTooManyRequests {
+		t.Fatalf("fallback key: expected 429 after limit, got %d", w.Code)
 	}
 }
 

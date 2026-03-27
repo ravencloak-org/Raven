@@ -75,14 +75,30 @@ type rateLimitResult struct {
 	admitted  bool
 }
 
+// redactKey returns a safe representation of a rate-limit key for logging.
+// It shows only the first 8 characters followed by "..." to avoid leaking
+// user identity (user IDs, org IDs, hashed API keys) into log sinks.
+func redactKey(key string) string {
+	const maxVisible = 8
+	if len(key) <= maxVisible {
+		return key
+	}
+	return key[:maxVisible] + "..."
+}
+
 // check runs the sliding-window Lua script against Valkey and returns the
 // result.  On any Valkey error the request is admitted (fail-open) and the
 // error is logged as a warning.
 func (rl *RateLimiter) check(ctx context.Context, key string, limit int, windowMs int64) rateLimitResult {
 	now := time.Now().UnixMilli()
 
+	// Apply a short timeout to the Valkey call so a slow/unavailable server
+	// does not stall the request indefinitely.
+	callCtx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
+	defer cancel()
+
 	script := redis.NewScript(slidingWindowLua)
-	res, err := script.Run(ctx, rl.client,
+	res, err := script.Run(callCtx, rl.client,
 		[]string{key},
 		strconv.FormatInt(now, 10),
 		strconv.FormatInt(windowMs, 10),
@@ -91,7 +107,7 @@ func (rl *RateLimiter) check(ctx context.Context, key string, limit int, windowM
 
 	if err != nil {
 		rl.logger.WarnContext(ctx, "rate limiter: valkey unavailable, allowing request",
-			slog.String("key", key),
+			slog.String("key", redactKey(key)),
 			slog.String("error", err.Error()),
 		)
 		// Fail-open: treat as admitted with full remaining quota.
@@ -108,20 +124,33 @@ func (rl *RateLimiter) check(ctx context.Context, key string, limit int, windowM
 	return rateLimitResult{count: count, remaining: remaining, admitted: admitted}
 }
 
+// fallbackKey builds a rate-limit key from the request's remote address so
+// that anonymous or unidentified callers are still rate-limited rather than
+// silently bypassing the limiter.
+const keyPrefixFallback = "raven:rl:fallback:"
+
 // RateLimitMiddleware is the generic Gin middleware factory.
 //
 //   - limit    — maximum requests per minute for this scope
 //   - keyFn    — extracts the rate-limit key from the request context;
-//     returning "" disables rate limiting for that request.
+//     returning "" means identity could not be determined; a fallback
+//     IP-based key is used instead so the limiter is never silently skipped.
 func RateLimitMiddleware(rl *RateLimiter, limit int, keyFn func(*gin.Context) string) gin.HandlerFunc {
 	const windowMs = int64(60_000) // 1 minute sliding window
 
 	return func(c *gin.Context) {
 		key := keyFn(c)
 		if key == "" {
-			// No key means we cannot identify the caller — pass through.
-			c.Next()
-			return
+			// Identity lookup returned no key — log a warning and fall back to
+			// the client IP so the limiter still applies.  This avoids silently
+			// failing open for unauthenticated or misconfigured callers.
+			ip := c.ClientIP()
+			rl.logger.WarnContext(c.Request.Context(),
+				"rate limiter: identity lookup missed, using IP fallback",
+				slog.String("ip", ip),
+				slog.String("path", c.FullPath()),
+			)
+			key = keyPrefixFallback + ip
 		}
 
 		resetAt := time.Now().Add(time.Minute).Unix()
