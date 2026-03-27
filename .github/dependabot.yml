@@ -1,0 +1,74 @@
+version: 2
+
+updates:
+  # Go modules (root)
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "go"
+    commit-message:
+      prefix: "deps(go):"
+    open-pull-requests-limit: 10
+
+  # Python / pip (ai-worker)
+  - package-ecosystem: "pip"
+    directory: "/ai-worker"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "deps(py):"
+    open-pull-requests-limit: 10
+
+  # npm (frontend)
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "javascript"
+    commit-message:
+      prefix: "deps(npm):"
+    open-pull-requests-limit: 10
+
+  # Docker (root)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "deps(docker):"
+    open-pull-requests-limit: 10
+
+  # Docker (ai-worker)
+  - package-ecosystem: "docker"
+    directory: "/ai-worker"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "deps(docker):"
+    open-pull-requests-limit: 10
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "deps(actions):"
+    open-pull-requests-limit: 10
