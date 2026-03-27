@@ -150,7 +150,11 @@ func TestMigrationsUpAndDown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
-	defer func() { _ = db.Close() }()
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Errorf("failed to close database: %v", err)
+		}
+	}()
 
 	// Wait for DB to be fully ready.
 	for i := 0; i < 30; i++ {
@@ -280,6 +284,9 @@ func TestMigrationsUpAndDown(t *testing.T) {
 				t.Fatalf("failed to scan table name: %v", err)
 			}
 			remaining = append(remaining, name)
+		}
+		if err := rows.Err(); err != nil {
+			t.Fatalf("error iterating rows: %v", err)
 		}
 
 		// goose_db_version is expected to remain.
