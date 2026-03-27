@@ -6,6 +6,7 @@ toolchain go1.26.1
 
 require (
 	github.com/alicebob/miniredis/v2 v2.37.0
+	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.12.0
 	github.com/lib/pq v1.12.0
 	github.com/pressly/goose/v3 v3.27.0

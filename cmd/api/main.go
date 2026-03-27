@@ -62,18 +62,24 @@ func main() {
 	// Create router
 	router := gin.Default()
 
-	// Register OpenTelemetry middleware
+	// Global middleware order: OTel → SecurityHeaders → CORS → ErrorHandler
 	router.Use(middleware.OTelMiddleware())
-
-	// Register error handler middleware
+	router.Use(middleware.SecurityHeadersMiddleware())
+	router.Use(middleware.CORSMiddleware(&cfg.CORS))
 	router.Use(apierror.ErrorHandler())
 
 	// Apply rate limiting by user ID and org ID using config-driven defaults.
 	router.Use(middleware.ByUserID(rl, cfg.RateLimit.DefaultUserLimit))
 	router.Use(middleware.ByOrgID(rl, cfg.RateLimit.DefaultOrgLimit))
 
-	// Register routes
+	// Infrastructure endpoint — intentionally outside the versioned group.
 	router.GET("/healthz", handler.HealthCheck)
+
+	// Versioned API group
+	v1 := router.Group("/api/v1")
+	{
+		v1.GET("/ping", handler.Ping)
+	}
 
 	// Create HTTP server
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)

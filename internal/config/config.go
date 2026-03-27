@@ -14,7 +14,13 @@ type Config struct {
 	Valkey    ValkeyConfig
 	GRPC      GRPCConfig
 	OTel      OTelConfig
+	CORS      CORSConfig
 	RateLimit RateLimitConfig
+}
+
+// CORSConfig holds Cross-Origin Resource Sharing settings.
+type CORSConfig struct {
+	AllowedOrigins []string `mapstructure:"allowed_origins"`
 }
 
 // RateLimitConfig holds rate limiting defaults.
@@ -62,6 +68,15 @@ func Load() (*Config, error) {
 	v.SetDefault("otel.endpoint", "")
 	v.SetDefault("otel.service_name", "raven-api")
 	v.SetDefault("otel.enabled", false)
+	// CORS allowed origins can be overridden via the RAVEN_CORS_ALLOWED_ORIGINS
+	// environment variable as a comma-separated list.
+	// Example: RAVEN_CORS_ALLOWED_ORIGINS=https://app1.com,https://app2.com
+	v.SetDefault("cors.allowed_origins", []string{
+		"http://localhost:5173",
+		"https://raven-frontend.pages.dev",
+	})
+	// Explicitly bind so Viper surfaces the env var when unmarshaling slice fields.
+	_ = v.BindEnv("cors.allowed_origins", "RAVEN_CORS_ALLOWED_ORIGINS")
 	v.SetDefault("ratelimit.default_user_limit", 1000)
 	v.SetDefault("ratelimit.default_org_limit", 10000)
 
