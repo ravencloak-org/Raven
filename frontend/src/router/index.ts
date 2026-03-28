@@ -48,6 +48,18 @@ const router = createRouter({
           meta: { requiresAuth: true },
         },
         {
+          path: 'orgs/:orgId/workspaces/:wsId/knowledge-bases',
+          name: 'kb-list',
+          component: () => import('../pages/knowledge-bases/KBListPage.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
+          path: 'orgs/:orgId/workspaces/:wsId/knowledge-bases/:kbId',
+          name: 'kb-detail',
+          component: () => import('../pages/knowledge-bases/KBDetailPage.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
           path: 'analytics',
           name: 'analytics',
           component: () => import('../pages/analytics/AnalyticsDashboardPage.vue'),
