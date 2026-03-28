@@ -18,11 +18,11 @@
 import { computed } from 'vue'
 import { useAuth } from '../composables/useAuth'
 
-const { currentUser } = useAuth()
+const { user } = useAuth()
 
 const userInitial = computed(() => {
-  if (currentUser.value?.displayName) {
-    return currentUser.value.displayName.charAt(0).toUpperCase()
+  if (user.value?.username) {
+    return user.value.username.charAt(0).toUpperCase()
   }
   return 'U'
 })
