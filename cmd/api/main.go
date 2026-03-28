@@ -115,6 +115,7 @@ func main() {
 	kbRepo := repository.NewKBRepository(pool)
 	sourceRepo := repository.NewSourceRepository(pool)
 	docRepo := repository.NewDocumentRepository(pool)
+	_ = repository.NewChunkRepository(pool) // wired for future service/handler layers
 
 	// --- Wire services ---
 	orgSvc := service.NewOrgService(orgRepo)

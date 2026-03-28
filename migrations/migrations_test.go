@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -259,6 +260,36 @@ func TestMigrationsUpAndDown(t *testing.T) {
 		if !afterUpdate.After(beforeUpdate) {
 			t.Errorf("expected updated_at to advance after UPDATE; before=%v after=%v",
 				beforeUpdate, afterUpdate)
+		}
+	})
+
+	t.Run("hnsw_index_exists", func(t *testing.T) {
+		var exists bool
+		err := db.QueryRowContext(ctx,
+			`SELECT EXISTS (
+				SELECT 1 FROM pg_indexes
+				WHERE tablename = 'embeddings' AND indexname = 'idx_embeddings_hnsw'
+			)`).Scan(&exists)
+		if err != nil {
+			t.Fatalf("failed to check HNSW index: %v", err)
+		}
+		if !exists {
+			t.Error("expected HNSW index idx_embeddings_hnsw to exist on embeddings table")
+		}
+
+		// Verify the index uses the hnsw access method.
+		var indexDef string
+		err = db.QueryRowContext(ctx,
+			`SELECT indexdef FROM pg_indexes
+			 WHERE tablename = 'embeddings' AND indexname = 'idx_embeddings_hnsw'`).Scan(&indexDef)
+		if err != nil {
+			t.Fatalf("failed to read HNSW index definition: %v", err)
+		}
+		if !strings.Contains(indexDef, "hnsw") {
+			t.Errorf("expected HNSW index to use hnsw method, got: %s", indexDef)
+		}
+		if !strings.Contains(indexDef, "vector_cosine_ops") {
+			t.Errorf("expected HNSW index to use vector_cosine_ops, got: %s", indexDef)
 		}
 	})
 
