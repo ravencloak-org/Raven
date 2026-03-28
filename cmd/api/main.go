@@ -40,6 +40,7 @@ import (
 	_ "github.com/ravencloak-org/Raven/docs/swagger" // swagger docs
 	"github.com/ravencloak-org/Raven/internal/handler"
 	"github.com/ravencloak-org/Raven/internal/middleware"
+	"github.com/ravencloak-org/Raven/internal/queue"
 	"github.com/ravencloak-org/Raven/internal/repository"
 	"github.com/ravencloak-org/Raven/internal/service"
 	"github.com/ravencloak-org/Raven/internal/telemetry"
@@ -84,6 +85,21 @@ func main() {
 
 	// Build rate limiter using config-driven limits.
 	rl := middleware.NewRateLimiter(valkeyClient, slog.Default())
+
+	// --- Asynq queue client ---
+	// The queue client is initialised here and will be passed to services that
+	// need to enqueue async jobs (document processing, URL scraping, reindexing).
+	// Real wiring happens in subsequent issues (#14-#17).
+	queueClient := queue.NewClient(cfg.Valkey.URL,
+		queue.WithMaxRetry(cfg.Queue.MaxRetry),
+		queue.WithLogger(slog.Default()),
+	)
+	defer func() {
+		if err := queueClient.Close(); err != nil {
+			log.Printf("queue client close error: %v", err)
+		}
+	}()
+	_ = queueClient // TODO(#14): pass to services that enqueue jobs
 
 	// --- Database pool ---
 	pool, err := db.New(context.Background(), cfg.Database.URL)
