@@ -5,19 +5,16 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/ravencloak-org/Raven/internal/model"
 )
 
 // ProcessingEventRepository handles database operations for processing events.
 // All operations use a pgx.Tx with org_id set for RLS enforcement.
-type ProcessingEventRepository struct {
-	pool *pgxpool.Pool
-}
+type ProcessingEventRepository struct{}
 
 // NewProcessingEventRepository creates a new ProcessingEventRepository.
-func NewProcessingEventRepository(pool *pgxpool.Pool) *ProcessingEventRepository {
-	return &ProcessingEventRepository{pool: pool}
+func NewProcessingEventRepository() *ProcessingEventRepository {
+	return &ProcessingEventRepository{}
 }
 
 const eventColumns = `id, org_id, document_id, source_id,

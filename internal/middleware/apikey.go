@@ -42,6 +42,9 @@ func hashAPIKey(rawKey string) string {
 	return hex.EncodeToString(h[:])
 }
 
+// apiKeyStatusActive is the expected status value for a valid, usable API key.
+const apiKeyStatusActive = "active"
+
 // APIKeyAuth returns a Gin middleware that authenticates requests via the
 // X-API-Key header. It hashes the raw key with SHA-256, looks it up in the
 // database, validates the domain allowlist against the Origin/Referer header,
@@ -66,7 +69,7 @@ func APIKeyAuth(lookup APIKeyLookup) gin.HandlerFunc {
 			return
 		}
 
-		if result.Status != "active" {
+		if result.Status != apiKeyStatusActive {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "api_key_revoked"})
 			return
 		}

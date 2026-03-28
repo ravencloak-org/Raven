@@ -46,7 +46,12 @@ func (h *APIKeyHandler) Create(c *gin.Context) {
 	orgID := c.Param("org_id")
 	wsID := c.Param("ws_id")
 	kbID := c.Param("kb_id")
-	userID, _ := c.Get(string(middleware.ContextKeyUserID))
+	userIDVal, exists := c.Get(string(middleware.ContextKeyUserID))
+	if !exists {
+		_ = c.Error(apierror.NewUnauthorized("user authentication required"))
+		c.Abort()
+		return
+	}
 
 	var req model.CreateAPIKeyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -59,7 +64,7 @@ func (h *APIKeyHandler) Create(c *gin.Context) {
 		return
 	}
 
-	uid, _ := userID.(string)
+	uid, _ := userIDVal.(string)
 	resp, err := h.svc.Create(c.Request.Context(), orgID, wsID, kbID, uid, req)
 	if err != nil {
 		_ = c.Error(err)

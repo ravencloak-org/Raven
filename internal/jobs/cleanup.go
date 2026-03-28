@@ -3,10 +3,12 @@ package jobs
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 
 	"github.com/hibiken/asynq"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -82,9 +84,13 @@ func (h *CleanupHandler) cleanupExpiredSessions(ctx context.Context, maxAgeDays 
 		maxAgeDays,
 	)
 	if err != nil {
-		// If the sessions table does not exist yet, log and return 0.
-		h.logger.Warn("sessions table may not exist yet, skipping cleanup", "error", err)
-		return 0, nil
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "42P01" {
+			// Table not yet created by migrations — treat as no-op.
+			h.logger.Warn("sessions table does not exist yet, skipping cleanup", "error", err)
+			return 0, nil
+		}
+		return 0, fmt.Errorf("delete expired sessions: %w", err)
 	}
 	return tag.RowsAffected(), nil
 }
@@ -97,8 +103,12 @@ func (h *CleanupHandler) cleanupStaleProcessingEvents(ctx context.Context, reten
 		retentionDays,
 	)
 	if err != nil {
-		h.logger.Warn("processing_events cleanup query failed", "error", err)
-		return 0, nil
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "42P01" {
+			h.logger.Warn("processing_events table does not exist yet, skipping cleanup", "error", err)
+			return 0, nil
+		}
+		return 0, fmt.Errorf("delete stale processing events: %w", err)
 	}
 	return tag.RowsAffected(), nil
 }

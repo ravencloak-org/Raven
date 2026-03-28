@@ -3,10 +3,12 @@ package jobs
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 
 	"github.com/hibiken/asynq"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -80,10 +82,9 @@ func (h *UsageAggregationHandler) aggregateUsage(ctx context.Context, orgID stri
 		WHERE created_at >= NOW() - make_interval(mins => $1)`
 
 	args := []any{windowMinutes}
-	argIdx := 2
 
 	if orgID != "" {
-		q += fmt.Sprintf(` AND org_id = $%d`, argIdx)
+		q += ` AND org_id = $2`
 		args = append(args, orgID)
 	}
 
@@ -97,10 +98,13 @@ func (h *UsageAggregationHandler) aggregateUsage(ctx context.Context, orgID stri
 
 	tag, err := h.pool.Exec(ctx, q, args...)
 	if err != nil {
-		// If the tables do not exist yet (created in a later migration), treat
-		// as a no-op so the scheduler does not fail on fresh installations.
-		h.logger.Warn("usage aggregation query failed (tables may not exist yet)", "error", err)
-		return 0, nil
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "42P01" {
+			// Tables not yet created by migrations — treat as no-op.
+			h.logger.Warn("usage aggregation tables do not exist yet, skipping", "error", err)
+			return 0, nil
+		}
+		return 0, fmt.Errorf("usage aggregation query: %w", err)
 	}
 	return tag.RowsAffected(), nil
 }

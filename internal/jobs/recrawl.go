@@ -79,7 +79,14 @@ func (h *RecrawlHandler) ProcessTask(ctx context.Context, task *asynq.Task) erro
 	}
 
 	if enqueueErrors > 0 {
-		return fmt.Errorf("failed to enqueue %d of %d sources", enqueueErrors, len(sources))
+		// Log failures but return nil so asynq does not retry the entire task.
+		// Retrying would re-enqueue sources that already succeeded, causing
+		// duplicate processing. Failed sources will be picked up on the next
+		// scheduled run.
+		h.logger.Warn("some sources failed to enqueue; they will be retried on the next scheduled run",
+			"failed", enqueueErrors,
+			"total", len(sources),
+		)
 	}
 	return nil
 }

@@ -35,10 +35,9 @@ type SearchResponse struct {
 
 // HybridSearchRequest is the validated input for a hybrid (vector + BM25) search.
 type HybridSearchRequest struct {
-	Query string  `json:"q"`
-	KBID  string  `json:"kb_id"`
-	TopK  int     `json:"top_k"`
-	Alpha float64 `json:"alpha"` // Weight balance: 0.0 = BM25 only, 1.0 = vector only
+	Query string `json:"q"`
+	KBID  string `json:"kb_id"`
+	TopK  int    `json:"top_k"`
 }
 
 // HybridSearchResult is a single result from a hybrid search with its fused score.
