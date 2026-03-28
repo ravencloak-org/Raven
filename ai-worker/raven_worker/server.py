@@ -79,10 +79,7 @@ async def serve() -> None:
     init_telemetry(service_name="raven-ai-worker", endpoint=otel_endpoint)
 
     # Build gRPC interceptors list.
-    interceptors: list = []
-    otel_interceptor = get_grpc_server_interceptor()
-    if otel_interceptor is not None:
-        interceptors.append(otel_interceptor)
+    interceptors: list = [i for i in [get_grpc_server_interceptor()] if i is not None]
 
     server = grpc.aio.server(interceptors=interceptors or None)
 

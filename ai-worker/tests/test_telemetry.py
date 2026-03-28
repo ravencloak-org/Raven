@@ -3,9 +3,36 @@
 from __future__ import annotations
 
 import builtins
+import contextlib
 import importlib
 import sys
+from collections.abc import Iterator
 from unittest.mock import patch
+
+
+@contextlib.contextmanager
+def _hide_imports(keyword: str) -> Iterator[None]:
+    """Temporarily hide modules whose name contains *keyword* from the import system.
+
+    On entry, matching modules are removed from ``sys.modules`` and
+    ``builtins.__import__`` is monkey-patched to raise ``ImportError``
+    for any import whose name contains *keyword*.  On exit everything is
+    restored.
+    """
+    hidden = {name: sys.modules.pop(name) for name in list(sys.modules) if keyword in name}
+    real_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if keyword in name:
+            raise ImportError(f"mocked missing package ({keyword})")
+        return real_import(name, *args, **kwargs)
+
+    builtins.__import__ = fake_import  # type: ignore[assignment]
+    try:
+        yield
+    finally:
+        builtins.__import__ = real_import  # type: ignore[assignment]
+        sys.modules.update(hidden)
 
 
 class TestInitTelemetryNoOp:
@@ -30,21 +57,7 @@ class TestInitTelemetryWithEndpoint:
 
     def test_missing_packages_logs_warning(self) -> None:
         """If OTel SDK is not installed, a warning is logged instead of crashing."""
-        # Temporarily hide all opentelemetry modules from sys.modules.
-        hidden: dict[str, object] = {}
-        for mod_name in list(sys.modules):
-            if mod_name.startswith("opentelemetry"):
-                hidden[mod_name] = sys.modules.pop(mod_name)
-
-        real_import = builtins.__import__
-
-        def fake_import(name, *args, **kwargs):
-            if name.startswith("opentelemetry"):
-                raise ImportError("mocked missing package")
-            return real_import(name, *args, **kwargs)
-
-        try:
-            builtins.__import__ = fake_import  # type: ignore[assignment]
+        with _hide_imports("opentelemetry"):
             import raven_worker.telemetry as tel_mod
 
             importlib.reload(tel_mod)
@@ -53,12 +66,9 @@ class TestInitTelemetryWithEndpoint:
             with patch.object(tel_mod, "logger") as mock_logger:
                 tel_mod.init_telemetry(service_name="test", endpoint="localhost:4317")
                 mock_logger.warning.assert_called_once()
-        finally:
-            builtins.__import__ = real_import  # type: ignore[assignment]
-            sys.modules.update(hidden)
-            import raven_worker.telemetry as tel_mod2
 
-            importlib.reload(tel_mod2)
+        # Reload after context manager restores original imports.
+        importlib.reload(tel_mod)
 
     def test_with_endpoint_configures_tracer(self) -> None:
         """When a valid endpoint is given the tracer provider should be set."""
@@ -86,26 +96,11 @@ class TestGrpcInterceptor:
 
     def test_returns_none_when_package_missing(self) -> None:
         """Without the instrumentation package, None should be returned."""
-        hidden: dict[str, object] = {}
-        for mod_name in list(sys.modules):
-            if "instrumentation" in mod_name:
-                hidden[mod_name] = sys.modules.pop(mod_name)
-
-        real_import = builtins.__import__
-
-        def fake_import(name, *args, **kwargs):
-            if "instrumentation" in name:
-                raise ImportError("mocked missing package")
-            return real_import(name, *args, **kwargs)
-
-        try:
-            builtins.__import__ = fake_import  # type: ignore[assignment]
+        with _hide_imports("instrumentation"):
             import raven_worker.telemetry as tel_mod
 
             importlib.reload(tel_mod)
             result = tel_mod.get_grpc_server_interceptor()
             assert result is None
-        finally:
-            builtins.__import__ = real_import  # type: ignore[assignment]
-            sys.modules.update(hidden)
-            importlib.reload(tel_mod)
+
+        importlib.reload(tel_mod)
