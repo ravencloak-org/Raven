@@ -2,10 +2,21 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "1719c192b86d",
   "strategy": "manual-commit",
-  "branch": "main",
-  "checkpoints_count": 1,
+  "branch": "feat/stream-frontend-m5-scaffold",
+  "checkpoints_count": 2,
   "files_touched": [
-    "docs/research/monetization-strategy.md"
+    "docs/research/monetization-strategy.md",
+    "frontend/eslint.config.js",
+    "frontend/src/api/knowledge-bases.ts",
+    "frontend/src/components/AppHeader.vue",
+    "frontend/src/pages/apikeys/ApiKeyListPage.vue",
+    "frontend/src/pages/knowledge-bases/KBDetailPage.vue",
+    "frontend/src/pages/llm-providers/LlmProviderListPage.vue",
+    "frontend/src/router/index.ts",
+    "frontend/src/stores/auth.spec.ts",
+    "frontend/src/stores/knowledge-bases.spec.ts",
+    "frontend/src/stores/knowledge-bases.ts",
+    "frontend/vite.config.ts"
   ],
   "sessions": [
     {
@@ -14,13 +25,20 @@
       "context": "/17/19c192b86d/0/context.md",
       "content_hash": "/17/19c192b86d/0/content_hash.txt",
       "prompt": "/17/19c192b86d/0/prompt.txt"
+    },
+    {
+      "metadata": "/17/19c192b86d/1/metadata.json",
+      "transcript": "/17/19c192b86d/1/full.jsonl",
+      "context": "/17/19c192b86d/1/context.md",
+      "content_hash": "/17/19c192b86d/1/content_hash.txt",
+      "prompt": "/17/19c192b86d/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 9,
-    "cache_creation_tokens": 4241,
-    "cache_read_tokens": 1426597,
-    "output_tokens": 3333,
-    "api_call_count": 7
+    "input_tokens": 96,
+    "cache_creation_tokens": 41252,
+    "cache_read_tokens": 18035512,
+    "output_tokens": 20792,
+    "api_call_count": 88
   }
 }
