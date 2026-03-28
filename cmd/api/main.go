@@ -97,18 +97,21 @@ func main() {
 	wsRepo := repository.NewWorkspaceRepository(pool)
 	userRepo := repository.NewUserRepository(pool)
 	kbRepo := repository.NewKBRepository(pool)
+	searchRepo := repository.NewSearchRepository(pool)
 
 	// --- Wire services ---
 	orgSvc := service.NewOrgService(orgRepo)
 	wsSvc := service.NewWorkspaceService(wsRepo, pool)
 	userSvc := service.NewUserService(userRepo)
 	kbSvc := service.NewKBService(kbRepo, pool)
+	searchSvc := service.NewSearchService(searchRepo, pool)
 
 	// --- Wire handlers ---
 	orgHandler := handler.NewOrgHandler(orgSvc)
 	wsHandler := handler.NewWorkspaceHandler(wsSvc)
 	userHandler := handler.NewUserHandler(userSvc)
 	kbHandler := handler.NewKBHandler(kbSvc)
+	searchHandler := handler.NewSearchHandler(searchSvc)
 
 	// Create router
 	router := gin.Default()
@@ -168,6 +171,9 @@ func main() {
 				kb.GET("/:kb_id", kbHandler.Get)
 				kb.PUT("/:kb_id", middleware.RequireWorkspaceRole("member"), kbHandler.Update)
 				kb.DELETE("/:kb_id", middleware.RequireWorkspaceRole("admin"), kbHandler.Archive)
+
+				// Full-text search (nested under knowledge base)
+				kb.GET("/:kb_id/search", searchHandler.Search)
 			}
 		}
 
