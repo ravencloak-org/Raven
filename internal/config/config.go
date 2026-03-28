@@ -17,6 +17,13 @@ type Config struct {
 	Keycloak  KeycloakConfig
 	CORS      CORSConfig
 	RateLimit RateLimitConfig
+	Queue     QueueConfig
+}
+
+// QueueConfig holds Asynq job queue settings.
+type QueueConfig struct {
+	Concurrency int `mapstructure:"concurrency"`
+	MaxRetry    int `mapstructure:"max_retry"`
 }
 
 // KeycloakConfig holds Keycloak/OIDC settings for JWT validation.
@@ -92,6 +99,8 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("cors.allowed_origins", "RAVEN_CORS_ALLOWED_ORIGINS")
 	v.SetDefault("ratelimit.default_user_limit", 1000)
 	v.SetDefault("ratelimit.default_org_limit", 10000)
+	v.SetDefault("queue.concurrency", 10)
+	v.SetDefault("queue.max_retry", 5)
 
 	// Config file (optional)
 	v.SetConfigName("config")
