@@ -9,21 +9,29 @@ import (
 
 // Config holds all configuration for the application.
 type Config struct {
-	Server    ServerConfig
-	Database  DatabaseConfig
-	Valkey    ValkeyConfig
-	GRPC      GRPCConfig
-	OTel      OTelConfig
-	Keycloak  KeycloakConfig
-	CORS      CORSConfig
-	RateLimit RateLimitConfig
-	Queue     QueueConfig
+	Server     ServerConfig
+	Database   DatabaseConfig
+	Valkey     ValkeyConfig
+	GRPC       GRPCConfig
+	OTel       OTelConfig
+	Keycloak   KeycloakConfig
+	CORS       CORSConfig
+	RateLimit  RateLimitConfig
+	Queue      QueueConfig
+	Encryption EncryptionConfig
 }
 
 // QueueConfig holds Asynq job queue settings.
 type QueueConfig struct {
 	Concurrency int `mapstructure:"concurrency"`
 	MaxRetry    int `mapstructure:"max_retry"`
+}
+
+// EncryptionConfig holds settings for data-at-rest encryption (e.g. LLM API keys).
+type EncryptionConfig struct {
+	// AESKey is a 64-character hex string representing a 32-byte AES-256 key.
+	// Set via RAVEN_ENCRYPTION_AESKEY environment variable.
+	AESKey string `mapstructure:"aes_key"`
 }
 
 // KeycloakConfig holds Keycloak/OIDC settings for JWT validation.
