@@ -62,7 +62,7 @@ func (h *UploadHandler) Upload(c *gin.Context) {
 		c.Abort()
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Detect content type from file content.
 	// Read first 512 bytes for MIME detection, then reconstruct full reader.

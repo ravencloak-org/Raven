@@ -91,7 +91,7 @@ func (c *SeaweedFSClient) Upload(ctx context.Context, filename string, reader io
 	// Write multipart form in a goroutine.
 	errCh := make(chan error, 1)
 	go func() {
-		defer pw.Close()
+		defer func() { _ = pw.Close() }()
 		h := make(textproto.MIMEHeader)
 		h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`, filename))
 		h.Set("Content-Type", "application/octet-stream")
@@ -178,7 +178,7 @@ func (c *SeaweedFSClient) Download(ctx context.Context, fid string) (io.ReadClos
 
 	if dlResp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(dlResp.Body)
-		dlResp.Body.Close()
+		_ = dlResp.Body.Close()
 		return nil, fmt.Errorf("seaweedfs download: unexpected status %d: %s", dlResp.StatusCode, string(body))
 	}
 
