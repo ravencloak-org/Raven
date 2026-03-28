@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   test:
-    name: Lint & Test
+    name: Lint, Type-check & Test
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -42,5 +42,15 @@ jobs:
       - name: Ruff format check
         run: ruff format --check
 
-      - name: Run tests
-        run: pytest -v
+      - name: Type check (mypy)
+        run: mypy raven_worker
+
+      - name: Run tests with coverage
+        run: pytest -v --cov=raven_worker --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: ai-worker/coverage.xml
+          retention-days: 7
