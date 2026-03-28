@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import Keycloak from 'keycloak-js'
+import { usePostHog } from '../plugins/posthog'
 
 export interface AuthUser {
   id: string
@@ -42,6 +43,9 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function logout(): void {
+    // Reset PostHog identity before logging out.
+    const { reset: resetPostHog } = usePostHog()
+    resetPostHog()
     keycloak.logout({ redirectUri: window.location.origin + '/' })
   }
 
@@ -55,6 +59,15 @@ export const useAuthStore = defineStore('auth', () => {
       orgId: p['org_id'] as string,
       orgRole: p['org_role'] as string,
     }
+
+    // Identify the authenticated user in PostHog for analytics.
+    const { identify } = usePostHog()
+    identify(user.value.id, {
+      email: user.value.email,
+      username: user.value.username,
+      org_id: user.value.orgId,
+      org_role: user.value.orgRole,
+    })
   }
 
   return { user, accessToken, isAuthenticated, initialized, init, login, logout }
