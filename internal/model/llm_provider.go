@@ -5,6 +5,7 @@ import "time"
 // LLMProvider represents the supported LLM provider types.
 type LLMProvider string
 
+// Supported LLM provider identifiers.
 const (
 	LLMProviderOpenAI     LLMProvider = "openai"
 	LLMProviderAnthropic  LLMProvider = "anthropic"
@@ -27,6 +28,7 @@ var ValidLLMProviders = map[LLMProvider]bool{
 // ProviderStatus represents the lifecycle state of an LLM provider config.
 type ProviderStatus string
 
+// Provider status values for the lifecycle of an LLM provider config.
 const (
 	ProviderStatusActive  ProviderStatus = "active"
 	ProviderStatusRevoked ProviderStatus = "revoked"
