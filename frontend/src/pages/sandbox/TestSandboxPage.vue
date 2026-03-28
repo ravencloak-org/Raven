@@ -2,6 +2,7 @@
 import { ref, nextTick, watch, onMounted } from 'vue'
 import { useTestSandboxStore } from '../../stores/test-sandbox'
 import { useKnowledgeBasesStore } from '../../stores/knowledge-bases'
+import { filter } from 'remeda'
 
 const sandboxStore = useTestSandboxStore()
 const kbStore = useKnowledgeBasesStore()
@@ -70,7 +71,7 @@ const activeKbs = ref<typeof kbStore.knowledgeBases>([])
 watch(
   () => kbStore.knowledgeBases,
   (kbs) => {
-    activeKbs.value = kbs.filter((kb) => kb.status === 'active')
+    activeKbs.value = filter(kbs, (kb) => kb.status === 'active')
   },
   { immediate: true },
 )

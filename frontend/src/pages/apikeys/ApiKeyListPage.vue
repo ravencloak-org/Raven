@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useApiKeysStore } from '../../stores/apikeys'
+import { pipe, split, map, filter, isTruthy } from 'remeda'
 
 const store = useApiKeysStore()
 
@@ -53,10 +54,12 @@ async function handleCreate() {
   if (!newKeyName.value.trim()) return
   creating.value = true
   try {
-    const domains = newKeyDomains.value
-      .split(',')
-      .map((d) => d.trim())
-      .filter(Boolean)
+    const domains = pipe(
+      newKeyDomains.value,
+      split(','),
+      map((d) => d.trim()),
+      filter(isTruthy),
+    )
     const result = await store.create({
       name: newKeyName.value.trim(),
       allowed_domains: domains,

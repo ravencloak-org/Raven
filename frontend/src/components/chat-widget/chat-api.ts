@@ -6,6 +6,8 @@
  * word-by-word streaming via setTimeout.
  */
 
+import { pipe, map, filter } from 'remeda'
+
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
@@ -144,21 +146,13 @@ export function sendMessage(options: SendMessageOptions): void {
  * Exported for unit-testing.
  */
 export function parseSSELines(raw: string): string[] {
-  const results: string[] = []
-  const lines = raw.split('\n')
-
-  for (const line of lines) {
-    const trimmed = line.trim()
-    if (trimmed.startsWith('data: ')) {
-      const payload = trimmed.slice(6)
-      if (payload !== '[DONE]') {
-        results.push(payload)
-      }
-    }
-    // Ignore comment lines (`:`) and event/id/retry fields
-  }
-
-  return results
+  return pipe(
+    raw.split('\n'),
+    map((line) => line.trim()),
+    filter((line) => line.startsWith('data: ')),
+    map((line) => line.slice(6)),
+    filter((payload) => payload !== '[DONE]'),
+  )
 }
 
 function truncate(str: string, maxLen: number): string {

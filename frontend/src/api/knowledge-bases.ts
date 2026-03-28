@@ -1,4 +1,5 @@
 import { useAuthStore } from '../stores/auth'
+import { find, findIndex, filter } from 'remeda'
 
 export interface KnowledgeBase {
   id: string
@@ -106,7 +107,7 @@ export async function getKnowledgeBase(
 ): Promise<KnowledgeBase> {
   // TODO: const res = await authFetch(`${kbBasePath(orgId, wsId)}/${kbId}`)
   await mockDelay()
-  const kb = MOCK_KBS.find((k) => k.id === kbId)
+  const kb = find(MOCK_KBS, (k) => k.id === kbId)
   if (!kb) throw new Error('Knowledge base not found')
   return { ...kb }
 }
@@ -141,7 +142,7 @@ export async function archiveKnowledgeBase(
 ): Promise<void> {
   // TODO: await authFetch(`${kbBasePath(orgId, wsId)}/${kbId}`, { method: 'DELETE' })
   await mockDelay()
-  const idx = MOCK_KBS.findIndex((k) => k.id === kbId)
+  const idx = findIndex(MOCK_KBS, (k) => k.id === kbId)
   if (idx !== -1) MOCK_KBS[idx].status = 'archived'
 }
 
@@ -152,7 +153,7 @@ export async function getDocuments(
 ): Promise<KBDocument[]> {
   // TODO: await authFetch(`${kbBasePath(orgId, wsId)}/${kbId}/documents`)
   await mockDelay()
-  return MOCK_DOCS.filter((d) => d.kb_id === kbId)
+  return filter(MOCK_DOCS, (d) => d.kb_id === kbId)
 }
 
 export async function addDocument(
@@ -182,7 +183,7 @@ export async function getSources(
 ): Promise<KBSource[]> {
   // TODO: await authFetch(`${kbBasePath(orgId, wsId)}/${kbId}/sources`)
   await mockDelay()
-  return MOCK_SOURCES.filter((s) => s.kb_id === kbId)
+  return filter(MOCK_SOURCES, (s) => s.kb_id === kbId)
 }
 
 export async function addSource(

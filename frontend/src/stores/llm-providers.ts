@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { filter, find, findIndex } from 'remeda'
 import {
   listLlmProviders,
   createLlmProvider,
@@ -24,17 +25,17 @@ export const useLlmProvidersStore = defineStore('llmProviders', () => {
 
   /** Providers assigned org-wide (workspace_id is null). */
   const orgWideProviders = computed(() =>
-    providers.value.filter((p) => p.workspace_id === null),
+    filter(providers.value, (p) => p.workspace_id === null),
   )
 
   /** Providers assigned to a specific workspace. */
   function providersForWorkspace(workspaceId: string): LlmProvider[] {
-    return providers.value.filter((p) => p.workspace_id === workspaceId)
+    return filter(providers.value, (p) => p.workspace_id === workspaceId)
   }
 
   /** Get a single provider by id. */
   function getById(id: string): LlmProvider | undefined {
-    return providers.value.find((p) => p.id === id)
+    return find(providers.value, (p) => p.id === id)
   }
 
   // --- Actions ---
@@ -74,7 +75,7 @@ export const useLlmProvidersStore = defineStore('llmProviders', () => {
     error.value = null
     try {
       const updated = await updateLlmProvider(orgId, providerId, data)
-      const idx = providers.value.findIndex((p) => p.id === providerId)
+      const idx = findIndex(providers.value, (p) => p.id === providerId)
       if (idx !== -1) {
         providers.value[idx] = updated
       }
@@ -89,7 +90,7 @@ export const useLlmProvidersStore = defineStore('llmProviders', () => {
     error.value = null
     try {
       await deleteLlmProvider(orgId, providerId)
-      providers.value = providers.value.filter((p) => p.id !== providerId)
+      providers.value = filter(providers.value, (p) => p.id !== providerId)
     } catch (e) {
       error.value = (e as Error).message
       throw e

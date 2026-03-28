@@ -1,4 +1,5 @@
 import { useAuthStore } from '../stores/auth'
+import { isDefined, find, findIndex } from 'remeda'
 
 // --- Types ---
 
@@ -211,17 +212,17 @@ export async function updateLlmProvider(
 
   void orgId
   await mockDelay()
-  const idx = mockData.findIndex((p) => p.id === providerId)
+  const idx = findIndex(mockData, (p) => p.id === providerId)
   if (idx === -1) throw new Error('Provider not found')
   const existing = mockData[idx]
   const updated: LlmProvider = {
     ...existing,
     display_name: data.display_name ?? existing.display_name,
     model: data.model ?? existing.model,
-    base_url: data.base_url !== undefined ? data.base_url : existing.base_url,
+    base_url: isDefined(data.base_url) ? data.base_url : existing.base_url,
     api_key_set: data.api_key ? true : existing.api_key_set,
     status: data.status ?? existing.status,
-    workspace_id: data.workspace_id !== undefined ? (data.workspace_id ?? null) : existing.workspace_id,
+    workspace_id: isDefined(data.workspace_id) ? (data.workspace_id ?? null) : existing.workspace_id,
   }
   mockData[idx] = updated
   return updated
@@ -243,7 +244,7 @@ export async function deleteLlmProvider(
 
   void orgId
   await mockDelay()
-  const idx = mockData.findIndex((p) => p.id === providerId)
+  const idx = findIndex(mockData, (p) => p.id === providerId)
   if (idx === -1) throw new Error('Provider not found')
   mockData.splice(idx, 1)
 }
@@ -265,7 +266,7 @@ export async function testConnection(
 
   void orgId
   await mockDelay(600)
-  const provider = mockData.find((p) => p.id === providerId)
+  const provider = find(mockData, (p) => p.id === providerId)
   if (!provider) throw new Error('Provider not found')
 
   // Simulate: active providers with api_key_set pass, others fail

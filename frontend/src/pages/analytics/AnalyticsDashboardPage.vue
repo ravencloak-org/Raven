@@ -2,6 +2,7 @@
 import { onMounted, computed } from 'vue'
 import { useAnalyticsStore } from '../../stores/analytics'
 import type { DateRange } from '../../api/analytics'
+import { map, firstBy, sumBy } from 'remeda'
 
 const store = useAnalyticsStore()
 
@@ -22,16 +23,18 @@ function onRangeChange(event: Event) {
 
 const maxVolume = computed(() => {
   if (store.conversationVolume.length === 0) return 1
-  return Math.max(...store.conversationVolume.map((p) => p.count))
+  const top = firstBy(store.conversationVolume, [(p) => p.count, 'desc'])
+  return top?.count ?? 1
 })
 
 const totalConversations = computed(() =>
-  store.conversationVolume.reduce((sum, p) => sum + p.count, 0),
+  sumBy(store.conversationVolume, (p) => p.count),
 )
 
 const maxSourceHitCount = computed(() => {
   if (store.sourceHits.length === 0) return 1
-  return Math.max(...store.sourceHits.map((s) => s.hitCount))
+  const top = firstBy(store.sourceHits, [(s) => s.hitCount, 'desc'])
+  return top?.hitCount ?? 1
 })
 
 function formatDate(iso: string): string {
@@ -47,10 +50,10 @@ function formatDateTime(iso: string): string {
 /** Show abbreviated labels on the volume chart x-axis. */
 const volumeLabels = computed(() => {
   const pts = store.conversationVolume
-  if (pts.length <= 14) return pts.map((p) => formatDate(p.date))
+  if (pts.length <= 14) return map(pts, (p) => formatDate(p.date))
   // For 30d/90d, show every Nth label
   const step = Math.ceil(pts.length / 12)
-  return pts.map((p, i) => (i % step === 0 ? formatDate(p.date) : ''))
+  return map(pts, (p, i) => (i % step === 0 ? formatDate(p.date) : ''))
 })
 </script>
 
