@@ -143,7 +143,7 @@ func (c *PostHogClient) post(ctx context.Context, path string, body interface{})
 		)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 400 {
 		c.logger.WarnContext(ctx, "posthog: non-OK response",

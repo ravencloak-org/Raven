@@ -5,6 +5,7 @@ import "time"
 // SubscriptionStatus represents the lifecycle state of a subscription.
 type SubscriptionStatus string
 
+// SubscriptionStatusActive and related constants define the valid lifecycle states for a subscription.
 const (
 	SubscriptionStatusActive    SubscriptionStatus = "active"
 	SubscriptionStatusCanceled  SubscriptionStatus = "canceled"
@@ -17,6 +18,7 @@ const (
 // PlanTier identifies a billing plan level.
 type PlanTier string
 
+// PlanTierFree and related constants define the available billing plan tiers.
 const (
 	PlanTierFree       PlanTier = "free"
 	PlanTierPro        PlanTier = "pro"
@@ -86,6 +88,7 @@ type Subscription struct {
 // PaymentIntentStatus represents the state of a payment intent.
 type PaymentIntentStatus string
 
+// PaymentIntentStatusRequiresPayment and related constants define the valid states for a payment intent.
 const (
 	PaymentIntentStatusRequiresPayment PaymentIntentStatus = "requires_payment_method"
 	PaymentIntentStatusProcessing      PaymentIntentStatus = "processing"
