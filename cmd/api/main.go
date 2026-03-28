@@ -119,6 +119,8 @@ func main() {
 	searchRepo := repository.NewSearchRepository(pool)
 	_ = repository.NewChunkRepository(pool) // wired for future service/handler layers
 	llmRepo := repository.NewLLMProviderRepository(pool)
+	processingEventRepo := repository.NewProcessingEventRepository()
+	apiKeyRepo := repository.NewAPIKeyRepository(pool)
 
 	// --- Wire storage client ---
 	seaweedClient := storage.NewSeaweedFSClient(cfg.SeaweedFS.MasterURL, nil)
@@ -136,6 +138,8 @@ func main() {
 		log.Fatalf("failed to initialise LLM provider service: %v", err)
 	}
 	uploadSvc := service.NewUploadService(docRepo, pool, seaweedClient, cfg.Upload.MaxSizeBytes, cfg.Upload.AllowedTypes)
+	processingSvc := service.NewProcessingEventService(processingEventRepo, docRepo, pool)
+	apiKeySvc := service.NewAPIKeyService(apiKeyRepo, pool)
 
 	// --- Wire handlers ---
 	orgHandler := handler.NewOrgHandler(orgSvc)
@@ -147,6 +151,8 @@ func main() {
 	searchHandler := handler.NewSearchHandler(searchSvc)
 	llmHandler := handler.NewLLMProviderHandler(llmSvc)
 	uploadHandler := handler.NewUploadHandler(uploadSvc)
+	processingHandler := handler.NewProcessingEventHandler(processingSvc)
+	apiKeyHandler := handler.NewAPIKeyHandler(apiKeySvc)
 
 	// Create router
 	router := gin.Default()
@@ -236,6 +242,18 @@ func main() {
 					doc.GET("/:doc_id", docHandler.Get)
 					doc.PUT("/:doc_id", middleware.RequireWorkspaceRole("member"), docHandler.Update)
 					doc.DELETE("/:doc_id", middleware.RequireWorkspaceRole("admin"), docHandler.Delete)
+
+					// Processing event routes (nested under document)
+					doc.GET("/:doc_id/events", processingHandler.ListEvents)
+					doc.POST("/:doc_id/transitions", middleware.RequireWorkspaceRole("member"), processingHandler.Transition)
+				}
+
+				// API key routes (nested under knowledge base)
+				apiKeys := kb.Group("/:kb_id/api-keys")
+				{
+					apiKeys.POST("", middleware.RequireWorkspaceRole("member"), apiKeyHandler.Create)
+					apiKeys.GET("", apiKeyHandler.List)
+					apiKeys.DELETE("/:key_id", middleware.RequireWorkspaceRole("admin"), apiKeyHandler.Revoke)
 				}
 			}
 		}

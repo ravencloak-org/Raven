@@ -7,10 +7,14 @@ type ProcessingStatus string
 
 // Valid processing statuses for a document.
 const (
-	ProcessingStatusQueued     ProcessingStatus = "queued"
-	ProcessingStatusProcessing ProcessingStatus = "processing"
-	ProcessingStatusCompleted  ProcessingStatus = "completed"
-	ProcessingStatusFailed     ProcessingStatus = "failed"
+	ProcessingStatusQueued       ProcessingStatus = "queued"
+	ProcessingStatusCrawling     ProcessingStatus = "crawling"
+	ProcessingStatusParsing      ProcessingStatus = "parsing"
+	ProcessingStatusChunking     ProcessingStatus = "chunking"
+	ProcessingStatusEmbedding    ProcessingStatus = "embedding"
+	ProcessingStatusReady        ProcessingStatus = "ready"
+	ProcessingStatusFailed       ProcessingStatus = "failed"
+	ProcessingStatusReprocessing ProcessingStatus = "reprocessing"
 )
 
 // Document represents a file uploaded to a knowledge base.
