@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "1719c192b86d",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/research/monetization-strategy.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/17/19c192b86d/0/metadata.json",
+      "transcript": "/17/19c192b86d/0/full.jsonl",
+      "context": "/17/19c192b86d/0/context.md",
+      "content_hash": "/17/19c192b86d/0/content_hash.txt",
+      "prompt": "/17/19c192b86d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 9,
+    "cache_creation_tokens": 4241,
+    "cache_read_tokens": 1426597,
+    "output_tokens": 3333,
+    "api_call_count": 7
+  }
+}
