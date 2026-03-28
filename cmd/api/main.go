@@ -40,6 +40,7 @@ import (
 	_ "github.com/ravencloak-org/Raven/docs/swagger" // swagger docs
 	"github.com/ravencloak-org/Raven/internal/handler"
 	"github.com/ravencloak-org/Raven/internal/middleware"
+	"github.com/ravencloak-org/Raven/internal/queue"
 	"github.com/ravencloak-org/Raven/internal/repository"
 	"github.com/ravencloak-org/Raven/internal/service"
 	"github.com/ravencloak-org/Raven/internal/telemetry"
@@ -85,6 +86,21 @@ func main() {
 	// Build rate limiter using config-driven limits.
 	rl := middleware.NewRateLimiter(valkeyClient, slog.Default())
 
+	// --- Asynq queue client ---
+	// The queue client is initialised here and will be passed to services that
+	// need to enqueue async jobs (document processing, URL scraping, reindexing).
+	// Real wiring happens in subsequent issues (#14-#17).
+	queueClient := queue.NewClient(cfg.Valkey.URL,
+		queue.WithMaxRetry(cfg.Queue.MaxRetry),
+		queue.WithLogger(slog.Default()),
+	)
+	defer func() {
+		if err := queueClient.Close(); err != nil {
+			log.Printf("queue client close error: %v", err)
+		}
+	}()
+	_ = queueClient // TODO(#14): pass to services that enqueue jobs
+
 	// --- Database pool ---
 	pool, err := db.New(context.Background(), cfg.Database.URL)
 	if err != nil {
@@ -97,6 +113,8 @@ func main() {
 	wsRepo := repository.NewWorkspaceRepository(pool)
 	userRepo := repository.NewUserRepository(pool)
 	kbRepo := repository.NewKBRepository(pool)
+	sourceRepo := repository.NewSourceRepository(pool)
+	docRepo := repository.NewDocumentRepository(pool)
 	searchRepo := repository.NewSearchRepository(pool)
 
 	// --- Wire services ---
@@ -104,6 +122,8 @@ func main() {
 	wsSvc := service.NewWorkspaceService(wsRepo, pool)
 	userSvc := service.NewUserService(userRepo)
 	kbSvc := service.NewKBService(kbRepo, pool)
+	sourceSvc := service.NewSourceService(sourceRepo, pool)
+	docSvc := service.NewDocumentService(docRepo, pool)
 	searchSvc := service.NewSearchService(searchRepo, pool)
 
 	// --- Wire handlers ---
@@ -111,6 +131,8 @@ func main() {
 	wsHandler := handler.NewWorkspaceHandler(wsSvc)
 	userHandler := handler.NewUserHandler(userSvc)
 	kbHandler := handler.NewKBHandler(kbSvc)
+	sourceHandler := handler.NewSourceHandler(sourceSvc)
+	docHandler := handler.NewDocumentHandler(docSvc)
 	searchHandler := handler.NewSearchHandler(searchSvc)
 
 	// Create router
@@ -150,21 +172,27 @@ func main() {
 		api.DELETE("/orgs/:org_id", middleware.RequireOrgRole("org_admin"), orgHandler.Delete)
 
 		// --- Workspace routes (nested under org) ---
+		// ResolveWorkspaceRole looks up the caller's workspace role from the
+		// workspace_members table and stores it in the Gin context. It is applied
+		// to all routes that contain a :ws_id parameter so that downstream
+		// RequireWorkspaceRole checks have the role available.
+		resolveWSRole := middleware.ResolveWorkspaceRole(pool)
+
 		ws := api.Group("/orgs/:org_id/workspaces")
 		{
 			ws.POST("", middleware.RequireOrgRole("org_admin"), wsHandler.Create)
 			ws.GET("", wsHandler.List)
-			ws.GET("/:ws_id", wsHandler.Get)
-			ws.PUT("/:ws_id", middleware.RequireWorkspaceRole("admin"), wsHandler.Update)
+			ws.GET("/:ws_id", resolveWSRole, wsHandler.Get)
+			ws.PUT("/:ws_id", resolveWSRole, middleware.RequireWorkspaceRole("admin"), wsHandler.Update)
 			ws.DELETE("/:ws_id", middleware.RequireOrgRole("org_admin"), wsHandler.Delete)
 
 			// Workspace member management
-			ws.POST("/:ws_id/members", middleware.RequireWorkspaceRole("admin"), wsHandler.AddMember)
-			ws.PUT("/:ws_id/members/:user_id", middleware.RequireWorkspaceRole("admin"), wsHandler.UpdateMember)
-			ws.DELETE("/:ws_id/members/:user_id", middleware.RequireWorkspaceRole("admin"), wsHandler.RemoveMember)
+			ws.POST("/:ws_id/members", resolveWSRole, middleware.RequireWorkspaceRole("admin"), wsHandler.AddMember)
+			ws.PUT("/:ws_id/members/:user_id", resolveWSRole, middleware.RequireWorkspaceRole("admin"), wsHandler.UpdateMember)
+			ws.DELETE("/:ws_id/members/:user_id", resolveWSRole, middleware.RequireWorkspaceRole("admin"), wsHandler.RemoveMember)
 
 			// Knowledge Base routes (nested under workspace)
-			kb := ws.Group("/:ws_id/knowledge-bases")
+			kb := ws.Group("/:ws_id/knowledge-bases", resolveWSRole)
 			{
 				kb.POST("", middleware.RequireWorkspaceRole("member"), kbHandler.Create)
 				kb.GET("", kbHandler.List)
@@ -174,6 +202,25 @@ func main() {
 
 				// Full-text search (nested under knowledge base)
 				kb.GET("/:kb_id/search", searchHandler.Search)
+
+				// Source routes (nested under knowledge base)
+				src := kb.Group("/:kb_id/sources")
+				{
+					src.POST("", middleware.RequireWorkspaceRole("member"), sourceHandler.Create)
+					src.GET("", sourceHandler.List)
+					src.GET("/:source_id", sourceHandler.Get)
+					src.PUT("/:source_id", middleware.RequireWorkspaceRole("member"), sourceHandler.Update)
+					src.DELETE("/:source_id", middleware.RequireWorkspaceRole("admin"), sourceHandler.Delete)
+				}
+
+				// Document routes (nested under knowledge base)
+				doc := kb.Group("/:kb_id/documents")
+				{
+					doc.GET("", docHandler.List)
+					doc.GET("/:doc_id", docHandler.Get)
+					doc.PUT("/:doc_id", middleware.RequireWorkspaceRole("member"), docHandler.Update)
+					doc.DELETE("/:doc_id", middleware.RequireWorkspaceRole("admin"), docHandler.Delete)
+				}
 			}
 		}
 
