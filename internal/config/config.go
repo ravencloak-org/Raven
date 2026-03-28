@@ -21,6 +21,22 @@ type Config struct {
 	Encryption EncryptionConfig
 	SeaweedFS  SeaweedFSConfig
 	Upload     UploadConfig
+	PostHog      PostHogConfig
+	Hyperswitch  HyperswitchConfig
+}
+
+// PostHogConfig holds PostHog analytics settings.
+// PostHog is opt-in: when APIKey is empty no events are sent.
+type PostHogConfig struct {
+	APIKey string `mapstructure:"api_key"`
+	Host   string `mapstructure:"host"`
+}
+
+// HyperswitchConfig holds Hyperswitch payment orchestration settings.
+type HyperswitchConfig struct {
+	BaseURL       string `mapstructure:"base_url"`
+	APIKey        string `mapstructure:"api_key"`
+	WebhookSecret string `mapstructure:"webhook_secret"`
 }
 
 // QueueConfig holds Asynq job queue settings.
@@ -121,6 +137,11 @@ func Load() (*Config, error) {
 	v.SetDefault("queue.concurrency", 10)
 	v.SetDefault("queue.max_retry", 5)
 	v.SetDefault("seaweedfs.master_url", "http://seaweedfs-master:9333")
+	v.SetDefault("posthog.api_key", "")
+	v.SetDefault("posthog.host", "https://us.i.posthog.com")
+	v.SetDefault("hyperswitch.base_url", "http://localhost:8090")
+	v.SetDefault("hyperswitch.api_key", "")
+	v.SetDefault("hyperswitch.webhook_secret", "")
 	v.SetDefault("upload.max_size_bytes", 52428800) // 50 MB
 	v.SetDefault("upload.allowed_types", []string{
 		"application/pdf",
