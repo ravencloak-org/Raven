@@ -97,18 +97,21 @@ func main() {
 	wsRepo := repository.NewWorkspaceRepository(pool)
 	userRepo := repository.NewUserRepository(pool)
 	kbRepo := repository.NewKBRepository(pool)
+	sourceRepo := repository.NewSourceRepository(pool)
 
 	// --- Wire services ---
 	orgSvc := service.NewOrgService(orgRepo)
 	wsSvc := service.NewWorkspaceService(wsRepo, pool)
 	userSvc := service.NewUserService(userRepo)
 	kbSvc := service.NewKBService(kbRepo, pool)
+	sourceSvc := service.NewSourceService(sourceRepo, pool)
 
 	// --- Wire handlers ---
 	orgHandler := handler.NewOrgHandler(orgSvc)
 	wsHandler := handler.NewWorkspaceHandler(wsSvc)
 	userHandler := handler.NewUserHandler(userSvc)
 	kbHandler := handler.NewKBHandler(kbSvc)
+	sourceHandler := handler.NewSourceHandler(sourceSvc)
 
 	// Create router
 	router := gin.Default()
@@ -168,6 +171,16 @@ func main() {
 				kb.GET("/:kb_id", kbHandler.Get)
 				kb.PUT("/:kb_id", middleware.RequireWorkspaceRole("member"), kbHandler.Update)
 				kb.DELETE("/:kb_id", middleware.RequireWorkspaceRole("admin"), kbHandler.Archive)
+
+				// Source routes (nested under knowledge base)
+				src := kb.Group("/:kb_id/sources")
+				{
+					src.POST("", middleware.RequireWorkspaceRole("member"), sourceHandler.Create)
+					src.GET("", sourceHandler.List)
+					src.GET("/:source_id", sourceHandler.Get)
+					src.PUT("/:source_id", middleware.RequireWorkspaceRole("member"), sourceHandler.Update)
+					src.DELETE("/:source_id", middleware.RequireWorkspaceRole("admin"), sourceHandler.Delete)
+				}
 			}
 		}
 
