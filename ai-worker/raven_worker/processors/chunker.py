@@ -55,6 +55,12 @@ class TextChunker:
         chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
         separators: list[str] | None = None,
     ) -> None:
+        if chunk_size <= 0:
+            raise ValueError("chunk_size must be > 0")
+        if chunk_overlap < 0:
+            raise ValueError("chunk_overlap must be >= 0")
+        if chunk_overlap >= chunk_size:
+            raise ValueError("chunk_overlap must be < chunk_size")
         self._chunk_size = chunk_size
         self._chunk_overlap = chunk_overlap
         self._splitter = RecursiveCharacterTextSplitter(
