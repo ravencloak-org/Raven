@@ -115,6 +115,7 @@ func main() {
 	kbRepo := repository.NewKBRepository(pool)
 	sourceRepo := repository.NewSourceRepository(pool)
 	docRepo := repository.NewDocumentRepository(pool)
+	searchRepo := repository.NewSearchRepository(pool)
 	_ = repository.NewChunkRepository(pool) // wired for future service/handler layers
 	llmRepo := repository.NewLLMProviderRepository(pool)
 
@@ -125,6 +126,7 @@ func main() {
 	kbSvc := service.NewKBService(kbRepo, pool)
 	sourceSvc := service.NewSourceService(sourceRepo, pool)
 	docSvc := service.NewDocumentService(docRepo, pool)
+	searchSvc := service.NewSearchService(searchRepo, pool)
 	llmSvc, err := service.NewLLMProviderService(llmRepo, pool, cfg.Encryption.AESKey)
 	if err != nil {
 		log.Fatalf("failed to initialise LLM provider service: %v", err)
@@ -137,6 +139,7 @@ func main() {
 	kbHandler := handler.NewKBHandler(kbSvc)
 	sourceHandler := handler.NewSourceHandler(sourceSvc)
 	docHandler := handler.NewDocumentHandler(docSvc)
+	searchHandler := handler.NewSearchHandler(searchSvc)
 	llmHandler := handler.NewLLMProviderHandler(llmSvc)
 
 	// Create router
@@ -203,6 +206,9 @@ func main() {
 				kb.GET("/:kb_id", kbHandler.Get)
 				kb.PUT("/:kb_id", middleware.RequireWorkspaceRole("member"), kbHandler.Update)
 				kb.DELETE("/:kb_id", middleware.RequireWorkspaceRole("admin"), kbHandler.Archive)
+
+				// Full-text search (nested under knowledge base)
+				kb.GET("/:kb_id/search", searchHandler.Search)
 
 				// Source routes (nested under knowledge base)
 				src := kb.Group("/:kb_id/sources")
