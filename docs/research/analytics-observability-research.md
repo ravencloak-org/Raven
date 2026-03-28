@@ -249,19 +249,67 @@ This is where OpenObserve truly excels for Raven's edge deployment needs:
 | **Latest version** | Rolling releases (`posthog-live-*`) | v0.70.1 stable, v0.80.0-rc1 |
 | **GitHub stars** | ~32,200 | ~18,400 |
 
-### Recommendation
+### Recommendation (Initial — superseded by two-tier analysis below)
 
-These tools are **complementary, not competing**:
+PostHog for product analytics (Cloud). OpenObserve for edge observability. SigNoz for cloud/enterprise observability.
 
-1. **PostHog** for product analytics: Use **PostHog Cloud** (free tier is generous for early-stage). The self-hosted option is too heavy for edge deployment and lacks support guarantees. The MIT license makes it worry-free.
+> See **Revised Recommendation (Two-Tier Deployment)** section below.
 
-2. **OpenObserve** for observability: **Self-host via Docker** for edge deployments where resource efficiency matters. Its single-binary Rust architecture, native OpenTelemetry support, and minimal memory footprint make it ideal for Raven's edge nodes. Use the AGPL open-source edition without modification to avoid license complications, or evaluate the Enterprise edition if AGPL is a policy concern.
+---
 
-3. **Integration pattern:**
-   - Raven Go services -> `go.opentelemetry.io/otel` SDK -> OpenObserve (OTLP) for traces/metrics/logs
-   - Raven Python services -> `opentelemetry-sdk` -> OpenObserve (OTLP) for traces/metrics/logs
-   - Raven frontend/product -> PostHog JS SDK -> PostHog Cloud for product analytics
-   - Feature flags -> PostHog feature flags API -> Raven services
+## 3. SigNoz — ClickHouse-native Observability (Cloud Tier Candidate)
+
+**Repository:** https://github.com/SigNoz/signoz
+**Storage:** ClickHouse (columnar OLAP)
+**License:** Apache 2.0 (core) + proprietary Enterprise edition
+
+### Architecture
+
+SigNoz OTel Collector (accepts Jaeger, Zipkin, OpenCensus, OTLP) → ClickHouse → SigNoz binary (API + React frontend + Alertmanager + Ruler)
+
+### Why ClickHouse Matters at Scale
+
+| Scenario | OpenObserve (Parquet/DataFusion) | SigNoz (ClickHouse) |
+|----------|----------------------------------|---------------------|
+| "Last 5 min errors" dashboard | Fast | Sub-second — data pre-indexed on write |
+| Aggregate across 1B+ spans | Good | Faster — vectorized columnar execution |
+| High-cardinality trace lookup | Fine | Better — sparse + skip indexes |
+| Storage cost (cloud) | Lower (Parquet on S3) | Higher (ClickHouse block storage) |
+| Memory floor | ~256 MB | ~2–4 GB (ClickHouse alone) |
+
+### Resource Requirements (Self-Host)
+
+- Minimum: 2 vCPU, 4 GB RAM (ClickHouse alone)
+- Recommended production: 4 vCPU, 8 GB RAM
+- Not viable on Raspberry Pi — cloud server only
+
+### Quickwit (Evaluated and Rejected)
+
+Quickwit is a Rust-based search engine using object storage (S3) with native Jaeger backend support. Architecturally similar to OpenObserve (not ClickHouse-based). **Acquired by Datadog in 2025** — project's independent roadmap is effectively dead. Not recommended for building a self-hosted product on top of.
+
+### SigNoz vs Uptrace (both ClickHouse-based)
+
+Uptrace is another ClickHouse-native APM (AGPL, accepts Jaeger + OTLP). Leaner than SigNoz but much smaller community. SigNoz is the safer long-term bet.
+
+---
+
+## Revised Recommendation (Two-Tier Deployment)
+
+Raven has two deployment contexts with different constraints:
+
+### Cloud Tier (Enterprise Users) — No Memory Constraints
+
+**Observability: SigNoz** — ClickHouse gives sub-second dashboards at multi-tenant scale. All three signals. Accepts OTLP natively. Apache 2.0 core.
+
+```
+Raven Go services  → OTel SDK (OTLP) → SigNoz OTel Collector → ClickHouse
+Raven AI worker    → OTel SDK (OTLP) → SigNoz OTel Collector → ClickHouse
+Raven frontend     → PostHog JS SDK  → PostHog Cloud
+```
+
+### Edge / Self-Hostable Tier — User's Choice
+
+**Default: OpenObserve** (single binary, ~256–512 MB, OTLP native). Observability stack is opt-in and user-configurable. OTel endpoint is an env var — users can point at any OTLP-compatible backend.
 
 ---
 
