@@ -150,7 +150,7 @@ export function parseSSELines(raw: string): string[] {
     raw.split('\n'),
     map((line) => line.trim()),
     filter((line) => line.startsWith('data: ')),
-    map((line) => line.slice(6)),
+    map((line) => line.slice(6).trim()),
     filter((payload) => payload !== '[DONE]'),
   )
 }
