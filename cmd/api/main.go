@@ -113,6 +113,7 @@ func main() {
 	wsRepo := repository.NewWorkspaceRepository(pool)
 	userRepo := repository.NewUserRepository(pool)
 	kbRepo := repository.NewKBRepository(pool)
+	sourceRepo := repository.NewSourceRepository(pool)
 	docRepo := repository.NewDocumentRepository(pool)
 
 	// --- Wire services ---
@@ -120,6 +121,7 @@ func main() {
 	wsSvc := service.NewWorkspaceService(wsRepo, pool)
 	userSvc := service.NewUserService(userRepo)
 	kbSvc := service.NewKBService(kbRepo, pool)
+	sourceSvc := service.NewSourceService(sourceRepo, pool)
 	docSvc := service.NewDocumentService(docRepo, pool)
 
 	// --- Wire handlers ---
@@ -127,6 +129,7 @@ func main() {
 	wsHandler := handler.NewWorkspaceHandler(wsSvc)
 	userHandler := handler.NewUserHandler(userSvc)
 	kbHandler := handler.NewKBHandler(kbSvc)
+	sourceHandler := handler.NewSourceHandler(sourceSvc)
 	docHandler := handler.NewDocumentHandler(docSvc)
 
 	// Create router
@@ -194,13 +197,23 @@ func main() {
 				kb.PUT("/:kb_id", middleware.RequireWorkspaceRole("member"), kbHandler.Update)
 				kb.DELETE("/:kb_id", middleware.RequireWorkspaceRole("admin"), kbHandler.Archive)
 
+				// Source routes (nested under knowledge base)
+				src := kb.Group("/:kb_id/sources")
+				{
+					src.POST("", middleware.RequireWorkspaceRole("member"), sourceHandler.Create)
+					src.GET("", sourceHandler.List)
+					src.GET("/:source_id", sourceHandler.Get)
+					src.PUT("/:source_id", middleware.RequireWorkspaceRole("member"), sourceHandler.Update)
+					src.DELETE("/:source_id", middleware.RequireWorkspaceRole("admin"), sourceHandler.Delete)
+				}
+
 				// Document routes (nested under knowledge base)
 				doc := kb.Group("/:kb_id/documents")
 				{
-					doc.GET("", docHandler.List)                                                // viewer
-					doc.GET("/:doc_id", docHandler.Get)                                         // viewer
-					doc.PUT("/:doc_id", middleware.RequireWorkspaceRole("member"), docHandler.Update)  // member
-					doc.DELETE("/:doc_id", middleware.RequireWorkspaceRole("admin"), docHandler.Delete) // admin
+					doc.GET("", docHandler.List)
+					doc.GET("/:doc_id", docHandler.Get)
+					doc.PUT("/:doc_id", middleware.RequireWorkspaceRole("member"), docHandler.Update)
+					doc.DELETE("/:doc_id", middleware.RequireWorkspaceRole("admin"), docHandler.Delete)
 				}
 			}
 		}
