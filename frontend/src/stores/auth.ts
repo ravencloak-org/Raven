@@ -24,17 +24,22 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => initialized.value && !!accessToken.value)
 
   async function init(): Promise<void> {
-    const authenticated = await keycloak.init({
-      onLoad: 'check-sso',
-      pkceMethod: 'S256',
-      silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
-    })
-    initialized.value = true
-    if (authenticated) {
-      _syncFromKeycloak()
+    try {
+      const authenticated = await keycloak.init({
+        onLoad: 'check-sso',
+        pkceMethod: 'S256',
+        silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
+      })
+      if (authenticated) {
+        _syncFromKeycloak()
+        // Auto-refresh token 30s before expiry
+        setInterval(() => keycloak.updateToken(30), 60_000)
+      }
+    } catch {
+      // Keycloak unavailable — proceed as unauthenticated
+    } finally {
+      initialized.value = true
     }
-    // Auto-refresh token 30s before expiry
-    setInterval(() => keycloak.updateToken(30), 60_000)
   }
 
   function login(): void {
