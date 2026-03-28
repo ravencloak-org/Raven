@@ -6,6 +6,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/samber/lo"
+
 	"github.com/ravencloak-org/Raven/internal/db"
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/internal/repository"
@@ -66,9 +68,7 @@ func (s *DocumentService) List(ctx context.Context, orgID, kbID string, page, pa
 	if err != nil {
 		return nil, apierror.NewInternal("failed to list documents: " + err.Error())
 	}
-	if docs == nil {
-		docs = []model.Document{}
-	}
+	docs = lo.Ternary(docs == nil, []model.Document{}, docs)
 	return &model.DocumentListResponse{
 		Documents: docs,
 		Total:     total,
@@ -129,14 +129,7 @@ func (s *DocumentService) UpdateStatus(ctx context.Context, orgID, docID string,
 	if !ok {
 		return apierror.NewBadRequest("no transitions allowed from status: " + string(current.ProcessingStatus))
 	}
-	valid := false
-	for _, s := range allowed {
-		if s == newStatus {
-			valid = true
-			break
-		}
-	}
-	if !valid {
+	if !lo.Contains(allowed, newStatus) {
 		return apierror.NewBadRequest(
 			"invalid status transition from " + string(current.ProcessingStatus) + " to " + string(newStatus),
 		)

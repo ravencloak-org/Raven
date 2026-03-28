@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/samber/lo"
 
 	"github.com/ravencloak-org/Raven/internal/config"
 )
@@ -19,10 +20,9 @@ func CORSMiddleware(cfg *config.CORSConfig) gin.HandlerFunc {
 		cfg = &config.CORSConfig{}
 	}
 
-	allowedSet := make(map[string]struct{}, len(cfg.AllowedOrigins))
-	for _, o := range cfg.AllowedOrigins {
-		allowedSet[o] = struct{}{}
-	}
+	allowedSet := lo.SliceToMap(cfg.AllowedOrigins, func(o string) (string, struct{}) {
+		return o, struct{}{}
+	})
 
 	corsConfig := cors.Config{
 		AllowMethods: []string{

@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/samber/lo"
+
 	"github.com/ravencloak-org/Raven/internal/middleware"
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
@@ -90,9 +92,7 @@ func (h *LLMProviderHandler) List(c *gin.Context) {
 		c.Abort()
 		return
 	}
-	if providers == nil {
-		providers = []model.LLMProviderResponse{}
-	}
+	providers = lo.Ternary(providers == nil, []model.LLMProviderResponse{}, providers)
 	c.JSON(http.StatusOK, providers)
 }
 

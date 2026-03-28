@@ -6,6 +6,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/samber/lo"
+
 	"github.com/ravencloak-org/Raven/internal/db"
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/internal/repository"
@@ -61,9 +63,7 @@ func (s *SearchService) TextSearch(ctx context.Context, orgID, kbID, query strin
 	if err != nil {
 		return nil, apierror.NewInternal("failed to search chunks: " + err.Error())
 	}
-	if results == nil {
-		results = []model.ChunkWithRank{}
-	}
+	results = lo.Ternary(results == nil, []model.ChunkWithRank{}, results)
 	return &model.SearchResponse{Results: results, Total: len(results)}, nil
 }
 
@@ -88,8 +88,6 @@ func (s *SearchService) TextSearchWithFilters(ctx context.Context, orgID, kbID, 
 	if err != nil {
 		return nil, apierror.NewInternal("failed to search chunks: " + err.Error())
 	}
-	if results == nil {
-		results = []model.ChunkWithRank{}
-	}
+	results = lo.Ternary(results == nil, []model.ChunkWithRank{}, results)
 	return &model.SearchResponse{Results: results, Total: len(results)}, nil
 }

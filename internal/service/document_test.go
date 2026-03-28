@@ -3,6 +3,8 @@ package service
 import (
 	"testing"
 
+	"github.com/samber/lo"
+
 	"github.com/ravencloak-org/Raven/internal/model"
 )
 
@@ -43,10 +45,5 @@ func isTransitionAllowed(from, to model.ProcessingStatus) bool {
 	if !ok {
 		return false
 	}
-	for _, s := range allowed {
-		if s == to {
-			return true
-		}
-	}
-	return false
+	return lo.Contains(allowed, to)
 }

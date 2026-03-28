@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/samber/lo"
+
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
@@ -98,9 +100,7 @@ func (h *KBHandler) List(c *gin.Context) {
 		c.Abort()
 		return
 	}
-	if kbs == nil {
-		kbs = []model.KnowledgeBase{}
-	}
+	kbs = lo.Ternary(kbs == nil, []model.KnowledgeBase{}, kbs)
 	c.JSON(http.StatusOK, kbs)
 }
 

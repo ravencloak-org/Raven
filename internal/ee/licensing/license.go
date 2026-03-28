@@ -4,7 +4,11 @@
 // This package is part of Raven Enterprise Edition (Go backend).
 package license
 
-import "time"
+import (
+	"time"
+
+	"github.com/samber/lo"
+)
 
 // Tier represents the enterprise license tier.
 type Tier string
@@ -37,10 +41,5 @@ func (l *License) HasFeature(feature string) bool {
 	if l.Tier == TierEnterprise {
 		return true
 	}
-	for _, f := range l.Features {
-		if f == feature {
-			return true
-		}
-	}
-	return false
+	return lo.Contains(l.Features, feature)
 }

@@ -7,6 +7,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/samber/lo"
+
 	"github.com/ravencloak-org/Raven/internal/crypto"
 	"github.com/ravencloak-org/Raven/internal/db"
 	"github.com/ravencloak-org/Raven/internal/model"
@@ -113,10 +115,9 @@ func (s *LLMProviderService) List(ctx context.Context, orgID string) ([]model.LL
 	if err != nil {
 		return nil, apierror.NewInternal("failed to list LLM provider configs: " + err.Error())
 	}
-	responses := make([]model.LLMProviderResponse, 0, len(configs))
-	for i := range configs {
-		responses = append(responses, *configs[i].ToResponse())
-	}
+	responses := lo.Map(configs, func(cfg model.LLMProviderConfig, _ int) model.LLMProviderResponse {
+		return *cfg.ToResponse()
+	})
 	return responses, nil
 }
 
