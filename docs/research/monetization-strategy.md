@@ -66,7 +66,7 @@ Based on the hardware requirements research, here are Raven's costs at different
 | PostHog Cloud | $0 | Free tier covers early usage |
 | OpenObserve | $0 | Self-hosted on same server |
 | Email (AWS SES) | ~$1/month | Low volume transactional |
-| Stripe | 2.9% + $0.30 per transaction | Deducted from revenue |
+| Razorpay | ~2% domestic, ~3% international per transaction | Deducted from revenue |
 | **Total (Hetzner CCX33)** | **~$57-60/month** | Comfortable for 10 tenants |
 | **Total (Hetzner CPX41, budget)** | **~$30-33/month** | Tight but functional for 10 tenants |
 
@@ -243,13 +243,35 @@ Given that Raven:
 
 **Combine Open-Core (D) with Hybrid Subscription + Usage (C):**
 
-1. **Self-hosted:** Free and open-source (all features, no artificial limits)
-2. **Cloud-managed:** Hybrid subscription with usage allowances and overage
-3. **Enterprise self-hosted:** Paid license for enterprise features (SSO, audit logs, SLA)
+1. **Self-hosted (startups / < $5M ARR):** Free, core features only
+2. **Self-hosted (enterprise / > $5M ARR):** Paid license required for `ee/` features
+3. **Cloud-managed:** Hybrid subscription with usage allowances and overage
 
 This mirrors the Dify/GitLab/PostHog model and is the dominant pattern for developer-facing infrastructure tools in 2026.
 
-**What's free (self-hosted):**
+#### Open-Core Enforcement: `ee/` Directory Model
+
+Enterprise features live in a separate `ee/` directory with a **Raven Enterprise License** (source-available, NOT open-source). The core platform remains Apache 2.0.
+
+```
+raven/
+├── internal/           ← Apache 2.0 (truly open source)
+├── ee/                 ← Raven Enterprise License (source-available)
+│   ├── LICENSE          → Production use requires a valid license key
+│   ├── lead/            → Lead intelligence (profiles, scoring, CRM export)
+│   ├── webhooks/        → Event webhooks (lead.generated, escalation, etc.)
+│   ├── connectors/      → Connector UI + data catalog integration
+│   ├── security/        → Advanced WAF rules, DDoS, per-user blocking
+│   ├── audit/           → Audit logs + compliance reports
+│   ├── sso/             → SAML/OIDC enterprise SSO
+│   └── analytics/       → Individual lead profiles + advanced reporting
+```
+
+**License enforcement:** Signed JWT license key validated at startup. Contains org_id, tier, expiry, feature list, HMAC signature (only Raven can generate). `ee/` features return 403 without valid license.
+
+**Precedent:** GitLab ($500M+ ARR), PostHog ($100M+ valuation), Sentry ($100M+ ARR), Dify all use this model. It is legally enforceable — the `ee/` license prohibits production use without payment. Companies above the revenue threshold that strip the license check are in legal violation.
+
+**What's free (self-hosted, Apache 2.0 core):**
 - Full RAG pipeline (ingestion, hybrid search, reranking)
 - Embeddable chatbot widget
 - Multi-tenant hierarchy (org > workspace > KB)
@@ -257,20 +279,48 @@ This mirrors the Dify/GitLab/PostHog model and is the dominant pattern for devel
 - Voice agent (Phase 2)
 - WebRTC (Phase 3)
 - API access
-- Basic analytics
+- Basic analytics (aggregate stats only)
+- Basic rate limiting + security headers
+- Manual file upload + URL scraping
+- YAML-based connector config (DIY Airbyte setup)
 
-**What's paid (cloud-managed only or enterprise license):**
-- Managed hosting (no DevOps needed)
-- Auto-scaling
-- Managed backups and disaster recovery
-- Custom domain / white-label branding
-- Advanced analytics and reporting
-- Priority support (SLA)
-- SSO (SAML/OIDC) beyond basic Keycloak
-- Audit logs and compliance reports
-- Team collaboration features (role-based access beyond basic)
-- Webhook marketplace and premium integrations
+**What's paid (`ee/` — requires license for cloud-managed OR self-hosted):**
+
+*Lead Intelligence (Business/Enterprise):*
+- Individual lead profiles (contact info, conversation history, intent signals)
+- Lead engagement scoring
+- CRM export (Salesforce, HubSpot) via API
+- Free tier sees aggregate stats only; paid sees per-user data
+
+*Event Webhooks (Business/Enterprise):*
+- `lead.generated` — fires on purchase intent or contact info capture
+- `lead.qualified` — fires when engagement crosses scoring threshold
+- `conversation.escalation` — fires when bot can't answer, human needed
+- Free tier: no webhooks
+
+*Stranger User Management (Business/Enterprise):*
+- Block/ban specific users (by IP, fingerprint, session ID)
+- Per-user rate limiting (not just global)
+- Suspicious behavior flagging
+- Free tier: basic global rate limiting only
+
+*Advanced Security (Enterprise):*
+- Custom WAF-style rules (geo-blocking, request pattern rules)
+- DDoS protection (eBPF XDP layer at kernel level)
+- IP allowlisting/denylisting
+- Abuse detection and alerting
+
+*Enterprise Data (Enterprise):*
+- Airbyte connector UI + managed connectors
+- Data catalog integration (Snowflake tags, dbt, DataHub, Glue)
+- ClickHouse + QBit vector scaling
+- SSO (SAML/OIDC beyond Keycloak basic)
+- Audit logs + compliance reports
+- Multi-org / white-label
+- Managed hosting, auto-scaling, backups, DR
+- Custom domain
 - Uptime SLA guarantees
+- Priority support
 
 ---
 
@@ -396,14 +446,17 @@ This mirrors the Dify/GitLab/PostHog model and is the dominant pattern for devel
 
 ### Self-Hosted Pricing
 
-| Tier | Price | What's Included |
-|------|-------|----------------|
-| **Community** | Free (open-source) | All core features, no limits, no support |
-| **Enterprise Self-Hosted** | $499/month | Enterprise features (SSO, audit logs, RBAC) + priority support + updates |
+| Tier | Price | Who | What's Included |
+|------|-------|-----|----------------|
+| **Community** | Free | Startups, students, companies < $5M ARR | Apache 2.0 core features, no limits, community support only |
+| **Self-Hosted Pro** | $99/month | Growing companies | Core + lead intelligence, webhooks, connectors, per-user blocking. Stable releases + patch support. |
+| **Self-Hosted Enterprise** | $499+/month | Companies > $5M ARR, regulated industries | All `ee/` features (SSO, audit, security rules, data catalog integration, ClickHouse + QBit). Priority patches + dedicated support channel + SLA. |
 
-**Rationale:** The open-source community edition is the adoption funnel. Teams that need enterprise features and support will pay. $499/month for self-hosted enterprise is competitive with Dify's enterprise pricing and significantly cheaper than custom solutions.
+**Revenue threshold enforcement:** Companies below $5M ARR can use Self-Hosted Pro features via a startup program (free or discounted). Above $5M ARR, the Raven Enterprise License terms require a paid license for `ee/` features. This is enforced legally (license terms), not just technically (license key). Precedent: Sentry BSL, AG Grid.
 
-### Pricing Summary Table
+**Rationale:** The open-source community edition is the adoption funnel. Self-Hosted Pro captures growing companies who want lead intelligence and webhooks but prefer to run their own infrastructure. Self-Hosted Enterprise captures large companies with compliance requirements. The `ee/` directory model ensures that upgrading from Community → Pro → Enterprise is a license key change, not a migration.
+
+### Pricing Summary Table — Cloud-Managed
 
 | | Free | Pro | Business | Enterprise |
 |---|------|-----|----------|-----------|
@@ -416,9 +469,28 @@ This mirrors the Dify/GitLab/PostHog model and is the dominant pattern for devel
 | **Widgets** | 1 | 5 | 25 | Unlimited |
 | **Users** | 1 | 3 | 10 | Unlimited |
 | **API** | -- | Yes | Yes + webhooks | Full |
+| **Lead intelligence** | -- | -- | Individual profiles + scoring | + CRM export |
+| **Event webhooks** | -- | -- | lead.generated, escalation | All events + custom |
+| **User management** | -- | -- | Block/ban users | + abuse detection |
+| **Security** | Basic | Basic | + per-user rate limits | + custom WAF rules, DDoS |
+| **Connectors (Airbyte)** | -- | -- | 3 connectors | Unlimited + catalog integration |
 | **White-label** | -- | -- | Yes | Yes |
 | **SSO** | -- | -- | Yes | Yes |
+| **Audit logs** | -- | -- | -- | Yes |
 | **Support** | Community | Email | Email + Slack | Priority + SLA |
+
+### Pricing Summary Table — Self-Hosted
+
+| | Community | Self-Hosted Pro | Self-Hosted Enterprise |
+|---|-----------|----------------|----------------------|
+| **Monthly** | $0 | $99 | $499+ |
+| **Who** | Startups, < $5M ARR | Growing companies | Enterprises, > $5M ARR |
+| **Core features** | All | All | All |
+| **`ee/` features** | -- | Lead intel, webhooks, connectors, user mgmt | All (+ SSO, audit, security, catalog) |
+| **Connector config** | YAML (DIY) | YAML + UI | UI + data catalog integration |
+| **Updates** | Community releases | Stable + patches | Priority patches |
+| **Support** | Community | Email | Dedicated + SLA |
+| **License** | Apache 2.0 | Raven Enterprise License | Raven Enterprise License |
 
 ---
 
@@ -436,7 +508,7 @@ This mirrors the Dify/GitLab/PostHog model and is the dominant pattern for devel
 
 **Revenue scenarios (10 customers):**
 
-| Customer Mix | Monthly Revenue | Stripe Fees (2.9%+$0.30) | Net Revenue | Profit/Loss |
+| Customer Mix | Monthly Revenue | Payment Fees (~2-3%) | Net Revenue | Profit/Loss |
 |-------------|----------------|--------------------------|-------------|-------------|
 | 10x Pro ($29) | $290 | $11.41 | $278.59 | **+$220.59** |
 | 5x Pro + 5x Free | $145 | $5.71 | $139.29 | **+$81.29** |
@@ -447,8 +519,8 @@ This mirrors the Dify/GitLab/PostHog model and is the dominant pattern for devel
 **Break-even point:** 2 Pro customers ($58 revenue) covers costs. With 10 paying customers at any paid tier, Raven is profitable from day one on Hetzner.
 
 **Minimum price per customer for break-even with 10 customers:**
-- $58 / 10 = $5.80/customer/month (before Stripe fees)
-- With Stripe: $58 / (10 * (1 - 0.029)) - $0.30 = ~$6.27/customer/month
+- $58 / 10 = $5.80/customer/month (before payment gateway fees)
+- With payment fees: ~$6.27/customer/month (varies by gateway)
 
 This means even a hypothetical $7/month "Starter" tier would break even at 10 customers. The proposed $29 Pro tier provides **5x headroom** above break-even.
 
@@ -460,7 +532,7 @@ This means even a hypothetical $7/month "Starter" tier would break even at 10 cu
 | Domain + Email | $3 |
 | **Total** | **$31/month** |
 
-**Break-even:** Just 2 Pro customers ($58 revenue - $2.38 Stripe = $55.62 net). Even 1 Business customer ($99 - $3.17 = $95.83 net) covers costs 3x over.
+**Break-even:** Just 2 Pro customers ($58 revenue - ~$2.38 fees = $55.62 net). Even 1 Business customer ($99 - ~$3.17 = $95.83 net) covers costs 3x over.
 
 ### Scenario C: Scaling to 100 Customers
 
@@ -480,7 +552,7 @@ This means even a hypothetical $7/month "Starter" tier would break even at 10 cu
 |------|-------------|
 | Hetzner AX42 + backup | $78 |
 | Domain + Email | $10 |
-| Stripe fees (~3.15% effective) | $88.52 |
+| payment gateway fees (~3.15% effective) | $88.52 |
 | **Total** | **$176.52** |
 
 **Net profit: $2,633.48/month ($31,602/year)**
@@ -491,7 +563,7 @@ This does not include the founder's time, which is the real cost at this stage. 
 
 Per hardware requirements research, AWS costs $590/month for Tier 1 (10 tenants).
 
-| Customer Mix | Monthly Revenue | Stripe Fees | Net Revenue | Profit/Loss |
+| Customer Mix | Monthly Revenue | Payment Fees | Net Revenue | Profit/Loss |
 |-------------|----------------|-------------|-------------|-------------|
 | 10x Pro ($29) | $290 | $11.41 | $278.59 | **-$311.41** |
 | 10x Business ($99) | $990 | $31.71 | $958.29 | **+$368.29** |
@@ -639,17 +711,24 @@ Each integration opens a new distribution channel.
 
 | Priority | Feature | Tool | Effort |
 |----------|---------|------|--------|
-| **P0 (MVP)** | Stripe Checkout for subscriptions | Stripe Billing API | 2-3 days |
-| **P0 (MVP)** | Webhook handler for payment events | Stripe Webhooks | 1-2 days |
-| **P0 (MVP)** | Org <-> Stripe Customer mapping | Go API + PostgreSQL | 1 day |
+| **P0 (MVP)** | Deploy Hyperswitch payment orchestration | Hyperswitch (Docker self-hosted) | 1-2 days |
+| **P0 (MVP)** | Configure Razorpay connector (domestic INR) | Hyperswitch + Razorpay | 1 day |
+| **P0 (MVP)** | Configure Paddle connector (international MoR) | Hyperswitch + Paddle | 1 day |
+| **P0 (MVP)** | Smart routing rules (domestic→Razorpay, international→Paddle) | Hyperswitch routing config | 1 day |
+| **P0 (MVP)** | Unified webhook handler for payment events | Go API + Hyperswitch webhooks | 1-2 days |
+| **P0 (MVP)** | Org <-> Hyperswitch Customer mapping | Go API + PostgreSQL | 1 day |
 | **P0 (MVP)** | Plan/tier enforcement (feature gates) | Go middleware | 2-3 days |
 | **P1 (v1.0)** | Usage metering (message count, document count) | Go API counters -> PostgreSQL | 2-3 days |
-| **P1 (v1.0)** | Usage-based overage billing | Stripe Usage Records API | 2-3 days |
-| **P1 (v1.0)** | Self-service plan management UI | Vue.js + Stripe Customer Portal | 1-2 days |
-| **P2 (v1.1)** | Annual billing toggle | Stripe price switching | 1 day |
+| **P1 (v1.0)** | Usage-based overage billing | Hyperswitch + gateway add-ons | 2-3 days |
+| **P1 (v1.0)** | Self-service plan management UI | Vue.js + Hyperswitch hosted page | 1-2 days |
+| **P2 (v1.1)** | Annual billing toggle | Hyperswitch plan switching | 1 day |
 | **P2 (v1.1)** | Voice minute metering (Phase 2) | Go API + LiveKit hooks | 2 days |
+| **P2 (v1.1)** | Cost observability dashboard | Hyperswitch built-in | 1 day |
 | **P3 (future)** | Lago/OpenMeter for advanced metering | Lago API | 1-2 weeks |
-| **P3 (future)** | Enterprise invoice billing (net-30) | Stripe Invoicing | 1-2 days |
+| **P3 (future)** | Enterprise invoice billing (net-30) | Hyperswitch invoicing | 1-2 days |
+| **P3 (future)** | Additional gateways (Stripe, Adyen, PayPal) | Hyperswitch connectors | 1 day each |
+
+> **Payment Orchestration via Hyperswitch:** Instead of integrating directly with Razorpay or Stripe, Raven uses Hyperswitch (open-source, Apache 2.0, by Juspay — 41.8K GitHub stars, Rust) as a payment orchestration layer. One API integration, multiple gateway backends. Smart routing picks the cheapest or highest-success-rate gateway per transaction. Automatic failover if any gateway is down. Razorpay handles domestic India (UPI, RuPay, netbanking), Paddle handles international (Visa/MC + Merchant of Record for tax compliance). Additional gateways can be added via Hyperswitch connectors without code changes.
 
 ### Usage Metering Architecture
 
@@ -660,11 +739,11 @@ Each integration opens a new distribution channel.
                                                          |
 [Voice Session] --> [LiveKit webhook] --> log minutes ---+
                                                          |
-                    [Cron: hourly] --> report to Stripe Usage Records API
+                    [Cron: hourly] --> report to Hyperswitch usage API
                                          |
                     [Cron: daily] --> check limits --> soft-cap warnings (email)
                                          |
-                    [Cron: monthly] --> Stripe invoice with overages
+                    [Cron: monthly] --> Hyperswitch invoice with overages
 ```
 
 ### Feature Gate Implementation
@@ -681,7 +760,7 @@ Request -> Auth middleware -> Plan middleware -> Handler
                                +-- If feature not in plan: return 403 with plan info
 ```
 
-Store plan definitions in PostgreSQL, cached in Valkey. Stripe webhooks update the plan when payment succeeds/fails.
+Store plan definitions in PostgreSQL, cached in Valkey. Hyperswitch unified webhooks update the plan when payment succeeds/fails (regardless of which gateway processed it). License keys for `ee/` features are generated on `subscription.activated` webhook.
 
 ---
 
@@ -738,14 +817,24 @@ Store plan definitions in PostgreSQL, cached in Valkey. Stripe webhooks update t
 | Decision | Recommendation | Rationale |
 |----------|---------------|-----------|
 | **Primary revenue model** | Hybrid (subscription + usage overage) | Industry standard; predictable base + upside from power users |
-| **Distribution model** | Open-core (free self-hosted + paid cloud) | Maximizes adoption; proven by Dify/GitLab/PostHog |
+| **Distribution model** | Open-core with `ee/` directory split | Maximizes adoption; proven by GitLab/PostHog/Sentry/Dify |
+| **License enforcement** | Signed JWT license key + Raven Enterprise License on `ee/` | Legally enforceable; revenue-threshold gate for startups |
+| **Payment orchestration** | Hyperswitch (Razorpay domestic + Paddle international) | Open-source, gateway-independent, smart routing + failover. Stripe not available in India. |
 | **Starting infrastructure** | Hetzner (not AWS) | 5-10x cheaper; break-even with 2 customers vs. 5-6 |
-| **Entry price point** | $29/month | Above Chatbase ($19) to signal quality; below CustomGPT ($89) for accessibility |
+| **Entry price point** | $29/month (cloud), $99/month (self-hosted pro) | Above Chatbase ($19) to signal quality; below CustomGPT ($89) for accessibility |
 | **Free tier generosity** | 500 messages, 50 docs, 1 KB | Generous enough for testing; forces upgrade for any real usage |
+| **Self-hosted free threshold** | Companies < $5M ARR | Startups get core free; enterprise pays. Legal + license key enforcement |
 | **Voice pricing (Phase 2)** | Included minutes + per-minute overage | Matches Vapi/Retell model but with included minutes to reduce friction |
+| **Lead intelligence** | Business tier+ (paid) | Key monetization lever — turns Raven from cost center to revenue generator for clients |
+| **Event webhooks** | Business tier+ (paid) | lead.generated, escalation events — high value for sales-driven clients |
+| **Stranger user management** | Business tier+ (paid) | Block/ban, per-user rate limiting — security upsell |
+| **Advanced security (WAF/DDoS)** | Enterprise only (paid) | eBPF XDP layer + custom rules — justifies enterprise pricing |
+| **Enterprise connectors** | Enterprise only (paid) | Airbyte UI + data catalog integration — on-prem differentiator |
 | **First customers** | SaaS docs teams + digital agencies | Highest willingness to pay; clear pain point; referenceable logos |
-| **Enterprise self-hosted** | $499/month | Captures enterprise value without cloud hosting costs |
+| **Enterprise self-hosted** | $499+/month | Captures enterprise value without cloud hosting costs |
 
 ---
 
 *This document should be revisited after the first 10 paying customers to validate assumptions and adjust pricing based on actual usage patterns and customer feedback.*
+
+*Updated 2026-03-28: Added `ee/` directory enforcement model, self-hosted tiered pricing (Community/Pro/Enterprise), lead intelligence, event webhooks, stranger user management, advanced security features, enterprise connector system, and revenue-threshold gating for self-hosted.*
