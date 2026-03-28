@@ -97,6 +97,7 @@ func main() {
 	wsRepo := repository.NewWorkspaceRepository(pool)
 	userRepo := repository.NewUserRepository(pool)
 	kbRepo := repository.NewKBRepository(pool)
+	_ = repository.NewChunkRepository(pool) // wired for future service/handler layers
 
 	// --- Wire services ---
 	orgSvc := service.NewOrgService(orgRepo)
