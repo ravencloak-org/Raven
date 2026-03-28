@@ -35,6 +35,36 @@ const router = createRouter({
           component: () => import('../pages/orgs/OrgDetailPage.vue'),
           meta: { requiresAuth: true },
         },
+        {
+          path: 'orgs/:orgId/workspaces',
+          name: 'workspace-list',
+          component: () => import('../pages/workspaces/WorkspaceListPage.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
+          path: 'orgs/:orgId/workspaces/:wsId',
+          name: 'workspace-detail',
+          component: () => import('../pages/workspaces/WorkspaceDetailPage.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
+          path: 'analytics',
+          name: 'analytics',
+          component: () => import('../pages/analytics/AnalyticsDashboardPage.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
+          path: 'api-keys',
+          name: 'api-keys',
+          component: () => import('../pages/apikeys/ApiKeyListPage.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
+          path: 'llm-providers',
+          name: 'llm-providers',
+          component: () => import('../pages/llm-providers/LlmProviderListPage.vue'),
+          meta: { requiresAuth: true },
+        },
       ],
     },
     {
