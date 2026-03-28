@@ -4,8 +4,8 @@
 -- Tracks organisation billing subscriptions managed via Hyperswitch.
 
 CREATE TABLE IF NOT EXISTS subscriptions (
-    id                          TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-    org_id                      TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id                      UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     plan_id                     TEXT NOT NULL,
     status                      TEXT NOT NULL DEFAULT 'active'
                                     CHECK (status IN ('active','canceled','past_due','trialing','paused','expired')),
