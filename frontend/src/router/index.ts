@@ -77,6 +77,34 @@ const router = createRouter({
           component: () => import('../pages/llm-providers/LlmProviderListPage.vue'),
           meta: { requiresAuth: true },
         },
+        {
+          path: 'chatbot-config',
+          name: 'chatbot-config',
+          component: () => import('../pages/chatbot/ChatbotConfiguratorPage.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
+          path: 'sandbox',
+          name: 'test-sandbox',
+          component: () => import('../pages/sandbox/TestSandboxPage.vue'),
+          meta: { requiresAuth: true },
+        },
+      ],
+    },
+    {
+      path: '/legal',
+      component: () => import('../layouts/AuthLayout.vue'),
+      children: [
+        {
+          path: 'privacy',
+          name: 'privacy-policy',
+          component: () => import('../pages/legal/PrivacyPolicyPage.vue'),
+        },
+        {
+          path: 'terms',
+          name: 'terms-of-service',
+          component: () => import('../pages/legal/TermsOfServicePage.vue'),
+        },
       ],
     },
     {
