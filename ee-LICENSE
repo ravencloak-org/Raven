@@ -1,0 +1,24 @@
+Raven Enterprise License
+
+Copyright (c) 2026 Raven Platform
+
+This software and associated documentation files (the "Software") may only be
+used in production if you (and any entity that you represent) have agreed to,
+and are in compliance with, the Raven Terms of Service, available at
+https://ravencloak.com/terms (the "Enterprise Terms"), or other agreement
+governing the use of the Software, as agreed by you and Raven Platform, and
+otherwise have a valid Raven Enterprise License key for the correct number
+of user seats or usage tier.
+
+Subject to the foregoing, you are free to modify this Software and publish
+patches to the Software. You agree that Raven Platform and/or its licensors
+(as applicable) retain all right, title and interest in and to all such
+modifications and/or patches. All such modifications and/or patches may only be
+used, copied, modified, displayed, distributed, or otherwise exploited with a
+valid Raven Enterprise License key.
+
+Notwithstanding the foregoing, you may use this Software for development,
+testing, and evaluation purposes without a license key. Production use without
+a valid license key is prohibited.
+
+For license inquiries, contact: enterprise@ravencloak.com
