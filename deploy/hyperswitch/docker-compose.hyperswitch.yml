@@ -1,0 +1,108 @@
+# Hyperswitch local development setup for Raven payment orchestration.
+#
+# Usage:
+#   docker compose -f deploy/hyperswitch/docker-compose.hyperswitch.yml up -d
+#
+# This brings up the Hyperswitch application server, its backing PostgreSQL
+# database, and the Redis instance it requires. The Hyperswitch web client
+# (control center) is included for managing connectors and API keys.
+#
+# Default Hyperswitch admin API key: test_admin
+# Default merchant API key: created via the Hyperswitch dashboard or API.
+#
+# Documentation: https://opensource.hyperswitch.io/
+
+services:
+  # ─── Hyperswitch Application Server ────────────────────────────────────────
+  hyperswitch-server:
+    image: juspaydotin/hyperswitch-router:v1.112.0
+    ports:
+      - "8090:8080"
+    environment:
+      - ROUTER__SERVER__HOST=0.0.0.0
+      - ROUTER__SERVER__PORT=8080
+      - ROUTER__DATABASE__USERNAME=${HS_DB_USER:-hyperswitch}
+      - ROUTER__DATABASE__PASSWORD=${HS_DB_PASSWORD:-hyperswitch}
+      - ROUTER__DATABASE__HOST=hyperswitch-db
+      - ROUTER__DATABASE__PORT=5432
+      - ROUTER__DATABASE__DBNAME=${HS_DB_NAME:-hyperswitch}
+      - ROUTER__REDIS__HOST=hyperswitch-redis
+      - ROUTER__REDIS__PORT=6379
+      - ROUTER__SECRETS__ADMIN_API_KEY=${HS_ADMIN_API_KEY:-test_admin}
+      - ROUTER__SECRETS__JWT_SECRET=${HS_JWT_SECRET:-test_jwt_secret}
+      - ROUTER__SECRETS__MASTER_ENC_KEY=${HS_MASTER_ENC_KEY:-73797065727377697463685f6d61737465725f6b65795f30303030303030303030}
+      - ROUTER__LOCKER__MOCK_LOCKER=true
+      - ROUTER__LOG__CONSOLE__ENABLED=true
+      - ROUTER__LOG__CONSOLE__LEVEL=INFO
+    depends_on:
+      hyperswitch-db:
+        condition: service_healthy
+      hyperswitch-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - hyperswitch-internal
+    restart: unless-stopped
+
+  # ─── Hyperswitch PostgreSQL ────────────────────────────────────────────────
+  hyperswitch-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${HS_DB_NAME:-hyperswitch}
+      POSTGRES_USER: ${HS_DB_USER:-hyperswitch}
+      POSTGRES_PASSWORD: ${HS_DB_PASSWORD:-hyperswitch}
+    volumes:
+      - hyperswitch-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${HS_DB_USER:-hyperswitch} -d ${HS_DB_NAME:-hyperswitch}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hyperswitch-internal
+    restart: unless-stopped
+
+  # ─── Hyperswitch Redis ─────────────────────────────────────────────────────
+  hyperswitch-redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - hyperswitch-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - hyperswitch-internal
+    restart: unless-stopped
+
+  # ─── Hyperswitch Control Center (Web Dashboard) ───────────────────────────
+  hyperswitch-control-center:
+    image: juspaydotin/hyperswitch-control-center:v1.34.2
+    ports:
+      - "9000:9000"
+    environment:
+      - apiBaseUrl=http://localhost:8090
+      - sdkBaseUrl=http://localhost:9050/HyperLoader.js
+    depends_on:
+      hyperswitch-server:
+        condition: service_healthy
+    networks:
+      - hyperswitch-internal
+    restart: unless-stopped
+
+# ─── Volumes ──────────────────────────────────────────────────────────────────
+volumes:
+  hyperswitch-pg-data:
+  hyperswitch-redis-data:
+
+# ─── Networks ─────────────────────────────────────────────────────────────────
+networks:
+  hyperswitch-internal:
+    driver: bridge

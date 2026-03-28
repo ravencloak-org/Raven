@@ -1,5 +1,6 @@
-# Traefik v3 static configuration — local development
-# This file is mounted into the Traefik container at /etc/traefik/traefik.yml.
+# Traefik v3 static configuration
+# Supports both dev (self-signed) and prod (Let's Encrypt ACME) modes.
+# Mount this file into the container at /etc/traefik/traefik.yml.
 
 api:
   dashboard: true
@@ -10,14 +11,46 @@ log:
 
 accessLog: {}
 
+# ─── Entrypoints ──────────────────────────────────────────────────────────────
 entryPoints:
   web:
     address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
   websecure:
     address: ":443"
+    http:
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - security-headers@file
 
+# ─── Providers ────────────────────────────────────────────────────────────────
 providers:
   docker:
     endpoint: "unix:///var/run/docker.sock"
     exposedByDefault: false
     network: raven-internal
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+# ─── ACME / Let's Encrypt ────────────────────────────────────────────────────
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: "${ACME_EMAIL}"
+      storage: /acme/acme.json
+      caServer: "${ACME_CA_SERVER:-https://acme-v02.api.letsencrypt.org/directory}"
+      dnsChallenge:
+        provider: "${ACME_DNS_PROVIDER:-cloudflare}"
+        delayBeforeCheck: 10
+        resolvers:
+          - "1.1.1.1:53"
+          - "8.8.8.8:53"
+  # Self-signed resolver for local development — no ACME needed.
+  # Use TRAEFIK_CERT_RESOLVER=letsencrypt in prod, or leave blank for dev.
