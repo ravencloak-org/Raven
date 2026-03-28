@@ -17,6 +17,19 @@ type Config struct {
 	Keycloak  KeycloakConfig
 	CORS      CORSConfig
 	RateLimit RateLimitConfig
+	SeaweedFS SeaweedFSConfig
+	Upload    UploadConfig
+}
+
+// SeaweedFSConfig holds SeaweedFS connection settings.
+type SeaweedFSConfig struct {
+	MasterURL string `mapstructure:"master_url"`
+}
+
+// UploadConfig holds file upload settings.
+type UploadConfig struct {
+	MaxSizeBytes int64    `mapstructure:"max_size_bytes"`
+	AllowedTypes []string `mapstructure:"allowed_types"`
 }
 
 // KeycloakConfig holds Keycloak/OIDC settings for JWT validation.
@@ -92,6 +105,17 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("cors.allowed_origins", "RAVEN_CORS_ALLOWED_ORIGINS")
 	v.SetDefault("ratelimit.default_user_limit", 1000)
 	v.SetDefault("ratelimit.default_org_limit", 10000)
+	v.SetDefault("seaweedfs.master_url", "http://seaweedfs-master:9333")
+	v.SetDefault("upload.max_size_bytes", 52428800) // 50 MB
+	v.SetDefault("upload.allowed_types", []string{
+		"application/pdf",
+		"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		"application/vnd.openxmlformats-officedocument.presentationml.presentation",
+		"text/html",
+		"text/markdown",
+		"text/plain",
+		"text/csv",
+	})
 
 	// Config file (optional)
 	v.SetConfigName("config")

@@ -42,6 +42,7 @@ import (
 	"github.com/ravencloak-org/Raven/internal/middleware"
 	"github.com/ravencloak-org/Raven/internal/repository"
 	"github.com/ravencloak-org/Raven/internal/service"
+	"github.com/ravencloak-org/Raven/internal/storage"
 	"github.com/ravencloak-org/Raven/internal/telemetry"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
@@ -97,18 +98,24 @@ func main() {
 	wsRepo := repository.NewWorkspaceRepository(pool)
 	userRepo := repository.NewUserRepository(pool)
 	kbRepo := repository.NewKBRepository(pool)
+	docRepo := repository.NewDocumentRepository(pool)
+
+	// --- Wire storage client ---
+	seaweedClient := storage.NewSeaweedFSClient(cfg.SeaweedFS.MasterURL, nil)
 
 	// --- Wire services ---
 	orgSvc := service.NewOrgService(orgRepo)
 	wsSvc := service.NewWorkspaceService(wsRepo, pool)
 	userSvc := service.NewUserService(userRepo)
 	kbSvc := service.NewKBService(kbRepo, pool)
+	uploadSvc := service.NewUploadService(docRepo, pool, seaweedClient, cfg.Upload.MaxSizeBytes, cfg.Upload.AllowedTypes)
 
 	// --- Wire handlers ---
 	orgHandler := handler.NewOrgHandler(orgSvc)
 	wsHandler := handler.NewWorkspaceHandler(wsSvc)
 	userHandler := handler.NewUserHandler(userSvc)
 	kbHandler := handler.NewKBHandler(kbSvc)
+	uploadHandler := handler.NewUploadHandler(uploadSvc)
 
 	// Create router
 	router := gin.Default()
@@ -168,6 +175,9 @@ func main() {
 				kb.GET("/:kb_id", kbHandler.Get)
 				kb.PUT("/:kb_id", middleware.RequireWorkspaceRole("member"), kbHandler.Update)
 				kb.DELETE("/:kb_id", middleware.RequireWorkspaceRole("admin"), kbHandler.Archive)
+
+				// Document upload
+				kb.POST("/:kb_id/documents/upload", middleware.RequireWorkspaceRole("member"), uploadHandler.Upload)
 			}
 		}
 
