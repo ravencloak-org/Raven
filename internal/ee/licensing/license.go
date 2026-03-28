@@ -4,6 +4,8 @@
 // This package is part of Raven Enterprise Edition (Go backend).
 package license
 
+import "time"
+
 // Tier represents the enterprise license tier.
 type Tier string
 
@@ -24,12 +26,12 @@ type License struct {
 
 // Valid reports whether the license is present and not expired.
 func (l *License) Valid() bool {
-	return l != nil && l.OrgID != "" && l.ExpiresAt > 0
+	return l != nil && l.OrgID != "" && l.ExpiresAt > time.Now().Unix()
 }
 
 // HasFeature reports whether the license grants access to the named feature.
 func (l *License) HasFeature(feature string) bool {
-	if l == nil {
+	if !l.Valid() {
 		return false
 	}
 	if l.Tier == TierEnterprise {
