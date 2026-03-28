@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "63199b085958",
+  "session_id": "49d36a53-fe40-4d89-b1b8-699b7e008f53",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-28T00:36:05.070063Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/research/monetization-strategy.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "5123e879-37da-4147-8f5d-6975ab628247",
+  "checkpoint_transcript_start": 585,
+  "transcript_lines_at_start": 585,
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 13901,
+    "cache_read_tokens": 4256506,
+    "output_tokens": 6006,
+    "api_call_count": 22
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-28T00:36:04.897576Z",
+    "agent_lines": 20,
+    "human_added": 117,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 137,
+    "agent_percentage": 14.5985401459854
+  }
+}
