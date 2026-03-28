@@ -66,7 +66,7 @@ Based on the hardware requirements research, here are Raven's costs at different
 | PostHog Cloud | $0 | Free tier covers early usage |
 | OpenObserve | $0 | Self-hosted on same server |
 | Email (AWS SES) | ~$1/month | Low volume transactional |
-| Stripe | 2.9% + $0.30 per transaction | Deducted from revenue |
+| Razorpay | ~2% domestic, ~3% international per transaction | Deducted from revenue |
 | **Total (Hetzner CCX33)** | **~$57-60/month** | Comfortable for 10 tenants |
 | **Total (Hetzner CPX41, budget)** | **~$30-33/month** | Tight but functional for 10 tenants |
 
@@ -508,7 +508,7 @@ raven/
 
 **Revenue scenarios (10 customers):**
 
-| Customer Mix | Monthly Revenue | Stripe Fees (2.9%+$0.30) | Net Revenue | Profit/Loss |
+| Customer Mix | Monthly Revenue | Payment Fees (~2-3%) | Net Revenue | Profit/Loss |
 |-------------|----------------|--------------------------|-------------|-------------|
 | 10x Pro ($29) | $290 | $11.41 | $278.59 | **+$220.59** |
 | 5x Pro + 5x Free | $145 | $5.71 | $139.29 | **+$81.29** |
@@ -519,8 +519,8 @@ raven/
 **Break-even point:** 2 Pro customers ($58 revenue) covers costs. With 10 paying customers at any paid tier, Raven is profitable from day one on Hetzner.
 
 **Minimum price per customer for break-even with 10 customers:**
-- $58 / 10 = $5.80/customer/month (before Stripe fees)
-- With Stripe: $58 / (10 * (1 - 0.029)) - $0.30 = ~$6.27/customer/month
+- $58 / 10 = $5.80/customer/month (before payment gateway fees)
+- With payment fees: ~$6.27/customer/month (varies by gateway)
 
 This means even a hypothetical $7/month "Starter" tier would break even at 10 customers. The proposed $29 Pro tier provides **5x headroom** above break-even.
 
@@ -532,7 +532,7 @@ This means even a hypothetical $7/month "Starter" tier would break even at 10 cu
 | Domain + Email | $3 |
 | **Total** | **$31/month** |
 
-**Break-even:** Just 2 Pro customers ($58 revenue - $2.38 Stripe = $55.62 net). Even 1 Business customer ($99 - $3.17 = $95.83 net) covers costs 3x over.
+**Break-even:** Just 2 Pro customers ($58 revenue - ~$2.38 fees = $55.62 net). Even 1 Business customer ($99 - ~$3.17 = $95.83 net) covers costs 3x over.
 
 ### Scenario C: Scaling to 100 Customers
 
@@ -552,7 +552,7 @@ This means even a hypothetical $7/month "Starter" tier would break even at 10 cu
 |------|-------------|
 | Hetzner AX42 + backup | $78 |
 | Domain + Email | $10 |
-| Stripe fees (~3.15% effective) | $88.52 |
+| payment gateway fees (~3.15% effective) | $88.52 |
 | **Total** | **$176.52** |
 
 **Net profit: $2,633.48/month ($31,602/year)**
@@ -563,7 +563,7 @@ This does not include the founder's time, which is the real cost at this stage. 
 
 Per hardware requirements research, AWS costs $590/month for Tier 1 (10 tenants).
 
-| Customer Mix | Monthly Revenue | Stripe Fees | Net Revenue | Profit/Loss |
+| Customer Mix | Monthly Revenue | Payment Fees | Net Revenue | Profit/Loss |
 |-------------|----------------|-------------|-------------|-------------|
 | 10x Pro ($29) | $290 | $11.41 | $278.59 | **-$311.41** |
 | 10x Business ($99) | $990 | $31.71 | $958.29 | **+$368.29** |
@@ -711,17 +711,20 @@ Each integration opens a new distribution channel.
 
 | Priority | Feature | Tool | Effort |
 |----------|---------|------|--------|
-| **P0 (MVP)** | Stripe Checkout for subscriptions | Stripe Billing API | 2-3 days |
-| **P0 (MVP)** | Webhook handler for payment events | Stripe Webhooks | 1-2 days |
-| **P0 (MVP)** | Org <-> Stripe Customer mapping | Go API + PostgreSQL | 1 day |
+| **P0 (MVP)** | Razorpay Checkout for subscriptions | Razorpay Subscriptions API | 2-3 days |
+| **P0 (MVP)** | Webhook handler for payment events | Razorpay Webhooks | 1-2 days |
+| **P0 (MVP)** | Org <-> Razorpay Customer mapping | Go API (`razorpay-go`) + PostgreSQL | 1 day |
 | **P0 (MVP)** | Plan/tier enforcement (feature gates) | Go middleware | 2-3 days |
 | **P1 (v1.0)** | Usage metering (message count, document count) | Go API counters -> PostgreSQL | 2-3 days |
-| **P1 (v1.0)** | Usage-based overage billing | Stripe Usage Records API | 2-3 days |
-| **P1 (v1.0)** | Self-service plan management UI | Vue.js + Stripe Customer Portal | 1-2 days |
-| **P2 (v1.1)** | Annual billing toggle | Stripe price switching | 1 day |
+| **P1 (v1.0)** | Usage-based overage billing | Razorpay Add-ons API | 2-3 days |
+| **P1 (v1.0)** | Self-service plan management UI | Vue.js + Razorpay hosted page | 1-2 days |
+| **P2 (v1.1)** | Annual billing toggle | Razorpay plan switching | 1 day |
 | **P2 (v1.1)** | Voice minute metering (Phase 2) | Go API + LiveKit hooks | 2 days |
 | **P3 (future)** | Lago/OpenMeter for advanced metering | Lago API | 1-2 weeks |
-| **P3 (future)** | Enterprise invoice billing (net-30) | Stripe Invoicing | 1-2 days |
+| **P3 (future)** | Enterprise invoice billing (net-30) | Razorpay Invoicing | 1-2 days |
+| **P3 (future)** | Paddle as international MoR (if tax compliance needed) | Paddle API | 1-2 weeks |
+
+> **Why Razorpay, not Stripe:** Stripe is not officially supported for Indian businesses. Razorpay handles both domestic (UPI, RuPay, netbanking) and international (Visa, Mastercard) payments with settlement to Indian bank accounts. Go SDK: `github.com/razorpay/razorpay-go`. If international tax compliance becomes complex at scale, add Paddle as Merchant of Record for international customers.
 
 ### Usage Metering Architecture
 
@@ -732,11 +735,11 @@ Each integration opens a new distribution channel.
                                                          |
 [Voice Session] --> [LiveKit webhook] --> log minutes ---+
                                                          |
-                    [Cron: hourly] --> report to Stripe Usage Records API
+                    [Cron: hourly] --> report to Razorpay Add-ons API
                                          |
                     [Cron: daily] --> check limits --> soft-cap warnings (email)
                                          |
-                    [Cron: monthly] --> Stripe invoice with overages
+                    [Cron: monthly] --> Razorpay invoice with overages
 ```
 
 ### Feature Gate Implementation
@@ -753,7 +756,7 @@ Request -> Auth middleware -> Plan middleware -> Handler
                                +-- If feature not in plan: return 403 with plan info
 ```
 
-Store plan definitions in PostgreSQL, cached in Valkey. Stripe webhooks update the plan when payment succeeds/fails.
+Store plan definitions in PostgreSQL, cached in Valkey. Razorpay webhooks update the plan when payment succeeds/fails. License keys for `ee/` features are generated on `subscription.activated` webhook.
 
 ---
 
