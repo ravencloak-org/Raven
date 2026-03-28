@@ -48,23 +48,23 @@ func TestNilSliceCoalescing(t *testing.T) {
 // TestLoContainsStatusTransition verifies that lo.Contains correctly identifies
 // valid and invalid status transitions (replaces manual for-loop contains).
 func TestLoContainsStatusTransition(t *testing.T) {
-	allowed := validStatusTransitions[model.ProcessingStatusProcessing]
+	allowed := validStatusTransitions[model.ProcessingStatusCrawling]
 
 	t.Run("valid transition found", func(t *testing.T) {
-		if !lo.Contains(allowed, model.ProcessingStatusCompleted) {
-			t.Error("expected processing -> completed to be allowed")
+		if !lo.Contains(allowed, model.ProcessingStatusParsing) {
+			t.Error("expected crawling -> parsing to be allowed")
 		}
 		if !lo.Contains(allowed, model.ProcessingStatusFailed) {
-			t.Error("expected processing -> failed to be allowed")
+			t.Error("expected crawling -> failed to be allowed")
 		}
 	})
 
 	t.Run("invalid transition not found", func(t *testing.T) {
 		if lo.Contains(allowed, model.ProcessingStatusQueued) {
-			t.Error("expected processing -> queued to NOT be allowed")
+			t.Error("expected crawling -> queued to NOT be allowed")
 		}
-		if lo.Contains(allowed, model.ProcessingStatusProcessing) {
-			t.Error("expected processing -> processing to NOT be allowed")
+		if lo.Contains(allowed, model.ProcessingStatusCrawling) {
+			t.Error("expected crawling -> crawling to NOT be allowed")
 		}
 	})
 }
