@@ -113,18 +113,21 @@ func main() {
 	wsRepo := repository.NewWorkspaceRepository(pool)
 	userRepo := repository.NewUserRepository(pool)
 	kbRepo := repository.NewKBRepository(pool)
+	docRepo := repository.NewDocumentRepository(pool)
 
 	// --- Wire services ---
 	orgSvc := service.NewOrgService(orgRepo)
 	wsSvc := service.NewWorkspaceService(wsRepo, pool)
 	userSvc := service.NewUserService(userRepo)
 	kbSvc := service.NewKBService(kbRepo, pool)
+	docSvc := service.NewDocumentService(docRepo, pool)
 
 	// --- Wire handlers ---
 	orgHandler := handler.NewOrgHandler(orgSvc)
 	wsHandler := handler.NewWorkspaceHandler(wsSvc)
 	userHandler := handler.NewUserHandler(userSvc)
 	kbHandler := handler.NewKBHandler(kbSvc)
+	docHandler := handler.NewDocumentHandler(docSvc)
 
 	// Create router
 	router := gin.Default()
@@ -163,27 +166,42 @@ func main() {
 		api.DELETE("/orgs/:org_id", middleware.RequireOrgRole("org_admin"), orgHandler.Delete)
 
 		// --- Workspace routes (nested under org) ---
+		// ResolveWorkspaceRole looks up the caller's workspace role from the
+		// workspace_members table and stores it in the Gin context. It is applied
+		// to all routes that contain a :ws_id parameter so that downstream
+		// RequireWorkspaceRole checks have the role available.
+		resolveWSRole := middleware.ResolveWorkspaceRole(pool)
+
 		ws := api.Group("/orgs/:org_id/workspaces")
 		{
 			ws.POST("", middleware.RequireOrgRole("org_admin"), wsHandler.Create)
 			ws.GET("", wsHandler.List)
-			ws.GET("/:ws_id", wsHandler.Get)
-			ws.PUT("/:ws_id", middleware.RequireWorkspaceRole("admin"), wsHandler.Update)
+			ws.GET("/:ws_id", resolveWSRole, wsHandler.Get)
+			ws.PUT("/:ws_id", resolveWSRole, middleware.RequireWorkspaceRole("admin"), wsHandler.Update)
 			ws.DELETE("/:ws_id", middleware.RequireOrgRole("org_admin"), wsHandler.Delete)
 
 			// Workspace member management
-			ws.POST("/:ws_id/members", middleware.RequireWorkspaceRole("admin"), wsHandler.AddMember)
-			ws.PUT("/:ws_id/members/:user_id", middleware.RequireWorkspaceRole("admin"), wsHandler.UpdateMember)
-			ws.DELETE("/:ws_id/members/:user_id", middleware.RequireWorkspaceRole("admin"), wsHandler.RemoveMember)
+			ws.POST("/:ws_id/members", resolveWSRole, middleware.RequireWorkspaceRole("admin"), wsHandler.AddMember)
+			ws.PUT("/:ws_id/members/:user_id", resolveWSRole, middleware.RequireWorkspaceRole("admin"), wsHandler.UpdateMember)
+			ws.DELETE("/:ws_id/members/:user_id", resolveWSRole, middleware.RequireWorkspaceRole("admin"), wsHandler.RemoveMember)
 
 			// Knowledge Base routes (nested under workspace)
-			kb := ws.Group("/:ws_id/knowledge-bases")
+			kb := ws.Group("/:ws_id/knowledge-bases", resolveWSRole)
 			{
 				kb.POST("", middleware.RequireWorkspaceRole("member"), kbHandler.Create)
 				kb.GET("", kbHandler.List)
 				kb.GET("/:kb_id", kbHandler.Get)
 				kb.PUT("/:kb_id", middleware.RequireWorkspaceRole("member"), kbHandler.Update)
 				kb.DELETE("/:kb_id", middleware.RequireWorkspaceRole("admin"), kbHandler.Archive)
+
+				// Document routes (nested under knowledge base)
+				doc := kb.Group("/:kb_id/documents")
+				{
+					doc.GET("", docHandler.List)                                                // viewer
+					doc.GET("/:doc_id", docHandler.Get)                                         // viewer
+					doc.PUT("/:doc_id", middleware.RequireWorkspaceRole("member"), docHandler.Update)  // member
+					doc.DELETE("/:doc_id", middleware.RequireWorkspaceRole("admin"), docHandler.Delete) // admin
+				}
 			}
 		}
 
