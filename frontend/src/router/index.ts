@@ -29,6 +29,12 @@ const router = createRouter({
           name: 'dashboard',
           component: () => import('../pages/DashboardPage.vue'),
         },
+        {
+          path: 'orgs/:orgId',
+          name: 'org-detail',
+          component: () => import('../pages/orgs/OrgDetailPage.vue'),
+          meta: { requiresAuth: true },
+        },
       ],
     },
     {
@@ -39,15 +45,20 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
-  const authStore = useAuthStore()
-
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    return { name: 'login', query: { redirect: to.fullPath } }
+router.beforeEach(async (to) => {
+  if (to.meta.requiresAuth) {
+    const auth = useAuthStore()
+    if (!auth.isAuthenticated) {
+      auth.login()
+      return false
+    }
   }
 
-  if (to.name === 'login' && authStore.isAuthenticated) {
-    return { name: 'dashboard' }
+  if (to.name === 'login') {
+    const auth = useAuthStore()
+    if (auth.isAuthenticated) {
+      return { name: 'dashboard' }
+    }
   }
 })
 
