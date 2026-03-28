@@ -9,14 +9,22 @@ import (
 
 // Config holds all configuration for the application.
 type Config struct {
-	Server    ServerConfig
-	Database  DatabaseConfig
-	Valkey    ValkeyConfig
-	GRPC      GRPCConfig
-	OTel      OTelConfig
-	Keycloak  KeycloakConfig
-	CORS      CORSConfig
-	RateLimit RateLimitConfig
+	Server     ServerConfig
+	Database   DatabaseConfig
+	Valkey     ValkeyConfig
+	GRPC       GRPCConfig
+	OTel       OTelConfig
+	Keycloak   KeycloakConfig
+	CORS       CORSConfig
+	RateLimit  RateLimitConfig
+	Encryption EncryptionConfig
+}
+
+// EncryptionConfig holds settings for data-at-rest encryption (e.g. LLM API keys).
+type EncryptionConfig struct {
+	// AESKey is a 64-character hex string representing a 32-byte AES-256 key.
+	// Set via RAVEN_ENCRYPTION_AESKEY environment variable.
+	AESKey string `mapstructure:"aes_key"`
 }
 
 // KeycloakConfig holds Keycloak/OIDC settings for JWT validation.
