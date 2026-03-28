@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "8f380da5d33f",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/research/enterprise-connectors-research.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/8f/380da5d33f/0/metadata.json",
+      "transcript": "/8f/380da5d33f/0/full.jsonl",
+      "context": "/8f/380da5d33f/0/context.md",
+      "content_hash": "/8f/380da5d33f/0/content_hash.txt",
+      "prompt": "/8f/380da5d33f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 12974,
+    "cache_read_tokens": 4340272,
+    "output_tokens": 8159,
+    "api_call_count": 24
+  }
+}
