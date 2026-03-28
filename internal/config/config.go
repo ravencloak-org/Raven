@@ -9,16 +9,29 @@ import (
 
 // Config holds all configuration for the application.
 type Config struct {
-	Server    ServerConfig
-	Database  DatabaseConfig
-	Valkey    ValkeyConfig
-	GRPC      GRPCConfig
-	OTel      OTelConfig
-	Keycloak  KeycloakConfig
-	CORS      CORSConfig
-	RateLimit RateLimitConfig
-	SeaweedFS SeaweedFSConfig
-	Upload    UploadConfig
+	Server     ServerConfig
+	Database   DatabaseConfig
+	Valkey     ValkeyConfig
+	GRPC       GRPCConfig
+	OTel       OTelConfig
+	Keycloak   KeycloakConfig
+	CORS       CORSConfig
+	RateLimit  RateLimitConfig
+	Queue      QueueConfig
+	Encryption EncryptionConfig
+	SeaweedFS  SeaweedFSConfig
+	Upload     UploadConfig
+}
+
+// QueueConfig holds Asynq job queue settings.
+type QueueConfig struct {
+	Concurrency int `mapstructure:"concurrency"`
+	MaxRetry    int `mapstructure:"max_retry"`
+}
+
+// EncryptionConfig holds settings for data-at-rest encryption (e.g. LLM API keys).
+type EncryptionConfig struct {
+	AESKey string `mapstructure:"aes_key"`
 }
 
 // SeaweedFSConfig holds SeaweedFS connection settings.
@@ -105,6 +118,8 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("cors.allowed_origins", "RAVEN_CORS_ALLOWED_ORIGINS")
 	v.SetDefault("ratelimit.default_user_limit", 1000)
 	v.SetDefault("ratelimit.default_org_limit", 10000)
+	v.SetDefault("queue.concurrency", 10)
+	v.SetDefault("queue.max_retry", 5)
 	v.SetDefault("seaweedfs.master_url", "http://seaweedfs-master:9333")
 	v.SetDefault("upload.max_size_bytes", 52428800) // 50 MB
 	v.SetDefault("upload.allowed_types", []string{

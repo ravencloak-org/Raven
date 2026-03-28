@@ -108,7 +108,7 @@ func (h *UploadHandler) Upload(c *gin.Context) {
 		KnowledgeBaseID:  doc.KnowledgeBaseID,
 		FileName:         doc.FileName,
 		FileType:         doc.FileType,
-		FileSizeBytes:    doc.FileSizeBytes,
+		FileSizeBytes:    *doc.FileSizeBytes,
 		FileHash:         doc.FileHash,
 		StoragePath:      doc.StoragePath,
 		ProcessingStatus: doc.ProcessingStatus,
@@ -183,3 +183,4 @@ func lowerFilename(name string) string {
 func hasSuffix(s, suffix string) bool {
 	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
 }
+

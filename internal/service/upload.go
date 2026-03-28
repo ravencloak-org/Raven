@@ -109,20 +109,22 @@ func (s *UploadService) Upload(ctx context.Context, params UploadParams) (*model
 	}
 
 	// Create document record in DB.
+	fileSizeBytes := params.FileSizeBytes
+	newDoc := &model.Document{
+		OrgID:            params.OrgID,
+		KnowledgeBaseID:  params.KnowledgeBaseID,
+		FileName:         params.FileName,
+		FileType:         params.FileType,
+		FileSizeBytes:    &fileSizeBytes,
+		FileHash:         fileHash,
+		StoragePath:      fid,
+		ProcessingStatus: model.ProcessingStatusQueued,
+		UploadedBy:       params.UploadedBy,
+	}
 	var doc *model.Document
 	err = db.WithOrgID(ctx, s.pool, params.OrgID, func(tx pgx.Tx) error {
 		var createErr error
-		doc, createErr = s.repo.Create(
-			ctx, tx,
-			params.OrgID,
-			params.KnowledgeBaseID,
-			params.FileName,
-			params.FileType,
-			params.FileSizeBytes,
-			fileHash,
-			fid,
-			params.UploadedBy,
-		)
+		doc, createErr = s.repo.Create(ctx, tx, newDoc)
 		return createErr
 	})
 	if err != nil {
