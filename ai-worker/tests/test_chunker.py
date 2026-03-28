@@ -1,6 +1,5 @@
 """Tests for the TextChunker (RecursiveCharacterTextSplitter)."""
 
-
 from raven_worker.processors.chunker import Chunk, TextChunker
 
 

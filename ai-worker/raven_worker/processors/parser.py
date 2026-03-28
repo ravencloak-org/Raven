@@ -76,9 +76,7 @@ class DocumentParser:
     def __init__(self, liteparse_path: str | None = None) -> None:
         self._liteparse_path = liteparse_path or settings.liteparse_path
 
-    async def parse(
-        self, content: bytes, mime_type: str, file_name: str
-    ) -> str:
+    async def parse(self, content: bytes, mime_type: str, file_name: str) -> str:
         """Extract text content from a document.
 
         Args:
@@ -114,9 +112,7 @@ class DocumentParser:
             f"Supported types: {sorted(_LITEPARSE_MIME_TYPES | _DIRECT_MIME_TYPES)}"
         )
 
-    async def parse_structured(
-        self, content: bytes, mime_type: str, file_name: str
-    ) -> ParseResult:
+    async def parse_structured(self, content: bytes, mime_type: str, file_name: str) -> ParseResult:
         """Parse a document and return structured output with metadata.
 
         Args:
@@ -167,9 +163,7 @@ class DocumentParser:
         lines = [line.strip() for line in html.splitlines()]
         return "\n".join(line for line in lines if line)
 
-    async def _parse_with_liteparse(
-        self, content: bytes, mime_type: str, file_name: str
-    ) -> str:
+    async def _parse_with_liteparse(self, content: bytes, mime_type: str, file_name: str) -> str:
         """Invoke LiteParse CLI and return plain text."""
         result = await self._parse_structured_liteparse(content, mime_type, file_name)
         return result.text
@@ -219,16 +213,12 @@ class DocumentParser:
                 returncode=process.returncode,
                 stderr=error_msg,
             )
-            raise LiteParseError(
-                f"LiteParse exited with code {process.returncode}: {error_msg}"
-            )
+            raise LiteParseError(f"LiteParse exited with code {process.returncode}: {error_msg}")
 
         return stdout.decode("utf-8", errors="replace")
 
     @staticmethod
-    def _parse_liteparse_output(
-        raw_output: str, file_name: str, mime_type: str
-    ) -> ParseResult:
+    def _parse_liteparse_output(raw_output: str, file_name: str, mime_type: str) -> ParseResult:
         """Parse the JSON output from LiteParse CLI.
 
         Expected JSON structure::

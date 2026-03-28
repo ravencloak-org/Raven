@@ -66,16 +66,16 @@ async def test_parse_empty_content_returns_empty(parser):
 @pytest.mark.asyncio
 async def test_parse_pdf_invokes_liteparse(parser):
     """PDF parsing should invoke the LiteParse CLI and parse JSON output."""
-    liteparse_output = json.dumps({
-        "text": "Extracted PDF text content.",
-        "pages": ["Page 1 text", "Page 2 text"],
-        "metadata": {"page_count": 2},
-    })
+    liteparse_output = json.dumps(
+        {
+            "text": "Extracted PDF text content.",
+            "pages": ["Page 1 text", "Page 2 text"],
+            "metadata": {"page_count": 2},
+        }
+    )
 
     mock_process = AsyncMock()
-    mock_process.communicate = AsyncMock(
-        return_value=(liteparse_output.encode(), b"")
-    )
+    mock_process.communicate = AsyncMock(return_value=(liteparse_output.encode(), b""))
     mock_process.returncode = 0
 
     with patch("asyncio.create_subprocess_exec", return_value=mock_process) as mock_exec:
@@ -95,9 +95,7 @@ async def test_parse_docx_invokes_liteparse(parser):
     liteparse_output = json.dumps({"text": "Word document text.", "pages": [], "metadata": {}})
 
     mock_process = AsyncMock()
-    mock_process.communicate = AsyncMock(
-        return_value=(liteparse_output.encode(), b"")
-    )
+    mock_process.communicate = AsyncMock(return_value=(liteparse_output.encode(), b""))
     mock_process.returncode = 0
 
     with patch("asyncio.create_subprocess_exec", return_value=mock_process):
@@ -113,9 +111,7 @@ async def test_parse_image_ocr(parser):
     liteparse_output = json.dumps({"text": "OCR extracted text.", "pages": [], "metadata": {}})
 
     mock_process = AsyncMock()
-    mock_process.communicate = AsyncMock(
-        return_value=(liteparse_output.encode(), b"")
-    )
+    mock_process.communicate = AsyncMock(return_value=(liteparse_output.encode(), b""))
     mock_process.returncode = 0
 
     with patch("asyncio.create_subprocess_exec", return_value=mock_process):
@@ -128,9 +124,7 @@ async def test_parse_image_ocr(parser):
 async def test_liteparse_failure_raises_error(parser):
     """Non-zero exit code from LiteParse should raise LiteParseError."""
     mock_process = AsyncMock()
-    mock_process.communicate = AsyncMock(
-        return_value=(b"", b"Error: corrupt file")
-    )
+    mock_process.communicate = AsyncMock(return_value=(b"", b"Error: corrupt file"))
     mock_process.returncode = 1
 
     with (
@@ -144,9 +138,7 @@ async def test_liteparse_failure_raises_error(parser):
 async def test_liteparse_non_json_fallback(parser):
     """If LiteParse returns non-JSON, fall back to raw text."""
     mock_process = AsyncMock()
-    mock_process.communicate = AsyncMock(
-        return_value=(b"Plain text fallback output", b"")
-    )
+    mock_process.communicate = AsyncMock(return_value=(b"Plain text fallback output", b""))
     mock_process.returncode = 0
 
     with patch("asyncio.create_subprocess_exec", return_value=mock_process):
@@ -161,9 +153,7 @@ async def test_liteparse_non_json_fallback(parser):
 @pytest.mark.asyncio
 async def test_parse_structured_returns_parse_result(parser):
     """parse_structured should return a ParseResult with metadata."""
-    result = await parser.parse_structured(
-        b"Hello, structured!", "text/plain", "test.txt"
-    )
+    result = await parser.parse_structured(b"Hello, structured!", "text/plain", "test.txt")
     assert isinstance(result, ParseResult)
     assert "Hello, structured!" in result.text
     assert result.metadata["source"] == "test.txt"

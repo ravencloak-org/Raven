@@ -151,9 +151,7 @@ class WebScraper:
                 response.raise_for_status()
                 return response.text
         except httpx.HTTPStatusError as exc:
-            raise ScraperError(
-                f"HTTP {exc.response.status_code} fetching {url}"
-            ) from exc
+            raise ScraperError(f"HTTP {exc.response.status_code} fetching {url}") from exc
         except httpx.HTTPError as exc:
             raise ScraperError(f"Network error fetching {url}: {exc}") from exc
 
