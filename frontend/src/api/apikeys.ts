@@ -1,4 +1,5 @@
 import { useAuthStore } from '../stores/auth'
+import { isDefined, find } from 'remeda'
 
 export interface ApiKey {
   id: string
@@ -122,7 +123,7 @@ export async function revokeApiKey(keyId: string): Promise<ApiKey> {
   // const res = await authFetch(`/api-keys/${keyId}/revoke`, { method: 'POST' })
   // if (!res.ok) throw new Error(`revokeApiKey failed: ${res.status}`)
   // return res.json()
-  const key = mockKeys.find((k) => k.id === keyId)
+  const key = find(mockKeys, (k) => k.id === keyId)
   if (!key) throw new Error(`API key not found: ${keyId}`)
   key.status = 'revoked'
   return Promise.resolve({ ...key })
@@ -139,9 +140,9 @@ export async function updateApiKeySettings(
   // })
   // if (!res.ok) throw new Error(`updateApiKeySettings failed: ${res.status}`)
   // return res.json()
-  const key = mockKeys.find((k) => k.id === keyId)
+  const key = find(mockKeys, (k) => k.id === keyId)
   if (!key) throw new Error(`API key not found: ${keyId}`)
-  if (settings.allowed_domains !== undefined) key.allowed_domains = settings.allowed_domains
-  if (settings.rate_limit !== undefined) key.rate_limit = settings.rate_limit
+  if (isDefined(settings.allowed_domains)) key.allowed_domains = settings.allowed_domains
+  if (isDefined(settings.rate_limit)) key.rate_limit = settings.rate_limit
   return Promise.resolve({ ...key })
 }

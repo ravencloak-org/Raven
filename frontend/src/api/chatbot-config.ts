@@ -1,4 +1,5 @@
 import { useAuthStore } from '../stores/auth'
+import { isDefined } from 'remeda'
 
 export interface ChatbotConfig {
   theme_color: string
@@ -59,13 +60,13 @@ export async function updateChatbotConfig(
   // })
   // if (!res.ok) throw new Error(`updateChatbotConfig failed: ${res.status}`)
   // return res.json()
-  if (updates.theme_color !== undefined) mockConfig.theme_color = updates.theme_color
-  if (updates.avatar_url !== undefined) mockConfig.avatar_url = updates.avatar_url
-  if (updates.welcome_text !== undefined) mockConfig.welcome_text = updates.welcome_text
-  if (updates.suggested_questions !== undefined)
+  if (isDefined(updates.theme_color)) mockConfig.theme_color = updates.theme_color
+  if (isDefined(updates.avatar_url)) mockConfig.avatar_url = updates.avatar_url
+  if (isDefined(updates.welcome_text)) mockConfig.welcome_text = updates.welcome_text
+  if (isDefined(updates.suggested_questions))
     mockConfig.suggested_questions = [...updates.suggested_questions]
-  if (updates.position !== undefined) mockConfig.position = updates.position
-  if (updates.widget_title !== undefined) mockConfig.widget_title = updates.widget_title
+  if (isDefined(updates.position)) mockConfig.position = updates.position
+  if (isDefined(updates.widget_title)) mockConfig.widget_title = updates.widget_title
   return Promise.resolve({
     ...mockConfig,
     suggested_questions: [...mockConfig.suggested_questions],

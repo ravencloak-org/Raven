@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { filter } from 'remeda'
 import {
   listWorkspaces,
   getWorkspace,
@@ -53,7 +54,7 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
 
   async function remove(orgId: string, wsId: string): Promise<void> {
     await deleteWorkspace(orgId, wsId)
-    workspaces.value = workspaces.value.filter((w) => w.id !== wsId)
+    workspaces.value = filter(workspaces.value, (w) => w.id !== wsId)
     total.value -= 1
     if (currentWorkspace.value?.id === wsId) {
       currentWorkspace.value = null

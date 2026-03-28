@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { findIndex } from 'remeda'
 import {
   listKnowledgeBases,
   getKnowledgeBase,
@@ -62,7 +63,7 @@ export const useKnowledgeBasesStore = defineStore('knowledgeBases', () => {
 
   async function archive(orgId: string, wsId: string, kbId: string): Promise<void> {
     await archiveKnowledgeBase(orgId, wsId, kbId)
-    const idx = knowledgeBases.value.findIndex((k) => k.id === kbId)
+    const idx = findIndex(knowledgeBases.value, (k) => k.id === kbId)
     if (idx !== -1) knowledgeBases.value[idx] = { ...knowledgeBases.value[idx], status: 'archived' }
     if (currentKB.value?.id === kbId) {
       currentKB.value = { ...currentKB.value, status: 'archived' }

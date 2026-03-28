@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { filter, findIndex } from 'remeda'
 import {
   listApiKeys,
   createApiKey,
@@ -19,8 +20,8 @@ export const useApiKeysStore = defineStore('apikeys', () => {
   /** The full raw key value, shown only once after creation */
   const lastCreatedRawKey = ref<string | null>(null)
 
-  const activeKeys = computed(() => keys.value.filter((k) => k.status === 'active'))
-  const revokedKeys = computed(() => keys.value.filter((k) => k.status === 'revoked'))
+  const activeKeys = computed(() => filter(keys.value, (k) => k.status === 'active'))
+  const revokedKeys = computed(() => filter(keys.value, (k) => k.status === 'revoked'))
 
   async function fetchKeys(): Promise<void> {
     loading.value = true
@@ -51,7 +52,7 @@ export const useApiKeysStore = defineStore('apikeys', () => {
     error.value = null
     try {
       const updated = await revokeApiKey(keyId)
-      const idx = keys.value.findIndex((k) => k.id === keyId)
+      const idx = findIndex(keys.value, (k) => k.id === keyId)
       if (idx !== -1) keys.value[idx] = updated
     } catch (e) {
       error.value = (e as Error).message
@@ -66,7 +67,7 @@ export const useApiKeysStore = defineStore('apikeys', () => {
     error.value = null
     try {
       const updated = await updateApiKeySettings(keyId, settings)
-      const idx = keys.value.findIndex((k) => k.id === keyId)
+      const idx = findIndex(keys.value, (k) => k.id === keyId)
       if (idx !== -1) keys.value[idx] = updated
     } catch (e) {
       error.value = (e as Error).message
