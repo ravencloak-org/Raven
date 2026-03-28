@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/samber/lo"
@@ -75,7 +76,7 @@ func TestLoSliceToMap(t *testing.T) {
 	allowedTypes := []string{"Application/PDF", "text/plain", "TEXT/HTML"}
 
 	allowed := lo.SliceToMap(allowedTypes, func(t string) (string, bool) {
-		return toLower(t), true
+		return strings.ToLower(t), true
 	})
 
 	t.Run("all types present lowercase", func(t *testing.T) {
@@ -144,13 +145,3 @@ func TestLoMapTransform(t *testing.T) {
 	})
 }
 
-// toLower is a simple strings.ToLower equivalent used in tests to avoid importing strings.
-func toLower(s string) string {
-	b := []byte(s)
-	for i, c := range b {
-		if c >= 'A' && c <= 'Z' {
-			b[i] = c + 'a' - 'A'
-		}
-	}
-	return string(b)
-}
