@@ -16,9 +16,14 @@ import (
 
 // validStatusTransitions maps current status to the set of allowed next statuses.
 var validStatusTransitions = map[model.ProcessingStatus][]model.ProcessingStatus{
-	model.ProcessingStatusQueued:     {model.ProcessingStatusProcessing},
-	model.ProcessingStatusProcessing: {model.ProcessingStatusCompleted, model.ProcessingStatusFailed},
-	model.ProcessingStatusFailed:     {model.ProcessingStatusQueued},
+	model.ProcessingStatusQueued:       {model.ProcessingStatusCrawling, model.ProcessingStatusFailed},
+	model.ProcessingStatusCrawling:     {model.ProcessingStatusParsing, model.ProcessingStatusFailed},
+	model.ProcessingStatusParsing:      {model.ProcessingStatusChunking, model.ProcessingStatusFailed},
+	model.ProcessingStatusChunking:     {model.ProcessingStatusEmbedding, model.ProcessingStatusFailed},
+	model.ProcessingStatusEmbedding:    {model.ProcessingStatusReady, model.ProcessingStatusFailed},
+	model.ProcessingStatusFailed:       {model.ProcessingStatusQueued, model.ProcessingStatusReprocessing},
+	model.ProcessingStatusReady:        {model.ProcessingStatusReprocessing},
+	model.ProcessingStatusReprocessing: {model.ProcessingStatusCrawling, model.ProcessingStatusFailed},
 }
 
 // DocumentService contains business logic for document management.

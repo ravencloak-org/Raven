@@ -15,16 +15,43 @@ func TestValidStatusTransitions(t *testing.T) {
 		to      model.ProcessingStatus
 		allowed bool
 	}{
-		{"queued to processing", model.ProcessingStatusQueued, model.ProcessingStatusProcessing, true},
-		{"queued to completed", model.ProcessingStatusQueued, model.ProcessingStatusCompleted, false},
-		{"queued to failed", model.ProcessingStatusQueued, model.ProcessingStatusFailed, false},
-		{"processing to completed", model.ProcessingStatusProcessing, model.ProcessingStatusCompleted, true},
-		{"processing to failed", model.ProcessingStatusProcessing, model.ProcessingStatusFailed, true},
-		{"processing to queued", model.ProcessingStatusProcessing, model.ProcessingStatusQueued, false},
-		{"completed to any", model.ProcessingStatusCompleted, model.ProcessingStatusQueued, false},
-		{"completed to processing", model.ProcessingStatusCompleted, model.ProcessingStatusProcessing, false},
+		// queued transitions
+		{"queued to crawling", model.ProcessingStatusQueued, model.ProcessingStatusCrawling, true},
+		{"queued to failed", model.ProcessingStatusQueued, model.ProcessingStatusFailed, true},
+		{"queued to parsing", model.ProcessingStatusQueued, model.ProcessingStatusParsing, false},
+		{"queued to ready", model.ProcessingStatusQueued, model.ProcessingStatusReady, false},
+
+		// crawling transitions
+		{"crawling to parsing", model.ProcessingStatusCrawling, model.ProcessingStatusParsing, true},
+		{"crawling to failed", model.ProcessingStatusCrawling, model.ProcessingStatusFailed, true},
+		{"crawling to ready", model.ProcessingStatusCrawling, model.ProcessingStatusReady, false},
+
+		// parsing transitions
+		{"parsing to chunking", model.ProcessingStatusParsing, model.ProcessingStatusChunking, true},
+		{"parsing to failed", model.ProcessingStatusParsing, model.ProcessingStatusFailed, true},
+		{"parsing to embedding", model.ProcessingStatusParsing, model.ProcessingStatusEmbedding, false},
+
+		// chunking transitions
+		{"chunking to embedding", model.ProcessingStatusChunking, model.ProcessingStatusEmbedding, true},
+		{"chunking to failed", model.ProcessingStatusChunking, model.ProcessingStatusFailed, true},
+		{"chunking to ready", model.ProcessingStatusChunking, model.ProcessingStatusReady, false},
+
+		// embedding transitions
+		{"embedding to ready", model.ProcessingStatusEmbedding, model.ProcessingStatusReady, true},
+		{"embedding to failed", model.ProcessingStatusEmbedding, model.ProcessingStatusFailed, true},
+		{"embedding to queued", model.ProcessingStatusEmbedding, model.ProcessingStatusQueued, false},
+
+		// terminal/recovery transitions
 		{"failed to queued", model.ProcessingStatusFailed, model.ProcessingStatusQueued, true},
-		{"failed to processing", model.ProcessingStatusFailed, model.ProcessingStatusProcessing, false},
+		{"failed to reprocessing", model.ProcessingStatusFailed, model.ProcessingStatusReprocessing, true},
+		{"failed to crawling", model.ProcessingStatusFailed, model.ProcessingStatusCrawling, false},
+		{"ready to reprocessing", model.ProcessingStatusReady, model.ProcessingStatusReprocessing, true},
+		{"ready to queued", model.ProcessingStatusReady, model.ProcessingStatusQueued, false},
+
+		// reprocessing transitions
+		{"reprocessing to crawling", model.ProcessingStatusReprocessing, model.ProcessingStatusCrawling, true},
+		{"reprocessing to failed", model.ProcessingStatusReprocessing, model.ProcessingStatusFailed, true},
+		{"reprocessing to ready", model.ProcessingStatusReprocessing, model.ProcessingStatusReady, false},
 	}
 
 	for _, tt := range tests {
