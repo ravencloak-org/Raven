@@ -10,6 +10,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/samber/lo"
+
 	"github.com/ravencloak-org/Raven/internal/db"
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/internal/repository"
@@ -34,10 +36,9 @@ func NewUploadService(
 	maxSizeBytes int64,
 	allowedTypes []string,
 ) *UploadService {
-	allowed := make(map[string]bool, len(allowedTypes))
-	for _, t := range allowedTypes {
-		allowed[strings.ToLower(t)] = true
-	}
+	allowed := lo.SliceToMap(allowedTypes, func(t string) (string, bool) {
+		return strings.ToLower(t), true
+	})
 	return &UploadService{
 		repo:         repo,
 		pool:         pool,

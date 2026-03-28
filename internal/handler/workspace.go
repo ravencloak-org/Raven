@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/samber/lo"
+
 	"github.com/ravencloak-org/Raven/internal/middleware"
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
@@ -102,9 +104,7 @@ func (h *WorkspaceHandler) List(c *gin.Context) {
 		c.Abort()
 		return
 	}
-	if workspaces == nil {
-		workspaces = []model.Workspace{}
-	}
+	workspaces = lo.Ternary(workspaces == nil, []model.Workspace{}, workspaces)
 	c.JSON(http.StatusOK, workspaces)
 }
 

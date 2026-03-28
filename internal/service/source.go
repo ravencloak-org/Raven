@@ -7,6 +7,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/samber/lo"
+
 	"github.com/ravencloak-org/Raven/internal/db"
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/internal/repository"
@@ -133,9 +135,7 @@ func (s *SourceService) List(ctx context.Context, orgID, kbID string, page, page
 	if err != nil {
 		return nil, apierror.NewInternal("failed to list sources: " + err.Error())
 	}
-	if sources == nil {
-		sources = []model.Source{}
-	}
+	sources = lo.Ternary(sources == nil, []model.Source{}, sources)
 	return &model.SourceListResponse{
 		Data:     sources,
 		Total:    total,
