@@ -13,4 +13,7 @@ Enterprise features are distributed across the codebase within each service:
 ## License
 
 All code in `ee/` directories is licensed under the [Raven Enterprise License](./ee-LICENSE).
-The rest of the codebase is licensed under [Apache 2.0](./LICENSE).
+The rest of the codebase is licensed under [Apache 2.0](./LICENSE). Enterprise features are source-available
+and can be used freely in development and testing, but require a valid license key for production use.
+
+For licensing inquiries, contact enterprise@ravencloak.com or visit https://ravencloak.com/pricing.
