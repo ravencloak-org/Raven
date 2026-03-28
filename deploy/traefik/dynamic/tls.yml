@@ -1,0 +1,46 @@
+# Traefik dynamic configuration — TLS options and security headers
+# Loaded automatically via providers.file.directory in traefik.yml.
+
+tls:
+  options:
+    default:
+      minVersion: VersionTLS12
+      cipherSuites:
+        # TLS 1.3 ciphers (always preferred by Go's TLS stack)
+        - TLS_AES_256_GCM_SHA384
+        - TLS_AES_128_GCM_SHA256
+        - TLS_CHACHA20_POLY1305_SHA256
+        # TLS 1.2 ciphers (strong only)
+        - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+        - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+      sniStrict: true
+
+http:
+  middlewares:
+    security-headers:
+      headers:
+        # HSTS — tell browsers to always use HTTPS
+        stsSeconds: 63072000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        forceSTSHeader: true
+        # Additional security headers
+        contentTypeNosniff: true
+        browserXssFilter: true
+        frameDeny: true
+        customFrameOptionsValue: "SAMEORIGIN"
+        referrerPolicy: "strict-origin-when-cross-origin"
+        customResponseHeaders:
+          X-Powered-By: ""
+          Server: ""
+
+    # Rate-limiting middleware (optional, attach via labels)
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 200
+        period: 1s
