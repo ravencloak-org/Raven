@@ -17,10 +17,10 @@ const (
 	ContextKeyKBID     contextKey = "kb_id"
 )
 
-// ApiKeyLookupResult holds the fields the middleware needs after looking up
+// APIKeyLookupResult holds the fields the middleware needs after looking up
 // a hashed API key. This is deliberately a plain struct rather than the full
-// model.ApiKey so the middleware has no import dependency on the model package.
-type ApiKeyLookupResult struct {
+// model.APIKey so the middleware has no import dependency on the model package.
+type APIKeyLookupResult struct {
 	ID              string
 	OrgID           string
 	WorkspaceID     string
@@ -30,10 +30,10 @@ type ApiKeyLookupResult struct {
 	Status          string
 }
 
-// ApiKeyLookup is the interface the API key middleware requires for looking
+// APIKeyLookup is the interface the API key middleware requires for looking
 // up keys by hash. The repository layer implements this.
-type ApiKeyLookup interface {
-	LookupByHash(ctx context.Context, keyHash string) (*ApiKeyLookupResult, error)
+type APIKeyLookup interface {
+	LookupByHash(ctx context.Context, keyHash string) (*APIKeyLookupResult, error)
 }
 
 // hashAPIKey returns the lowercase hex SHA-256 digest of the raw API key.
@@ -42,15 +42,15 @@ func hashAPIKey(rawKey string) string {
 	return hex.EncodeToString(h[:])
 }
 
-// ApiKeyAuth returns a Gin middleware that authenticates requests via the
+// APIKeyAuth returns a Gin middleware that authenticates requests via the
 // X-API-Key header. It hashes the raw key with SHA-256, looks it up in the
 // database, validates the domain allowlist against the Origin/Referer header,
 // and sets org/workspace/kb context keys for downstream handlers.
 //
 // Usage:
 //
-//	router.Use(middleware.ApiKeyAuth(repo))
-func ApiKeyAuth(lookup ApiKeyLookup) gin.HandlerFunc {
+//	router.Use(middleware.APIKeyAuth(repo))
+func APIKeyAuth(lookup APIKeyLookup) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rawKey := c.GetHeader("X-API-Key")
 		if rawKey == "" {

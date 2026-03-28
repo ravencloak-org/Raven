@@ -25,15 +25,15 @@ const (
 	defaultRateLimit = 60
 )
 
-// ApiKeyService contains business logic for API key management.
-type ApiKeyService struct {
-	repo *repository.ApiKeyRepository
+// APIKeyService contains business logic for API key management.
+type APIKeyService struct {
+	repo *repository.APIKeyRepository
 	pool *pgxpool.Pool
 }
 
-// NewApiKeyService creates a new ApiKeyService.
-func NewApiKeyService(repo *repository.ApiKeyRepository, pool *pgxpool.Pool) *ApiKeyService {
-	return &ApiKeyService{repo: repo, pool: pool}
+// NewAPIKeyService creates a new APIKeyService.
+func NewAPIKeyService(repo *repository.APIKeyRepository, pool *pgxpool.Pool) *APIKeyService {
+	return &APIKeyService{repo: repo, pool: pool}
 }
 
 // generateKey creates a cryptographically random API key and returns the raw
@@ -52,7 +52,7 @@ func generateKey() (raw, hash, prefix string, err error) {
 
 // Create generates a new API key, stores its SHA-256 hash, and returns
 // the full key exactly once.
-func (s *ApiKeyService) Create(ctx context.Context, orgID, wsID, kbID, userID string, req model.CreateApiKeyRequest) (*model.CreateApiKeyResponse, error) {
+func (s *APIKeyService) Create(ctx context.Context, orgID, wsID, kbID, userID string, req model.CreateAPIKeyRequest) (*model.CreateAPIKeyResponse, error) {
 	rawKey, keyHash, keyPrefix, err := generateKey()
 	if err != nil {
 		return nil, apierror.NewInternal("failed to generate api key: " + err.Error())
@@ -63,7 +63,7 @@ func (s *ApiKeyService) Create(ctx context.Context, orgID, wsID, kbID, userID st
 		rateLimit = *req.RateLimit
 	}
 
-	var ak *model.ApiKey
+	var ak *model.APIKey
 	err = db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
 		var e error
 		ak, e = s.repo.Create(ctx, tx, orgID, wsID, kbID, req.Name, keyHash, keyPrefix, userID, req.AllowedDomains, rateLimit)
@@ -76,15 +76,15 @@ func (s *ApiKeyService) Create(ctx context.Context, orgID, wsID, kbID, userID st
 		return nil, apierror.NewInternal("failed to create api key: " + err.Error())
 	}
 
-	return &model.CreateApiKeyResponse{
-		ApiKey: *ak,
+	return &model.CreateAPIKeyResponse{
+		APIKey: *ak,
 		RawKey: rawKey,
 	}, nil
 }
 
 // List returns all API keys for a knowledge base.
-func (s *ApiKeyService) List(ctx context.Context, orgID, kbID string) ([]model.ApiKey, error) {
-	var keys []model.ApiKey
+func (s *APIKeyService) List(ctx context.Context, orgID, kbID string) ([]model.APIKey, error) {
+	var keys []model.APIKey
 	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
 		var e error
 		keys, e = s.repo.ListByKB(ctx, tx, orgID, kbID)
@@ -97,7 +97,7 @@ func (s *ApiKeyService) List(ctx context.Context, orgID, kbID string) ([]model.A
 }
 
 // Revoke revokes an active API key.
-func (s *ApiKeyService) Revoke(ctx context.Context, orgID, id string) error {
+func (s *APIKeyService) Revoke(ctx context.Context, orgID, id string) error {
 	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
 		return s.repo.Revoke(ctx, tx, orgID, id)
 	})

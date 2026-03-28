@@ -15,12 +15,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// mockApiKeyLookup implements ApiKeyLookup for tests.
-type mockApiKeyLookup struct {
-	lookupFn func(ctx context.Context, keyHash string) (*ApiKeyLookupResult, error)
+// mockAPIKeyLookup implements APIKeyLookup for tests.
+type mockAPIKeyLookup struct {
+	lookupFn func(ctx context.Context, keyHash string) (*APIKeyLookupResult, error)
 }
 
-func (m *mockApiKeyLookup) LookupByHash(ctx context.Context, keyHash string) (*ApiKeyLookupResult, error) {
+func (m *mockAPIKeyLookup) LookupByHash(ctx context.Context, keyHash string) (*APIKeyLookupResult, error) {
 	return m.lookupFn(ctx, keyHash)
 }
 
@@ -30,10 +30,10 @@ func testAPIKeyHash(key string) string {
 	return hex.EncodeToString(h[:])
 }
 
-func setupApiKeyRouter(lookup ApiKeyLookup) *gin.Engine {
+func setupAPIKeyRouter(lookup APIKeyLookup) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Use(ApiKeyAuth(lookup))
+	r.Use(APIKeyAuth(lookup))
 	r.GET("/test", func(c *gin.Context) {
 		orgID, _ := c.Get(string(ContextKeyOrgID))
 		kbID, _ := c.Get(string(ContextKeyKBID))
@@ -47,7 +47,7 @@ func setupApiKeyRouter(lookup ApiKeyLookup) *gin.Engine {
 	return r
 }
 
-func TestApiKeyAuth(t *testing.T) {
+func TestAPIKeyAuth(t *testing.T) {
 	const testKey = "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
 	testHash := testAPIKeyHash(testKey)
 
@@ -55,7 +55,7 @@ func TestApiKeyAuth(t *testing.T) {
 		name        string
 		apiKey      string
 		origin      string
-		lookup      *mockApiKeyLookup
+		lookup      *mockAPIKeyLookup
 		wantStatus  int
 		wantErrCode string
 		wantOrgID   string
@@ -64,14 +64,14 @@ func TestApiKeyAuth(t *testing.T) {
 		{
 			name:        "missing X-API-Key returns 401",
 			apiKey:      "",
-			lookup:      &mockApiKeyLookup{lookupFn: func(_ context.Context, _ string) (*ApiKeyLookupResult, error) { return nil, nil }},
+			lookup:      &mockAPIKeyLookup{lookupFn: func(_ context.Context, _ string) (*APIKeyLookupResult, error) { return nil, nil }},
 			wantStatus:  http.StatusUnauthorized,
 			wantErrCode: "missing_api_key",
 		},
 		{
 			name:   "invalid key returns 401",
 			apiKey: "bad-key",
-			lookup: &mockApiKeyLookup{lookupFn: func(_ context.Context, _ string) (*ApiKeyLookupResult, error) {
+			lookup: &mockAPIKeyLookup{lookupFn: func(_ context.Context, _ string) (*APIKeyLookupResult, error) {
 				return nil, errors.New("not found")
 			}},
 			wantStatus:  http.StatusUnauthorized,
@@ -80,7 +80,7 @@ func TestApiKeyAuth(t *testing.T) {
 		{
 			name:   "nil result returns 401",
 			apiKey: "bad-key",
-			lookup: &mockApiKeyLookup{lookupFn: func(_ context.Context, _ string) (*ApiKeyLookupResult, error) {
+			lookup: &mockAPIKeyLookup{lookupFn: func(_ context.Context, _ string) (*APIKeyLookupResult, error) {
 				return nil, nil
 			}},
 			wantStatus:  http.StatusUnauthorized,
@@ -89,9 +89,9 @@ func TestApiKeyAuth(t *testing.T) {
 		{
 			name:   "revoked key returns 401",
 			apiKey: testKey,
-			lookup: &mockApiKeyLookup{lookupFn: func(_ context.Context, hash string) (*ApiKeyLookupResult, error) {
+			lookup: &mockAPIKeyLookup{lookupFn: func(_ context.Context, hash string) (*APIKeyLookupResult, error) {
 				if hash == testHash {
-					return &ApiKeyLookupResult{
+					return &APIKeyLookupResult{
 						ID: "key-1", OrgID: "org-1", KnowledgeBaseID: "kb-1",
 						Status: "revoked",
 					}, nil
@@ -104,9 +104,9 @@ func TestApiKeyAuth(t *testing.T) {
 		{
 			name:   "valid key with no domain restriction passes",
 			apiKey: testKey,
-			lookup: &mockApiKeyLookup{lookupFn: func(_ context.Context, hash string) (*ApiKeyLookupResult, error) {
+			lookup: &mockAPIKeyLookup{lookupFn: func(_ context.Context, hash string) (*APIKeyLookupResult, error) {
 				if hash == testHash {
-					return &ApiKeyLookupResult{
+					return &APIKeyLookupResult{
 						ID: "key-1", OrgID: "org-1", KnowledgeBaseID: "kb-1",
 						AllowedDomains: nil, RateLimit: 60, Status: "active",
 					}, nil
@@ -121,9 +121,9 @@ func TestApiKeyAuth(t *testing.T) {
 			name:   "valid key with matching origin passes",
 			apiKey: testKey,
 			origin: "https://app.example.com",
-			lookup: &mockApiKeyLookup{lookupFn: func(_ context.Context, hash string) (*ApiKeyLookupResult, error) {
+			lookup: &mockAPIKeyLookup{lookupFn: func(_ context.Context, hash string) (*APIKeyLookupResult, error) {
 				if hash == testHash {
-					return &ApiKeyLookupResult{
+					return &APIKeyLookupResult{
 						ID: "key-1", OrgID: "org-1", KnowledgeBaseID: "kb-1",
 						AllowedDomains: []string{"app.example.com"}, RateLimit: 60, Status: "active",
 					}, nil
@@ -138,9 +138,9 @@ func TestApiKeyAuth(t *testing.T) {
 			name:   "valid key with non-matching origin returns 403",
 			apiKey: testKey,
 			origin: "https://evil.example.com",
-			lookup: &mockApiKeyLookup{lookupFn: func(_ context.Context, hash string) (*ApiKeyLookupResult, error) {
+			lookup: &mockAPIKeyLookup{lookupFn: func(_ context.Context, hash string) (*APIKeyLookupResult, error) {
 				if hash == testHash {
-					return &ApiKeyLookupResult{
+					return &APIKeyLookupResult{
 						ID: "key-1", OrgID: "org-1", KnowledgeBaseID: "kb-1",
 						AllowedDomains: []string{"app.example.com"}, RateLimit: 60, Status: "active",
 					}, nil
@@ -154,9 +154,9 @@ func TestApiKeyAuth(t *testing.T) {
 			name:   "domain restriction with no origin returns 403",
 			apiKey: testKey,
 			origin: "",
-			lookup: &mockApiKeyLookup{lookupFn: func(_ context.Context, hash string) (*ApiKeyLookupResult, error) {
+			lookup: &mockAPIKeyLookup{lookupFn: func(_ context.Context, hash string) (*APIKeyLookupResult, error) {
 				if hash == testHash {
-					return &ApiKeyLookupResult{
+					return &APIKeyLookupResult{
 						ID: "key-1", OrgID: "org-1", KnowledgeBaseID: "kb-1",
 						AllowedDomains: []string{"app.example.com"}, RateLimit: 60, Status: "active",
 					}, nil
@@ -170,9 +170,9 @@ func TestApiKeyAuth(t *testing.T) {
 			name:   "wildcard domain matches subdomain",
 			apiKey: testKey,
 			origin: "https://sub.example.com",
-			lookup: &mockApiKeyLookup{lookupFn: func(_ context.Context, hash string) (*ApiKeyLookupResult, error) {
+			lookup: &mockAPIKeyLookup{lookupFn: func(_ context.Context, hash string) (*APIKeyLookupResult, error) {
 				if hash == testHash {
-					return &ApiKeyLookupResult{
+					return &APIKeyLookupResult{
 						ID: "key-1", OrgID: "org-1", KnowledgeBaseID: "kb-1",
 						AllowedDomains: []string{"*.example.com"}, RateLimit: 60, Status: "active",
 					}, nil
@@ -186,9 +186,9 @@ func TestApiKeyAuth(t *testing.T) {
 			name:   "wildcard domain matches root domain",
 			apiKey: testKey,
 			origin: "https://example.com",
-			lookup: &mockApiKeyLookup{lookupFn: func(_ context.Context, hash string) (*ApiKeyLookupResult, error) {
+			lookup: &mockAPIKeyLookup{lookupFn: func(_ context.Context, hash string) (*APIKeyLookupResult, error) {
 				if hash == testHash {
-					return &ApiKeyLookupResult{
+					return &APIKeyLookupResult{
 						ID: "key-1", OrgID: "org-1", KnowledgeBaseID: "kb-1",
 						AllowedDomains: []string{"*.example.com"}, RateLimit: 60, Status: "active",
 					}, nil
@@ -203,7 +203,7 @@ func TestApiKeyAuth(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			r := setupApiKeyRouter(tc.lookup)
+			r := setupAPIKeyRouter(tc.lookup)
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodGet, "/test", nil)
 			if tc.apiKey != "" {

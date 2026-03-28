@@ -85,7 +85,6 @@ func (h *UsageAggregationHandler) aggregateUsage(ctx context.Context, orgID stri
 	if orgID != "" {
 		q += fmt.Sprintf(` AND org_id = $%d`, argIdx)
 		args = append(args, orgID)
-		argIdx++
 	}
 
 	q += `
