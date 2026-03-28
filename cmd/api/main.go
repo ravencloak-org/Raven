@@ -116,6 +116,7 @@ func main() {
 	sourceRepo := repository.NewSourceRepository(pool)
 	docRepo := repository.NewDocumentRepository(pool)
 	_ = repository.NewChunkRepository(pool) // wired for future service/handler layers
+	llmRepo := repository.NewLLMProviderRepository(pool)
 
 	// --- Wire services ---
 	orgSvc := service.NewOrgService(orgRepo)
@@ -124,6 +125,10 @@ func main() {
 	kbSvc := service.NewKBService(kbRepo, pool)
 	sourceSvc := service.NewSourceService(sourceRepo, pool)
 	docSvc := service.NewDocumentService(docRepo, pool)
+	llmSvc, err := service.NewLLMProviderService(llmRepo, pool, cfg.Encryption.AESKey)
+	if err != nil {
+		log.Fatalf("failed to initialise LLM provider service: %v", err)
+	}
 
 	// --- Wire handlers ---
 	orgHandler := handler.NewOrgHandler(orgSvc)
@@ -132,6 +137,7 @@ func main() {
 	kbHandler := handler.NewKBHandler(kbSvc)
 	sourceHandler := handler.NewSourceHandler(sourceSvc)
 	docHandler := handler.NewDocumentHandler(docSvc)
+	llmHandler := handler.NewLLMProviderHandler(llmSvc)
 
 	// Create router
 	router := gin.Default()
@@ -217,6 +223,17 @@ func main() {
 					doc.DELETE("/:doc_id", middleware.RequireWorkspaceRole("admin"), docHandler.Delete)
 				}
 			}
+		}
+
+		// --- LLM Provider routes (nested under org) ---
+		llm := api.Group("/orgs/:org_id/llm-providers")
+		{
+			llm.POST("", middleware.RequireOrgRole("org_admin"), llmHandler.Create)
+			llm.GET("", llmHandler.List)
+			llm.GET("/:provider_id", llmHandler.Get)
+			llm.PUT("/:provider_id", middleware.RequireOrgRole("org_admin"), llmHandler.Update)
+			llm.DELETE("/:provider_id", middleware.RequireOrgRole("org_admin"), llmHandler.Delete)
+			llm.PUT("/:provider_id/default", middleware.RequireOrgRole("org_admin"), llmHandler.SetDefault)
 		}
 
 		// --- User / me routes ---
