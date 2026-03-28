@@ -123,7 +123,7 @@ func TestSeaweedFSClient_Download_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Download() error: %v", err)
 	}
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	data, _ := io.ReadAll(rc)
 	if string(data) != "file content" {

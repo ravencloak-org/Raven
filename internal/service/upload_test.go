@@ -10,7 +10,7 @@ import (
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
 
-// mockStorageClient implements storage.StorageClient for unit tests.
+// mockStorageClient implements storage.Client for unit tests.
 type mockStorageClient struct {
 	uploadFn   func(ctx context.Context, filename string, reader io.Reader) (string, error)
 	downloadFn func(ctx context.Context, fid string) (io.ReadCloser, error)

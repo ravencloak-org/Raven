@@ -5,6 +5,7 @@ import "time"
 // ProcessingStatus represents the lifecycle state of a document's processing pipeline.
 type ProcessingStatus string
 
+// Processing status values for the document lifecycle.
 const (
 	ProcessingStatusQueued       ProcessingStatus = "queued"
 	ProcessingStatusCrawling     ProcessingStatus = "crawling"

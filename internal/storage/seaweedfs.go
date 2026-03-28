@@ -12,9 +12,9 @@ import (
 	"strings"
 )
 
-// StorageClient abstracts file storage operations so backends can be swapped
+// Client abstracts file storage operations so backends can be swapped
 // or mocked in tests.
-type StorageClient interface {
+type Client interface {
 	// Upload stores a file and returns the storage file ID.
 	Upload(ctx context.Context, filename string, reader io.Reader) (fid string, err error)
 	// Download retrieves a file by its storage ID.
@@ -64,7 +64,7 @@ func (c *SeaweedFSClient) Upload(ctx context.Context, filename string, reader io
 	if err != nil {
 		return "", fmt.Errorf("seaweedfs assign: %w", err)
 	}
-	defer assignResp.Body.Close()
+	defer func() { _ = assignResp.Body.Close() }()
 
 	if assignResp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(assignResp.Body)
@@ -117,7 +117,7 @@ func (c *SeaweedFSClient) Upload(ctx context.Context, filename string, reader io
 	if err != nil {
 		return "", fmt.Errorf("seaweedfs upload: %w", err)
 	}
-	defer uploadResp.Body.Close()
+	defer func() { _ = uploadResp.Body.Close() }()
 
 	// Wait for the multipart writer goroutine to complete.
 	if writeErr := <-errCh; writeErr != nil {
@@ -147,7 +147,7 @@ func (c *SeaweedFSClient) Download(ctx context.Context, fid string) (io.ReadClos
 	if err != nil {
 		return nil, fmt.Errorf("seaweedfs lookup: %w", err)
 	}
-	defer lookupResp.Body.Close()
+	defer func() { _ = lookupResp.Body.Close() }()
 
 	if lookupResp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(lookupResp.Body)
@@ -199,7 +199,7 @@ func (c *SeaweedFSClient) Delete(ctx context.Context, fid string) error {
 	if err != nil {
 		return fmt.Errorf("seaweedfs lookup: %w", err)
 	}
-	defer lookupResp.Body.Close()
+	defer func() { _ = lookupResp.Body.Close() }()
 
 	if lookupResp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(lookupResp.Body)
@@ -227,7 +227,7 @@ func (c *SeaweedFSClient) Delete(ctx context.Context, fid string) error {
 	if err != nil {
 		return fmt.Errorf("seaweedfs delete: %w", err)
 	}
-	defer delResp.Body.Close()
+	defer func() { _ = delResp.Body.Close() }()
 
 	if delResp.StatusCode != http.StatusOK && delResp.StatusCode != http.StatusAccepted {
 		body, _ := io.ReadAll(delResp.Body)

@@ -21,7 +21,7 @@ import (
 type UploadService struct {
 	repo         *repository.DocumentRepository
 	pool         *pgxpool.Pool
-	store        storage.StorageClient
+	store        storage.Client
 	maxSizeBytes int64
 	allowedTypes map[string]bool
 }
@@ -30,7 +30,7 @@ type UploadService struct {
 func NewUploadService(
 	repo *repository.DocumentRepository,
 	pool *pgxpool.Pool,
-	store storage.StorageClient,
+	store storage.Client,
 	maxSizeBytes int64,
 	allowedTypes []string,
 ) *UploadService {
