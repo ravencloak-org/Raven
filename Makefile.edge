@@ -1,0 +1,75 @@
+# Makefile.edge — Cross-compilation targets for Raven edge deployment.
+#
+# Build static Go binaries for ARM64 (Raspberry Pi) and AMD64 targets.
+# All builds use CGO_ENABLED=0 for fully static binaries with no libc dependency.
+#
+# Usage:
+#   make -f Makefile.edge build-arm64
+#   make -f Makefile.edge build-amd64
+#   make -f Makefile.edge build-all
+#   make -f Makefile.edge docker-arm64
+
+.PHONY: build-arm64 build-amd64 build-all clean docker-arm64 docker-amd64 docker-all
+
+# ─── Variables ───────────────────────────────────────────────────────────────
+APP_NAME    := raven-api
+VERSION     ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+BUILD_TIME  := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+LDFLAGS     := -s -w -X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME)
+BUILD_DIR   := bin/edge
+DOCKER_REPO ?= ghcr.io/ravencloak-org/raven-api
+
+# ─── Cross-compilation: ARM64 (Raspberry Pi, Apple Silicon) ──────────────────
+build-arm64:
+	@echo "Building $(APP_NAME) for linux/arm64..."
+	@mkdir -p $(BUILD_DIR)
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
+		go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(APP_NAME)-linux-arm64 ./cmd/api
+	@echo "Output: $(BUILD_DIR)/$(APP_NAME)-linux-arm64"
+
+# ─── Cross-compilation: AMD64 ───────────────────────────────────────────────
+build-amd64:
+	@echo "Building $(APP_NAME) for linux/amd64..."
+	@mkdir -p $(BUILD_DIR)
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+		go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(APP_NAME)-linux-amd64 ./cmd/api
+	@echo "Output: $(BUILD_DIR)/$(APP_NAME)-linux-amd64"
+
+# ─── Build both architectures ───────────────────────────────────────────────
+build-all: build-arm64 build-amd64
+	@echo "All edge binaries built in $(BUILD_DIR)/"
+
+# ─── Docker: ARM64 image ────────────────────────────────────────────────────
+docker-arm64:
+	docker buildx build \
+		--platform linux/arm64 \
+		--build-arg VERSION=$(VERSION) \
+		-t $(DOCKER_REPO):$(VERSION)-arm64 \
+		-t $(DOCKER_REPO):latest-arm64 \
+		--load \
+		.
+
+# ─── Docker: AMD64 image ────────────────────────────────────────────────────
+docker-amd64:
+	docker buildx build \
+		--platform linux/amd64 \
+		--build-arg VERSION=$(VERSION) \
+		-t $(DOCKER_REPO):$(VERSION)-amd64 \
+		-t $(DOCKER_REPO):latest-amd64 \
+		--load \
+		.
+
+# ─── Docker: multi-arch manifest ────────────────────────────────────────────
+docker-all: docker-arm64 docker-amd64
+	docker buildx build \
+		--platform linux/arm64,linux/amd64 \
+		--build-arg VERSION=$(VERSION) \
+		-t $(DOCKER_REPO):$(VERSION) \
+		-t $(DOCKER_REPO):latest \
+		--push \
+		.
+
+# ─── Clean ──────────────────────────────────────────────────────────────────
+clean:
+	rm -rf $(BUILD_DIR)
+	@echo "Cleaned $(BUILD_DIR)/"
