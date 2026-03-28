@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     otel_endpoint: str | None = None
     otel_enabled: bool = False
     log_level: str = "INFO"
+    liteparse_path: str = "liteparse"
 
     model_config = SettingsConfigDict(env_prefix="RAVEN_")
 
