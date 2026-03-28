@@ -43,6 +43,7 @@ import (
 	"github.com/ravencloak-org/Raven/internal/queue"
 	"github.com/ravencloak-org/Raven/internal/repository"
 	"github.com/ravencloak-org/Raven/internal/service"
+	"github.com/ravencloak-org/Raven/internal/storage"
 	"github.com/ravencloak-org/Raven/internal/telemetry"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
@@ -119,6 +120,9 @@ func main() {
 	_ = repository.NewChunkRepository(pool) // wired for future service/handler layers
 	llmRepo := repository.NewLLMProviderRepository(pool)
 
+	// --- Wire storage client ---
+	seaweedClient := storage.NewSeaweedFSClient(cfg.SeaweedFS.MasterURL, nil)
+
 	// --- Wire services ---
 	orgSvc := service.NewOrgService(orgRepo)
 	wsSvc := service.NewWorkspaceService(wsRepo, pool)
@@ -131,6 +135,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to initialise LLM provider service: %v", err)
 	}
+	uploadSvc := service.NewUploadService(docRepo, pool, seaweedClient, cfg.Upload.MaxSizeBytes, cfg.Upload.AllowedTypes)
 
 	// --- Wire handlers ---
 	orgHandler := handler.NewOrgHandler(orgSvc)
@@ -141,6 +146,7 @@ func main() {
 	docHandler := handler.NewDocumentHandler(docSvc)
 	searchHandler := handler.NewSearchHandler(searchSvc)
 	llmHandler := handler.NewLLMProviderHandler(llmSvc)
+	uploadHandler := handler.NewUploadHandler(uploadSvc)
 
 	// Create router
 	router := gin.Default()
@@ -209,6 +215,9 @@ func main() {
 
 				// Full-text search (nested under knowledge base)
 				kb.GET("/:kb_id/search", searchHandler.Search)
+
+				// Document upload
+				kb.POST("/:kb_id/documents/upload", middleware.RequireWorkspaceRole("member"), uploadHandler.Upload)
 
 				// Source routes (nested under knowledge base)
 				src := kb.Group("/:kb_id/sources")

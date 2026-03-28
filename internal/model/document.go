@@ -39,6 +39,21 @@ type UpdateDocumentRequest struct {
 	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
+// UploadDocumentResponse is returned after a successful document upload.
+type UploadDocumentResponse struct {
+	ID               string           `json:"id"`
+	OrgID            string           `json:"org_id"`
+	KnowledgeBaseID  string           `json:"knowledge_base_id"`
+	FileName         string           `json:"file_name"`
+	FileType         string           `json:"file_type"`
+	FileSizeBytes    int64            `json:"file_size_bytes"`
+	FileHash         string           `json:"file_hash"`
+	StoragePath      string           `json:"storage_path"`
+	ProcessingStatus ProcessingStatus `json:"processing_status"`
+	UploadedBy       string           `json:"uploaded_by,omitempty"`
+	CreatedAt        time.Time        `json:"created_at"`
+}
+
 // DocumentListResponse wraps a paginated list of documents.
 type DocumentListResponse struct {
 	Documents []Document `json:"documents"`

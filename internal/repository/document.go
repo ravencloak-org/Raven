@@ -184,3 +184,34 @@ func (r *DocumentRepository) UpdateStatus(ctx context.Context, tx pgx.Tx, orgID,
 	}
 	return nil
 }
+
+// FindByHash looks up an existing document by its file hash within a knowledge base.
+func (r *DocumentRepository) FindByHash(ctx context.Context, tx pgx.Tx, orgID, kbID, fileHash string) (*model.Document, error) {
+	row := tx.QueryRow(ctx,
+		`SELECT id, org_id, knowledge_base_id, file_name, file_type, file_size_bytes,
+		        file_hash, storage_path, processing_status, processing_error,
+		        title, page_count, metadata, uploaded_by, created_at, updated_at
+		 FROM documents
+		 WHERE org_id = $1 AND knowledge_base_id = $2 AND file_hash = $3
+		 LIMIT 1`,
+		orgID, kbID, fileHash,
+	)
+	var doc model.Document
+	var fileSizeBytes *int64
+	var pageCount *int
+	err := row.Scan(
+		&doc.ID, &doc.OrgID, &doc.KnowledgeBaseID, &doc.FileName, &doc.FileType,
+		&fileSizeBytes, &doc.FileHash, &doc.StoragePath, &doc.ProcessingStatus,
+		&doc.ProcessingError, &doc.Title, &pageCount, &doc.Metadata, &doc.UploadedBy,
+		&doc.CreatedAt, &doc.UpdatedAt,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("DocumentRepository.FindByHash: %w", err)
+	}
+	doc.FileSizeBytes = fileSizeBytes
+	doc.PageCount = pageCount
+	return &doc, nil
+}

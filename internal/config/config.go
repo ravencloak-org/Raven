@@ -19,6 +19,8 @@ type Config struct {
 	RateLimit  RateLimitConfig
 	Queue      QueueConfig
 	Encryption EncryptionConfig
+	SeaweedFS  SeaweedFSConfig
+	Upload     UploadConfig
 }
 
 // QueueConfig holds Asynq job queue settings.
@@ -29,9 +31,18 @@ type QueueConfig struct {
 
 // EncryptionConfig holds settings for data-at-rest encryption (e.g. LLM API keys).
 type EncryptionConfig struct {
-	// AESKey is a 64-character hex string representing a 32-byte AES-256 key.
-	// Set via RAVEN_ENCRYPTION_AESKEY environment variable.
 	AESKey string `mapstructure:"aes_key"`
+}
+
+// SeaweedFSConfig holds SeaweedFS connection settings.
+type SeaweedFSConfig struct {
+	MasterURL string `mapstructure:"master_url"`
+}
+
+// UploadConfig holds file upload settings.
+type UploadConfig struct {
+	MaxSizeBytes int64    `mapstructure:"max_size_bytes"`
+	AllowedTypes []string `mapstructure:"allowed_types"`
 }
 
 // KeycloakConfig holds Keycloak/OIDC settings for JWT validation.
@@ -109,6 +120,17 @@ func Load() (*Config, error) {
 	v.SetDefault("ratelimit.default_org_limit", 10000)
 	v.SetDefault("queue.concurrency", 10)
 	v.SetDefault("queue.max_retry", 5)
+	v.SetDefault("seaweedfs.master_url", "http://seaweedfs-master:9333")
+	v.SetDefault("upload.max_size_bytes", 52428800) // 50 MB
+	v.SetDefault("upload.allowed_types", []string{
+		"application/pdf",
+		"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		"application/vnd.openxmlformats-officedocument.presentationml.presentation",
+		"text/html",
+		"text/markdown",
+		"text/plain",
+		"text/csv",
+	})
 
 	// Config file (optional)
 	v.SetConfigName("config")
