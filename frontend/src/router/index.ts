@@ -29,6 +29,54 @@ const router = createRouter({
           name: 'dashboard',
           component: () => import('../pages/DashboardPage.vue'),
         },
+        {
+          path: 'orgs/:orgId',
+          name: 'org-detail',
+          component: () => import('../pages/orgs/OrgDetailPage.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
+          path: 'orgs/:orgId/workspaces',
+          name: 'workspace-list',
+          component: () => import('../pages/workspaces/WorkspaceListPage.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
+          path: 'orgs/:orgId/workspaces/:wsId',
+          name: 'workspace-detail',
+          component: () => import('../pages/workspaces/WorkspaceDetailPage.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
+          path: 'orgs/:orgId/workspaces/:wsId/knowledge-bases',
+          name: 'kb-list',
+          component: () => import('../pages/knowledge-bases/KBListPage.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
+          path: 'orgs/:orgId/workspaces/:wsId/knowledge-bases/:kbId',
+          name: 'kb-detail',
+          component: () => import('../pages/knowledge-bases/KBDetailPage.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
+          path: 'analytics',
+          name: 'analytics',
+          component: () => import('../pages/analytics/AnalyticsDashboardPage.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
+          path: 'api-keys',
+          name: 'api-keys',
+          component: () => import('../pages/apikeys/ApiKeyListPage.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
+          path: 'llm-providers',
+          name: 'llm-providers',
+          component: () => import('../pages/llm-providers/LlmProviderListPage.vue'),
+          meta: { requiresAuth: true },
+        },
       ],
     },
     {
@@ -39,15 +87,20 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
-  const authStore = useAuthStore()
-
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    return { name: 'login', query: { redirect: to.fullPath } }
+router.beforeEach(async (to) => {
+  if (to.meta.requiresAuth) {
+    const auth = useAuthStore()
+    if (!auth.isAuthenticated) {
+      auth.login()
+      return false
+    }
   }
 
-  if (to.name === 'login' && authStore.isAuthenticated) {
-    return { name: 'dashboard' }
+  if (to.name === 'login') {
+    const auth = useAuthStore()
+    if (auth.isAuthenticated) {
+      return { name: 'dashboard' }
+    }
   }
 })
 

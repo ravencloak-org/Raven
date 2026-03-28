@@ -26,18 +26,6 @@ const (
 	CrawlFrequencyMonthly CrawlFrequency = "monthly"
 )
 
-// ProcessingStatus tracks the lifecycle of a source crawl job.
-type ProcessingStatus string
-
-// ProcessingStatusQueued, ProcessingStatusProcessing, ProcessingStatusCompleted,
-// and ProcessingStatusFailed are the valid processing status values.
-const (
-	ProcessingStatusQueued     ProcessingStatus = "queued"
-	ProcessingStatusProcessing ProcessingStatus = "processing"
-	ProcessingStatusCompleted  ProcessingStatus = "completed"
-	ProcessingStatusFailed     ProcessingStatus = "failed"
-)
-
 // Source represents a web source attached to a knowledge base.
 type Source struct {
 	ID               string           `json:"id"`
