@@ -711,20 +711,24 @@ Each integration opens a new distribution channel.
 
 | Priority | Feature | Tool | Effort |
 |----------|---------|------|--------|
-| **P0 (MVP)** | Razorpay Checkout for subscriptions | Razorpay Subscriptions API | 2-3 days |
-| **P0 (MVP)** | Webhook handler for payment events | Razorpay Webhooks | 1-2 days |
-| **P0 (MVP)** | Org <-> Razorpay Customer mapping | Go API (`razorpay-go`) + PostgreSQL | 1 day |
+| **P0 (MVP)** | Deploy Hyperswitch payment orchestration | Hyperswitch (Docker self-hosted) | 1-2 days |
+| **P0 (MVP)** | Configure Razorpay connector (domestic INR) | Hyperswitch + Razorpay | 1 day |
+| **P0 (MVP)** | Configure Paddle connector (international MoR) | Hyperswitch + Paddle | 1 day |
+| **P0 (MVP)** | Smart routing rules (domestic→Razorpay, international→Paddle) | Hyperswitch routing config | 1 day |
+| **P0 (MVP)** | Unified webhook handler for payment events | Go API + Hyperswitch webhooks | 1-2 days |
+| **P0 (MVP)** | Org <-> Hyperswitch Customer mapping | Go API + PostgreSQL | 1 day |
 | **P0 (MVP)** | Plan/tier enforcement (feature gates) | Go middleware | 2-3 days |
 | **P1 (v1.0)** | Usage metering (message count, document count) | Go API counters -> PostgreSQL | 2-3 days |
-| **P1 (v1.0)** | Usage-based overage billing | Razorpay Add-ons API | 2-3 days |
-| **P1 (v1.0)** | Self-service plan management UI | Vue.js + Razorpay hosted page | 1-2 days |
-| **P2 (v1.1)** | Annual billing toggle | Razorpay plan switching | 1 day |
+| **P1 (v1.0)** | Usage-based overage billing | Hyperswitch + gateway add-ons | 2-3 days |
+| **P1 (v1.0)** | Self-service plan management UI | Vue.js + Hyperswitch hosted page | 1-2 days |
+| **P2 (v1.1)** | Annual billing toggle | Hyperswitch plan switching | 1 day |
 | **P2 (v1.1)** | Voice minute metering (Phase 2) | Go API + LiveKit hooks | 2 days |
+| **P2 (v1.1)** | Cost observability dashboard | Hyperswitch built-in | 1 day |
 | **P3 (future)** | Lago/OpenMeter for advanced metering | Lago API | 1-2 weeks |
-| **P3 (future)** | Enterprise invoice billing (net-30) | Razorpay Invoicing | 1-2 days |
-| **P3 (future)** | Paddle as international MoR (if tax compliance needed) | Paddle API | 1-2 weeks |
+| **P3 (future)** | Enterprise invoice billing (net-30) | Hyperswitch invoicing | 1-2 days |
+| **P3 (future)** | Additional gateways (Stripe, Adyen, PayPal) | Hyperswitch connectors | 1 day each |
 
-> **Why Razorpay, not Stripe:** Stripe is not officially supported for Indian businesses. Razorpay handles both domestic (UPI, RuPay, netbanking) and international (Visa, Mastercard) payments with settlement to Indian bank accounts. Go SDK: `github.com/razorpay/razorpay-go`. If international tax compliance becomes complex at scale, add Paddle as Merchant of Record for international customers.
+> **Payment Orchestration via Hyperswitch:** Instead of integrating directly with Razorpay or Stripe, Raven uses Hyperswitch (open-source, Apache 2.0, by Juspay — 41.8K GitHub stars, Rust) as a payment orchestration layer. One API integration, multiple gateway backends. Smart routing picks the cheapest or highest-success-rate gateway per transaction. Automatic failover if any gateway is down. Razorpay handles domestic India (UPI, RuPay, netbanking), Paddle handles international (Visa/MC + Merchant of Record for tax compliance). Additional gateways can be added via Hyperswitch connectors without code changes.
 
 ### Usage Metering Architecture
 
@@ -735,11 +739,11 @@ Each integration opens a new distribution channel.
                                                          |
 [Voice Session] --> [LiveKit webhook] --> log minutes ---+
                                                          |
-                    [Cron: hourly] --> report to Razorpay Add-ons API
+                    [Cron: hourly] --> report to Hyperswitch usage API
                                          |
                     [Cron: daily] --> check limits --> soft-cap warnings (email)
                                          |
-                    [Cron: monthly] --> Razorpay invoice with overages
+                    [Cron: monthly] --> Hyperswitch invoice with overages
 ```
 
 ### Feature Gate Implementation
@@ -756,7 +760,7 @@ Request -> Auth middleware -> Plan middleware -> Handler
                                +-- If feature not in plan: return 403 with plan info
 ```
 
-Store plan definitions in PostgreSQL, cached in Valkey. Razorpay webhooks update the plan when payment succeeds/fails. License keys for `ee/` features are generated on `subscription.activated` webhook.
+Store plan definitions in PostgreSQL, cached in Valkey. Hyperswitch unified webhooks update the plan when payment succeeds/fails (regardless of which gateway processed it). License keys for `ee/` features are generated on `subscription.activated` webhook.
 
 ---
 
@@ -815,6 +819,7 @@ Store plan definitions in PostgreSQL, cached in Valkey. Razorpay webhooks update
 | **Primary revenue model** | Hybrid (subscription + usage overage) | Industry standard; predictable base + upside from power users |
 | **Distribution model** | Open-core with `ee/` directory split | Maximizes adoption; proven by GitLab/PostHog/Sentry/Dify |
 | **License enforcement** | Signed JWT license key + Raven Enterprise License on `ee/` | Legally enforceable; revenue-threshold gate for startups |
+| **Payment orchestration** | Hyperswitch (Razorpay domestic + Paddle international) | Open-source, gateway-independent, smart routing + failover. Stripe not available in India. |
 | **Starting infrastructure** | Hetzner (not AWS) | 5-10x cheaper; break-even with 2 customers vs. 5-6 |
 | **Entry price point** | $29/month (cloud), $99/month (self-hosted pro) | Above Chatbase ($19) to signal quality; below CustomGPT ($89) for accessibility |
 | **Free tier generosity** | 500 messages, 50 docs, 1 KB | Generous enough for testing; forces upgrade for any real usage |
