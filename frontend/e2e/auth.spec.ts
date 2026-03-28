@@ -1,15 +1,16 @@
 import { test, expect } from '@playwright/test'
 
-test('unauthenticated user sees login page', async ({ page }) => {
-  await page.goto('/')
-  // Since Keycloak isn't running in test, check that the UI shows auth state
-  await expect(page.locator('text=Login')).toBeVisible({ timeout: 5000 })
+// Abort Keycloak requests so keycloak.init() resolves fast as unauthenticated
+test.beforeEach(async ({ page }) => {
+  await page.route('**/realms/**', (route) => route.abort())
 })
 
-test('login button redirects to Keycloak', async ({ page }) => {
-  await page.goto('/')
-  // Mock: just check the login button exists and is clickable
-  const loginBtn = page.getByRole('button', { name: /login/i })
-    .or(page.getByRole('link', { name: /login/i }))
-  await expect(loginBtn).toBeVisible({ timeout: 5000 })
+test('login page shows sign in button', async ({ page }) => {
+  await page.goto('/login')
+  await expect(page.getByRole('button', { name: 'Login' })).toBeVisible({ timeout: 15000 })
+})
+
+test('login page shows Raven branding', async ({ page }) => {
+  await page.goto('/login')
+  await expect(page.getByRole('heading', { name: 'Sign in to Raven' })).toBeVisible({ timeout: 15000 })
 })
