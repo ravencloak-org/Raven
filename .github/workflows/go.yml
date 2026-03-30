@@ -3,29 +3,35 @@ name: Go CI
 on:
   push:
     branches: [main]
-    paths:
-      - 'cmd/**'
-      - 'internal/**'
-      - 'pkg/**'
-      - 'go.mod'
-      - 'go.sum'
-      - '.github/workflows/go.yml'
   pull_request:
     branches: [main]
-    paths:
-      - 'cmd/**'
-      - 'internal/**'
-      - 'pkg/**'
-      - 'go.mod'
-      - 'go.sum'
-      - '.github/workflows/go.yml'
 
 permissions:
   contents: read
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      src: ${{ steps.filter.outputs.src }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            src:
+              - 'cmd/**'
+              - 'internal/**'
+              - 'pkg/**'
+              - 'go.mod'
+              - 'go.sum'
+              - '.github/workflows/go.yml'
+
   build-and-test:
     name: Build & Test
+    needs: changes
+    if: needs.changes.outputs.src == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -58,8 +64,18 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+  build-and-test-skip:
+    name: Build & Test
+    needs: changes
+    if: needs.changes.outputs.src != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "No Go changes, skipping"
+
   lint:
     name: Lint
+    needs: changes
+    if: needs.changes.outputs.src == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -75,3 +91,11 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.11.4
+
+  lint-skip:
+    name: Lint
+    needs: changes
+    if: needs.changes.outputs.src != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "No Go changes, skipping"
