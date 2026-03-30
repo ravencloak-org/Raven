@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "bfb5ed1cb2c5",
+  "strategy": "manual-commit",
+  "branch": "ci/playwright-mypy-workflows",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/superpowers/specs/2026-03-30-pr-automation-design.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/bf/b5ed1cb2c5/0/metadata.json",
+      "transcript": "/bf/b5ed1cb2c5/0/full.jsonl",
+      "context": "/bf/b5ed1cb2c5/0/context.md",
+      "content_hash": "/bf/b5ed1cb2c5/0/content_hash.txt",
+      "prompt": "/bf/b5ed1cb2c5/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 75,
+    "cache_creation_tokens": 62579,
+    "cache_read_tokens": 1646156,
+    "output_tokens": 16597,
+    "api_call_count": 42
+  }
+}
