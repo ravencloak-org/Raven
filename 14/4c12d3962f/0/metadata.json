@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "144c12d3962f",
+  "session_id": "fc9e8c4e-a337-4a7d-ae04-548ba3d20493",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-30T16:28:43.868399Z",
+  "branch": "ci/playwright-mypy-workflows",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/superpowers/plans/2026-03-30-pr-automation.md",
+    "docs/superpowers/specs/2026-03-30-pr-automation-design.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "56bf6aa1-a295-4e70-9051-06f082e97cb0",
+  "checkpoint_transcript_start": 169,
+  "transcript_lines_at_start": 169,
+  "token_usage": {
+    "input_tokens": 18,
+    "cache_creation_tokens": 20866,
+    "cache_read_tokens": 913326,
+    "output_tokens": 11161,
+    "api_call_count": 13
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-30T16:28:43.814265Z",
+    "agent_lines": 809,
+    "human_added": 141,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 950,
+    "agent_percentage": 85.15789473684211
+  }
+}
