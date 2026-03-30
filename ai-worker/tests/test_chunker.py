@@ -146,3 +146,36 @@ def test_paragraph_splitting():
     text = "\n\n".join(paragraphs)
     chunks = chunker.chunk(text)
     assert len(chunks) > 1
+
+
+# --- Constructor validation ---
+
+
+def test_invalid_chunk_size_zero_raises():
+    import pytest
+    with pytest.raises(ValueError, match="chunk_size must be > 0"):
+        TextChunker(chunk_size=0)
+
+
+def test_invalid_chunk_size_negative_raises():
+    import pytest
+    with pytest.raises(ValueError, match="chunk_size must be > 0"):
+        TextChunker(chunk_size=-1)
+
+
+def test_invalid_chunk_overlap_negative_raises():
+    import pytest
+    with pytest.raises(ValueError, match="chunk_overlap must be >= 0"):
+        TextChunker(chunk_size=100, chunk_overlap=-1)
+
+
+def test_invalid_chunk_overlap_equals_chunk_size_raises():
+    import pytest
+    with pytest.raises(ValueError, match="chunk_overlap must be < chunk_size"):
+        TextChunker(chunk_size=100, chunk_overlap=100)
+
+
+def test_invalid_chunk_overlap_exceeds_chunk_size_raises():
+    import pytest
+    with pytest.raises(ValueError, match="chunk_overlap must be < chunk_size"):
+        TextChunker(chunk_size=100, chunk_overlap=200)

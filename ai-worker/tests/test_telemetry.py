@@ -57,18 +57,19 @@ class TestInitTelemetryWithEndpoint:
 
     def test_missing_packages_logs_warning(self) -> None:
         """If OTel SDK is not installed, a warning is logged instead of crashing."""
-        with _hide_imports("opentelemetry"):
-            import raven_worker.telemetry as tel_mod
+        import raven_worker.telemetry as tel_mod
 
+        try:
+            with _hide_imports("opentelemetry"):
+                importlib.reload(tel_mod)
+
+                # Patch the logger AFTER the reload so it targets the live object.
+                with patch.object(tel_mod, "logger") as mock_logger:
+                    tel_mod.init_telemetry(service_name="test", endpoint="localhost:4317")
+                    mock_logger.warning.assert_called_once()
+        finally:
+            # Always restore module state for subsequent tests.
             importlib.reload(tel_mod)
-
-            # Patch the logger AFTER the reload so it targets the live object.
-            with patch.object(tel_mod, "logger") as mock_logger:
-                tel_mod.init_telemetry(service_name="test", endpoint="localhost:4317")
-                mock_logger.warning.assert_called_once()
-
-        # Reload after context manager restores original imports.
-        importlib.reload(tel_mod)
 
     def test_with_endpoint_configures_tracer(self) -> None:
         """When a valid endpoint is given the tracer provider should be set."""
@@ -96,11 +97,12 @@ class TestGrpcInterceptor:
 
     def test_returns_none_when_package_missing(self) -> None:
         """Without the instrumentation package, None should be returned."""
-        with _hide_imports("instrumentation"):
-            import raven_worker.telemetry as tel_mod
+        import raven_worker.telemetry as tel_mod
 
+        try:
+            with _hide_imports("instrumentation"):
+                importlib.reload(tel_mod)
+                result = tel_mod.get_grpc_server_interceptor()
+                assert result is None
+        finally:
             importlib.reload(tel_mod)
-            result = tel_mod.get_grpc_server_interceptor()
-            assert result is None
-
-        importlib.reload(tel_mod)
