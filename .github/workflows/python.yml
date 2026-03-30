@@ -3,21 +3,32 @@ name: Python CI
 on:
   push:
     branches: [main]
-    paths:
-      - 'ai-worker/**'
-      - 'proto/**'
   pull_request:
     branches: [main]
-    paths:
-      - 'ai-worker/**'
-      - 'proto/**'
 
 permissions:
   contents: read
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      src: ${{ steps.filter.outputs.src }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            src:
+              - 'ai-worker/**'
+              - 'proto/**'
+              - '.github/workflows/python.yml'
+
   test:
     name: Lint, Type-check & Test
+    needs: changes
+    if: needs.changes.outputs.src == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -54,3 +65,11 @@ jobs:
           name: coverage-report
           path: ai-worker/coverage.xml
           retention-days: 7
+
+  test-skip:
+    name: Lint, Type-check & Test
+    needs: changes
+    if: needs.changes.outputs.src != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "No Python changes, skipping"
