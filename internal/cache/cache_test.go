@@ -16,22 +16,22 @@ func setupCache(t *testing.T, ttl time.Duration) (*ResponseCache, *miniredis.Min
 	t.Helper()
 	mr := miniredis.RunT(t)
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	t.Cleanup(func() { client.Close() })
+	t.Cleanup(func() { _ = client.Close() })
 	return NewResponseCache(client, ttl), mr
 }
 
 func TestCacheKey_Deterministic(t *testing.T) {
 	// Same inputs must always produce the same key.
-	key1 := CacheKey("kb-123", "What is RAG?")
-	key2 := CacheKey("kb-123", "What is RAG?")
+	key1 := Key("kb-123", "What is RAG?")
+	key2 := Key("kb-123", "What is RAG?")
 	assert.Equal(t, key1, key2)
 
 	// Different kb_id must produce a different key.
-	key3 := CacheKey("kb-999", "What is RAG?")
+	key3 := Key("kb-999", "What is RAG?")
 	assert.NotEqual(t, key1, key3)
 
 	// Different query must produce a different key.
-	key4 := CacheKey("kb-123", "How does RAG work?")
+	key4 := Key("kb-123", "How does RAG work?")
 	assert.NotEqual(t, key1, key4)
 
 	// Key must start with the expected prefix.
@@ -41,10 +41,10 @@ func TestCacheKey_Deterministic(t *testing.T) {
 
 func TestCacheKey_NormalizesQuery(t *testing.T) {
 	// Leading/trailing whitespace and case differences should produce the same key.
-	key1 := CacheKey("kb-1", "Hello World")
-	key2 := CacheKey("kb-1", "  hello world  ")
-	key3 := CacheKey("kb-1", "HELLO WORLD")
-	key4 := CacheKey("kb-1", "  HELLO world ")
+	key1 := Key("kb-1", "Hello World")
+	key2 := Key("kb-1", "  hello world  ")
+	key3 := Key("kb-1", "HELLO WORLD")
+	key4 := Key("kb-1", "  HELLO world ")
 
 	assert.Equal(t, key1, key2)
 	assert.Equal(t, key1, key3)
@@ -192,7 +192,7 @@ func TestCache_InvalidateKB_Empty(t *testing.T) {
 func TestNewResponseCache_DefaultTTL(t *testing.T) {
 	mr := miniredis.RunT(t)
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	t.Cleanup(func() { client.Close() })
+	t.Cleanup(func() { _ = client.Close() })
 
 	rc := NewResponseCache(client, 0)
 	assert.Equal(t, DefaultTTL, rc.ttl)

@@ -63,7 +63,7 @@ func NewResponseCache(client *redis.Client, ttl time.Duration) *ResponseCache {
 
 // CacheKey generates a deterministic cache key from a knowledge-base ID and query string.
 // The query is normalised (lowercased + trimmed) before hashing.
-func CacheKey(kbID, query string) string {
+func Key(kbID, query string) string {
 	h := sha256.Sum256([]byte(fmt.Sprintf("%s:%s", kbID, normalizeQuery(query))))
 	return KeyPrefix + hex.EncodeToString(h[:])
 }
@@ -81,7 +81,7 @@ func normalizeQuery(q string) string {
 
 // Get retrieves a cached response. Returns nil, nil if not found.
 func (c *ResponseCache) Get(ctx context.Context, kbID, query string) (*CachedResponse, error) {
-	key := CacheKey(kbID, query)
+	key := Key(kbID, query)
 	data, err := c.client.Get(ctx, key).Bytes()
 	if err != nil {
 		if err == redis.Nil {
@@ -100,7 +100,7 @@ func (c *ResponseCache) Get(ctx context.Context, kbID, query string) (*CachedRes
 // Set stores a response in the cache with TTL. It also adds the cache key to
 // the per-KB secondary index set for efficient KB-level invalidation.
 func (c *ResponseCache) Set(ctx context.Context, kbID, query string, resp *CachedResponse) error {
-	key := CacheKey(kbID, query)
+	key := Key(kbID, query)
 
 	data, err := json.Marshal(resp)
 	if err != nil {
@@ -121,7 +121,7 @@ func (c *ResponseCache) Set(ctx context.Context, kbID, query string, resp *Cache
 
 // Invalidate removes a specific cache entry and its reference from the KB set.
 func (c *ResponseCache) Invalidate(ctx context.Context, kbID, query string) error {
-	key := CacheKey(kbID, query)
+	key := Key(kbID, query)
 
 	pipe := c.client.Pipeline()
 	pipe.Del(ctx, key)
