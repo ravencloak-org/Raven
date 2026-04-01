@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "52b9ed36e838",
+  "session_id": "fc9e8c4e-a337-4a7d-ae04-548ba3d20493",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-01T09:00:07.0873Z",
+  "branch": "fix/ci-skip-job-pattern",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/docker.yml",
+    ".github/workflows/frontend.yml",
+    ".github/workflows/go.yml",
+    ".github/workflows/python.yml"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "180bf314-610c-4140-a20d-b8d4b5084fee",
+  "checkpoint_transcript_start": 522,
+  "transcript_lines_at_start": 522,
+  "token_usage": {
+    "input_tokens": 24,
+    "cache_creation_tokens": 13758,
+    "cache_read_tokens": 2663377,
+    "output_tokens": 6575,
+    "api_call_count": 20
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-01T09:00:06.98023Z",
+    "agent_lines": 73,
+    "human_added": 151,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 225,
+    "agent_percentage": 32.44444444444444
+  }
+}
