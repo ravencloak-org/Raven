@@ -28,3 +28,4 @@ Use `type/descriptor` format:
 - **Never push directly to `main`** — always use a PR
 - **Squash merge only** — never regular merge or rebase-merge
 - **Never use `--no-verify`** — all hooks must pass
+- **Never amend published commits** — create new commits instead
