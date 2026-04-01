@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     otel_enabled: bool = False
     log_level: str = "INFO"
     liteparse_path: str = "liteparse"
+    encryption_key: str = ""  # base64-encoded 32-byte AES key for BYOK decryption
 
     model_config = SettingsConfigDict(env_prefix="RAVEN_")
 
