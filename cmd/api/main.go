@@ -35,6 +35,7 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
+	"github.com/ravencloak-org/Raven/internal/cache"
 	"github.com/ravencloak-org/Raven/internal/config"
 	"github.com/ravencloak-org/Raven/internal/db"
 	_ "github.com/ravencloak-org/Raven/docs/swagger" // swagger docs
@@ -86,6 +87,12 @@ func main() {
 
 	// Build rate limiter using config-driven limits.
 	rl := middleware.NewRateLimiter(valkeyClient, slog.Default())
+
+	// --- Response cache ---
+	// Exact-match RAG response cache backed by Valkey. Will be passed to the
+	// chat service once #34 (chat endpoint) merges.
+	responseCache := cache.NewResponseCache(valkeyClient, 1*time.Hour)
+	_ = responseCache // TODO(#34): pass to chat service
 
 	// --- Asynq queue client ---
 	// The queue client is initialised here and will be passed to services that
