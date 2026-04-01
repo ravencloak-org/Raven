@@ -61,7 +61,7 @@ func NewResponseCache(client *redis.Client, ttl time.Duration) *ResponseCache {
 	return &ResponseCache{client: client, ttl: ttl}
 }
 
-// CacheKey generates a deterministic cache key from a knowledge-base ID and query string.
+// Key generates a deterministic cache key from a knowledge-base ID and query string.
 // The query is normalised (lowercased + trimmed) before hashing.
 func Key(kbID, query string) string {
 	h := sha256.Sum256([]byte(fmt.Sprintf("%s:%s", kbID, normalizeQuery(query))))
