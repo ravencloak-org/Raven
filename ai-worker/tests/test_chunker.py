@@ -1,5 +1,7 @@
 """Tests for the TextChunker (RecursiveCharacterTextSplitter)."""
 
+import pytest
+
 from raven_worker.processors.chunker import Chunk, TextChunker
 
 
@@ -146,3 +148,21 @@ def test_paragraph_splitting():
     text = "\n\n".join(paragraphs)
     chunks = chunker.chunk(text)
     assert len(chunks) > 1
+
+
+# --- Constructor validation ---
+
+
+@pytest.mark.parametrize(
+    "kwargs,expected_error",
+    [
+        ({"chunk_size": 0}, "chunk_size must be > 0"),
+        ({"chunk_size": -1}, "chunk_size must be > 0"),
+        ({"chunk_size": 100, "chunk_overlap": -1}, "chunk_overlap must be >= 0"),
+        ({"chunk_size": 100, "chunk_overlap": 100}, "chunk_overlap must be < chunk_size"),
+        ({"chunk_size": 100, "chunk_overlap": 200}, "chunk_overlap must be < chunk_size"),
+    ],
+)
+def test_invalid_chunker_params_raise(kwargs, expected_error):
+    with pytest.raises(ValueError, match=expected_error):
+        TextChunker(**kwargs)

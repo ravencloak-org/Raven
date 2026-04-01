@@ -57,4 +57,4 @@ class OpenAIEmbeddingProvider:
 
 def _verify_protocol_compliance() -> None:
     """Static assertion that OpenAIEmbeddingProvider satisfies EmbeddingProvider."""
-    _: EmbeddingProvider = OpenAIEmbeddingProvider()  # noqa: F841
+    _: EmbeddingProvider = OpenAIEmbeddingProvider()
