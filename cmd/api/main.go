@@ -38,8 +38,10 @@ import (
 	"github.com/ravencloak-org/Raven/internal/config"
 	"github.com/ravencloak-org/Raven/internal/db"
 	_ "github.com/ravencloak-org/Raven/docs/swagger" // swagger docs
+	rpcClient "github.com/ravencloak-org/Raven/internal/grpc"
 	"github.com/ravencloak-org/Raven/internal/handler"
 	"github.com/ravencloak-org/Raven/internal/middleware"
+	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/internal/queue"
 	"github.com/ravencloak-org/Raven/internal/repository"
 	"github.com/ravencloak-org/Raven/internal/service"
@@ -47,6 +49,32 @@ import (
 	"github.com/ravencloak-org/Raven/internal/telemetry"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
+
+// apiKeyLookupAdapter bridges the APIKeyRepository to the middleware.APIKeyLookup
+// interface without creating a circular import dependency.
+type apiKeyLookupAdapter struct {
+	repo *repository.APIKeyRepository
+}
+
+func (a *apiKeyLookupAdapter) LookupByHash(ctx context.Context, keyHash string) (*middleware.APIKeyLookupResult, error) {
+	ak, err := a.repo.GetByKeyHashNoTx(ctx, keyHash)
+	if err != nil {
+		return nil, err
+	}
+	return apiKeyToLookupResult(ak), nil
+}
+
+func apiKeyToLookupResult(ak *model.APIKey) *middleware.APIKeyLookupResult {
+	return &middleware.APIKeyLookupResult{
+		ID:              ak.ID,
+		OrgID:           ak.OrgID,
+		WorkspaceID:     ak.WorkspaceID,
+		KnowledgeBaseID: ak.KnowledgeBaseID,
+		AllowedDomains:  ak.AllowedDomains,
+		RateLimit:       ak.RateLimit,
+		Status:          string(ak.Status),
+	}
+}
 
 func main() {
 	// Load configuration
@@ -122,6 +150,17 @@ func main() {
 	processingEventRepo := repository.NewProcessingEventRepository()
 	apiKeyRepo := repository.NewAPIKeyRepository(pool)
 
+	// --- gRPC client for AI worker ---
+	grpcClient, err := rpcClient.NewClient(cfg.GRPC.WorkerAddr)
+	if err != nil {
+		log.Fatalf("failed to connect to AI worker: %v", err)
+	}
+	defer func() {
+		if err := grpcClient.Close(); err != nil {
+			log.Printf("grpc client close error: %v", err)
+		}
+	}()
+
 	// --- Wire storage client ---
 	seaweedClient := storage.NewSeaweedFSClient(cfg.SeaweedFS.MasterURL, nil)
 
@@ -140,6 +179,8 @@ func main() {
 	uploadSvc := service.NewUploadService(docRepo, pool, seaweedClient, cfg.Upload.MaxSizeBytes, cfg.Upload.AllowedTypes)
 	processingSvc := service.NewProcessingEventService(processingEventRepo, docRepo, pool)
 	apiKeySvc := service.NewAPIKeyService(apiKeyRepo, pool)
+	chatRepo := repository.NewChatRepository(pool)
+	chatSvc := service.NewChatService(chatRepo, grpcClient, pool)
 
 	// --- Wire handlers ---
 	orgHandler := handler.NewOrgHandler(orgSvc)
@@ -153,6 +194,7 @@ func main() {
 	uploadHandler := handler.NewUploadHandler(uploadSvc)
 	processingHandler := handler.NewProcessingEventHandler(processingSvc)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeySvc)
+	chatHandler := handler.NewChatHandler(chatSvc)
 
 	// Create router
 	router := gin.Default()
@@ -274,6 +316,13 @@ func main() {
 		api.PUT("/me", userHandler.UpdateMe)
 		api.DELETE("/me", userHandler.DeleteMe)
 		api.GET("/users/:user_id", middleware.RequireOrgRole("org_admin"), userHandler.GetUser)
+	}
+
+	// Public chat routes — API key authentication (for embeddable chat widget).
+	chatAPI := router.Group("/api/v1/chat")
+	chatAPI.Use(middleware.APIKeyAuth(&apiKeyLookupAdapter{repo: apiKeyRepo}))
+	{
+		chatAPI.POST("/:kb_id/completions", chatHandler.StreamCompletion)
 	}
 
 	// Internal routes — no JWT, no rate limiting.
