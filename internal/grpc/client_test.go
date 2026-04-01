@@ -28,7 +28,7 @@ func TestNewClient_WorkerNotNil(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewClient returned unexpected error: %v", err)
 	}
-	defer c.Close()
+	defer c.Close() //nolint:errcheck
 
 	if c.Worker() == nil {
 		t.Error("expected Worker() to return a non-nil AIWorkerClient")
