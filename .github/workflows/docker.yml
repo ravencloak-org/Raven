@@ -3,26 +3,34 @@ name: Docker Build & Push
 on:
   push:
     branches: [main]
-    paths:
-      - 'Dockerfile'
-      - 'ai-worker/Dockerfile'
-      - 'docker-compose.yml'
-      - '.github/workflows/docker.yml'
   pull_request:
     branches: [main]
-    paths:
-      - 'Dockerfile'
-      - 'ai-worker/Dockerfile'
-      - 'docker-compose.yml'
-      - '.github/workflows/docker.yml'
 
 permissions:
   contents: read
   packages: write
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      src: ${{ steps.filter.outputs.src }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            src:
+              - 'Dockerfile'
+              - 'ai-worker/Dockerfile'
+              - 'docker-compose.yml'
+              - '.github/workflows/docker.yml'
+
   build:
     name: Build ${{ matrix.image }}
+    needs: changes
+    if: needs.changes.outputs.src == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -62,3 +70,19 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ github.sha }}
+
+  build-skip-go-api:
+    name: Build go-api
+    needs: changes
+    if: needs.changes.outputs.src != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "No Docker changes, skipping"
+
+  build-skip-python-worker:
+    name: Build python-worker
+    needs: changes
+    if: needs.changes.outputs.src != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "No Docker changes, skipping"
