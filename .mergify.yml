@@ -1,0 +1,42 @@
+pull_request_rules:
+  - name: Auto-update PRs behind main
+    conditions:
+      - base = main
+      - -draft
+      - -title ~= "^WIP"
+      - -conflict
+      - -merged
+      - -closed
+      - "#commits-behind > 0"
+    actions:
+      update: {}
+
+  - name: Auto squash-merge when CI passes
+    conditions:
+      - base = main
+      - -draft
+      - -title ~= "^WIP"
+      - -conflict
+      - check-success = "Go CI / Build & Test"
+      - check-success = "Go CI / Lint"
+      - check-success = "Python CI / Lint, Type-check & Test"
+      - check-success = "Frontend CI / Lint & Build"
+      - check-success = "Frontend CI / Playwright E2E"
+      - check-success = "Docker Build & Push / Build go-api"
+      - check-success = "Docker Build & Push / Build python-worker"
+      - label != "needs-review"
+    actions:
+      merge:
+        method: squash
+        commit_message_template: "{{ title }} (#{{ number }})"
+
+  - name: Flag Dependabot major bumps for manual review
+    conditions:
+      - author = dependabot[bot]
+      - "label = version-update:semver-major"
+    actions:
+      label:
+        add:
+          - needs-review
+      comment:
+        message: "Major version bump — needs manual review before merging."
