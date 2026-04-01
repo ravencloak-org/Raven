@@ -1,0 +1,5 @@
+# CVE-2026-34040: Moby AuthZ plugin bypass with oversized request bodies
+# Transitive dependency via testcontainers-go (test-only).
+# Fixed version (v29.3.1) not available as a Go module yet.
+# Re-evaluate when docker/docker publishes a patched v28.x release.
+CVE-2026-34040
