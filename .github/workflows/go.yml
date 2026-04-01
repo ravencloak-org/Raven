@@ -31,71 +31,64 @@ jobs:
   build-and-test:
     name: Build & Test
     needs: changes
-    if: needs.changes.outputs.src == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
+        if: needs.changes.outputs.src == 'true'
         uses: actions/checkout@v6
 
       - name: Setup Go
+        if: needs.changes.outputs.src == 'true'
         uses: actions/setup-go@v6
         with:
           go-version: '1.26'
           cache: true
 
       - name: Download dependencies
+        if: needs.changes.outputs.src == 'true'
         run: go mod download
 
       - name: Build
+        if: needs.changes.outputs.src == 'true'
         run: go build ./cmd/api
 
       - name: Test
+        if: needs.changes.outputs.src == 'true'
         run: go test -race -coverprofile=coverage.txt ./...
 
       - name: Test (migrations integration)
+        if: needs.changes.outputs.src == 'true'
         run: go test -race -run '^TestMigrationsUpAndDown$' ./migrations/...
 
       - name: Upload coverage to Codecov
+        if: needs.changes.outputs.src == 'true'
         uses: codecov/codecov-action@v5
         with:
           files: coverage.txt
           fail_ci_if_error: false
 
       - name: Vet
+        if: needs.changes.outputs.src == 'true'
         run: go vet ./...
-
-  build-and-test-skip:
-    name: Build & Test
-    needs: changes
-    if: needs.changes.outputs.src != 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "No Go changes, skipping"
 
   lint:
     name: Lint
     needs: changes
-    if: needs.changes.outputs.src == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
+        if: needs.changes.outputs.src == 'true'
         uses: actions/checkout@v6
 
       - name: Setup Go
+        if: needs.changes.outputs.src == 'true'
         uses: actions/setup-go@v6
         with:
           go-version: '1.26'
           cache: true
 
       - name: Run golangci-lint
+        if: needs.changes.outputs.src == 'true'
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.11.4
-
-  lint-skip:
-    name: Lint
-    needs: changes
-    if: needs.changes.outputs.src != 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "No Go changes, skipping"

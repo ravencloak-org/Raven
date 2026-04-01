@@ -27,62 +27,76 @@ jobs:
               - 'docker-compose.yml'
               - '.github/workflows/docker.yml'
 
-  build:
-    name: Build ${{ matrix.image }}
+  build-go-api:
+    name: Build go-api
     needs: changes
-    if: needs.changes.outputs.src == 'true'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - image: go-api
-            context: .
-            dockerfile: Dockerfile
-          - image: python-worker
-            context: ai-worker
-            dockerfile: ai-worker/Dockerfile
     steps:
       - name: Checkout code
+        if: needs.changes.outputs.src == 'true'
         uses: actions/checkout@v6
 
       - name: Set up QEMU
+        if: needs.changes.outputs.src == 'true'
         uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
+        if: needs.changes.outputs.src == 'true'
         uses: docker/setup-buildx-action@v4
 
       - name: Login to GHCR
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: needs.changes.outputs.src == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build ${{ matrix.image }}
+      - name: Build go-api
+        if: needs.changes.outputs.src == 'true'
         uses: docker/build-push-action@v7
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
+          context: .
+          file: Dockerfile
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ github.sha }}
+          tags: ghcr.io/${{ github.repository_owner }}/go-api:${{ github.sha }}
 
-  build-skip-go-api:
-    name: Build go-api
-    needs: changes
-    if: needs.changes.outputs.src != 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "No Docker changes, skipping"
-
-  build-skip-python-worker:
+  build-python-worker:
     name: Build python-worker
     needs: changes
-    if: needs.changes.outputs.src != 'true'
     runs-on: ubuntu-latest
     steps:
-      - run: echo "No Docker changes, skipping"
+      - name: Checkout code
+        if: needs.changes.outputs.src == 'true'
+        uses: actions/checkout@v6
+
+      - name: Set up QEMU
+        if: needs.changes.outputs.src == 'true'
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        if: needs.changes.outputs.src == 'true'
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GHCR
+        if: needs.changes.outputs.src == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build python-worker
+        if: needs.changes.outputs.src == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: ai-worker
+          file: ai-worker/Dockerfile
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: ghcr.io/${{ github.repository_owner }}/python-worker:${{ github.sha }}

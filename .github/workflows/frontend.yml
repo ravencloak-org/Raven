@@ -27,16 +27,17 @@ jobs:
   build:
     name: Lint & Build
     needs: changes
-    if: needs.changes.outputs.src == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: frontend
     steps:
       - name: Checkout code
+        if: needs.changes.outputs.src == 'true'
         uses: actions/checkout@v6
 
       - name: Setup Node.js
+        if: needs.changes.outputs.src == 'true'
         uses: actions/setup-node@v6
         with:
           node-version: '22'
@@ -44,38 +45,35 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
+        if: needs.changes.outputs.src == 'true'
         run: npm ci
 
       - name: Lint
+        if: needs.changes.outputs.src == 'true'
         run: npm run lint
 
       - name: Type check
+        if: needs.changes.outputs.src == 'true'
         run: npx vue-tsc --noEmit
 
       - name: Build
+        if: needs.changes.outputs.src == 'true'
         run: npm run build
-
-  build-skip:
-    name: Lint & Build
-    needs: changes
-    if: needs.changes.outputs.src != 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "No frontend changes, skipping"
 
   e2e:
     name: Playwright E2E
     needs: changes
-    if: needs.changes.outputs.src == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: frontend
     steps:
       - name: Checkout code
+        if: needs.changes.outputs.src == 'true'
         uses: actions/checkout@v6
 
       - name: Setup Node.js
+        if: needs.changes.outputs.src == 'true'
         uses: actions/setup-node@v6
         with:
           node-version: '22'
@@ -83,21 +81,17 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
+        if: needs.changes.outputs.src == 'true'
         run: npm ci
 
       - name: Build
+        if: needs.changes.outputs.src == 'true'
         run: npm run build
 
       - name: Install Playwright browsers
+        if: needs.changes.outputs.src == 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Run Playwright tests
+        if: needs.changes.outputs.src == 'true'
         run: npm run test:e2e
-
-  e2e-skip:
-    name: Playwright E2E
-    needs: changes
-    if: needs.changes.outputs.src != 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "No frontend changes, skipping"
