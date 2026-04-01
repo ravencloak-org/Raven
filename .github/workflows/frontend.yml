@@ -3,21 +3,31 @@ name: Frontend CI
 on:
   push:
     branches: [main]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/frontend.yml'
   pull_request:
     branches: [main]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/frontend.yml'
 
 permissions:
   contents: read
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      src: ${{ steps.filter.outputs.src }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            src:
+              - 'frontend/**'
+              - '.github/workflows/frontend.yml'
+
   build:
     name: Lint & Build
+    needs: changes
+    if: needs.changes.outputs.src == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -45,8 +55,18 @@ jobs:
       - name: Build
         run: npm run build
 
+  build-skip:
+    name: Lint & Build
+    needs: changes
+    if: needs.changes.outputs.src != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "No frontend changes, skipping"
+
   e2e:
     name: Playwright E2E
+    needs: changes
+    if: needs.changes.outputs.src == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -73,3 +93,11 @@ jobs:
 
       - name: Run Playwright tests
         run: npm run test:e2e
+
+  e2e-skip:
+    name: Playwright E2E
+    needs: changes
+    if: needs.changes.outputs.src != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "No frontend changes, skipping"
