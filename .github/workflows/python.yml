@@ -28,16 +28,17 @@ jobs:
   test:
     name: Lint, Type-check & Test
     needs: changes
-    if: needs.changes.outputs.src == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ai-worker
     steps:
       - name: Checkout code
+        if: needs.changes.outputs.src == 'true'
         uses: actions/checkout@v6
 
       - name: Setup Python
+        if: needs.changes.outputs.src == 'true'
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
@@ -45,31 +46,29 @@ jobs:
           cache-dependency-path: ai-worker/pyproject.toml
 
       - name: Install dependencies
+        if: needs.changes.outputs.src == 'true'
         run: pip install -e ".[dev]"
 
       - name: Ruff lint
+        if: needs.changes.outputs.src == 'true'
         run: ruff check
 
       - name: Ruff format check
+        if: needs.changes.outputs.src == 'true'
         run: ruff format --check
 
       - name: Type check (mypy)
+        if: needs.changes.outputs.src == 'true'
         run: mypy raven_worker
 
       - name: Run tests with coverage
+        if: needs.changes.outputs.src == 'true'
         run: pytest -v --cov=raven_worker --cov-report=xml --cov-report=term-missing
 
       - name: Upload coverage report
+        if: needs.changes.outputs.src == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: ai-worker/coverage.xml
           retention-days: 7
-
-  test-skip:
-    name: Lint, Type-check & Test
-    needs: changes
-    if: needs.changes.outputs.src != 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "No Python changes, skipping"
