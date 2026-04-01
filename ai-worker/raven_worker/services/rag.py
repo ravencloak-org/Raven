@@ -1,22 +1,27 @@
 """RAG service implementing the QueryRAG server-streaming RPC.
 
 Full pipeline:
-    1. Embed the query using the BYOK embedding provider.
-    2. Run vector (cosine) search and BM25 full-text search in parallel.
-    3. Merge ranked lists with Reciprocal Rank Fusion (RRF).
-    4. Optionally re-rank top chunks with Cohere Rerank.
-    5. Build a context string from the top chunks.
-    6. Stream LLM completion tokens back as ``RAGChunk`` proto messages.
+    1. Check exact-match response cache in Valkey.
+    2. Embed the query using the BYOK embedding provider.
+    3. Run vector (cosine) search and BM25 full-text search in parallel.
+    4. Merge ranked lists with Reciprocal Rank Fusion (RRF).
+    5. Optionally re-rank top chunks with Cohere Rerank.
+    6. Build a context string from the top chunks.
+    7. Stream LLM completion tokens back as ``RAGChunk`` proto messages.
+    8. Cache the completed response for future exact-match hits.
 """
 
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 from collections.abc import AsyncIterator
 
 import anthropic
 import asyncpg
 import grpc
+import redis.asyncio as aioredis
 import structlog
 from openai import AsyncOpenAI
 
@@ -46,22 +51,76 @@ WHERE c.id = ANY($1::uuid[]) AND c.org_id = $2::uuid
 """
 
 
+_CACHE_KEY_PREFIX = "raven:cache:rag:"
+_CACHE_TTL_SECONDS = 3600  # 1 hour
+
+
+def _cache_key(kb_id: str, query: str) -> str:
+    """Build a deterministic cache key matching the Go-side format exactly."""
+    normalized = query.lower().strip()
+    digest = hashlib.sha256(f"{kb_id}:{normalized}".encode()).hexdigest()
+    return f"{_CACHE_KEY_PREFIX}{digest}"
+
+
 class RAGServicer:
     """Handles QueryRAG streaming RPC calls.
 
     Attributes:
         _pool: Shared ``asyncpg`` connection pool.  Created lazily on the
             first RPC call if not injected via the constructor.
+        _redis: Async Redis client for response caching. Created lazily from
+            ``settings.valkey_url``. All cache operations are gracefully
+            degraded — if Valkey is unavailable the full RAG pipeline runs
+            without caching.
     """
 
-    def __init__(self, pool: asyncpg.Pool | None = None) -> None:
+    def __init__(
+        self,
+        pool: asyncpg.Pool | None = None,
+        redis_client: aioredis.Redis | None = None,
+    ) -> None:
         self._pool = pool
+        self._redis: aioredis.Redis | None = redis_client
 
     async def _get_pool(self) -> asyncpg.Pool:
         """Return the shared connection pool, creating it if necessary."""
         if self._pool is None:
             self._pool = await asyncpg.create_pool(settings.database_url)
         return self._pool
+
+    async def _get_redis(self) -> aioredis.Redis | None:
+        """Return the Redis client, creating it lazily if necessary."""
+        if self._redis is None:
+            try:
+                self._redis = aioredis.from_url(settings.valkey_url)
+            except Exception:
+                logger.warning("valkey_connection_failed", url=settings.valkey_url)
+                return None
+        return self._redis
+
+    async def _check_cache(self, cache_key: str) -> dict | None:
+        """Look up a cached response by key. Returns None on miss or error."""
+        try:
+            rds = await self._get_redis()
+            if rds is None:
+                return None
+            data = await rds.get(cache_key)
+            if data is None:
+                return None
+            return json.loads(data)
+        except Exception:
+            logger.debug("cache_check_error", cache_key=cache_key, exc_info=True)
+            return None
+
+    async def _store_cache(self, cache_key: str, payload: dict) -> None:
+        """Store a response in cache. Failures are silently ignored."""
+        try:
+            rds = await self._get_redis()
+            if rds is None:
+                return
+            await rds.setex(cache_key, _CACHE_TTL_SECONDS, json.dumps(payload))
+        except Exception:
+            logger.debug("cache_store_error", cache_key=cache_key, exc_info=True)
 
     # ------------------------------------------------------------------
     # Public RPC handler
@@ -98,11 +157,62 @@ class RAGServicer:
         )
         log.info("query_rag_request")
 
+        # --- Exact-match cache check (per KB) ---
+        # When the request targets a single KB we can perform an exact-match
+        # cache lookup.  Multi-KB queries skip the cache for now.
+        cache_key: str | None = None
+        if len(kb_ids) == 1:
+            cache_key = _cache_key(kb_ids[0], query_text)
+            cached = await self._check_cache(cache_key)
+            if cached is not None:
+                log.info("cache_hit", cache_key=cache_key)
+                sources = [
+                    ai_worker_pb2.Source(
+                        document_id=s.get("document_id", ""),
+                        document_name=s.get("document_name", ""),
+                        chunk_text=s.get("chunk_text", ""),
+                        score=s.get("score", 0.0),
+                    )
+                    for s in cached.get("sources", [])
+                ]
+                yield ai_worker_pb2.RAGChunk(
+                    text=cached.get("text", ""),
+                    is_final=True,
+                    sources=sources,
+                )
+                return
+
         try:
+            collected_text: list[str] = []
+            final_sources: list[dict] = []
+
             async for chunk in self._run_pipeline(
                 query_text, org_id, kb_ids, provider_name, model, filters, log
             ):
+                if not chunk.is_final:
+                    collected_text.append(chunk.text)
+                else:
+                    final_sources = [
+                        {
+                            "document_id": s.document_id,
+                            "document_name": s.document_name,
+                            "chunk_text": s.chunk_text,
+                            "score": s.score,
+                        }
+                        for s in chunk.sources
+                    ]
                 yield chunk
+
+            # --- Store in cache after successful pipeline completion ---
+            if cache_key and collected_text:
+                payload = {
+                    "text": "".join(collected_text),
+                    "sources": final_sources,
+                    "model": model,
+                }
+                await self._store_cache(cache_key, payload)
+                log.info("cache_stored", cache_key=cache_key)
+
         except Exception as exc:
             log.exception("query_rag_error", error=str(exc))
             await context.abort(grpc.StatusCode.INTERNAL, str(exc))
