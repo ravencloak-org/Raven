@@ -5,14 +5,10 @@ on:
     branches: [main]
     paths:
       - 'frontend/**'
-
-      - '.github/workflows/frontend.yml'
   pull_request:
     branches: [main]
     paths:
       - 'frontend/**'
-
-      - '.github/workflows/frontend.yml'
 
 permissions:
   contents: read
