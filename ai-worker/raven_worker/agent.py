@@ -8,6 +8,7 @@ Usage:
 """
 
 import asyncio
+import logging
 
 import structlog
 
@@ -28,7 +29,7 @@ def _configure_logging() -> None:
             structlog.dev.ConsoleRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(
-            structlog.get_level_from_name(settings.log_level),
+            logging.getLevelNamesMapping()[settings.log_level.upper()],
         ),
         context_class=dict,
         logger_factory=structlog.PrintLoggerFactory(),
