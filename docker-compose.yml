@@ -40,6 +40,10 @@ services:
       context: ./ai-worker
       dockerfile: Dockerfile
     env_file: .env
+    environment:
+      RAVEN_MEMORY_DIR: /var/raven/memories
+    volumes:
+      - raven-memories:/var/raven/memories
     depends_on:
       postgres:
         condition: service_healthy
@@ -260,6 +264,7 @@ volumes:
   acme-data:
   pgbackrest-repo:
   pgbackrest-log:
+  raven-memories:
 
 # ─── Networks ─────────────────────────────────────────────────────────────────
 networks:
