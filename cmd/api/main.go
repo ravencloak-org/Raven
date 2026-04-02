@@ -183,6 +183,7 @@ func main() {
 	airbyteRepo := repository.NewAirbyteRepository(pool)
 	securityRepo := repository.NewSecurityRepository(pool)
 	identityRepo := repository.NewIdentityRepository(pool)
+	semCacheRepo := repository.NewSemanticCacheRepository(pool)
 
 	// --- gRPC client for AI worker ---
 	grpcClient, err := rpcClient.NewClient(cfg.GRPC.WorkerAddr)
@@ -238,6 +239,7 @@ func main() {
 	securityHandler := handler.NewSecurityHandler(securitySvc)
 	identityHandler := handler.NewIdentityHandler(identitySvc)
 	chatHandler := handler.NewChatHandler(chatSvc)
+	semCacheHandler := handler.NewSemanticCacheHandler(semCacheRepo)
 
 	// Create router
 	router := gin.Default()
@@ -379,6 +381,13 @@ func main() {
 
 		// --- Catalog metadata routes (nested under org) ---
 		api.GET("/orgs/:org_id/catalog", middleware.RequireOrgRole("org_admin"), routingHandler.ListCatalog)
+
+		// --- Semantic cache management routes (nested under org/kb) ---
+		semCache := api.Group("/orgs/:org_id/kbs/:kb_id/cache")
+		{
+			semCache.DELETE("", middleware.RequireOrgRole("org_admin"), semCacheHandler.InvalidateKBCache)
+			semCache.GET("/stats", middleware.RequireOrgRole("org_admin"), semCacheHandler.GetCacheStats)
+		}
 
 		// --- Security rules routes (nested under org, admin only) ---
 		sec := api.Group("/orgs/:org_id/security")
