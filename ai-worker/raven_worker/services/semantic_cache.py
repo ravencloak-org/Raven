@@ -87,22 +87,13 @@ class SemanticCache:
             embedding_str = "[" + ",".join(str(v) for v in query_embedding) + "]"
 
             async with self._pool.acquire() as conn:
-<<<<<<< HEAD
                 async with conn.transaction():
-                    await conn.execute(
-                        "SELECT set_config('app.current_org_id', $1, true)", org_id
-                    )
+                    await conn.execute("SELECT set_config('app.current_org_id', $1, true)", org_id)
                     row = await conn.fetchrow(
                         _LOOKUP_SQL, embedding_str, org_id, kb_id, self._threshold
                     )
                     if row is not None:
                         await conn.execute(_INCREMENT_HIT_SQL, row["id"])
-=======
-                await conn.execute("SELECT set_config('app.current_org_id', $1, false)", org_id)
-                row = await conn.fetchrow(
-                    _LOOKUP_SQL, embedding_str, org_id, kb_id, self._threshold
-                )
->>>>>>> cdf2a64 (fix: apply ruff formatting to semantic_cache.py)
 
             if row is None:
                 logger.debug(
@@ -112,17 +103,6 @@ class SemanticCache:
                 )
                 return None
 
-<<<<<<< HEAD
-=======
-            # Increment hit count asynchronously (best-effort)
-            try:
-                async with self._pool.acquire() as conn:
-                    await conn.execute("SELECT set_config('app.current_org_id', $1, false)", org_id)
-                    await conn.execute(_INCREMENT_HIT_SQL, row["id"])
-            except Exception:
-                logger.debug("semantic_cache_hit_count_error", exc_info=True)
-
->>>>>>> cdf2a64 (fix: apply ruff formatting to semantic_cache.py)
             sources = row["sources"] if row["sources"] else []
             if isinstance(sources, str):
                 sources = json.loads(sources)
@@ -180,11 +160,8 @@ class SemanticCache:
             sources_json = json.dumps(sources)
 
             async with self._pool.acquire() as conn:
-<<<<<<< HEAD
                 async with conn.transaction():
-                    await conn.execute(
-                        "SELECT set_config('app.current_org_id', $1, true)", org_id
-                    )
+                    await conn.execute("SELECT set_config('app.current_org_id', $1, true)", org_id)
                     await conn.execute(
                         _STORE_SQL,
                         cache_id,
@@ -196,20 +173,6 @@ class SemanticCache:
                         sources_json,
                         model,
                     )
-=======
-                await conn.execute("SELECT set_config('app.current_org_id', $1, false)", org_id)
-                await conn.execute(
-                    _STORE_SQL,
-                    cache_id,
-                    org_id,
-                    kb_id,
-                    query,
-                    embedding_str,
-                    response_text,
-                    sources_json,
-                    model,
-                )
->>>>>>> cdf2a64 (fix: apply ruff formatting to semantic_cache.py)
 
             logger.info(
                 "semantic_cache_stored",
@@ -232,16 +195,9 @@ class SemanticCache:
         """
         try:
             async with self._pool.acquire() as conn:
-<<<<<<< HEAD
                 async with conn.transaction():
-                    await conn.execute(
-                        "SELECT set_config('app.current_org_id', $1, true)", org_id
-                    )
+                    await conn.execute("SELECT set_config('app.current_org_id', $1, true)", org_id)
                     result = await conn.execute(_INVALIDATE_KB_SQL, org_id, kb_id)
-=======
-                await conn.execute("SELECT set_config('app.current_org_id', $1, false)", org_id)
-                result = await conn.execute(_INVALIDATE_KB_SQL, org_id, kb_id)
->>>>>>> cdf2a64 (fix: apply ruff formatting to semantic_cache.py)
 
             logger.info(
                 "semantic_cache_invalidated",
