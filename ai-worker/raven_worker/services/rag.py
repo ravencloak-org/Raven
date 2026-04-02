@@ -575,10 +575,10 @@ class RAGServicer:
                     for block in response.content:
                         if block.type == "tool_use" and block.name == "memory":
                             result = memory_store.handle(
-                                command=block.input.get("command", "view"),
-                                path=block.input.get("path", "/memories"),
+                                command=str(block.input.get("command", "view")),
+                                path=str(block.input.get("path", "/memories")),
                                 **{
-                                    k: v
+                                    k: str(v)
                                     for k, v in block.input.items()
                                     if k not in ("command", "path")
                                 },
