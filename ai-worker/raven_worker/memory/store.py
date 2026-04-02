@@ -38,7 +38,9 @@ MEMORY_TOOL: dict = {
             },
             "path": {
                 "type": "string",
-                "description": "Path relative to /memories/ (e.g. 'session.md' or just '/memories').",
+                "description": (
+                    "Path relative to /memories/ (e.g. 'session.md' or just '/memories')."
+                ),
             },
             "file_text": {
                 "type": "string",
@@ -117,8 +119,8 @@ class MemoryStore:
         resolved = (self.root / clean).resolve()
         try:
             resolved.relative_to(self.root.resolve())
-        except ValueError:
-            raise ValueError(f"Path '{path}' escapes the memory directory.")
+        except ValueError as exc:
+            raise ValueError(f"Path '{path}' escapes the memory directory.") from exc
         return resolved
 
     # ------------------------------------------------------------------

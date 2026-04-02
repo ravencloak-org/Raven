@@ -72,7 +72,7 @@ def _append_qa_to_memory(memory_store: MemoryStore, query: str, answer: str) -> 
     """Append a Q&A pair to the session memory file after each response."""
     import datetime
 
-    ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M")
+    ts = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M")
     entry = f"\n## {ts}\n**Q:** {query}\n**A:** {answer[:800]}{'…' if len(answer) > 800 else ''}\n"
 
     existing = memory_store.handle("view", "session.md")
