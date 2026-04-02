@@ -15,7 +15,7 @@ CREATE TABLE response_cache (
 );
 
 CREATE INDEX idx_response_cache_org_kb ON response_cache(org_id, kb_id);
-CREATE INDEX CONCURRENTLY idx_response_cache_embedding ON response_cache USING hnsw (query_embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64);
+CREATE INDEX idx_response_cache_embedding ON response_cache USING hnsw (query_embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64);
 CREATE INDEX idx_response_cache_expires ON response_cache(expires_at);
 
 ALTER TABLE response_cache ENABLE ROW LEVEL SECURITY;

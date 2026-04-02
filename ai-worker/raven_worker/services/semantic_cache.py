@@ -86,14 +86,13 @@ class SemanticCache:
             query_embedding = await self._embedder.embed(query)
             embedding_str = "[" + ",".join(str(v) for v in query_embedding) + "]"
 
-            async with self._pool.acquire() as conn:
-                async with conn.transaction():
-                    await conn.execute("SELECT set_config('app.current_org_id', $1, true)", org_id)
-                    row = await conn.fetchrow(
-                        _LOOKUP_SQL, embedding_str, org_id, kb_id, self._threshold
-                    )
-                    if row is not None:
-                        await conn.execute(_INCREMENT_HIT_SQL, row["id"])
+            async with self._pool.acquire() as conn, conn.transaction():
+                await conn.execute("SELECT set_config('app.current_org_id', $1, true)", org_id)
+                row = await conn.fetchrow(
+                    _LOOKUP_SQL, embedding_str, org_id, kb_id, self._threshold
+                )
+                if row is not None:
+                    await conn.execute(_INCREMENT_HIT_SQL, row["id"])
 
             if row is None:
                 logger.debug(
@@ -159,20 +158,19 @@ class SemanticCache:
             embedding_str = "[" + ",".join(str(v) for v in query_embedding) + "]"
             sources_json = json.dumps(sources)
 
-            async with self._pool.acquire() as conn:
-                async with conn.transaction():
-                    await conn.execute("SELECT set_config('app.current_org_id', $1, true)", org_id)
-                    await conn.execute(
-                        _STORE_SQL,
-                        cache_id,
-                        org_id,
-                        kb_id,
-                        query,
-                        embedding_str,
-                        response_text,
-                        sources_json,
-                        model,
-                    )
+            async with self._pool.acquire() as conn, conn.transaction():
+                await conn.execute("SELECT set_config('app.current_org_id', $1, true)", org_id)
+                await conn.execute(
+                    _STORE_SQL,
+                    cache_id,
+                    org_id,
+                    kb_id,
+                    query,
+                    embedding_str,
+                    response_text,
+                    sources_json,
+                    model,
+                )
 
             logger.info(
                 "semantic_cache_stored",
@@ -194,10 +192,9 @@ class SemanticCache:
             kb_id: UUID string of the knowledge base.
         """
         try:
-            async with self._pool.acquire() as conn:
-                async with conn.transaction():
-                    await conn.execute("SELECT set_config('app.current_org_id', $1, true)", org_id)
-                    result = await conn.execute(_INVALIDATE_KB_SQL, org_id, kb_id)
+            async with self._pool.acquire() as conn, conn.transaction():
+                await conn.execute("SELECT set_config('app.current_org_id', $1, true)", org_id)
+                result = await conn.execute(_INVALIDATE_KB_SQL, org_id, kb_id)
 
             logger.info(
                 "semantic_cache_invalidated",
