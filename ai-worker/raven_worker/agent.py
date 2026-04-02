@@ -8,7 +8,6 @@ Usage:
 """
 
 import asyncio
-import signal
 
 import structlog
 
@@ -40,14 +39,14 @@ def _configure_logging() -> None:
 async def _create_agent_worker():
     """Create and configure the LiveKit agent worker."""
     try:
-        from livekit.agents import AutoSubscribe, WorkerOptions, cli
+        from livekit.agents import AutoSubscribe, WorkerOptions
         from livekit.agents.voice import AgentSession
     except ImportError:
         logger.error(
             "livekit_agents_not_installed",
             hint="Install with: pip install 'livekit-agents>=1.0.0'",
         )
-        raise SystemExit(1)
+        raise SystemExit(1) from None
 
     async def _entrypoint(ctx):
         """Called when the agent joins a room."""
