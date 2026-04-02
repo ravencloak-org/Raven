@@ -181,6 +181,7 @@ func main() {
 	routingRepo := repository.NewRoutingRepository(pool)
 	airbyteRepo := repository.NewAirbyteRepository(pool)
 	securityRepo := repository.NewSecurityRepository(pool)
+	strangerRepo := repository.NewStrangerRepository(pool)
 
 	// --- gRPC client for AI worker ---
 	grpcClient, err := rpcClient.NewClient(cfg.GRPC.WorkerAddr)
@@ -214,6 +215,7 @@ func main() {
 	routingSvc := service.NewRoutingService(routingRepo, kbRepo, pool)
 	airbyteSvc := service.NewAirbyteService(airbyteRepo, pool, queueClient)
 	securitySvc := service.NewSecurityService(securityRepo, pool, valkeyClient)
+	strangerSvc := service.NewStrangerService(strangerRepo, pool)
 	chatRepo := repository.NewChatRepository(pool)
 	chatSvc := service.NewChatService(chatRepo, grpcClient, pool)
 
@@ -232,6 +234,7 @@ func main() {
 	routingHandler := handler.NewRoutingHandler(routingSvc)
 	airbyteHandler := handler.NewAirbyteHandler(airbyteSvc)
 	securityHandler := handler.NewSecurityHandler(securitySvc)
+	strangerHandler := handler.NewStrangerHandler(strangerSvc)
 	chatHandler := handler.NewChatHandler(chatSvc)
 
 	// Create router
@@ -375,6 +378,17 @@ func main() {
 		// --- Catalog metadata routes (nested under org) ---
 		api.GET("/orgs/:org_id/catalog", middleware.RequireOrgRole("org_admin"), routingHandler.ListCatalog)
 
+		// --- Stranger user routes (nested under org, admin only) ---
+		strangers := api.Group("/orgs/:org_id/strangers", middleware.RequireOrgRole("org_admin"))
+		{
+			strangers.GET("", strangerHandler.List)
+			strangers.GET("/:id", strangerHandler.Get)
+			strangers.POST("/:id/block", strangerHandler.Block)
+			strangers.POST("/:id/unblock", strangerHandler.Unblock)
+			strangers.PUT("/:id/rate-limit", strangerHandler.SetRateLimit)
+			strangers.DELETE("/:id", strangerHandler.Delete)
+		}
+
 		// --- Security rules routes (nested under org, admin only) ---
 		sec := api.Group("/orgs/:org_id/security")
 		{
@@ -401,6 +415,7 @@ func main() {
 	chatAPI := router.Group("/api/v1/chat")
 	chatAPI.Use(middleware.APIKeyAuth(&apiKeyLookupAdapter{repo: apiKeyRepo}))
 	chatAPI.Use(middleware.SecurityRulesMiddleware(&securityEvaluatorAdapter{svc: securitySvc}))
+	chatAPI.Use(middleware.StrangerCheck(strangerSvc, valkeyClient))
 	{
 		chatAPI.POST("/:kb_id/completions", chatHandler.StreamCompletion)
 		chatAPI.GET("/:kb_id/sessions", chatHandler.ListSessions)
