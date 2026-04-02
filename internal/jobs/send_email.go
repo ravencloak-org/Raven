@@ -44,11 +44,15 @@ func loadSMTPConfig() smtpConfig {
 	}
 }
 
-// sanitizeHeader removes CR and LF characters to prevent email header injection.
-func sanitizeHeader(s string) string {
-	s = strings.ReplaceAll(s, "\r", "")
-	s = strings.ReplaceAll(s, "\n", "")
-	return s
+// errHeaderInjection is returned when a header value contains CR or LF characters.
+var errHeaderInjection = fmt.Errorf("header value contains CR or LF")
+
+// validateHeader returns an error if s contains \r or \n (prevents CRLF injection).
+func validateHeader(s string) error {
+	if strings.ContainsAny(s, "\r\n") {
+		return errHeaderInjection
+	}
+	return nil
 }
 
 // HandleSendEmail processes outbound email notifications.
@@ -72,9 +76,11 @@ func HandleSendEmail(repo NotificationRepository) asynq.HandlerFunc {
 		cfg := loadSMTPConfig()
 		now := time.Now().UTC()
 
+		devMode := cfg.host == ""
+
 		for _, recipient := range payload.Recipients {
 			var sendErr error
-			if cfg.host == "" {
+			if devMode {
 				// Dev mode: log to stdout instead of sending.
 				// Recipient and subject are omitted from logs to avoid storing PII.
 				logger.Info("HandleSendEmail: SMTP not configured, logging email",
@@ -98,13 +104,17 @@ func HandleSendEmail(repo NotificationRepository) asynq.HandlerFunc {
 				NotificationType: payload.NotificationType,
 				Recipient:        recipient,
 				Subject:          payload.Subject,
-				Status:           model.NotificationStatusSent,
 			}
-			if sendErr != nil {
+			switch {
+			case sendErr != nil:
 				errMsg := sendErr.Error()
 				logEntry.Status = model.NotificationStatusFailed
 				logEntry.ErrorMessage = &errMsg
-			} else {
+			case devMode:
+				// Dev-mode fallback: email was not actually sent.
+				logEntry.Status = model.NotificationStatusPending
+			default:
+				logEntry.Status = model.NotificationStatusSent
 				logEntry.SentAt = &now
 			}
 			if logErr := repo.CreateLog(ctx, logEntry); logErr != nil {
@@ -133,7 +143,10 @@ func sendToOne(cfg smtpConfig, payload model.SendEmailPayload, recipient string)
 	addr := cfg.host + ":" + port
 
 	auth := smtp.PlainAuth("", cfg.user, cfg.pass, cfg.host)
-	body := buildRawMessage(from, recipient, payload.Subject, payload.Body)
+	body, err := buildRawMessage(from, recipient, payload.Subject, payload.Body)
+	if err != nil {
+		return fmt.Errorf("buildRawMessage: %w", err)
+	}
 
 	if err := smtp.SendMail(addr, auth, from, []string{recipient}, []byte(body)); err != nil {
 		return fmt.Errorf("smtp.SendMail: %w", err)
@@ -142,17 +155,22 @@ func sendToOne(cfg smtpConfig, payload model.SendEmailPayload, recipient string)
 }
 
 // buildRawMessage assembles a minimal RFC 2822 email message.
-// Header values are sanitized to prevent CRLF injection.
-func buildRawMessage(from, to, subject, body string) string {
+// Returns an error if any header value contains CR or LF (CRLF injection prevention).
+func buildRawMessage(from, to, subject, body string) (string, error) {
+	for _, h := range []string{from, to, subject} {
+		if err := validateHeader(h); err != nil {
+			return "", err
+		}
+	}
 	var sb strings.Builder
-	sb.WriteString("From: " + sanitizeHeader(from) + "\r\n")
-	sb.WriteString("To: " + sanitizeHeader(to) + "\r\n")
-	sb.WriteString("Subject: " + sanitizeHeader(subject) + "\r\n")
+	sb.WriteString("From: " + from + "\r\n")
+	sb.WriteString("To: " + to + "\r\n")
+	sb.WriteString("Subject: " + subject + "\r\n")
 	sb.WriteString("MIME-Version: 1.0\r\n")
 	sb.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
 	sb.WriteString("\r\n")
 	sb.WriteString(body)
-	return sb.String()
+	return sb.String(), nil
 }
 
 // compile-time check that *repository.NotificationRepository satisfies the interface.

@@ -31,6 +31,21 @@ func NewNotificationHandler(svc NotificationServicer) *NotificationHandler {
 	return &NotificationHandler{svc: svc}
 }
 
+// validateUUIDParam parses a path parameter as a UUID and aborts with 400 if invalid.
+// Returns the parsed string and true on success.
+func validateUUIDParam(c *gin.Context, name string) (string, bool) {
+	val := c.Param(name)
+	if _, err := uuid.Parse(val); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, apierror.AppError{
+			Code:    http.StatusBadRequest,
+			Message: "Bad Request",
+			Detail:  name + " must be a valid UUID",
+		})
+		return "", false
+	}
+	return val, true
+}
+
 // CreateConfig handles POST /api/v1/orgs/:org_id/notifications/configs.
 //
 // @Summary     Create notification config
@@ -45,7 +60,10 @@ func NewNotificationHandler(svc NotificationServicer) *NotificationHandler {
 // @Failure     422 {object} apierror.AppError
 // @Router      /orgs/{org_id}/notifications/configs [post]
 func (h *NotificationHandler) CreateConfig(c *gin.Context) {
-	orgID := c.Param("org_id")
+	orgID, ok := validateUUIDParam(c, "org_id")
+	if !ok {
+		return
+	}
 
 	var req model.CreateNotificationConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -77,7 +95,10 @@ func (h *NotificationHandler) CreateConfig(c *gin.Context) {
 // @Failure     401 {object} apierror.AppError
 // @Router      /orgs/{org_id}/notifications/configs [get]
 func (h *NotificationHandler) ListConfigs(c *gin.Context) {
-	orgID := c.Param("org_id")
+	orgID, ok := validateUUIDParam(c, "org_id")
+	if !ok {
+		return
+	}
 
 	configs, err := h.svc.ListConfigs(c.Request.Context(), orgID)
 	if err != nil {
@@ -103,14 +124,12 @@ func (h *NotificationHandler) ListConfigs(c *gin.Context) {
 // @Failure     422 {object} apierror.AppError
 // @Router      /orgs/{org_id}/notifications/configs/{id} [put]
 func (h *NotificationHandler) UpdateConfig(c *gin.Context) {
-	orgID := c.Param("org_id")
-	id := c.Param("id")
-	if _, err := uuid.Parse(id); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, apierror.AppError{
-			Code:    http.StatusBadRequest,
-			Message: "Bad Request",
-			Detail:  "id must be a valid UUID",
-		})
+	orgID, ok := validateUUIDParam(c, "org_id")
+	if !ok {
+		return
+	}
+	id, ok := validateUUIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -144,14 +163,12 @@ func (h *NotificationHandler) UpdateConfig(c *gin.Context) {
 // @Failure     404 {object} apierror.AppError
 // @Router      /orgs/{org_id}/notifications/configs/{id} [delete]
 func (h *NotificationHandler) DeleteConfig(c *gin.Context) {
-	orgID := c.Param("org_id")
-	id := c.Param("id")
-	if _, err := uuid.Parse(id); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, apierror.AppError{
-			Code:    http.StatusBadRequest,
-			Message: "Bad Request",
-			Detail:  "id must be a valid UUID",
-		})
+	orgID, ok := validateUUIDParam(c, "org_id")
+	if !ok {
+		return
+	}
+	id, ok := validateUUIDParam(c, "id")
+	if !ok {
 		return
 	}
 
@@ -174,7 +191,10 @@ func (h *NotificationHandler) DeleteConfig(c *gin.Context) {
 // @Failure     401 {object} apierror.AppError
 // @Router      /orgs/{org_id}/notifications/logs [get]
 func (h *NotificationHandler) ListLogs(c *gin.Context) {
-	orgID := c.Param("org_id")
+	orgID, ok := validateUUIDParam(c, "org_id")
+	if !ok {
+		return
+	}
 
 	logs, err := h.svc.ListLogs(c.Request.Context(), orgID, 50)
 	if err != nil {

@@ -60,9 +60,9 @@ func main() {
 	case sig := <-sigCh:
 		logger.Info("received signal, shutting down worker", "signal", sig)
 	case err := <-errCh:
-		log.Fatalf("asynq server error: %v", err)
+		logger.Error("asynq server error, shutting down", "error", err)
 	}
 
 	srv.Shutdown()
-	logger.Info("worker exited gracefully")
+	logger.Info("worker exited")
 }

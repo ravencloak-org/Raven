@@ -120,6 +120,7 @@ func (s *NotificationService) TriggerConversationSummary(ctx context.Context, or
 
 	subject := fmt.Sprintf("Conversation Summary — Session %s", sessionID)
 
+	var enqueueErrs []error
 	for _, cfg := range configs {
 		payload := model.SendEmailPayload{
 			OrgID:            orgID,
@@ -134,8 +135,8 @@ func (s *NotificationService) TriggerConversationSummary(ctx context.Context, or
 		dedupeKey := fmt.Sprintf("send_email:%s:%s", cfg.ID, sessionID)
 		err := s.queueClient.EnqueueSendEmail(ctx, payload, asynq.TaskID(dedupeKey))
 		if err != nil && !errors.Is(err, asynq.ErrTaskIDConflict) {
-			return fmt.Errorf("enqueue send-email for config %s: %w", cfg.ID, err)
+			enqueueErrs = append(enqueueErrs, fmt.Errorf("config %s: %w", cfg.ID, err))
 		}
 	}
-	return nil
+	return errors.Join(enqueueErrs...)
 }
