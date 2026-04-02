@@ -7,7 +7,6 @@ Usage:
     python -m raven_worker.agent
 """
 
-import asyncio
 import logging
 
 import structlog
@@ -37,8 +36,8 @@ def _configure_logging() -> None:
     )
 
 
-async def _create_agent_worker():
-    """Create and configure the LiveKit agent worker."""
+def _create_worker_options():
+    """Create and configure the LiveKit agent worker options."""
     try:
         from livekit.agents import AutoSubscribe, WorkerOptions
         from livekit.agents.voice import AgentSession
@@ -48,6 +47,13 @@ async def _create_agent_worker():
             hint="Install with: pip install 'livekit-agents>=1.0.0'",
         )
         raise SystemExit(1) from None
+
+    if not settings.livekit_api_key or not settings.livekit_api_secret:
+        logger.error(
+            "livekit_credentials_missing",
+            hint="Set RAVEN_LIVEKIT_API_KEY and RAVEN_LIVEKIT_API_SECRET",
+        )
+        raise SystemExit(1)
 
     async def _entrypoint(ctx):
         """Called when the agent joins a room."""
@@ -67,7 +73,10 @@ async def _create_agent_worker():
         #   channel = grpc.aio.insecure_channel(f"localhost:{settings.grpc_port}")
         #   stub = ai_worker_pb2_grpc.AIWorkerStub(channel)
 
-        await session.start(room=ctx.room, participant=ctx.room.remote_participants.get(0))
+        # remote_participants is a dict keyed by identity, not a list
+        remote_participants = list(ctx.room.remote_participants.values())
+        participant = remote_participants[0] if remote_participants else None
+        await session.start(room=ctx.room, participant=participant)
 
         logger.info("agent_session_started", room=ctx.room.name)
 
@@ -80,7 +89,7 @@ async def _create_agent_worker():
     )
 
 
-async def serve() -> None:
+def serve() -> None:
     """Start the LiveKit agent worker."""
     _configure_logging()
 
@@ -89,17 +98,17 @@ async def serve() -> None:
         livekit_url=settings.livekit_url,
     )
 
-    worker_options = await _create_agent_worker()
+    worker_options = _create_worker_options()
 
     from livekit.agents import cli
 
-    # Use LiveKit's CLI runner which handles graceful shutdown
+    # cli.run_app manages its own event loop — call from synchronous context
     cli.run_app(worker_options)
 
 
 def main() -> None:
     """Entry point for the agent worker."""
-    asyncio.run(serve())
+    serve()
 
 
 if __name__ == "__main__":
