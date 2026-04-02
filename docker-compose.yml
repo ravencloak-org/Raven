@@ -49,6 +49,36 @@ services:
       - raven-internal
     restart: unless-stopped
 
+  # ─── LiveKit SFU (WebRTC media server) ────────────────────────────────────
+  livekit-server:
+    image: livekit/livekit-server:latest
+    ports:
+      - "7882:7882/tcp"
+      - "50000-60000:50000-60000/udp"
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY:-devkey}: ${LIVEKIT_API_SECRET:-devsecret}"
+    volumes:
+      - ./deploy/livekit/livekit.yaml:/etc/livekit.yaml:ro
+    command: ["--config", "/etc/livekit.yaml"]
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:7880"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - raven-internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.livekit.rule=Host(`${RAVEN_DOMAIN:-localhost}`) && PathPrefix(`/livekit`)"
+      - "traefik.http.routers.livekit.entrypoints=websecure"
+      - "traefik.http.routers.livekit.tls=true"
+      - "traefik.http.routers.livekit.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-letsencrypt}"
+      - "traefik.http.routers.livekit.middlewares=livekit-strip@docker"
+      - "traefik.http.middlewares.livekit-strip.stripprefix.prefixes=/livekit"
+      - "traefik.http.services.livekit.loadbalancer.server.port=7880"
+    restart: unless-stopped
+
   # ─── PostgreSQL + pgvector ─────────────────────────────────────────────────
   postgres:
     image: pgvector/pgvector:pg18
