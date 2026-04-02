@@ -11,7 +11,7 @@ CREATE TABLE stranger_users (
     status stranger_status NOT NULL DEFAULT 'active',
     block_reason TEXT,
     message_count INTEGER NOT NULL DEFAULT 0,
-    rate_limit_rpm INTEGER,
+    rate_limit_rpm INTEGER CHECK (rate_limit_rpm IS NULL OR rate_limit_rpm > 0),
     last_active_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     blocked_at TIMESTAMPTZ,
     blocked_by UUID REFERENCES users(id) ON DELETE SET NULL,

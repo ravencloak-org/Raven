@@ -67,8 +67,8 @@ func (r *StrangerRepository) Upsert(ctx context.Context, tx pgx.Tx, orgID string
 	}
 
 	row := tx.QueryRow(ctx,
-		`INSERT INTO stranger_users (org_id, session_id, ip_address, user_agent)
-		VALUES ($1, $2, $3::inet, $4)
+		`INSERT INTO stranger_users (org_id, session_id, ip_address, user_agent, message_count)
+		VALUES ($1, $2, $3::inet, $4, 1)
 		ON CONFLICT (org_id, session_id) DO UPDATE SET
 			last_active_at = NOW(),
 			message_count = stranger_users.message_count + 1,

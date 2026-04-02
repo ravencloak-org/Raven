@@ -4,13 +4,23 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/ravencloak-org/Raven/internal/model"
 )
+
+// strangerRateLua atomically increments a counter and sets a 60-second TTL on
+// first creation. Returns the new counter value.
+// KEYS[1] — rate-limit key; ARGV[1] — TTL in seconds.
+const strangerRateLua = `
+local current = redis.call('INCR', KEYS[1])
+if current == 1 then
+  redis.call('EXPIRE', KEYS[1], tonumber(ARGV[1]))
+end
+return current
+`
 
 // StrangerServiceInterface is the subset of StrangerService the middleware requires.
 type StrangerServiceInterface interface {
@@ -66,9 +76,12 @@ func StrangerCheck(strangerSvc StrangerServiceInterface, valkey *redis.Client) g
 				rpm = *user.RateLimitRPM
 			}
 			key := fmt.Sprintf("stranger_rate:%s:%s", orgID, sessionID)
-			count, _ := valkey.Incr(c.Request.Context(), key).Result()
-			if count == 1 {
-				valkey.Expire(c.Request.Context(), key, 60*time.Second) //nolint:errcheck
+			script := redis.NewScript(strangerRateLua)
+			count, err := script.Run(c.Request.Context(), valkey, []string{key}, "60").Int64()
+			if err != nil {
+				// Valkey unavailable — fail open rather than blocking valid users.
+				c.Next()
+				return
 			}
 			if int(count) > rpm {
 				c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "rate limit exceeded"})

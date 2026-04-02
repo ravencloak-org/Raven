@@ -59,7 +59,18 @@ func (h *StrangerHandler) List(c *gin.Context) {
 	var status *model.StrangerStatus
 	if s := c.Query("status"); s != "" {
 		ss := model.StrangerStatus(s)
-		status = &ss
+		switch ss {
+		case model.StrangerStatusActive, model.StrangerStatusThrottled,
+			model.StrangerStatusBlocked, model.StrangerStatusBanned:
+			status = &ss
+		default:
+			c.AbortWithStatusJSON(http.StatusBadRequest, apierror.AppError{
+				Code:    http.StatusBadRequest,
+				Message: "Bad Request",
+				Detail:  "status must be one of: active, throttled, blocked, banned",
+			})
+			return
+		}
 	}
 
 	strangers, total, err := h.svc.List(c.Request.Context(), orgID, status, limit, offset)
@@ -130,6 +141,17 @@ func (h *StrangerHandler) Block(c *gin.Context) {
 		})
 		return
 	}
+	switch req.Status {
+	case model.StrangerStatusBlocked, model.StrangerStatusBanned, model.StrangerStatusThrottled:
+		// valid moderation statuses
+	default:
+		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, apierror.AppError{
+			Code:    http.StatusUnprocessableEntity,
+			Message: "Unprocessable Entity",
+			Detail:  "status must be one of: blocked, banned, throttled",
+		})
+		return
+	}
 
 	if err := h.svc.Block(c.Request.Context(), orgID, id, userID, req); err != nil {
 		_ = c.Error(err)
@@ -184,6 +206,14 @@ func (h *StrangerHandler) SetRateLimit(c *gin.Context) {
 			Code:    http.StatusUnprocessableEntity,
 			Message: "Unprocessable Entity",
 			Detail:  err.Error(),
+		})
+		return
+	}
+	if req.RPM != nil && *req.RPM <= 0 {
+		c.AbortWithStatusJSON(http.StatusBadRequest, apierror.AppError{
+			Code:    http.StatusBadRequest,
+			Message: "Bad Request",
+			Detail:  "rpm must be a positive integer or null to clear the override",
 		})
 		return
 	}
