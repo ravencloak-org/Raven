@@ -23,6 +23,7 @@ type Config struct {
 	Upload     UploadConfig
 	PostHog      PostHogConfig
 	Hyperswitch  HyperswitchConfig
+	LiveKit      LiveKitConfig
 }
 
 // PostHogConfig holds PostHog analytics settings.
@@ -37,6 +38,13 @@ type HyperswitchConfig struct {
 	BaseURL       string `mapstructure:"base_url"`
 	APIKey        string `mapstructure:"api_key"`
 	WebhookSecret string `mapstructure:"webhook_secret"`
+}
+
+// LiveKitConfig holds LiveKit WebRTC server settings.
+type LiveKitConfig struct {
+	Host      string `mapstructure:"host"`
+	APIKey    string `mapstructure:"api_key"`
+	APISecret string `mapstructure:"api_secret"`
 }
 
 // QueueConfig holds Asynq job queue settings.
@@ -142,6 +150,9 @@ func Load() (*Config, error) {
 	v.SetDefault("hyperswitch.base_url", "http://localhost:8090")
 	v.SetDefault("hyperswitch.api_key", "")
 	v.SetDefault("hyperswitch.webhook_secret", "")
+	v.SetDefault("livekit.host", "ws://localhost:7880")
+	v.SetDefault("livekit.api_key", "devkey")
+	v.SetDefault("livekit.api_secret", "devsecret")
 	v.SetDefault("upload.max_size_bytes", 52428800) // 50 MB
 	v.SetDefault("upload.allowed_types", []string{
 		"application/pdf",
