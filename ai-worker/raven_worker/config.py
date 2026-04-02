@@ -20,8 +20,8 @@ class Settings(BaseSettings):
     liteparse_path: str = "liteparse"
     encryption_key: str = ""  # base64-encoded 32-byte AES key for BYOK decryption
     livekit_url: str = "ws://localhost:7880"
-    livekit_api_key: str = "devkey"
-    livekit_api_secret: str = "devsecret"
+    livekit_api_key: str = ""
+    livekit_api_secret: str = ""
 
     model_config = SettingsConfigDict(env_prefix="RAVEN_")
 
