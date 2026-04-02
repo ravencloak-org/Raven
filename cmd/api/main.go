@@ -51,6 +51,28 @@ import (
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
 
+// securityEvaluatorAdapter bridges the SecurityService to the middleware.SecurityEvaluator
+// interface without creating a circular import dependency.
+type securityEvaluatorAdapter struct {
+	svc *service.SecurityService
+}
+
+func (a *securityEvaluatorAdapter) EvaluateRequest(ctx context.Context, orgID, clientIP, path, method, userAgent string) (*middleware.SecurityRuleAction, error) {
+	action, err := a.svc.EvaluateRequest(ctx, orgID, clientIP, path, method, userAgent)
+	if err != nil {
+		return nil, err
+	}
+	if action == nil {
+		return nil, nil
+	}
+	return &middleware.SecurityRuleAction{
+		Block:    action.Block,
+		Throttle: action.Throttle,
+		RuleID:   action.RuleID,
+		RuleName: action.RuleName,
+	}, nil
+}
+
 // apiKeyLookupAdapter bridges the APIKeyRepository to the middleware.APIKeyLookup
 // interface without creating a circular import dependency.
 type apiKeyLookupAdapter struct {
@@ -158,6 +180,7 @@ func main() {
 	apiKeyRepo := repository.NewAPIKeyRepository(pool)
 	routingRepo := repository.NewRoutingRepository(pool)
 	airbyteRepo := repository.NewAirbyteRepository(pool)
+	securityRepo := repository.NewSecurityRepository(pool)
 
 	// --- gRPC client for AI worker ---
 	grpcClient, err := rpcClient.NewClient(cfg.GRPC.WorkerAddr)
@@ -190,6 +213,7 @@ func main() {
 	apiKeySvc := service.NewAPIKeyService(apiKeyRepo, pool)
 	routingSvc := service.NewRoutingService(routingRepo, kbRepo, pool)
 	airbyteSvc := service.NewAirbyteService(airbyteRepo, pool, queueClient)
+	securitySvc := service.NewSecurityService(securityRepo, pool, valkeyClient)
 	chatRepo := repository.NewChatRepository(pool)
 	chatSvc := service.NewChatService(chatRepo, grpcClient, pool)
 
@@ -207,6 +231,7 @@ func main() {
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeySvc)
 	routingHandler := handler.NewRoutingHandler(routingSvc)
 	airbyteHandler := handler.NewAirbyteHandler(airbyteSvc)
+	securityHandler := handler.NewSecurityHandler(securitySvc)
 	chatHandler := handler.NewChatHandler(chatSvc)
 
 	// Create router
@@ -350,6 +375,21 @@ func main() {
 		// --- Catalog metadata routes (nested under org) ---
 		api.GET("/orgs/:org_id/catalog", middleware.RequireOrgRole("org_admin"), routingHandler.ListCatalog)
 
+		// --- Security rules routes (nested under org, admin only) ---
+		sec := api.Group("/orgs/:org_id/security")
+		{
+			secRules := sec.Group("/rules", middleware.RequireOrgRole("org_admin"))
+			{
+				secRules.POST("", securityHandler.CreateRule)
+				secRules.GET("", securityHandler.ListRules)
+				secRules.GET("/:rule_id", securityHandler.GetRule)
+				secRules.PUT("/:rule_id", securityHandler.UpdateRule)
+				secRules.DELETE("/:rule_id", securityHandler.DeleteRule)
+				secRules.POST("/invalidate-cache", securityHandler.InvalidateRuleCache)
+			}
+			sec.GET("/events", middleware.RequireOrgRole("org_admin"), securityHandler.ListEvents)
+		}
+
 		// --- User / me routes ---
 		api.GET("/me", userHandler.GetMe)
 		api.PUT("/me", userHandler.UpdateMe)
@@ -360,6 +400,7 @@ func main() {
 	// Public chat routes — API key authentication (for embeddable chat widget).
 	chatAPI := router.Group("/api/v1/chat")
 	chatAPI.Use(middleware.APIKeyAuth(&apiKeyLookupAdapter{repo: apiKeyRepo}))
+	chatAPI.Use(middleware.SecurityRulesMiddleware(&securityEvaluatorAdapter{svc: securitySvc}))
 	{
 		chatAPI.POST("/:kb_id/completions", chatHandler.StreamCompletion)
 		chatAPI.GET("/:kb_id/sessions", chatHandler.ListSessions)
