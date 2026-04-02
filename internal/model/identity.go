@@ -32,7 +32,7 @@ type IdentifyRequest struct {
 	AnonymousID       string          `json:"anonymous_id" binding:"required,min=1,max=255"`
 	UserID            string          `json:"user_id,omitempty"`
 	PosthogDistinctID string          `json:"posthog_distinct_id,omitempty"`
-	Channel           IdentityChannel `json:"channel" binding:"required"`
+	Channel           IdentityChannel `json:"channel" binding:"required,oneof=chat widget api"`
 	Metadata          map[string]any  `json:"metadata,omitempty"`
 }
 

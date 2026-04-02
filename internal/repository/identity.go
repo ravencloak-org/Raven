@@ -12,6 +12,9 @@ import (
 	"github.com/ravencloak-org/Raven/internal/model"
 )
 
+// ErrIdentityNotFound is returned when an identity record cannot be found.
+var ErrIdentityNotFound = fmt.Errorf("identity not found")
+
 // IdentityRepository handles database operations for cross-channel user identities.
 type IdentityRepository struct {
 	pool *pgxpool.Pool
@@ -43,7 +46,9 @@ func scanIdentity(row pgx.Row) (*model.UserIdentity, error) {
 	}
 	identity.UserID = userID
 	if len(metadataBytes) > 2 {
-		_ = json.Unmarshal(metadataBytes, &identity.Metadata)
+		if err := json.Unmarshal(metadataBytes, &identity.Metadata); err != nil {
+			return nil, fmt.Errorf("unmarshal identity metadata: %w", err)
+		}
 	}
 	if identity.Metadata == nil {
 		identity.Metadata = map[string]any{}
@@ -156,7 +161,9 @@ func (r *IdentityRepository) List(ctx context.Context, orgID string, limit, offs
 			}
 			identity.UserID = userID
 			if len(metadataBytes) > 2 {
-				_ = json.Unmarshal(metadataBytes, &identity.Metadata)
+				if e3 := json.Unmarshal(metadataBytes, &identity.Metadata); e3 != nil {
+					return fmt.Errorf("unmarshal identity metadata: %w", e3)
+				}
 			}
 			if identity.Metadata == nil {
 				identity.Metadata = map[string]any{}
@@ -185,7 +192,7 @@ func (r *IdentityRepository) Delete(ctx context.Context, orgID, id string) error
 			return e
 		}
 		if tag.RowsAffected() == 0 {
-			return fmt.Errorf("identity %s not found", id)
+			return ErrIdentityNotFound
 		}
 		return nil
 	})

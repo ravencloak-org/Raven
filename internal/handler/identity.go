@@ -114,8 +114,33 @@ func (h *IdentityHandler) Track(c *gin.Context) {
 // @Router      /orgs/{org_id}/identity [get]
 func (h *IdentityHandler) ListIdentities(c *gin.Context) {
 	orgID := c.Param("org_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+
+	limit := 50
+	if lStr := c.Query("limit"); lStr != "" {
+		v, err := strconv.Atoi(lStr)
+		if err != nil || v < 1 || v > 200 {
+			c.AbortWithStatusJSON(http.StatusBadRequest, apierror.AppError{
+				Code:    http.StatusBadRequest,
+				Message: "Bad Request",
+				Detail:  "limit must be an integer between 1 and 200",
+			})
+			return
+		}
+		limit = v
+	}
+	offset := 0
+	if oStr := c.Query("offset"); oStr != "" {
+		v, err := strconv.Atoi(oStr)
+		if err != nil || v < 0 {
+			c.AbortWithStatusJSON(http.StatusBadRequest, apierror.AppError{
+				Code:    http.StatusBadRequest,
+				Message: "Bad Request",
+				Detail:  "offset must be a non-negative integer",
+			})
+			return
+		}
+		offset = v
+	}
 
 	resp, err := h.svc.List(c.Request.Context(), orgID, limit, offset)
 	if err != nil {

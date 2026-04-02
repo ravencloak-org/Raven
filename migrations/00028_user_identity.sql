@@ -12,8 +12,13 @@ CREATE TABLE user_identities (
     session_count INTEGER NOT NULL DEFAULT 1,
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE(org_id, anonymous_id, channel)
 );
+
+CREATE TRIGGER trg_user_identities_updated_at
+    BEFORE UPDATE ON user_identities
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 CREATE INDEX idx_user_identities_org ON user_identities(org_id);
 CREATE INDEX idx_user_identities_anonymous ON user_identities(org_id, anonymous_id);
@@ -28,4 +33,7 @@ CREATE POLICY tenant_isolation ON user_identities FOR ALL
 CREATE POLICY admin_bypass ON user_identities FOR ALL TO raven_admin USING (true);
 
 -- +goose Down
+DROP TRIGGER IF EXISTS trg_user_identities_updated_at ON user_identities;
+DROP POLICY IF EXISTS admin_bypass ON user_identities;
+DROP POLICY IF EXISTS tenant_isolation ON user_identities;
 DROP TABLE IF EXISTS user_identities;

@@ -2,7 +2,8 @@ package service
 
 import (
 	"context"
-	"strings"
+	"errors"
+	"log/slog"
 
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/internal/posthog"
@@ -29,7 +30,7 @@ func NewIdentityService(repo *repository.IdentityRepository, phClient *posthog.C
 func (s *IdentityService) Identify(ctx context.Context, orgID string, req model.IdentifyRequest) (*model.UserIdentity, error) {
 	identity, err := s.repo.Upsert(ctx, orgID, req)
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
+		if errors.Is(err, repository.ErrIdentityNotFound) {
 			return nil, apierror.NewNotFound("identity not found")
 		}
 		return nil, apierror.NewInternal("failed to upsert identity: " + err.Error())
@@ -37,10 +38,22 @@ func (s *IdentityService) Identify(ctx context.Context, orgID string, req model.
 
 	// When a user_id is now set, merge the anonymous→identified user in PostHog.
 	if req.UserID != "" {
-		_ = s.posthog.Alias(ctx, req.UserID, req.AnonymousID)
-		_ = s.posthog.Identify(ctx, req.UserID, map[string]any{
+		if err := s.posthog.Alias(ctx, req.UserID, req.AnonymousID); err != nil {
+			slog.WarnContext(ctx, "posthog alias failed",
+				slog.String("user_id", req.UserID),
+				slog.String("anonymous_id", req.AnonymousID),
+				slog.String("error", err.Error()),
+			)
+		}
+		if err := s.posthog.Identify(ctx, req.UserID, map[string]any{
 			"channel": string(req.Channel),
-		})
+		}); err != nil {
+			slog.WarnContext(ctx, "posthog identify failed",
+				slog.String("user_id", req.UserID),
+				slog.String("channel", string(req.Channel)),
+				slog.String("error", err.Error()),
+			)
+		}
 	}
 
 	return identity, nil
@@ -84,7 +97,7 @@ func (s *IdentityService) List(ctx context.Context, orgID string, limit, offset 
 // Delete removes a user identity record by ID.
 func (s *IdentityService) Delete(ctx context.Context, orgID, id string) error {
 	if err := s.repo.Delete(ctx, orgID, id); err != nil {
-		if strings.Contains(err.Error(), "not found") {
+		if errors.Is(err, repository.ErrIdentityNotFound) {
 			return apierror.NewNotFound("identity not found")
 		}
 		return apierror.NewInternal("failed to delete identity: " + err.Error())

@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"time"
 )
@@ -20,7 +19,6 @@ type Client struct {
 	apiKey   string
 	endpoint string
 	http     *http.Client
-	logger   *slog.Logger
 	noop     bool
 }
 
@@ -36,8 +34,7 @@ func NewClient(apiKey, endpoint string) *Client {
 		http: &http.Client{
 			Timeout: 5 * time.Second,
 		},
-		logger: slog.Default(),
-		noop:   apiKey == "",
+		noop: apiKey == "",
 	}
 }
 
@@ -137,9 +134,9 @@ func (c *Client) post(ctx context.Context, path string, payload any) error {
 	if err != nil {
 		return fmt.Errorf("posthog: send request: %w", err)
 	}
-	defer resp.Body.Close()
-	// Drain body so connection can be reused.
+	// Drain body so connection can be reused, then close explicitly.
 	_, _ = io.Copy(io.Discard, resp.Body)
+	_ = resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("posthog: unexpected status %d for %s", resp.StatusCode, path)

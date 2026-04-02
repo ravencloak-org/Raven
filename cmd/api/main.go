@@ -398,10 +398,10 @@ func main() {
 		// --- Identity / PostHog routes (nested under org) ---
 		identity := api.Group("/orgs/:org_id/identity")
 		{
-			identity.POST("", identityHandler.Identify)
-			identity.POST("/track", identityHandler.Track)
-			identity.GET("", identityHandler.ListIdentities)
-			identity.DELETE("/:id", identityHandler.DeleteIdentity)
+			identity.POST("", middleware.RequireOrgRole("org_member"), identityHandler.Identify)
+			identity.POST("/track", middleware.RequireOrgRole("org_member"), identityHandler.Track)
+			identity.GET("", middleware.RequireOrgRole("org_member"), identityHandler.ListIdentities)
+			identity.DELETE("/:id", middleware.RequireOrgRole("org_admin"), identityHandler.DeleteIdentity)
 		}
 
 		// --- User / me routes ---
