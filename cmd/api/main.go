@@ -156,6 +156,7 @@ func main() {
 	llmRepo := repository.NewLLMProviderRepository(pool)
 	processingEventRepo := repository.NewProcessingEventRepository()
 	apiKeyRepo := repository.NewAPIKeyRepository(pool)
+	routingRepo := repository.NewRoutingRepository(pool)
 
 	// --- gRPC client for AI worker ---
 	grpcClient, err := rpcClient.NewClient(cfg.GRPC.WorkerAddr)
@@ -186,6 +187,7 @@ func main() {
 	uploadSvc := service.NewUploadService(docRepo, pool, seaweedClient, cfg.Upload.MaxSizeBytes, cfg.Upload.AllowedTypes)
 	processingSvc := service.NewProcessingEventService(processingEventRepo, docRepo, pool)
 	apiKeySvc := service.NewAPIKeyService(apiKeyRepo, pool)
+	routingSvc := service.NewRoutingService(routingRepo, kbRepo, pool)
 	chatRepo := repository.NewChatRepository(pool)
 	chatSvc := service.NewChatService(chatRepo, grpcClient, pool)
 
@@ -201,6 +203,7 @@ func main() {
 	uploadHandler := handler.NewUploadHandler(uploadSvc)
 	processingHandler := handler.NewProcessingEventHandler(processingSvc)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeySvc)
+	routingHandler := handler.NewRoutingHandler(routingSvc)
 	chatHandler := handler.NewChatHandler(chatSvc)
 
 	// Create router
@@ -317,6 +320,20 @@ func main() {
 			llm.DELETE("/:provider_id", middleware.RequireOrgRole("org_admin"), llmHandler.Delete)
 			llm.PUT("/:provider_id/default", middleware.RequireOrgRole("org_admin"), llmHandler.SetDefault)
 		}
+
+		// --- Routing rule routes (nested under org) ---
+		routing := api.Group("/orgs/:org_id/routing-rules")
+		{
+			routing.POST("", middleware.RequireOrgRole("org_admin"), routingHandler.Create)
+			routing.GET("", middleware.RequireOrgRole("org_admin"), routingHandler.List)
+			routing.GET("/:rule_id", middleware.RequireOrgRole("org_admin"), routingHandler.Get)
+			routing.PUT("/:rule_id", middleware.RequireOrgRole("org_admin"), routingHandler.Update)
+			routing.DELETE("/:rule_id", middleware.RequireOrgRole("org_admin"), routingHandler.Delete)
+			routing.POST("/resolve", middleware.RequireOrgRole("org_admin"), routingHandler.Resolve)
+		}
+
+		// --- Catalog metadata routes (nested under org) ---
+		api.GET("/orgs/:org_id/catalog", middleware.RequireOrgRole("org_admin"), routingHandler.ListCatalog)
 
 		// --- User / me routes ---
 		api.GET("/me", userHandler.GetMe)
