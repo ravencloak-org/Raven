@@ -7,12 +7,16 @@ on:
       - 'Dockerfile'
       - 'ai-worker/Dockerfile'
       - 'docker-compose.yml'
+
+      - '.github/workflows/docker.yml'
   pull_request:
     branches: [main]
     paths:
       - 'Dockerfile'
       - 'ai-worker/Dockerfile'
       - 'docker-compose.yml'
+
+      - '.github/workflows/docker.yml'
 
 permissions:
   contents: read
