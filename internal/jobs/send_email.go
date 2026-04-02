@@ -76,18 +76,17 @@ func HandleSendEmail(repo NotificationRepository) asynq.HandlerFunc {
 			var sendErr error
 			if cfg.host == "" {
 				// Dev mode: log to stdout instead of sending.
+				// Recipient and subject are omitted from logs to avoid storing PII.
 				logger.Info("HandleSendEmail: SMTP not configured, logging email",
 					slog.String("org_id", payload.OrgID),
 					slog.String("config_id", payload.ConfigID),
-					slog.String("subject", payload.Subject),
-					slog.String("recipient", recipient),
 				)
 			} else {
 				sendErr = sendToOne(cfg, payload, recipient)
 				if sendErr != nil {
+					// Recipient address is omitted from logs to avoid storing PII.
 					logger.WarnContext(ctx, "HandleSendEmail: smtp delivery failed",
 						slog.String("org_id", payload.OrgID),
-						slog.String("recipient", recipient),
 						slog.String("error", sendErr.Error()),
 					)
 				}
@@ -109,9 +108,9 @@ func HandleSendEmail(repo NotificationRepository) asynq.HandlerFunc {
 				logEntry.SentAt = &now
 			}
 			if logErr := repo.CreateLog(ctx, logEntry); logErr != nil {
+				// Recipient address is omitted from logs to avoid storing PII.
 				logger.WarnContext(ctx, "HandleSendEmail: failed to write log entry",
 					slog.String("org_id", payload.OrgID),
-					slog.String("recipient", recipient),
 					slog.String("error", logErr.Error()),
 				)
 			}

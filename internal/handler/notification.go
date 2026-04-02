@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
@@ -104,6 +105,14 @@ func (h *NotificationHandler) ListConfigs(c *gin.Context) {
 func (h *NotificationHandler) UpdateConfig(c *gin.Context) {
 	orgID := c.Param("org_id")
 	id := c.Param("id")
+	if _, err := uuid.Parse(id); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, apierror.AppError{
+			Code:    http.StatusBadRequest,
+			Message: "Bad Request",
+			Detail:  "id must be a valid UUID",
+		})
+		return
+	}
 
 	var req model.UpdateNotificationConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -137,6 +146,14 @@ func (h *NotificationHandler) UpdateConfig(c *gin.Context) {
 func (h *NotificationHandler) DeleteConfig(c *gin.Context) {
 	orgID := c.Param("org_id")
 	id := c.Param("id")
+	if _, err := uuid.Parse(id); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, apierror.AppError{
+			Code:    http.StatusBadRequest,
+			Message: "Bad Request",
+			Detail:  "id must be a valid UUID",
+		})
+		return
+	}
 
 	if err := h.svc.DeleteConfig(c.Request.Context(), orgID, id); err != nil {
 		_ = c.Error(err)

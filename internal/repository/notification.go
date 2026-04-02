@@ -23,11 +23,49 @@ func NewNotificationRepository(pool *pgxpool.Pool) *NotificationRepository {
 	return &NotificationRepository{pool: pool}
 }
 
-const notificationConfigCols = `id, org_id, notification_type,
-	COALESCE(recipients, '{}') AS recipients,
-	enabled,
-	COALESCE(config, '{}') AS config,
-	created_at, updated_at`
+const (
+	sqlCreateNotificationConfig = `INSERT INTO notification_configs (org_id, notification_type, recipients, enabled, config)
+			VALUES ($1, $2, $3, $4, $5)
+			RETURNING id, org_id, notification_type,
+				COALESCE(recipients, '{}') AS recipients,
+				enabled,
+				COALESCE(config, '{}') AS config,
+				created_at, updated_at`
+
+	sqlGetNotificationConfig = `SELECT id, org_id, notification_type,
+			COALESCE(recipients, '{}') AS recipients,
+			enabled,
+			COALESCE(config, '{}') AS config,
+			created_at, updated_at
+		FROM notification_configs WHERE id = $1 AND org_id = $2`
+
+	sqlListNotificationConfigs = `SELECT id, org_id, notification_type,
+			COALESCE(recipients, '{}') AS recipients,
+			enabled,
+			COALESCE(config, '{}') AS config,
+			created_at, updated_at
+		FROM notification_configs WHERE org_id = $1 ORDER BY created_at ASC`
+
+	sqlUpdateNotificationConfig = `UPDATE notification_configs SET
+			recipients = COALESCE($3, recipients),
+			enabled    = COALESCE($4, enabled),
+			config     = COALESCE($5, config)
+		WHERE id = $1 AND org_id = $2
+		RETURNING id, org_id, notification_type,
+			COALESCE(recipients, '{}') AS recipients,
+			enabled,
+			COALESCE(config, '{}') AS config,
+			created_at, updated_at`
+
+	sqlListEnabledByType = `SELECT id, org_id, notification_type,
+			COALESCE(recipients, '{}') AS recipients,
+			enabled,
+			COALESCE(config, '{}') AS config,
+			created_at, updated_at
+		FROM notification_configs
+		WHERE org_id = $1 AND notification_type = $2 AND enabled = true
+		ORDER BY created_at ASC`
+)
 
 func scanNotificationConfig(row pgx.Row) (*model.NotificationConfig, error) {
 	var c model.NotificationConfig
@@ -70,10 +108,7 @@ func (r *NotificationRepository) CreateConfig(ctx context.Context, orgID string,
 
 	var created *model.NotificationConfig
 	err = db.WithOrgID(ctx, r.pool, orgID, func(tx pgx.Tx) error {
-		row := tx.QueryRow(ctx,
-			`INSERT INTO notification_configs (org_id, notification_type, recipients, enabled, config)
-			VALUES ($1, $2, $3, $4, $5)
-			RETURNING `+notificationConfigCols,
+		row := tx.QueryRow(ctx, sqlCreateNotificationConfig,
 			orgID, req.NotificationType, req.Recipients, enabled, configBytes,
 		)
 		var e error
@@ -90,10 +125,7 @@ func (r *NotificationRepository) CreateConfig(ctx context.Context, orgID string,
 func (r *NotificationRepository) GetConfig(ctx context.Context, orgID, id string) (*model.NotificationConfig, error) {
 	var cfg *model.NotificationConfig
 	err := db.WithOrgID(ctx, r.pool, orgID, func(tx pgx.Tx) error {
-		row := tx.QueryRow(ctx,
-			`SELECT `+notificationConfigCols+` FROM notification_configs WHERE id = $1 AND org_id = $2`,
-			id, orgID,
-		)
+		row := tx.QueryRow(ctx, sqlGetNotificationConfig, id, orgID)
 		var e error
 		cfg, e = scanNotificationConfig(row)
 		return e
@@ -108,10 +140,7 @@ func (r *NotificationRepository) GetConfig(ctx context.Context, orgID, id string
 func (r *NotificationRepository) ListConfigs(ctx context.Context, orgID string) ([]model.NotificationConfig, error) {
 	var configs []model.NotificationConfig
 	err := db.WithOrgID(ctx, r.pool, orgID, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx,
-			`SELECT `+notificationConfigCols+` FROM notification_configs WHERE org_id = $1 ORDER BY created_at ASC`,
-			orgID,
-		)
+		rows, err := tx.Query(ctx, sqlListNotificationConfigs, orgID)
 		if err != nil {
 			return err
 		}
@@ -160,13 +189,7 @@ func (r *NotificationRepository) UpdateConfig(ctx context.Context, orgID, id str
 
 	var updated *model.NotificationConfig
 	err := db.WithOrgID(ctx, r.pool, orgID, func(tx pgx.Tx) error {
-		row := tx.QueryRow(ctx,
-			`UPDATE notification_configs SET
-				recipients = COALESCE($3, recipients),
-				enabled    = COALESCE($4, enabled),
-				config     = COALESCE($5, config)
-			WHERE id = $1 AND org_id = $2
-			RETURNING `+notificationConfigCols,
+		row := tx.QueryRow(ctx, sqlUpdateNotificationConfig,
 			id, orgID,
 			req.Recipients, req.Enabled, configBytes,
 		)
@@ -205,13 +228,7 @@ func (r *NotificationRepository) DeleteConfig(ctx context.Context, orgID, id str
 func (r *NotificationRepository) ListEnabledByType(ctx context.Context, orgID string, notifType model.NotificationType) ([]model.NotificationConfig, error) {
 	var configs []model.NotificationConfig
 	err := db.WithOrgID(ctx, r.pool, orgID, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx,
-			`SELECT `+notificationConfigCols+`
-			FROM notification_configs
-			WHERE org_id = $1 AND notification_type = $2 AND enabled = true
-			ORDER BY created_at ASC`,
-			orgID, notifType,
-		)
+		rows, err := tx.Query(ctx, sqlListEnabledByType, orgID, notifType)
 		if err != nil {
 			return err
 		}

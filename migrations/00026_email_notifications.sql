@@ -12,7 +12,8 @@ CREATE TABLE notification_configs (
     config JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT uniq_notification_configs_org_type UNIQUE (org_id, notification_type)
+    CONSTRAINT uniq_notification_configs_org_type UNIQUE (org_id, notification_type),
+    CONSTRAINT chk_notification_configs_recipients CHECK (array_length(recipients, 1) >= 1)
 );
 
 CREATE INDEX idx_notification_configs_org ON notification_configs(org_id);
