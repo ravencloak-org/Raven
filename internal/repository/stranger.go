@@ -20,15 +20,80 @@ func NewStrangerRepository(pool *pgxpool.Pool) *StrangerRepository {
 	return &StrangerRepository{pool: pool}
 }
 
-const strangerCols = `id, org_id, session_id,
-	COALESCE(ip_address::text, '') AS ip_address,
-	COALESCE(user_agent, '') AS user_agent,
-	status,
-	COALESCE(block_reason, '') AS block_reason,
-	message_count, rate_limit_rpm,
-	last_active_at, blocked_at,
-	COALESCE(blocked_by::text, '') AS blocked_by,
-	created_at, updated_at`
+// Complete, atomically-declared SQL statements — no fragment concatenation.
+const (
+	sqlUpsertStranger = `
+		INSERT INTO stranger_users (org_id, session_id, ip_address, user_agent, message_count)
+		VALUES ($1, $2, $3::inet, $4, 1)
+		ON CONFLICT (org_id, session_id) DO UPDATE SET
+			last_active_at = NOW(),
+			message_count  = stranger_users.message_count + 1,
+			ip_address     = EXCLUDED.ip_address,
+			user_agent     = EXCLUDED.user_agent
+		RETURNING id, org_id, session_id,
+			COALESCE(ip_address::text, '') AS ip_address,
+			COALESCE(user_agent, '')       AS user_agent,
+			status,
+			COALESCE(block_reason, '')     AS block_reason,
+			message_count, rate_limit_rpm,
+			last_active_at, blocked_at,
+			COALESCE(blocked_by::text, '') AS blocked_by,
+			created_at, updated_at`
+
+	sqlGetStrangerBySessionID = `
+		SELECT id, org_id, session_id,
+			COALESCE(ip_address::text, '') AS ip_address,
+			COALESCE(user_agent, '')       AS user_agent,
+			status,
+			COALESCE(block_reason, '')     AS block_reason,
+			message_count, rate_limit_rpm,
+			last_active_at, blocked_at,
+			COALESCE(blocked_by::text, '') AS blocked_by,
+			created_at, updated_at
+		FROM stranger_users
+		WHERE org_id = $1 AND session_id = $2`
+
+	sqlGetStrangerByID = `
+		SELECT id, org_id, session_id,
+			COALESCE(ip_address::text, '') AS ip_address,
+			COALESCE(user_agent, '')       AS user_agent,
+			status,
+			COALESCE(block_reason, '')     AS block_reason,
+			message_count, rate_limit_rpm,
+			last_active_at, blocked_at,
+			COALESCE(blocked_by::text, '') AS blocked_by,
+			created_at, updated_at
+		FROM stranger_users
+		WHERE org_id = $1 AND id = $2`
+
+	sqlListStrangersByStatus = `
+		SELECT id, org_id, session_id,
+			COALESCE(ip_address::text, '') AS ip_address,
+			COALESCE(user_agent, '')       AS user_agent,
+			status,
+			COALESCE(block_reason, '')     AS block_reason,
+			message_count, rate_limit_rpm,
+			last_active_at, blocked_at,
+			COALESCE(blocked_by::text, '') AS blocked_by,
+			created_at, updated_at
+		FROM stranger_users
+		WHERE org_id = $1 AND status = $2
+		ORDER BY last_active_at DESC LIMIT $3 OFFSET $4`
+
+	sqlListStrangers = `
+		SELECT id, org_id, session_id,
+			COALESCE(ip_address::text, '') AS ip_address,
+			COALESCE(user_agent, '')       AS user_agent,
+			status,
+			COALESCE(block_reason, '')     AS block_reason,
+			message_count, rate_limit_rpm,
+			last_active_at, blocked_at,
+			COALESCE(blocked_by::text, '') AS blocked_by,
+			created_at, updated_at
+		FROM stranger_users
+		WHERE org_id = $1
+		ORDER BY last_active_at DESC LIMIT $2 OFFSET $3`
+)
 
 func scanStranger(row pgx.Row) (*model.StrangerUser, error) {
 	var s model.StrangerUser
@@ -66,17 +131,7 @@ func (r *StrangerRepository) Upsert(ctx context.Context, tx pgx.Tx, orgID string
 		ipArg = *req.IPAddress
 	}
 
-	row := tx.QueryRow(ctx,
-		`INSERT INTO stranger_users (org_id, session_id, ip_address, user_agent, message_count)
-		VALUES ($1, $2, $3::inet, $4, 1)
-		ON CONFLICT (org_id, session_id) DO UPDATE SET
-			last_active_at = NOW(),
-			message_count = stranger_users.message_count + 1,
-			ip_address = EXCLUDED.ip_address,
-			user_agent = EXCLUDED.user_agent
-		RETURNING `+strangerCols,
-		orgID, req.SessionID, ipArg, req.UserAgent,
-	)
+	row := tx.QueryRow(ctx, sqlUpsertStranger, orgID, req.SessionID, ipArg, req.UserAgent)
 	s, err := scanStranger(row)
 	if err != nil {
 		return nil, fmt.Errorf("StrangerRepository.Upsert: %w", err)
@@ -86,10 +141,7 @@ func (r *StrangerRepository) Upsert(ctx context.Context, tx pgx.Tx, orgID string
 
 // GetBySessionID fetches a stranger record by session ID within an org.
 func (r *StrangerRepository) GetBySessionID(ctx context.Context, tx pgx.Tx, orgID, sessionID string) (*model.StrangerUser, error) {
-	row := tx.QueryRow(ctx,
-		`SELECT `+strangerCols+` FROM stranger_users WHERE org_id = $1 AND session_id = $2`,
-		orgID, sessionID,
-	)
+	row := tx.QueryRow(ctx, sqlGetStrangerBySessionID, orgID, sessionID)
 	s, err := scanStranger(row)
 	if err != nil {
 		return nil, fmt.Errorf("StrangerRepository.GetBySessionID: %w", err)
@@ -99,10 +151,7 @@ func (r *StrangerRepository) GetBySessionID(ctx context.Context, tx pgx.Tx, orgI
 
 // GetByID fetches a stranger record by its UUID within an org.
 func (r *StrangerRepository) GetByID(ctx context.Context, tx pgx.Tx, orgID, id string) (*model.StrangerUser, error) {
-	row := tx.QueryRow(ctx,
-		`SELECT `+strangerCols+` FROM stranger_users WHERE org_id = $1 AND id = $2`,
-		orgID, id,
-	)
+	row := tx.QueryRow(ctx, sqlGetStrangerByID, orgID, id)
 	s, err := scanStranger(row)
 	if err != nil {
 		return nil, fmt.Errorf("StrangerRepository.GetByID: %w", err)
@@ -133,19 +182,9 @@ func (r *StrangerRepository) List(ctx context.Context, tx pgx.Tx, orgID string, 
 	var rows pgx.Rows
 	var err error
 	if status != nil {
-		rows, err = tx.Query(ctx,
-			`SELECT `+strangerCols+` FROM stranger_users
-			WHERE org_id = $1 AND status = $2
-			ORDER BY last_active_at DESC LIMIT $3 OFFSET $4`,
-			orgID, *status, limit, offset,
-		)
+		rows, err = tx.Query(ctx, sqlListStrangersByStatus, orgID, *status, limit, offset)
 	} else {
-		rows, err = tx.Query(ctx,
-			`SELECT `+strangerCols+` FROM stranger_users
-			WHERE org_id = $1
-			ORDER BY last_active_at DESC LIMIT $2 OFFSET $3`,
-			orgID, limit, offset,
-		)
+		rows, err = tx.Query(ctx, sqlListStrangers, orgID, limit, offset)
 	}
 	if err != nil {
 		return nil, 0, fmt.Errorf("StrangerRepository.List query: %w", err)
