@@ -7,10 +7,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/hibiken/asynq"
@@ -22,6 +25,69 @@ import (
 	"github.com/ravencloak-org/Raven/internal/queue"
 	"github.com/ravencloak-org/Raven/internal/repository"
 )
+
+// errPrivateIP is returned when a webhook URL resolves to a private/reserved IP.
+var errPrivateIP = errors.New("webhook URL resolves to a private or reserved IP address")
+
+// privateIPNets contains CIDR ranges that must be blocked for SSRF prevention.
+var privateIPNets []*net.IPNet
+
+func init() {
+	for _, cidr := range []string{
+		"127.0.0.0/8",    // loopback
+		"10.0.0.0/8",     // RFC 1918
+		"172.16.0.0/12",  // RFC 1918
+		"192.168.0.0/16", // RFC 1918
+		"169.254.0.0/16", // link-local
+		"::1/128",        // IPv6 loopback
+		"fc00::/7",       // IPv6 unique local
+		"fe80::/10",      // IPv6 link-local
+	} {
+		_, ipNet, _ := net.ParseCIDR(cidr)
+		privateIPNets = append(privateIPNets, ipNet)
+	}
+}
+
+// isPrivateIP checks whether an IP falls within any blocked CIDR range.
+func isPrivateIP(ip net.IP) bool {
+	for _, ipNet := range privateIPNets {
+		if ipNet.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// safeDialContext returns a DialContext func that rejects connections to private IP ranges.
+func safeDialContext(dialer *net.Dialer) func(ctx context.Context, network, addr string) (net.Conn, error) {
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		host, port, err := net.SplitHostPort(addr)
+		if err != nil {
+			return nil, fmt.Errorf("split host/port: %w", err)
+		}
+		ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+		if err != nil {
+			return nil, fmt.Errorf("resolve host %q: %w", host, err)
+		}
+		for _, ip := range ips {
+			if isPrivateIP(ip.IP) {
+				return nil, errPrivateIP
+			}
+		}
+		// Reconnect to the first allowed IP to prevent TOCTOU with DNS rebinding.
+		if len(ips) > 0 {
+			addr = net.JoinHostPort(ips[0].IP.String(), port)
+		}
+		return dialer.DialContext(ctx, network, addr)
+	}
+}
+
+// reservedHeaders are header names controlled by Raven that custom headers must not override.
+var reservedHeaders = map[string]struct{}{
+	"content-type":      {},
+	"x-raven-signature": {},
+	"x-raven-event":     {},
+}
 
 // TypeWebhookDelivery is the Asynq task type for delivering webhook events.
 const TypeWebhookDelivery = queue.TypeWebhookDelivery
@@ -36,11 +102,23 @@ type WebhookDeliveryHandler struct {
 
 // NewWebhookDeliveryHandler creates a new WebhookDeliveryHandler.
 func NewWebhookDeliveryHandler(pool *pgxpool.Pool, repo *repository.WebhookRepository, logger *slog.Logger) *WebhookDeliveryHandler {
+	dialer := &net.Dialer{Timeout: 5 * time.Second}
+	transport := &http.Transport{
+		DialContext: safeDialContext(dialer),
+	}
 	return &WebhookDeliveryHandler{
 		pool: pool,
 		repo: repo,
 		httpClient: &http.Client{
-			Timeout: 10 * time.Second,
+			Timeout:   10 * time.Second,
+			Transport: transport,
+			// Prevent following redirects to internal URLs.
+			CheckRedirect: func(req *http.Request, _ []*http.Request) error {
+				if !strings.HasPrefix(req.URL.Scheme, "http") {
+					return fmt.Errorf("disallowed redirect scheme: %s", req.URL.Scheme)
+				}
+				return nil
+			},
 		},
 		logger: logger,
 	}
@@ -87,17 +165,28 @@ func (h *WebhookDeliveryHandler) ProcessTask(ctx context.Context, t *asynq.Task)
 	mac.Write(bodyBytes)
 	signature := "sha256=" + hex.EncodeToString(mac.Sum(nil))
 
+	// Validate URL scheme to prevent SSRF via non-HTTP protocols.
+	if !strings.HasPrefix(hook.URL, "https://") && !strings.HasPrefix(hook.URL, "http://") {
+		return fmt.Errorf("%w: webhook URL must use http or https scheme", asynq.SkipRetry)
+	}
+
 	// Build and send the HTTP request.
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, hook.URL, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return fmt.Errorf("build webhook request: %w", err)
 	}
+
+	// Set custom headers first so Raven-controlled headers cannot be overridden.
+	for k, v := range hook.Headers {
+		if _, reserved := reservedHeaders[strings.ToLower(k)]; reserved {
+			continue
+		}
+		req.Header.Set(k, v)
+	}
+	// Set Raven-controlled headers last to ensure they are not overridden.
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Raven-Signature", signature)
 	req.Header.Set("X-Raven-Event", p.EventType)
-	for k, v := range hook.Headers {
-		req.Header.Set(k, v)
-	}
 
 	resp, err := h.httpClient.Do(req)
 

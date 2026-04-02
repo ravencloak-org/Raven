@@ -19,6 +19,7 @@ CREATE TABLE webhook_configs (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE UNIQUE INDEX idx_webhook_configs_id_org ON webhook_configs(id, org_id);
 CREATE INDEX idx_webhook_configs_org ON webhook_configs(org_id);
 CREATE INDEX idx_webhook_configs_events ON webhook_configs USING GIN(events);
 CREATE INDEX idx_webhook_configs_status ON webhook_configs(org_id, status) WHERE status = 'active';
@@ -35,8 +36,11 @@ CREATE TRIGGER trg_webhook_configs_updated_at
 
 CREATE TABLE webhook_deliveries (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    webhook_id UUID NOT NULL REFERENCES webhook_configs(id) ON DELETE CASCADE,
+    webhook_id UUID NOT NULL,
     org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_webhook_deliveries_config
+        FOREIGN KEY (webhook_id, org_id)
+        REFERENCES webhook_configs(id, org_id) ON DELETE CASCADE,
     event_type VARCHAR(100) NOT NULL,
     payload JSONB NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'pending',

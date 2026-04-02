@@ -2,13 +2,52 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/ravencloak-org/Raven/internal/middleware"
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
+
+// supportedWebhookEvents is the set of valid event names accepted for webhook subscriptions.
+var supportedWebhookEvents = map[string]struct{}{
+	string(model.WebhookEventLeadGenerated):         {},
+	string(model.WebhookEventConversationEscalated): {},
+	string(model.WebhookEventDocumentProcessed):     {},
+	string(model.WebhookEventSyncCompleted):         {},
+}
+
+// maxAllowedRetries is the upper bound for max_retries to prevent abuse.
+const maxAllowedRetries = 20
+
+// validateUUID checks that s is a valid UUID and returns an error string if not.
+func validateUUID(s, name string) error {
+	if _, err := uuid.Parse(s); err != nil {
+		return fmt.Errorf("%s is not a valid UUID", name)
+	}
+	return nil
+}
+
+// validateEvents checks that all events in the slice are supported.
+func validateEvents(events []string) error {
+	for _, e := range events {
+		if _, ok := supportedWebhookEvents[e]; !ok {
+			return fmt.Errorf("unsupported event type: %s", e)
+		}
+	}
+	return nil
+}
+
+// validateMaxRetries checks that max_retries is within acceptable bounds.
+func validateMaxRetries(v *int) error {
+	if v != nil && (*v < 0 || *v > maxAllowedRetries) {
+		return fmt.Errorf("max_retries must be between 0 and %d", maxAllowedRetries)
+	}
+	return nil
+}
 
 // WebhookServicer is the interface the handler requires from the service layer.
 type WebhookServicer interface {
@@ -45,6 +84,12 @@ func NewWebhookHandler(svc WebhookServicer) *WebhookHandler {
 // @Router      /orgs/{org_id}/webhooks [post]
 func (h *WebhookHandler) Create(c *gin.Context) {
 	orgID := c.Param("org_id")
+	if err := validateUUID(orgID, "org_id"); err != nil {
+		_ = c.Error(apierror.NewBadRequest(err.Error()))
+		c.Abort()
+		return
+	}
+
 	userIDVal, exists := c.Get(string(middleware.ContextKeyUserID))
 	if !exists {
 		_ = c.Error(apierror.NewUnauthorized("user authentication required"))
@@ -60,6 +105,17 @@ func (h *WebhookHandler) Create(c *gin.Context) {
 			Message: "Unprocessable Entity",
 			Detail:  err.Error(),
 		})
+		return
+	}
+
+	if err := validateEvents(req.Events); err != nil {
+		_ = c.Error(apierror.NewBadRequest(err.Error()))
+		c.Abort()
+		return
+	}
+	if err := validateMaxRetries(req.MaxRetries); err != nil {
+		_ = c.Error(apierror.NewBadRequest(err.Error()))
+		c.Abort()
 		return
 	}
 
@@ -84,6 +140,11 @@ func (h *WebhookHandler) Create(c *gin.Context) {
 // @Router      /orgs/{org_id}/webhooks [get]
 func (h *WebhookHandler) List(c *gin.Context) {
 	orgID := c.Param("org_id")
+	if err := validateUUID(orgID, "org_id"); err != nil {
+		_ = c.Error(apierror.NewBadRequest(err.Error()))
+		c.Abort()
+		return
+	}
 
 	hooks, err := h.svc.List(c.Request.Context(), orgID)
 	if err != nil {
@@ -111,6 +172,16 @@ func (h *WebhookHandler) List(c *gin.Context) {
 func (h *WebhookHandler) Get(c *gin.Context) {
 	orgID := c.Param("org_id")
 	id := c.Param("id")
+	if err := validateUUID(orgID, "org_id"); err != nil {
+		_ = c.Error(apierror.NewBadRequest(err.Error()))
+		c.Abort()
+		return
+	}
+	if err := validateUUID(id, "id"); err != nil {
+		_ = c.Error(apierror.NewBadRequest(err.Error()))
+		c.Abort()
+		return
+	}
 
 	hook, err := h.svc.GetByID(c.Request.Context(), orgID, id)
 	if err != nil {
@@ -138,6 +209,16 @@ func (h *WebhookHandler) Get(c *gin.Context) {
 func (h *WebhookHandler) Update(c *gin.Context) {
 	orgID := c.Param("org_id")
 	id := c.Param("id")
+	if err := validateUUID(orgID, "org_id"); err != nil {
+		_ = c.Error(apierror.NewBadRequest(err.Error()))
+		c.Abort()
+		return
+	}
+	if err := validateUUID(id, "id"); err != nil {
+		_ = c.Error(apierror.NewBadRequest(err.Error()))
+		c.Abort()
+		return
+	}
 
 	var req model.UpdateWebhookRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -146,6 +227,19 @@ func (h *WebhookHandler) Update(c *gin.Context) {
 			Message: "Unprocessable Entity",
 			Detail:  err.Error(),
 		})
+		return
+	}
+
+	if len(req.Events) > 0 {
+		if err := validateEvents(req.Events); err != nil {
+			_ = c.Error(apierror.NewBadRequest(err.Error()))
+			c.Abort()
+			return
+		}
+	}
+	if err := validateMaxRetries(req.MaxRetries); err != nil {
+		_ = c.Error(apierror.NewBadRequest(err.Error()))
+		c.Abort()
 		return
 	}
 
@@ -171,6 +265,16 @@ func (h *WebhookHandler) Update(c *gin.Context) {
 func (h *WebhookHandler) Delete(c *gin.Context) {
 	orgID := c.Param("org_id")
 	id := c.Param("id")
+	if err := validateUUID(orgID, "org_id"); err != nil {
+		_ = c.Error(apierror.NewBadRequest(err.Error()))
+		c.Abort()
+		return
+	}
+	if err := validateUUID(id, "id"); err != nil {
+		_ = c.Error(apierror.NewBadRequest(err.Error()))
+		c.Abort()
+		return
+	}
 
 	if err := h.svc.Delete(c.Request.Context(), orgID, id); err != nil {
 		_ = c.Error(err)
@@ -194,6 +298,16 @@ func (h *WebhookHandler) Delete(c *gin.Context) {
 func (h *WebhookHandler) ListDeliveries(c *gin.Context) {
 	orgID := c.Param("org_id")
 	id := c.Param("id")
+	if err := validateUUID(orgID, "org_id"); err != nil {
+		_ = c.Error(apierror.NewBadRequest(err.Error()))
+		c.Abort()
+		return
+	}
+	if err := validateUUID(id, "id"); err != nil {
+		_ = c.Error(apierror.NewBadRequest(err.Error()))
+		c.Abort()
+		return
+	}
 
 	deliveries, err := h.svc.ListDeliveries(c.Request.Context(), orgID, id, 50)
 	if err != nil {

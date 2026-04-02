@@ -68,7 +68,7 @@ const (
 		COALESCE(created_by::text, '') AS created_by,
 		created_at, updated_at`
 
-	sqlSetWebhookStatus = `UPDATE webhook_configs SET status = $2 WHERE id = $1`
+	sqlSetWebhookStatus = `UPDATE webhook_configs SET status = $2 WHERE id = $1 AND org_id = current_setting('app.current_org_id')::uuid`
 )
 
 func scanWebhookConfig(row pgx.Row) (*model.WebhookConfig, error) {
@@ -99,11 +99,14 @@ func scanWebhookConfig(row pgx.Row) (*model.WebhookConfig, error) {
 
 // Create inserts a new webhook config within a transaction.
 func (r *WebhookRepository) Create(ctx context.Context, tx pgx.Tx, orgID string, req model.CreateWebhookRequest, createdBy string) (*model.WebhookConfig, error) {
-	headersBytes, err := json.Marshal(req.Headers)
-	if err != nil {
-		headersBytes = []byte("{}")
-	}
-	if req.Headers == nil {
+	var headersBytes []byte
+	if req.Headers != nil {
+		var err error
+		headersBytes, err = json.Marshal(req.Headers)
+		if err != nil {
+			return nil, fmt.Errorf("WebhookRepository.Create: marshal headers: %w", err)
+		}
+	} else {
 		headersBytes = []byte("{}")
 	}
 
@@ -173,9 +176,10 @@ func (r *WebhookRepository) Update(ctx context.Context, tx pgx.Tx, orgID, id str
 	var headersBytes []byte
 	if req.Headers != nil {
 		b, err := json.Marshal(req.Headers)
-		if err == nil {
-			headersBytes = b
+		if err != nil {
+			return nil, fmt.Errorf("WebhookRepository.Update: marshal headers: %w", err)
 		}
+		headersBytes = b
 	}
 
 	row := tx.QueryRow(ctx, sqlUpdateWebhook,
@@ -270,7 +274,7 @@ func (r *WebhookRepository) UpdateDelivery(ctx context.Context, tx pgx.Tx, id st
 			response_body = $4,
 			attempt = attempt + 1,
 			completed_at = CASE WHEN $5 THEN NOW() ELSE NULL END
-		WHERE id = $1`,
+		WHERE id = $1 AND org_id = current_setting('app.current_org_id')::uuid`,
 		id, deliveryStatus, status, body, success,
 	)
 	if err != nil {
@@ -291,7 +295,7 @@ func (r *WebhookRepository) SetWebhookStatus(ctx context.Context, tx pgx.Tx, id 
 // IncrementFailureCount increments the failure_count on a webhook config.
 func (r *WebhookRepository) IncrementFailureCount(ctx context.Context, tx pgx.Tx, id string) error {
 	_, err := tx.Exec(ctx,
-		`UPDATE webhook_configs SET failure_count = failure_count + 1 WHERE id = $1`,
+		`UPDATE webhook_configs SET failure_count = failure_count + 1 WHERE id = $1 AND org_id = current_setting('app.current_org_id')::uuid`,
 		id,
 	)
 	if err != nil {
