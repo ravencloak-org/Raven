@@ -21,14 +21,9 @@ func New(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
-// SetOrgIDQuery returns the SQL statement that sets the current org for RLS.
-// Use with Exec inside a transaction.
-func SetOrgIDQuery(orgID string) string {
-	return fmt.Sprintf("SET LOCAL app.current_org_id = '%s'", orgID)
-}
-
 // WithOrgID executes fn inside a transaction with app.current_org_id set for RLS.
 // The transaction is automatically rolled back on error and committed on success.
+// orgID is passed as a parameter to set_config to prevent SQL injection.
 func WithOrgID(ctx context.Context, pool *pgxpool.Pool, orgID string, fn func(tx pgx.Tx) error) error {
 	tx, err := pool.Begin(ctx)
 	if err != nil {
@@ -36,7 +31,7 @@ func WithOrgID(ctx context.Context, pool *pgxpool.Pool, orgID string, fn func(tx
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
 
-	if _, err := tx.Exec(ctx, SetOrgIDQuery(orgID)); err != nil {
+	if _, err := tx.Exec(ctx, "SELECT set_config('app.current_org_id', $1, true)", orgID); err != nil {
 		return fmt.Errorf("set org_id: %w", err)
 	}
 	if err := fn(tx); err != nil {

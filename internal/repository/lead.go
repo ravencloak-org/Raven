@@ -73,10 +73,11 @@ func (r *LeadRepository) Upsert(ctx context.Context, orgID string, req model.Ups
 	err := db.WithOrgID(ctx, r.pool, orgID, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx,
 			`INSERT INTO lead_profiles
-				(org_id, knowledge_base_id, session_ids, email, name, phone, company, metadata, total_messages, total_sessions)
+				(org_id, knowledge_base_id, session_ids, email, name, phone, company, metadata, total_messages, total_sessions, engagement_score)
 			 VALUES
-				($1, $2::uuid, $3::uuid[], NULLIF($4, ''), NULLIF($5, ''), NULLIF($6, ''), NULLIF($7, ''), COALESCE($8::jsonb, '{}'), $9, $10)
-			 ON CONFLICT (org_id, email) DO UPDATE SET
+				($1, $2::uuid, $3::uuid[], NULLIF($4, ''), NULLIF($5, ''), NULLIF($6, ''), NULLIF($7, ''), COALESCE($8::jsonb, '{}'), $9, $10,
+				 $9::real * 0.5 + $10::real * 2.0 + CASE WHEN NULLIF($4, '') IS NOT NULL THEN 10.0 ELSE 0.0 END)
+			 ON CONFLICT (org_id, email) WHERE email IS NOT NULL DO UPDATE SET
 				knowledge_base_id = COALESCE(EXCLUDED.knowledge_base_id, lead_profiles.knowledge_base_id),
 				session_ids       = CASE
 					WHEN EXCLUDED.session_ids IS NOT NULL AND array_length(EXCLUDED.session_ids, 1) > 0
@@ -89,6 +90,9 @@ func (r *LeadRepository) Upsert(ctx context.Context, orgID string, req model.Ups
 				metadata          = lead_profiles.metadata || EXCLUDED.metadata,
 				total_messages    = lead_profiles.total_messages + EXCLUDED.total_messages,
 				total_sessions    = lead_profiles.total_sessions + EXCLUDED.total_sessions,
+				engagement_score  = (lead_profiles.total_messages + EXCLUDED.total_messages)::real * 0.5
+				                  + (lead_profiles.total_sessions + EXCLUDED.total_sessions)::real * 2.0
+				                  + CASE WHEN COALESCE(EXCLUDED.email, lead_profiles.email) IS NOT NULL THEN 10.0 ELSE 0.0 END,
 				last_seen_at      = NOW(),
 				updated_at        = NOW()
 			 RETURNING `+leadColumns,

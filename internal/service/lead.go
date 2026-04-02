@@ -2,14 +2,35 @@ package service
 
 import (
 	"context"
-	"strings"
+	"errors"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/samber/lo"
 
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/internal/repository"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
+
+// mapLeadDBError converts low-level pgx/pgconn errors to API errors.
+func mapLeadDBError(err error) error {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return apierror.NewNotFound("lead not found")
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case "23503": // foreign_key_violation
+			return apierror.NewBadRequest("invalid reference (knowledge base not found)")
+		case "22P02": // invalid_text_representation (bad UUID)
+			return apierror.NewBadRequest("invalid id format")
+		case "23505": // unique_violation
+			return apierror.NewBadRequest("lead already exists with conflicting unique field")
+		}
+	}
+	return apierror.NewInternal(err.Error())
+}
 
 // LeadService contains business logic for lead profile management.
 type LeadService struct {
@@ -35,10 +56,7 @@ func ComputeEngagementScore(lead *model.LeadProfile) float32 {
 func (s *LeadService) Upsert(ctx context.Context, orgID string, req model.UpsertLeadRequest) (*model.LeadProfile, error) {
 	lead, err := s.repo.Upsert(ctx, orgID, req)
 	if err != nil {
-		if strings.Contains(err.Error(), "foreign key") || strings.Contains(err.Error(), "violates") {
-			return nil, apierror.NewBadRequest("invalid reference (knowledge base or session not found)")
-		}
-		return nil, apierror.NewInternal("failed to upsert lead: " + err.Error())
+		return nil, mapLeadDBError(err)
 	}
 	lead.EngagementScore = ComputeEngagementScore(lead)
 	return lead, nil
@@ -48,10 +66,7 @@ func (s *LeadService) Upsert(ctx context.Context, orgID string, req model.Upsert
 func (s *LeadService) GetByID(ctx context.Context, orgID, id string) (*model.LeadProfile, error) {
 	lead, err := s.repo.GetByID(ctx, orgID, id)
 	if err != nil {
-		if strings.Contains(err.Error(), "no rows") {
-			return nil, apierror.NewNotFound("lead not found")
-		}
-		return nil, apierror.NewInternal("failed to fetch lead: " + err.Error())
+		return nil, mapLeadDBError(err)
 	}
 	return lead, nil
 }
@@ -84,10 +99,7 @@ func (s *LeadService) List(ctx context.Context, orgID string, minScore *float32,
 func (s *LeadService) Update(ctx context.Context, orgID, id string, req model.UpdateLeadRequest) (*model.LeadProfile, error) {
 	lead, err := s.repo.Update(ctx, orgID, id, req)
 	if err != nil {
-		if strings.Contains(err.Error(), "no rows") {
-			return nil, apierror.NewNotFound("lead not found")
-		}
-		return nil, apierror.NewInternal("failed to update lead: " + err.Error())
+		return nil, mapLeadDBError(err)
 	}
 	lead.EngagementScore = ComputeEngagementScore(lead)
 	return lead, nil
@@ -95,12 +107,8 @@ func (s *LeadService) Update(ctx context.Context, orgID, id string, req model.Up
 
 // Delete permanently removes a lead profile.
 func (s *LeadService) Delete(ctx context.Context, orgID, id string) error {
-	err := s.repo.Delete(ctx, orgID, id)
-	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			return apierror.NewNotFound("lead not found")
-		}
-		return apierror.NewInternal("failed to delete lead: " + err.Error())
+	if err := s.repo.Delete(ctx, orgID, id); err != nil {
+		return mapLeadDBError(err)
 	}
 	return nil
 }
@@ -109,7 +117,7 @@ func (s *LeadService) Delete(ctx context.Context, orgID, id string) error {
 func (s *LeadService) ExportCSV(ctx context.Context, orgID string) ([]model.LeadProfile, error) {
 	leads, err := s.repo.ExportCSV(ctx, orgID)
 	if err != nil {
-		return nil, apierror.NewInternal("failed to export leads: " + err.Error())
+		return nil, mapLeadDBError(err)
 	}
 	return leads, nil
 }

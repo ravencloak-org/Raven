@@ -19,7 +19,7 @@ CREATE TABLE lead_profiles (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_lead_profiles_org_email ON lead_profiles(org_id, email);
+CREATE UNIQUE INDEX idx_lead_profiles_org_email ON lead_profiles(org_id, email) WHERE email IS NOT NULL;
 CREATE INDEX idx_lead_profiles_org_score ON lead_profiles(org_id, engagement_score DESC);
 
 ALTER TABLE lead_profiles ENABLE ROW LEVEL SECURITY;
@@ -33,4 +33,7 @@ CREATE TRIGGER trg_lead_profiles_updated_at
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- +goose Down
+DROP TRIGGER IF EXISTS trg_lead_profiles_updated_at ON lead_profiles;
+DROP POLICY IF EXISTS admin_bypass ON lead_profiles;
+DROP POLICY IF EXISTS tenant_isolation ON lead_profiles;
 DROP TABLE IF EXISTS lead_profiles;

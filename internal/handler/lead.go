@@ -6,11 +6,21 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
+
+// sanitizeCSVCell neutralizes CSV injection by prefixing cells that start with
+// formula-triggering characters (=, +, -, @) with a single quote.
+func sanitizeCSVCell(s string) string {
+	if len(s) > 0 && strings.ContainsRune("=+-@", rune(s[0])) {
+		return "'" + s
+	}
+	return s
+}
 
 // LeadServicer is the interface the handler requires from the service layer.
 type LeadServicer interface {
@@ -230,7 +240,10 @@ func (h *LeadHandler) ExportLeadsCSV(c *gin.Context) {
 		l := &leads[i]
 		if err := w.Write([]string{
 			l.ID, l.OrgID, l.KnowledgeBaseID,
-			l.Email, l.Name, l.Phone, l.Company,
+			sanitizeCSVCell(l.Email),
+			sanitizeCSVCell(l.Name),
+			sanitizeCSVCell(l.Phone),
+			sanitizeCSVCell(l.Company),
 			fmt.Sprintf("%.2f", l.EngagementScore),
 			strconv.Itoa(l.TotalMessages),
 			strconv.Itoa(l.TotalSessions),
