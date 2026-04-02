@@ -33,9 +33,10 @@ type StrangerUser struct {
 
 // UpsertStrangerRequest is the payload for tracking an anonymous session.
 type UpsertStrangerRequest struct {
-	SessionID string  `json:"session_id" binding:"required"`
-	IPAddress *string `json:"ip_address,omitempty"`
-	UserAgent string  `json:"user_agent,omitempty"`
+	SessionID      string  `json:"session_id" binding:"required"`
+	IPAddress      *string `json:"ip_address,omitempty"`
+	UserAgent      string  `json:"user_agent,omitempty"`
+	IncrementCount bool    `json:"-"` // true only for message-producing requests (e.g. completions)
 }
 
 // BlockStrangerRequest is the payload for blocking or banning a user.

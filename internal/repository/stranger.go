@@ -24,10 +24,10 @@ func NewStrangerRepository(pool *pgxpool.Pool) *StrangerRepository {
 const (
 	sqlUpsertStranger = `
 		INSERT INTO stranger_users (org_id, session_id, ip_address, user_agent, message_count)
-		VALUES ($1, $2, $3::inet, $4, 1)
+		VALUES ($1, $2, $3::inet, $4, CASE WHEN $5 THEN 1 ELSE 0 END)
 		ON CONFLICT (org_id, session_id) DO UPDATE SET
 			last_active_at = NOW(),
-			message_count  = stranger_users.message_count + 1,
+			message_count  = stranger_users.message_count + CASE WHEN $5 THEN 1 ELSE 0 END,
 			ip_address     = EXCLUDED.ip_address,
 			user_agent     = EXCLUDED.user_agent
 		RETURNING id, org_id, session_id,
@@ -131,7 +131,7 @@ func (r *StrangerRepository) Upsert(ctx context.Context, tx pgx.Tx, orgID string
 		ipArg = *req.IPAddress
 	}
 
-	row := tx.QueryRow(ctx, sqlUpsertStranger, orgID, req.SessionID, ipArg, req.UserAgent)
+	row := tx.QueryRow(ctx, sqlUpsertStranger, orgID, req.SessionID, ipArg, req.UserAgent, req.IncrementCount)
 	s, err := scanStranger(row)
 	if err != nil {
 		return nil, fmt.Errorf("StrangerRepository.Upsert: %w", err)

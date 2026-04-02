@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -33,7 +34,8 @@ func (s *StrangerService) Upsert(ctx context.Context, orgID string, req model.Up
 		return e
 	})
 	if err != nil {
-		return nil, apierror.NewInternal("failed to upsert stranger: " + err.Error())
+		slog.WarnContext(ctx, "StrangerService.Upsert db error", "error", err)
+	return nil, apierror.NewInternal("internal error")
 	}
 	return stranger, nil
 }
@@ -50,7 +52,8 @@ func (s *StrangerService) GetBySessionID(ctx context.Context, orgID, sessionID s
 		if strings.Contains(err.Error(), "no rows") {
 			return nil, apierror.NewNotFound("stranger not found")
 		}
-		return nil, apierror.NewInternal("failed to get stranger: " + err.Error())
+		slog.WarnContext(ctx, "StrangerService.GetBySessionID db error", "error", err)
+		return nil, apierror.NewInternal("internal error")
 	}
 	return stranger, nil
 }
@@ -67,7 +70,8 @@ func (s *StrangerService) GetByID(ctx context.Context, orgID, id string) (*model
 		if strings.Contains(err.Error(), "no rows") {
 			return nil, apierror.NewNotFound("stranger not found")
 		}
-		return nil, apierror.NewInternal("failed to get stranger: " + err.Error())
+		slog.WarnContext(ctx, "StrangerService.GetByID db error", "error", err)
+		return nil, apierror.NewInternal("internal error")
 	}
 	return stranger, nil
 }
@@ -92,7 +96,8 @@ func (s *StrangerService) List(ctx context.Context, orgID string, status *model.
 		return e
 	})
 	if err != nil {
-		return nil, 0, apierror.NewInternal("failed to list strangers: " + err.Error())
+		slog.WarnContext(ctx, "StrangerService.List db error", "error", err)
+		return nil, 0, apierror.NewInternal("internal error")
 	}
 	if strangers == nil {
 		strangers = []model.StrangerUser{}
@@ -109,7 +114,8 @@ func (s *StrangerService) Block(ctx context.Context, orgID, id, blockedBy string
 		if strings.Contains(err.Error(), "not found") {
 			return apierror.NewNotFound("stranger not found")
 		}
-		return apierror.NewInternal("failed to block stranger: " + err.Error())
+		slog.WarnContext(ctx, "StrangerService.Block db error", "error", err)
+		return apierror.NewInternal("internal error")
 	}
 	return nil
 }
@@ -123,7 +129,8 @@ func (s *StrangerService) Unblock(ctx context.Context, orgID, id string) error {
 		if strings.Contains(err.Error(), "not found") {
 			return apierror.NewNotFound("stranger not found")
 		}
-		return apierror.NewInternal("failed to unblock stranger: " + err.Error())
+		slog.WarnContext(ctx, "StrangerService.Unblock db error", "error", err)
+		return apierror.NewInternal("internal error")
 	}
 	return nil
 }
@@ -137,7 +144,8 @@ func (s *StrangerService) SetRateLimit(ctx context.Context, orgID, id string, rp
 		if strings.Contains(err.Error(), "not found") {
 			return apierror.NewNotFound("stranger not found")
 		}
-		return apierror.NewInternal("failed to set rate limit: " + err.Error())
+		slog.WarnContext(ctx, "StrangerService.SetRateLimit db error", "error", err)
+		return apierror.NewInternal("internal error")
 	}
 	return nil
 }
@@ -151,7 +159,8 @@ func (s *StrangerService) Delete(ctx context.Context, orgID, id string) error {
 		if strings.Contains(err.Error(), "not found") {
 			return apierror.NewNotFound("stranger not found")
 		}
-		return apierror.NewInternal("failed to delete stranger: " + err.Error())
+		slog.WarnContext(ctx, "StrangerService.Delete db error", "error", err)
+		return apierror.NewInternal("internal error")
 	}
 	return nil
 }

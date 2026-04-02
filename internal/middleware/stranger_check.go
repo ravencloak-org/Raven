@@ -44,7 +44,7 @@ func StrangerCheck(strangerSvc StrangerServiceInterface, valkey *redis.Client) g
 
 		sessionID := c.GetHeader("X-Session-ID")
 		if sessionID == "" {
-			c.Next()
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "X-Session-ID header is required"})
 			return
 		}
 
@@ -54,9 +54,10 @@ func StrangerCheck(strangerSvc StrangerServiceInterface, valkey *redis.Client) g
 		}
 
 		req := model.UpsertStrangerRequest{
-			SessionID: sessionID,
-			IPAddress: &ipAddr,
-			UserAgent: c.GetHeader("User-Agent"),
+			SessionID:      sessionID,
+			IPAddress:      &ipAddr,
+			UserAgent:      c.GetHeader("User-Agent"),
+			IncrementCount: c.Request.Method == http.MethodPost,
 		}
 		user, err := strangerSvc.Upsert(c.Request.Context(), orgID, req)
 		if err != nil {

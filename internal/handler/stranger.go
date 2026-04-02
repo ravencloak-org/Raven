@@ -52,7 +52,12 @@ func NewStrangerHandler(svc StrangerServicer) *StrangerHandler {
 // @Failure     401 {object} apierror.AppError
 // @Router      /orgs/{org_id}/strangers [get]
 func (h *StrangerHandler) List(c *gin.Context) {
-	orgID := c.Param("org_id")
+	orgIDVal, _ := c.Get(string(middleware.ContextKeyOrgID))
+	orgID, _ := orgIDVal.(string)
+	if orgID == "" {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, apierror.AppError{Code: http.StatusUnauthorized, Message: "Unauthorized", Detail: "missing org context"})
+		return
+	}
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
@@ -94,7 +99,12 @@ func (h *StrangerHandler) List(c *gin.Context) {
 // @Failure     404 {object} apierror.AppError
 // @Router      /orgs/{org_id}/strangers/{id} [get]
 func (h *StrangerHandler) Get(c *gin.Context) {
-	orgID := c.Param("org_id")
+	orgIDVal, _ := c.Get(string(middleware.ContextKeyOrgID))
+	orgID, _ := orgIDVal.(string)
+	if orgID == "" {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, apierror.AppError{Code: http.StatusUnauthorized, Message: "Unauthorized", Detail: "missing org context"})
+		return
+	}
 	id := c.Param("id")
 
 	s, err := h.svc.GetByID(c.Request.Context(), orgID, id)
@@ -121,7 +131,12 @@ func (h *StrangerHandler) Get(c *gin.Context) {
 // @Failure     422 {object} apierror.AppError
 // @Router      /orgs/{org_id}/strangers/{id}/block [post]
 func (h *StrangerHandler) Block(c *gin.Context) {
-	orgID := c.Param("org_id")
+	orgIDVal, _ := c.Get(string(middleware.ContextKeyOrgID))
+	orgID, _ := orgIDVal.(string)
+	if orgID == "" {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, apierror.AppError{Code: http.StatusUnauthorized, Message: "Unauthorized", Detail: "missing org context"})
+		return
+	}
 	id := c.Param("id")
 
 	userIDVal, exists := c.Get(string(middleware.ContextKeyUserID))
@@ -172,7 +187,12 @@ func (h *StrangerHandler) Block(c *gin.Context) {
 // @Failure     404 {object} apierror.AppError
 // @Router      /orgs/{org_id}/strangers/{id}/unblock [post]
 func (h *StrangerHandler) Unblock(c *gin.Context) {
-	orgID := c.Param("org_id")
+	orgIDVal, _ := c.Get(string(middleware.ContextKeyOrgID))
+	orgID, _ := orgIDVal.(string)
+	if orgID == "" {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, apierror.AppError{Code: http.StatusUnauthorized, Message: "Unauthorized", Detail: "missing org context"})
+		return
+	}
 	id := c.Param("id")
 
 	if err := h.svc.Unblock(c.Request.Context(), orgID, id); err != nil {
@@ -197,7 +217,12 @@ func (h *StrangerHandler) Unblock(c *gin.Context) {
 // @Failure     422 {object} apierror.AppError
 // @Router      /orgs/{org_id}/strangers/{id}/rate-limit [put]
 func (h *StrangerHandler) SetRateLimit(c *gin.Context) {
-	orgID := c.Param("org_id")
+	orgIDVal, _ := c.Get(string(middleware.ContextKeyOrgID))
+	orgID, _ := orgIDVal.(string)
+	if orgID == "" {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, apierror.AppError{Code: http.StatusUnauthorized, Message: "Unauthorized", Detail: "missing org context"})
+		return
+	}
 	id := c.Param("id")
 
 	var req model.SetRateLimitRequest
@@ -237,7 +262,12 @@ func (h *StrangerHandler) SetRateLimit(c *gin.Context) {
 // @Failure     404 {object} apierror.AppError
 // @Router      /orgs/{org_id}/strangers/{id} [delete]
 func (h *StrangerHandler) Delete(c *gin.Context) {
-	orgID := c.Param("org_id")
+	orgIDVal, _ := c.Get(string(middleware.ContextKeyOrgID))
+	orgID, _ := orgIDVal.(string)
+	if orgID == "" {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, apierror.AppError{Code: http.StatusUnauthorized, Message: "Unauthorized", Detail: "missing org context"})
+		return
+	}
 	id := c.Param("id")
 
 	if err := h.svc.Delete(c.Request.Context(), orgID, id); err != nil {
