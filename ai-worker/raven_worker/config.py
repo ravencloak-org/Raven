@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     liteparse_path: str = "liteparse"
     encryption_key: str = ""  # base64-encoded 32-byte AES key for BYOK decryption
+    livekit_url: str = "ws://localhost:7880"
+    livekit_api_key: str = "devkey"
+    livekit_api_secret: str = "devsecret"
 
     model_config = SettingsConfigDict(env_prefix="RAVEN_")
 
