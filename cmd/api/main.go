@@ -182,6 +182,7 @@ func main() {
 	routingRepo := repository.NewRoutingRepository(pool)
 	airbyteRepo := repository.NewAirbyteRepository(pool)
 	securityRepo := repository.NewSecurityRepository(pool)
+	strangerRepo := repository.NewStrangerRepository(pool)
 	identityRepo := repository.NewIdentityRepository(pool)
 	semCacheRepo := repository.NewSemanticCacheRepository(pool)
 
@@ -217,6 +218,7 @@ func main() {
 	routingSvc := service.NewRoutingService(routingRepo, kbRepo, pool)
 	airbyteSvc := service.NewAirbyteService(airbyteRepo, pool, queueClient)
 	securitySvc := service.NewSecurityService(securityRepo, pool, valkeyClient)
+	strangerSvc := service.NewStrangerService(strangerRepo, pool)
 	posthogClient := posthog.NewClient(cfg.PostHog.APIKey, cfg.PostHog.Host)
 	identitySvc := service.NewIdentityService(identityRepo, posthogClient)
 	chatRepo := repository.NewChatRepository(pool)
@@ -237,6 +239,7 @@ func main() {
 	routingHandler := handler.NewRoutingHandler(routingSvc)
 	airbyteHandler := handler.NewAirbyteHandler(airbyteSvc)
 	securityHandler := handler.NewSecurityHandler(securitySvc)
+	strangerHandler := handler.NewStrangerHandler(strangerSvc)
 	identityHandler := handler.NewIdentityHandler(identitySvc)
 	chatHandler := handler.NewChatHandler(chatSvc)
 	semCacheHandler := handler.NewSemanticCacheHandler(semCacheRepo)
@@ -382,6 +385,15 @@ func main() {
 		// --- Catalog metadata routes (nested under org) ---
 		api.GET("/orgs/:org_id/catalog", middleware.RequireOrgRole("org_admin"), routingHandler.ListCatalog)
 
+		// --- Stranger user routes (nested under org, admin only) ---
+		strangers := api.Group("/orgs/:org_id/strangers", middleware.RequireOrgRole("org_admin"))
+		{
+			strangers.GET("", strangerHandler.List)
+			strangers.GET("/:id", strangerHandler.Get)
+			strangers.POST("/:id/block", strangerHandler.Block)
+			strangers.POST("/:id/unblock", strangerHandler.Unblock)
+			strangers.PUT("/:id/rate-limit", strangerHandler.SetRateLimit)
+			strangers.DELETE("/:id", strangerHandler.Delete)
 		// --- Semantic cache management routes (nested under org/kb) ---
 		semCache := api.Group("/orgs/:org_id/kbs/:kb_id/cache")
 		{
@@ -424,6 +436,7 @@ func main() {
 	chatAPI := router.Group("/api/v1/chat")
 	chatAPI.Use(middleware.APIKeyAuth(&apiKeyLookupAdapter{repo: apiKeyRepo}))
 	chatAPI.Use(middleware.SecurityRulesMiddleware(&securityEvaluatorAdapter{svc: securitySvc}))
+	chatAPI.Use(middleware.StrangerCheck(strangerSvc, valkeyClient))
 	{
 		chatAPI.POST("/:kb_id/completions", chatHandler.StreamCompletion)
 		chatAPI.GET("/:kb_id/sessions", chatHandler.ListSessions)
