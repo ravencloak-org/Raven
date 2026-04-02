@@ -43,6 +43,7 @@ import (
 	"github.com/ravencloak-org/Raven/internal/handler"
 	"github.com/ravencloak-org/Raven/internal/middleware"
 	"github.com/ravencloak-org/Raven/internal/model"
+	"github.com/ravencloak-org/Raven/internal/posthog"
 	"github.com/ravencloak-org/Raven/internal/queue"
 	"github.com/ravencloak-org/Raven/internal/repository"
 	"github.com/ravencloak-org/Raven/internal/service"
@@ -182,6 +183,8 @@ func main() {
 	airbyteRepo := repository.NewAirbyteRepository(pool)
 	securityRepo := repository.NewSecurityRepository(pool)
 	strangerRepo := repository.NewStrangerRepository(pool)
+	identityRepo := repository.NewIdentityRepository(pool)
+	semCacheRepo := repository.NewSemanticCacheRepository(pool)
 
 	// --- gRPC client for AI worker ---
 	grpcClient, err := rpcClient.NewClient(cfg.GRPC.WorkerAddr)
@@ -216,6 +219,8 @@ func main() {
 	airbyteSvc := service.NewAirbyteService(airbyteRepo, pool, queueClient)
 	securitySvc := service.NewSecurityService(securityRepo, pool, valkeyClient)
 	strangerSvc := service.NewStrangerService(strangerRepo, pool)
+	posthogClient := posthog.NewClient(cfg.PostHog.APIKey, cfg.PostHog.Host)
+	identitySvc := service.NewIdentityService(identityRepo, posthogClient)
 	chatRepo := repository.NewChatRepository(pool)
 	chatSvc := service.NewChatService(chatRepo, grpcClient, pool)
 
@@ -235,7 +240,9 @@ func main() {
 	airbyteHandler := handler.NewAirbyteHandler(airbyteSvc)
 	securityHandler := handler.NewSecurityHandler(securitySvc)
 	strangerHandler := handler.NewStrangerHandler(strangerSvc)
+	identityHandler := handler.NewIdentityHandler(identitySvc)
 	chatHandler := handler.NewChatHandler(chatSvc)
+	semCacheHandler := handler.NewSemanticCacheHandler(semCacheRepo)
 
 	// Create router
 	router := gin.Default()
@@ -387,6 +394,11 @@ func main() {
 			strangers.POST("/:id/unblock", strangerHandler.Unblock)
 			strangers.PUT("/:id/rate-limit", strangerHandler.SetRateLimit)
 			strangers.DELETE("/:id", strangerHandler.Delete)
+		// --- Semantic cache management routes (nested under org/kb) ---
+		semCache := api.Group("/orgs/:org_id/kbs/:kb_id/cache")
+		{
+			semCache.DELETE("", middleware.RequireOrgRole("org_admin"), semCacheHandler.InvalidateKBCache)
+			semCache.GET("/stats", middleware.RequireOrgRole("org_admin"), semCacheHandler.GetCacheStats)
 		}
 
 		// --- Security rules routes (nested under org, admin only) ---
@@ -402,6 +414,15 @@ func main() {
 				secRules.POST("/invalidate-cache", securityHandler.InvalidateRuleCache)
 			}
 			sec.GET("/events", middleware.RequireOrgRole("org_admin"), securityHandler.ListEvents)
+		}
+
+		// --- Identity / PostHog routes (nested under org) ---
+		identity := api.Group("/orgs/:org_id/identity")
+		{
+			identity.POST("", middleware.RequireOrgRole("org_member"), identityHandler.Identify)
+			identity.POST("/track", middleware.RequireOrgRole("org_member"), identityHandler.Track)
+			identity.GET("", middleware.RequireOrgRole("org_member"), identityHandler.ListIdentities)
+			identity.DELETE("/:id", middleware.RequireOrgRole("org_admin"), identityHandler.DeleteIdentity)
 		}
 
 		// --- User / me routes ---

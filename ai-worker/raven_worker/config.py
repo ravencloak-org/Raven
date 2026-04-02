@@ -19,7 +19,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     liteparse_path: str = "liteparse"
     encryption_key: str = ""  # base64-encoded 32-byte AES key for BYOK decryption
-
+    livekit_url: str = "ws://localhost:7880"
+    livekit_api_key: str = ""
+    memory_dir: str = ""  # directory for per-session memory files; empty = disabled
+    enable_web_search: bool = False  # allow Anthropic web_search tool in RAG responses
     model_config = SettingsConfigDict(env_prefix="RAVEN_")
 
 

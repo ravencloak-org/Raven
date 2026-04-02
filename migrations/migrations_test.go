@@ -44,6 +44,8 @@ var allExpectedTables = []string{
 	"airbyte_connectors",
 	"airbyte_sync_history",
 	"stranger_users",
+	"user_identities",
+	"response_cache",
 }
 
 // rlsTables are the tables that must have RLS enabled (all tables with org_id).
@@ -66,6 +68,8 @@ var rlsTables = []string{
 	"airbyte_connectors",
 	"airbyte_sync_history",
 	"stranger_users",
+	"user_identities",
+	"response_cache",
 }
 
 // allExpectedTypes lists every custom ENUM type.

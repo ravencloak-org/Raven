@@ -359,5 +359,176 @@ export function chatStyles(themeColor: string): string {
         border-radius: 8px;
       }
     }
+
+    /* ---- Voice Call Button (Header) ---- */
+    .rc-call-btn {
+      background: none;
+      border: none;
+      color: #ffffff;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .rc-call-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .rc-call-btn svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+
+    .rc-call-btn.active {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    /* ---- Voice Session View ---- */
+    .rc-voice {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      padding: 32px 16px;
+      background: var(--rc-bg);
+    }
+
+    .rc-voice-status {
+      font-size: 14px;
+      color: var(--rc-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .rc-voice-status.connected {
+      color: #10b981;
+    }
+
+    .rc-voice-status.error {
+      color: #ef4444;
+    }
+
+    .rc-voice-timer {
+      font-size: 32px;
+      font-weight: 300;
+      color: var(--rc-text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ---- Pulse Animation ---- */
+    .rc-voice-pulse {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: var(--rc-primary);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .rc-voice-pulse::before,
+    .rc-voice-pulse::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: var(--rc-primary);
+      opacity: 0;
+    }
+
+    .rc-voice-pulse.active::before {
+      animation: rc-pulse-ring 2s ease-out infinite;
+    }
+
+    .rc-voice-pulse.active::after {
+      animation: rc-pulse-ring 2s ease-out 0.5s infinite;
+    }
+
+    .rc-voice-pulse svg {
+      width: 32px;
+      height: 32px;
+      fill: #ffffff;
+      z-index: 1;
+    }
+
+    @keyframes rc-pulse-ring {
+      0% {
+        transform: scale(1);
+        opacity: 0.4;
+      }
+      100% {
+        transform: scale(1.8);
+        opacity: 0;
+      }
+    }
+
+    /* ---- Voice Controls ---- */
+    .rc-voice-controls {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .rc-voice-mute {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--rc-bg-secondary);
+      border: 1px solid var(--rc-border);
+      color: var(--rc-text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s ease;
+    }
+
+    .rc-voice-mute:hover {
+      background: var(--rc-border);
+    }
+
+    .rc-voice-mute.muted {
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: #ef4444;
+    }
+
+    .rc-voice-mute svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+
+    .rc-voice-end {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: #ef4444;
+      border: none;
+      color: #ffffff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    .rc-voice-end:hover {
+      background: #dc2626;
+      transform: scale(1.05);
+    }
+
+    .rc-voice-end svg {
+      width: 24px;
+      height: 24px;
+      fill: currentColor;
+    }
   `
 }

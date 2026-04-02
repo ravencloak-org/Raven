@@ -40,10 +40,32 @@ services:
       context: ./ai-worker
       dockerfile: Dockerfile
     env_file: .env
+    environment:
+      RAVEN_MEMORY_DIR: /var/raven/memories
+    volumes:
+      - raven-memories:/var/raven/memories
     depends_on:
       postgres:
         condition: service_healthy
       valkey:
+        condition: service_healthy
+    networks:
+      - raven-internal
+    restart: unless-stopped
+
+  # ─── Python Voice Agent (LiveKit) ─────────────────────────────────────────
+  python-agent:
+    build:
+      context: ./ai-worker
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      RAVEN_LIVEKIT_URL: ws://livekit-server:7880
+      RAVEN_LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-devkey}
+      RAVEN_LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-devsecret}
+    command: ["python", "-m", "raven_worker.agent"]
+    depends_on:
+      livekit-server:
         condition: service_healthy
     networks:
       - raven-internal
@@ -260,6 +282,7 @@ volumes:
   acme-data:
   pgbackrest-repo:
   pgbackrest-log:
+  raven-memories:
 
 # ─── Networks ─────────────────────────────────────────────────────────────────
 networks:
