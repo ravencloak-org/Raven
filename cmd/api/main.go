@@ -397,6 +397,8 @@ func main() {
 			strangers.POST("/:id/unblock", strangerHandler.Unblock)
 			strangers.PUT("/:id/rate-limit", strangerHandler.SetRateLimit)
 			strangers.DELETE("/:id", strangerHandler.Delete)
+		}
+
 		// --- Semantic cache management routes (nested under org/kb) ---
 		semCache := api.Group("/orgs/:org_id/kbs/:kb_id/cache")
 		{
