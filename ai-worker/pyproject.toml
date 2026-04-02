@@ -28,6 +28,8 @@ dependencies = [
     "cryptography>=42.0.0",
     "anthropic>=0.40.0",
     "redis>=5.0.0",
+    "livekit>=1.0.0",
+    "livekit-agents>=1.0.0",
 ]
 
 [project.optional-dependencies]
