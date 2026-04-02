@@ -39,6 +39,8 @@ var allExpectedTables = []string{
 	"chat_sessions",
 	"chat_messages",
 	"processing_events",
+	"routing_rules",
+	"catalog_metadata",
 }
 
 // rlsTables are the tables that must have RLS enabled (all tables with org_id).
@@ -56,6 +58,8 @@ var rlsTables = []string{
 	"chat_sessions",
 	"chat_messages",
 	"processing_events",
+	"routing_rules",
+	"catalog_metadata",
 }
 
 // allExpectedTypes lists every custom ENUM type.
@@ -72,6 +76,7 @@ var allExpectedTypes = []string{
 	"provider_status",
 	"api_key_status",
 	"message_role",
+	"routing_mode",
 }
 
 // startPostgresContainer spins up a pgvector-enabled PostgreSQL container.
