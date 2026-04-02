@@ -185,6 +185,7 @@ func main() {
 	strangerRepo := repository.NewStrangerRepository(pool)
 	identityRepo := repository.NewIdentityRepository(pool)
 	semCacheRepo := repository.NewSemanticCacheRepository(pool)
+	leadRepo := repository.NewLeadRepository(pool)
 
 	// --- gRPC client for AI worker ---
 	grpcClient, err := rpcClient.NewClient(cfg.GRPC.WorkerAddr)
@@ -221,6 +222,7 @@ func main() {
 	strangerSvc := service.NewStrangerService(strangerRepo, pool)
 	posthogClient := posthog.NewClient(cfg.PostHog.APIKey, cfg.PostHog.Host)
 	identitySvc := service.NewIdentityService(identityRepo, posthogClient)
+	leadSvc := service.NewLeadService(leadRepo)
 	chatRepo := repository.NewChatRepository(pool)
 	chatSvc := service.NewChatService(chatRepo, grpcClient, pool)
 
@@ -243,6 +245,7 @@ func main() {
 	identityHandler := handler.NewIdentityHandler(identitySvc)
 	chatHandler := handler.NewChatHandler(chatSvc)
 	semCacheHandler := handler.NewSemanticCacheHandler(semCacheRepo)
+	leadHandler := handler.NewLeadHandler(leadSvc)
 
 	// Create router
 	router := gin.Default()
@@ -423,6 +426,17 @@ func main() {
 			identity.POST("/track", middleware.RequireOrgRole("org_member"), identityHandler.Track)
 			identity.GET("", middleware.RequireOrgRole("org_member"), identityHandler.ListIdentities)
 			identity.DELETE("/:id", middleware.RequireOrgRole("org_admin"), identityHandler.DeleteIdentity)
+		}
+
+		// --- Lead intelligence routes (nested under org) ---
+		orgAPI := api.Group("/orgs/:org_id")
+		{
+			orgAPI.POST("/leads", leadHandler.UpsertLead)
+			orgAPI.GET("/leads", leadHandler.ListLeads)
+			orgAPI.GET("/leads/export", leadHandler.ExportLeadsCSV)
+			orgAPI.GET("/leads/:id", leadHandler.GetLead)
+			orgAPI.PUT("/leads/:id", leadHandler.UpdateLead)
+			orgAPI.DELETE("/leads/:id", leadHandler.DeleteLead)
 		}
 
 		// --- User / me routes ---
