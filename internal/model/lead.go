@@ -37,15 +37,15 @@ type UpsertLeadRequest struct {
 
 // UpdateLeadRequest is the payload for PUT .../leads/:id.
 type UpdateLeadRequest struct {
-	KnowledgeBaseID *string        `json:"knowledge_base_id,omitempty"`
-	SessionIDs      []string       `json:"session_ids,omitempty"`
-	Email           *string        `json:"email,omitempty" binding:"omitempty,email"`
+	KnowledgeBaseID *string        `json:"knowledge_base_id,omitempty" binding:"omitempty,uuid"`
+	SessionIDs      []string       `json:"session_ids,omitempty" binding:"omitempty,dive,uuid"`
+	Email           *string        `json:"email,omitempty" binding:"omitempty,email,max=255"`
 	Name            *string        `json:"name,omitempty" binding:"omitempty,max=255"`
 	Phone           *string        `json:"phone,omitempty" binding:"omitempty,max=50"`
 	Company         *string        `json:"company,omitempty" binding:"omitempty,max=255"`
 	Metadata        map[string]any `json:"metadata,omitempty"`
-	TotalMessages   *int           `json:"total_messages,omitempty"`
-	TotalSessions   *int           `json:"total_sessions,omitempty"`
+	TotalMessages   *int           `json:"total_messages,omitempty" binding:"omitempty,min=0"`
+	TotalSessions   *int           `json:"total_sessions,omitempty" binding:"omitempty,min=0"`
 }
 
 // LeadListResponse wraps a paginated list of lead profiles.

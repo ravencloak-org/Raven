@@ -429,14 +429,14 @@ func main() {
 		}
 
 		// --- Lead intelligence routes (nested under org) ---
-		orgAPI := api.Group("/orgs/:org_id")
+		leads := api.Group("/orgs/:org_id/leads", middleware.RequireOrgRole("member"))
 		{
-			orgAPI.POST("/leads", leadHandler.UpsertLead)
-			orgAPI.GET("/leads", leadHandler.ListLeads)
-			orgAPI.GET("/leads/export", leadHandler.ExportLeadsCSV)
-			orgAPI.GET("/leads/:id", leadHandler.GetLead)
-			orgAPI.PUT("/leads/:id", leadHandler.UpdateLead)
-			orgAPI.DELETE("/leads/:id", leadHandler.DeleteLead)
+			leads.POST("", leadHandler.UpsertLead)
+			leads.GET("", leadHandler.ListLeads)
+			leads.GET("/export", leadHandler.ExportLeadsCSV)
+			leads.GET("/:id", leadHandler.GetLead)
+			leads.PUT("/:id", leadHandler.UpdateLead)
+			leads.DELETE("/:id", middleware.RequireOrgRole("org_admin"), leadHandler.DeleteLead)
 		}
 
 		// --- User / me routes ---

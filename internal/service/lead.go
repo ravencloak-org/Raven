@@ -7,7 +7,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/samber/lo"
 
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/internal/repository"
@@ -44,23 +43,12 @@ func NewLeadService(repo *repository.LeadRepository) *LeadService {
 	return &LeadService{repo: repo}
 }
 
-// ComputeEngagementScore calculates a lead engagement score.
-// Formula: messages*0.5 + sessions*2.0 + emailBonus (10 if email non-empty, else 0).
-func ComputeEngagementScore(lead *model.LeadProfile) float32 {
-	emailBonus := float32(0)
-	if lead.Email != "" {
-		emailBonus = 10
-	}
-	return float32(lead.TotalMessages)*0.5 + float32(lead.TotalSessions)*2.0 + emailBonus
-}
-
 // Upsert validates and persists a lead profile, creating or merging by org+email.
 func (s *LeadService) Upsert(ctx context.Context, orgID string, req model.UpsertLeadRequest) (*model.LeadProfile, error) {
 	lead, err := s.repo.Upsert(ctx, orgID, req)
 	if err != nil {
 		return nil, mapLeadDBError(err)
 	}
-	lead.EngagementScore = ComputeEngagementScore(lead)
 	return lead, nil
 }
 
@@ -84,10 +72,11 @@ func (s *LeadService) List(ctx context.Context, orgID string, minScore *float32,
 
 	leads, total, err := s.repo.List(ctx, orgID, minScore, limit, offset)
 	if err != nil {
-		slog.Error("lead: failed to list leads", "error", err)
-		return nil, apierror.NewInternal("failed to list leads")
+		return nil, mapLeadDBError(err)
 	}
-	leads = lo.Ternary(leads == nil, []model.LeadProfile{}, leads)
+	if leads == nil {
+		leads = []model.LeadProfile{}
+	}
 
 	page := offset/limit + 1
 	return &model.LeadListResponse{
@@ -104,7 +93,6 @@ func (s *LeadService) Update(ctx context.Context, orgID, id string, req model.Up
 	if err != nil {
 		return nil, mapLeadDBError(err)
 	}
-	lead.EngagementScore = ComputeEngagementScore(lead)
 	return lead, nil
 }
 

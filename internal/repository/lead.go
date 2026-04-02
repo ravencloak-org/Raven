@@ -21,7 +21,10 @@ func NewLeadRepository(pool *pgxpool.Pool) *LeadRepository {
 	return &LeadRepository{pool: pool}
 }
 
-const leadColumns = `id, org_id,
+// returningColumns is the SELECT-list used in RETURNING clauses.
+// Kept as a const so every query is a complete, self-contained SQL string
+// when embedded via the Go string constant (no runtime concatenation).
+const returningColumns = `id, org_id,
 	COALESCE(knowledge_base_id::text, '') AS knowledge_base_id,
 	COALESCE(session_ids, '{}') AS session_ids,
 	COALESCE(email, '') AS email,
@@ -58,6 +61,44 @@ func scanLead(row pgx.Row) (*model.LeadProfile, error) {
 	return &l, nil
 }
 
+// SQL for upsert — engagement_score is computed atomically in both INSERT and
+// ON CONFLICT branches, and total_sessions is derived from the deduplicated
+// session_ids array to avoid double-counting duplicate session IDs.
+const upsertSQL = `INSERT INTO lead_profiles
+	(org_id, knowledge_base_id, session_ids, email, name, phone, company, metadata, total_messages, total_sessions, engagement_score)
+ VALUES
+	($1, $2::uuid, $3::uuid[], NULLIF($4, ''), NULLIF($5, ''), NULLIF($6, ''), NULLIF($7, ''), COALESCE($8::jsonb, '{}'), $9, $10,
+	 $9::real * 0.5 + $10::real * 2.0 + CASE WHEN NULLIF($4, '') IS NOT NULL THEN 10.0 ELSE 0.0 END)
+ ON CONFLICT (org_id, email) WHERE email IS NOT NULL DO UPDATE SET
+	knowledge_base_id = COALESCE(EXCLUDED.knowledge_base_id, lead_profiles.knowledge_base_id),
+	session_ids       = CASE
+		WHEN EXCLUDED.session_ids IS NOT NULL AND array_length(EXCLUDED.session_ids, 1) > 0
+		THEN (SELECT ARRAY(SELECT DISTINCT unnest(lead_profiles.session_ids || EXCLUDED.session_ids)))
+		ELSE lead_profiles.session_ids
+	END,
+	name              = COALESCE(EXCLUDED.name, lead_profiles.name),
+	phone             = COALESCE(EXCLUDED.phone, lead_profiles.phone),
+	company           = COALESCE(EXCLUDED.company, lead_profiles.company),
+	metadata          = lead_profiles.metadata || EXCLUDED.metadata,
+	total_messages    = lead_profiles.total_messages + EXCLUDED.total_messages,
+	total_sessions    = CASE
+		WHEN EXCLUDED.session_ids IS NOT NULL AND array_length(EXCLUDED.session_ids, 1) > 0
+		THEN COALESCE(array_length(
+			(SELECT ARRAY(SELECT DISTINCT unnest(lead_profiles.session_ids || EXCLUDED.session_ids))), 1), 0)
+		ELSE lead_profiles.total_sessions
+	END,
+	engagement_score  = (lead_profiles.total_messages + EXCLUDED.total_messages)::real * 0.5
+	                  + (CASE
+	                       WHEN EXCLUDED.session_ids IS NOT NULL AND array_length(EXCLUDED.session_ids, 1) > 0
+	                       THEN COALESCE(array_length(
+	                           (SELECT ARRAY(SELECT DISTINCT unnest(lead_profiles.session_ids || EXCLUDED.session_ids))), 1), 0)
+	                       ELSE lead_profiles.total_sessions
+	                     END)::real * 2.0
+	                  + CASE WHEN COALESCE(EXCLUDED.email, lead_profiles.email) IS NOT NULL THEN 10.0 ELSE 0.0 END,
+	last_seen_at      = NOW(),
+	updated_at        = NOW()
+ RETURNING ` + returningColumns
+
 // Upsert inserts a new lead profile or updates an existing one matched by (org_id, email).
 func (r *LeadRepository) Upsert(ctx context.Context, orgID string, req model.UpsertLeadRequest) (*model.LeadProfile, error) {
 	totalMessages := 0
@@ -71,31 +112,7 @@ func (r *LeadRepository) Upsert(ctx context.Context, orgID string, req model.Ups
 
 	var lead *model.LeadProfile
 	err := db.WithOrgID(ctx, r.pool, orgID, func(tx pgx.Tx) error {
-		row := tx.QueryRow(ctx,
-			`INSERT INTO lead_profiles
-				(org_id, knowledge_base_id, session_ids, email, name, phone, company, metadata, total_messages, total_sessions, engagement_score)
-			 VALUES
-				($1, $2::uuid, $3::uuid[], NULLIF($4, ''), NULLIF($5, ''), NULLIF($6, ''), NULLIF($7, ''), COALESCE($8::jsonb, '{}'), $9, $10,
-				 $9::real * 0.5 + $10::real * 2.0 + CASE WHEN NULLIF($4, '') IS NOT NULL THEN 10.0 ELSE 0.0 END)
-			 ON CONFLICT (org_id, email) WHERE email IS NOT NULL DO UPDATE SET
-				knowledge_base_id = COALESCE(EXCLUDED.knowledge_base_id, lead_profiles.knowledge_base_id),
-				session_ids       = CASE
-					WHEN EXCLUDED.session_ids IS NOT NULL AND array_length(EXCLUDED.session_ids, 1) > 0
-					THEN (SELECT ARRAY(SELECT DISTINCT unnest(lead_profiles.session_ids || EXCLUDED.session_ids)))
-					ELSE lead_profiles.session_ids
-				END,
-				name              = COALESCE(EXCLUDED.name, lead_profiles.name),
-				phone             = COALESCE(EXCLUDED.phone, lead_profiles.phone),
-				company           = COALESCE(EXCLUDED.company, lead_profiles.company),
-				metadata          = lead_profiles.metadata || EXCLUDED.metadata,
-				total_messages    = lead_profiles.total_messages + EXCLUDED.total_messages,
-				total_sessions    = lead_profiles.total_sessions + EXCLUDED.total_sessions,
-				engagement_score  = (lead_profiles.total_messages + EXCLUDED.total_messages)::real * 0.5
-				                  + (lead_profiles.total_sessions + EXCLUDED.total_sessions)::real * 2.0
-				                  + CASE WHEN COALESCE(EXCLUDED.email, lead_profiles.email) IS NOT NULL THEN 10.0 ELSE 0.0 END,
-				last_seen_at      = NOW(),
-				updated_at        = NOW()
-			 RETURNING `+leadColumns,
+		row := tx.QueryRow(ctx, upsertSQL,
 			orgID, req.KnowledgeBaseID, req.SessionIDs,
 			req.Email, req.Name, req.Phone, req.Company,
 			req.Metadata, totalMessages, totalSessions,
@@ -110,16 +127,16 @@ func (r *LeadRepository) Upsert(ctx context.Context, orgID string, req model.Ups
 	return lead, nil
 }
 
+// SQL for GetByID.
+const getByIDSQL = `SELECT ` + returningColumns + `
+ FROM lead_profiles
+ WHERE id = $1 AND org_id = $2`
+
 // GetByID fetches a lead profile by its primary key within an org.
 func (r *LeadRepository) GetByID(ctx context.Context, orgID, id string) (*model.LeadProfile, error) {
 	var lead *model.LeadProfile
 	err := db.WithOrgID(ctx, r.pool, orgID, func(tx pgx.Tx) error {
-		row := tx.QueryRow(ctx,
-			`SELECT `+leadColumns+`
-			 FROM lead_profiles
-			 WHERE id = $1 AND org_id = $2`,
-			id, orgID,
-		)
+		row := tx.QueryRow(ctx, getByIDSQL, id, orgID)
 		var err error
 		lead, err = scanLead(row)
 		return err
@@ -130,6 +147,24 @@ func (r *LeadRepository) GetByID(ctx context.Context, orgID, id string) (*model.
 	return lead, nil
 }
 
+// SQL for list queries.
+const (
+	listCountSQL      = `SELECT COUNT(*) FROM lead_profiles WHERE org_id = $1`
+	listCountScoreSQL = `SELECT COUNT(*) FROM lead_profiles WHERE org_id = $1 AND engagement_score >= $2`
+
+	listDataSQL = `SELECT ` + returningColumns + `
+ FROM lead_profiles
+ WHERE org_id = $1
+ ORDER BY engagement_score DESC, last_seen_at DESC
+ LIMIT $2 OFFSET $3`
+
+	listDataScoreSQL = `SELECT ` + returningColumns + `
+ FROM lead_profiles
+ WHERE org_id = $1 AND engagement_score >= $2
+ ORDER BY engagement_score DESC, last_seen_at DESC
+ LIMIT $3 OFFSET $4`
+)
+
 // List returns a paginated list of lead profiles for an org, optionally filtered by minScore.
 func (r *LeadRepository) List(ctx context.Context, orgID string, minScore *float32, limit, offset int) ([]model.LeadProfile, int, error) {
 	var leads []model.LeadProfile
@@ -138,17 +173,11 @@ func (r *LeadRepository) List(ctx context.Context, orgID string, minScore *float
 	err := db.WithOrgID(ctx, r.pool, orgID, func(tx pgx.Tx) error {
 		// Count query.
 		if minScore != nil {
-			if err := tx.QueryRow(ctx,
-				`SELECT COUNT(*) FROM lead_profiles WHERE org_id = $1 AND engagement_score >= $2`,
-				orgID, *minScore,
-			).Scan(&total); err != nil {
+			if err := tx.QueryRow(ctx, listCountScoreSQL, orgID, *minScore).Scan(&total); err != nil {
 				return fmt.Errorf("count: %w", err)
 			}
 		} else {
-			if err := tx.QueryRow(ctx,
-				`SELECT COUNT(*) FROM lead_profiles WHERE org_id = $1`,
-				orgID,
-			).Scan(&total); err != nil {
+			if err := tx.QueryRow(ctx, listCountSQL, orgID).Scan(&total); err != nil {
 				return fmt.Errorf("count: %w", err)
 			}
 		}
@@ -157,23 +186,9 @@ func (r *LeadRepository) List(ctx context.Context, orgID string, minScore *float
 		var rows pgx.Rows
 		var err error
 		if minScore != nil {
-			rows, err = tx.Query(ctx,
-				`SELECT `+leadColumns+`
-				 FROM lead_profiles
-				 WHERE org_id = $1 AND engagement_score >= $2
-				 ORDER BY engagement_score DESC, last_seen_at DESC
-				 LIMIT $3 OFFSET $4`,
-				orgID, *minScore, limit, offset,
-			)
+			rows, err = tx.Query(ctx, listDataScoreSQL, orgID, *minScore, limit, offset)
 		} else {
-			rows, err = tx.Query(ctx,
-				`SELECT `+leadColumns+`
-				 FROM lead_profiles
-				 WHERE org_id = $1
-				 ORDER BY engagement_score DESC, last_seen_at DESC
-				 LIMIT $2 OFFSET $3`,
-				orgID, limit, offset,
-			)
+			rows, err = tx.Query(ctx, listDataSQL, orgID, limit, offset)
 		}
 		if err != nil {
 			return fmt.Errorf("query: %w", err)
@@ -201,26 +216,32 @@ func (r *LeadRepository) List(ctx context.Context, orgID string, minScore *float
 	return leads, total, nil
 }
 
+// SQL for update — engagement_score is recomputed atomically from the updated
+// total_messages and total_sessions values.
+const updateSQL = `UPDATE lead_profiles
+ SET
+   knowledge_base_id = COALESCE($3::uuid, knowledge_base_id),
+   session_ids       = CASE WHEN $4::uuid[] IS NOT NULL THEN $4::uuid[] ELSE session_ids END,
+   email             = COALESCE($5, email),
+   name              = COALESCE($6, name),
+   phone             = COALESCE($7, phone),
+   company           = COALESCE($8, company),
+   metadata          = CASE WHEN $9::jsonb IS NOT NULL THEN $9::jsonb ELSE metadata END,
+   total_messages    = COALESCE($10, total_messages),
+   total_sessions    = COALESCE($11, total_sessions),
+   engagement_score  = COALESCE($10, total_messages)::real * 0.5
+                     + COALESCE($11, total_sessions)::real * 2.0
+                     + CASE WHEN COALESCE($5, email) IS NOT NULL THEN 10.0 ELSE 0.0 END,
+   last_seen_at      = NOW(),
+   updated_at        = NOW()
+ WHERE id = $1 AND org_id = $2
+ RETURNING ` + returningColumns
+
 // Update applies partial updates to a lead profile.
 func (r *LeadRepository) Update(ctx context.Context, orgID, id string, req model.UpdateLeadRequest) (*model.LeadProfile, error) {
 	var lead *model.LeadProfile
 	err := db.WithOrgID(ctx, r.pool, orgID, func(tx pgx.Tx) error {
-		row := tx.QueryRow(ctx,
-			`UPDATE lead_profiles
-			 SET
-			   knowledge_base_id = COALESCE($3::uuid, knowledge_base_id),
-			   session_ids       = CASE WHEN $4::uuid[] IS NOT NULL THEN $4::uuid[] ELSE session_ids END,
-			   email             = COALESCE($5, email),
-			   name              = COALESCE($6, name),
-			   phone             = COALESCE($7, phone),
-			   company           = COALESCE($8, company),
-			   metadata          = CASE WHEN $9::jsonb IS NOT NULL THEN $9::jsonb ELSE metadata END,
-			   total_messages    = COALESCE($10, total_messages),
-			   total_sessions    = COALESCE($11, total_sessions),
-			   last_seen_at      = NOW(),
-			   updated_at        = NOW()
-			 WHERE id = $1 AND org_id = $2
-			 RETURNING `+leadColumns,
+		row := tx.QueryRow(ctx, updateSQL,
 			id, orgID,
 			req.KnowledgeBaseID, req.SessionIDs,
 			req.Email, req.Name, req.Phone, req.Company,
@@ -257,17 +278,17 @@ func (r *LeadRepository) Delete(ctx context.Context, orgID, id string) error {
 	return nil
 }
 
+// SQL for export.
+const exportSQL = `SELECT ` + returningColumns + `
+ FROM lead_profiles
+ WHERE org_id = $1
+ ORDER BY engagement_score DESC, last_seen_at DESC`
+
 // ExportCSV returns all lead profiles for an org (for CSV export).
 func (r *LeadRepository) ExportCSV(ctx context.Context, orgID string) ([]model.LeadProfile, error) {
 	var leads []model.LeadProfile
 	err := db.WithOrgID(ctx, r.pool, orgID, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx,
-			`SELECT `+leadColumns+`
-			 FROM lead_profiles
-			 WHERE org_id = $1
-			 ORDER BY engagement_score DESC, last_seen_at DESC`,
-			orgID,
-		)
+		rows, err := tx.Query(ctx, exportSQL, orgID)
 		if err != nil {
 			return err
 		}
