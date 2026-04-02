@@ -191,8 +191,14 @@ class RAGServicer:
         # --- Exact-match cache check (per KB) ---
         # When the request targets a single KB we can perform an exact-match
         # cache lookup.  Multi-KB queries skip the cache for now.
+        # The cache is also bypassed for Anthropic requests that use memory or
+        # web search — those responses are session-aware and must not be shared.
         cache_key: str | None = None
-        if len(kb_ids) == 1:
+        cache_safe = len(kb_ids) == 1 and not (
+            provider_name == "anthropic"
+            and ((settings.memory_dir and request.session_id) or settings.enable_web_search)
+        )
+        if cache_safe:
             cache_key = _cache_key(kb_ids[0], query_text)
             cached = await self._check_cache(cache_key)
             if cached is not None:
