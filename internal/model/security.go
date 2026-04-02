@@ -5,6 +5,7 @@ import "time"
 // SecurityRuleType enumerates the supported rule types.
 type SecurityRuleType string
 
+// Supported security rule types.
 const (
 	SecurityRuleIPAllowlist  SecurityRuleType = "ip_allowlist"
 	SecurityRuleIPDenylist   SecurityRuleType = "ip_denylist"
@@ -16,6 +17,7 @@ const (
 // SecurityActionType enumerates the possible actions for a matched rule.
 type SecurityActionType string
 
+// Supported security rule actions.
 const (
 	SecurityActionAllow    SecurityActionType = "allow"
 	SecurityActionBlock    SecurityActionType = "block"
