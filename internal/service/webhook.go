@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -19,11 +21,12 @@ type WebhookService struct {
 	repo        *repository.WebhookRepository
 	pool        *pgxpool.Pool
 	queueClient *queue.Client
+	logger      *slog.Logger
 }
 
 // NewWebhookService creates a new WebhookService.
 func NewWebhookService(repo *repository.WebhookRepository, pool *pgxpool.Pool, queueClient *queue.Client) *WebhookService {
-	return &WebhookService{repo: repo, pool: pool, queueClient: queueClient}
+	return &WebhookService{repo: repo, pool: pool, queueClient: queueClient, logger: slog.Default()}
 }
 
 // Create validates and creates a new webhook config.
@@ -38,7 +41,8 @@ func (s *WebhookService) Create(ctx context.Context, orgID, userID string, req m
 		if strings.Contains(err.Error(), "unique") || strings.Contains(err.Error(), "duplicate") {
 			return nil, apierror.NewBadRequest("a webhook with this name already exists")
 		}
-		return nil, apierror.NewInternal("failed to create webhook: " + err.Error())
+		s.logger.ErrorContext(ctx, "webhook: failed to create", "error", err)
+		return nil, apierror.NewInternal("failed to create webhook")
 	}
 	return created, nil
 }
@@ -55,7 +59,8 @@ func (s *WebhookService) GetByID(ctx context.Context, orgID, id string) (*model.
 		if strings.Contains(err.Error(), "no rows") {
 			return nil, apierror.NewNotFound("webhook not found")
 		}
-		return nil, apierror.NewInternal("failed to fetch webhook: " + err.Error())
+		s.logger.ErrorContext(ctx, "webhook: failed to fetch", "id", id, "error", err)
+		return nil, apierror.NewInternal("failed to fetch webhook")
 	}
 	return hook, nil
 }
@@ -69,7 +74,8 @@ func (s *WebhookService) List(ctx context.Context, orgID string) ([]model.Webhoo
 		return e
 	})
 	if err != nil {
-		return nil, apierror.NewInternal("failed to list webhooks: " + err.Error())
+		s.logger.ErrorContext(ctx, "webhook: failed to list", "org_id", orgID, "error", err)
+		return nil, apierror.NewInternal("failed to list webhooks")
 	}
 	return hooks, nil
 }
@@ -86,7 +92,8 @@ func (s *WebhookService) Update(ctx context.Context, orgID, id string, req model
 		if strings.Contains(err.Error(), "no rows") {
 			return nil, apierror.NewNotFound("webhook not found")
 		}
-		return nil, apierror.NewInternal("failed to update webhook: " + err.Error())
+		s.logger.ErrorContext(ctx, "webhook: failed to update", "id", id, "error", err)
+		return nil, apierror.NewInternal("failed to update webhook")
 	}
 	return hook, nil
 }
@@ -100,7 +107,8 @@ func (s *WebhookService) Delete(ctx context.Context, orgID, id string) error {
 		if strings.Contains(err.Error(), "not found") {
 			return apierror.NewNotFound("webhook not found")
 		}
-		return apierror.NewInternal("failed to delete webhook: " + err.Error())
+		s.logger.ErrorContext(ctx, "webhook: failed to delete", "id", id, "error", err)
+		return apierror.NewInternal("failed to delete webhook")
 	}
 	return nil
 }
@@ -117,7 +125,8 @@ func (s *WebhookService) ListDeliveries(ctx context.Context, orgID, webhookID st
 		return e
 	})
 	if err != nil {
-		return nil, apierror.NewInternal("failed to list webhook deliveries: " + err.Error())
+		s.logger.ErrorContext(ctx, "webhook: failed to list deliveries", "webhook_id", webhookID, "error", err)
+		return nil, apierror.NewInternal("failed to list webhook deliveries")
 	}
 	if deliveries == nil {
 		deliveries = []model.WebhookDelivery{}
@@ -137,15 +146,32 @@ func (s *WebhookService) Dispatch(ctx context.Context, orgID, eventType string, 
 		return err
 	}
 	for _, h := range hooks {
-		p := queue.WebhookDeliveryPayload{
+		delivery := model.WebhookDelivery{
+			ID:        uuid.NewString(),
 			WebhookID: h.ID,
 			OrgID:     orgID,
 			EventType: eventType,
 			Payload:   payload,
 		}
+		if dbErr := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+			return s.repo.CreateDelivery(ctx, tx, delivery)
+		}); dbErr != nil {
+			s.logger.ErrorContext(ctx, "webhook: failed to create delivery record",
+				"webhook_id", h.ID, "error", dbErr)
+			return apierror.NewInternal("failed to create webhook delivery record")
+		}
+
+		p := queue.WebhookDeliveryPayload{
+			DeliveryID: delivery.ID,
+			WebhookID:  h.ID,
+			OrgID:      orgID,
+			EventType:  eventType,
+			Payload:    payload,
+		}
 		if enqErr := s.queueClient.EnqueueWebhookDelivery(ctx, p); enqErr != nil {
-			// Log but don't fail dispatch if one enqueue fails.
-			_ = enqErr
+			s.logger.ErrorContext(ctx, "webhook: failed to enqueue delivery",
+				"webhook_id", h.ID, "delivery_id", delivery.ID, "error", enqErr)
+			return apierror.NewInternal("failed to enqueue webhook delivery")
 		}
 	}
 	return nil

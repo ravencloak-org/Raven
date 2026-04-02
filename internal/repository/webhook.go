@@ -21,11 +21,55 @@ func NewWebhookRepository(pool *pgxpool.Pool) *WebhookRepository {
 	return &WebhookRepository{pool: pool}
 }
 
-const webhookConfigColumns = `id, org_id, name, url, secret, events,
-	COALESCE(headers, '{}') AS headers,
-	status, max_retries, last_triggered_at, failure_count,
-	COALESCE(created_by::text, '') AS created_by,
-	created_at, updated_at`
+const (
+	sqlGetWebhookByID = `SELECT id, org_id, name, url, secret, events,
+		COALESCE(headers, '{}') AS headers,
+		status, max_retries, last_triggered_at, failure_count,
+		COALESCE(created_by::text, '') AS created_by,
+		created_at, updated_at
+	FROM webhook_configs WHERE id = $1 AND org_id = $2`
+
+	sqlListWebhooks = `SELECT id, org_id, name, url, secret, events,
+		COALESCE(headers, '{}') AS headers,
+		status, max_retries, last_triggered_at, failure_count,
+		COALESCE(created_by::text, '') AS created_by,
+		created_at, updated_at
+	FROM webhook_configs WHERE org_id = $1 ORDER BY created_at DESC`
+
+	sqlListActiveForEvent = `SELECT id, org_id, name, url, secret, events,
+		COALESCE(headers, '{}') AS headers,
+		status, max_retries, last_triggered_at, failure_count,
+		COALESCE(created_by::text, '') AS created_by,
+		created_at, updated_at
+	FROM webhook_configs
+	WHERE org_id = $1 AND status = 'active' AND $2 = ANY(events)
+	ORDER BY created_at ASC`
+
+	sqlCreateWebhook = `INSERT INTO webhook_configs (org_id, name, url, secret, events, headers, max_retries, created_by)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	RETURNING id, org_id, name, url, secret, events,
+		COALESCE(headers, '{}') AS headers,
+		status, max_retries, last_triggered_at, failure_count,
+		COALESCE(created_by::text, '') AS created_by,
+		created_at, updated_at`
+
+	sqlUpdateWebhook = `UPDATE webhook_configs SET
+		name = COALESCE($3, name),
+		url = COALESCE($4, url),
+		secret = COALESCE($5, secret),
+		events = COALESCE($6, events),
+		headers = COALESCE($7, headers),
+		status = COALESCE($8, status),
+		max_retries = COALESCE($9, max_retries)
+	WHERE id = $1 AND org_id = $2
+	RETURNING id, org_id, name, url, secret, events,
+		COALESCE(headers, '{}') AS headers,
+		status, max_retries, last_triggered_at, failure_count,
+		COALESCE(created_by::text, '') AS created_by,
+		created_at, updated_at`
+
+	sqlSetWebhookStatus = `UPDATE webhook_configs SET status = $2 WHERE id = $1`
+)
 
 func scanWebhookConfig(row pgx.Row) (*model.WebhookConfig, error) {
 	var w model.WebhookConfig
@@ -68,10 +112,7 @@ func (r *WebhookRepository) Create(ctx context.Context, tx pgx.Tx, orgID string,
 		maxRetries = *req.MaxRetries
 	}
 
-	row := tx.QueryRow(ctx,
-		`INSERT INTO webhook_configs (org_id, name, url, secret, events, headers, max_retries, created_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING `+webhookConfigColumns,
+	row := tx.QueryRow(ctx, sqlCreateWebhook,
 		orgID, req.Name, req.URL, req.Secret, req.Events, headersBytes, maxRetries, createdBy,
 	)
 	created, err := scanWebhookConfig(row)
@@ -83,10 +124,7 @@ func (r *WebhookRepository) Create(ctx context.Context, tx pgx.Tx, orgID string,
 
 // GetByID fetches a webhook config by ID within an org.
 func (r *WebhookRepository) GetByID(ctx context.Context, tx pgx.Tx, orgID, id string) (*model.WebhookConfig, error) {
-	row := tx.QueryRow(ctx,
-		`SELECT `+webhookConfigColumns+` FROM webhook_configs WHERE id = $1 AND org_id = $2`,
-		id, orgID,
-	)
+	row := tx.QueryRow(ctx, sqlGetWebhookByID, id, orgID)
 	w, err := scanWebhookConfig(row)
 	if err != nil {
 		return nil, fmt.Errorf("WebhookRepository.GetByID: %w", err)
@@ -96,10 +134,7 @@ func (r *WebhookRepository) GetByID(ctx context.Context, tx pgx.Tx, orgID, id st
 
 // List returns all webhook configs for an org.
 func (r *WebhookRepository) List(ctx context.Context, tx pgx.Tx, orgID string) ([]model.WebhookConfig, error) {
-	rows, err := tx.Query(ctx,
-		`SELECT `+webhookConfigColumns+` FROM webhook_configs WHERE org_id = $1 ORDER BY created_at DESC`,
-		orgID,
-	)
+	rows, err := tx.Query(ctx, sqlListWebhooks, orgID)
 	if err != nil {
 		return nil, fmt.Errorf("WebhookRepository.List: %w", err)
 	}
@@ -143,17 +178,7 @@ func (r *WebhookRepository) Update(ctx context.Context, tx pgx.Tx, orgID, id str
 		}
 	}
 
-	row := tx.QueryRow(ctx,
-		`UPDATE webhook_configs SET
-			name = COALESCE($3, name),
-			url = COALESCE($4, url),
-			secret = COALESCE($5, secret),
-			events = COALESCE($6, events),
-			headers = COALESCE($7, headers),
-			status = COALESCE($8, status),
-			max_retries = COALESCE($9, max_retries)
-		WHERE id = $1 AND org_id = $2
-		RETURNING `+webhookConfigColumns,
+	row := tx.QueryRow(ctx, sqlUpdateWebhook,
 		id, orgID,
 		req.Name, req.URL, req.Secret, req.Events, headersBytes, req.Status, req.MaxRetries,
 	)
@@ -181,12 +206,7 @@ func (r *WebhookRepository) Delete(ctx context.Context, tx pgx.Tx, orgID, id str
 
 // ListActiveForEvent returns all active webhooks subscribed to a given event type.
 func (r *WebhookRepository) ListActiveForEvent(ctx context.Context, tx pgx.Tx, orgID, eventType string) ([]model.WebhookConfig, error) {
-	rows, err := tx.Query(ctx,
-		`SELECT `+webhookConfigColumns+` FROM webhook_configs
-		WHERE org_id = $1 AND status = 'active' AND $2 = ANY(events)
-		ORDER BY created_at ASC`,
-		orgID, eventType,
-	)
+	rows, err := tx.Query(ctx, sqlListActiveForEvent, orgID, eventType)
 	if err != nil {
 		return nil, fmt.Errorf("WebhookRepository.ListActiveForEvent: %w", err)
 	}
@@ -224,7 +244,7 @@ func (r *WebhookRepository) ListActiveForEvent(ctx context.Context, tx pgx.Tx, o
 func (r *WebhookRepository) CreateDelivery(ctx context.Context, tx pgx.Tx, d model.WebhookDelivery) error {
 	payloadBytes, err := json.Marshal(d.Payload)
 	if err != nil {
-		payloadBytes = []byte("{}")
+		return fmt.Errorf("WebhookRepository.CreateDelivery: marshal payload: %w", err)
 	}
 	_, err = tx.Exec(ctx,
 		`INSERT INTO webhook_deliveries (id, webhook_id, org_id, event_type, payload, status, attempt)
@@ -255,6 +275,15 @@ func (r *WebhookRepository) UpdateDelivery(ctx context.Context, tx pgx.Tx, id st
 	)
 	if err != nil {
 		return fmt.Errorf("WebhookRepository.UpdateDelivery: %w", err)
+	}
+	return nil
+}
+
+// SetWebhookStatus updates the status of a webhook config by ID.
+func (r *WebhookRepository) SetWebhookStatus(ctx context.Context, tx pgx.Tx, id string, status model.WebhookStatus) error {
+	_, err := tx.Exec(ctx, sqlSetWebhookStatus, id, string(status))
+	if err != nil {
+		return fmt.Errorf("WebhookRepository.SetWebhookStatus: %w", err)
 	}
 	return nil
 }

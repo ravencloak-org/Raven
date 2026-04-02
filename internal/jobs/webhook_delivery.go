@@ -116,27 +116,57 @@ func (h *WebhookDeliveryHandler) ProcessTask(ctx context.Context, t *asynq.Task)
 		responseBody = err.Error()
 	}
 
-	// Record the delivery attempt.
+	// Record the delivery attempt using the specific delivery record ID.
 	dbErr := db.WithOrgID(ctx, h.pool, p.OrgID, func(tx pgx.Tx) error {
-		return h.repo.UpdateDelivery(ctx, tx, p.WebhookID, success, responseStatus, responseBody)
+		return h.repo.UpdateDelivery(ctx, tx, p.DeliveryID, success, responseStatus, responseBody)
 	})
 	if dbErr != nil {
 		h.logger.Warn("webhook: failed to record delivery",
+			slog.String("delivery_id", p.DeliveryID),
 			slog.String("webhook_id", p.WebhookID),
 			slog.String("error", dbErr.Error()),
 		)
 	}
 
 	if !success {
-		// Increment failure count on the webhook config.
+		// Increment failure count and check against max_retries.
+		var updatedHook *model.WebhookConfig
 		incrErr := db.WithOrgID(ctx, h.pool, p.OrgID, func(tx pgx.Tx) error {
-			return h.repo.IncrementFailureCount(ctx, tx, p.WebhookID)
+			if e := h.repo.IncrementFailureCount(ctx, tx, p.WebhookID); e != nil {
+				return e
+			}
+			var e error
+			updatedHook, e = h.repo.GetByID(ctx, tx, p.OrgID, p.WebhookID)
+			return e
 		})
 		if incrErr != nil {
 			h.logger.Warn("webhook: failed to increment failure count",
 				slog.String("webhook_id", p.WebhookID),
 				slog.String("error", incrErr.Error()),
 			)
+		}
+
+		// If failure_count has reached max_retries, mark the webhook as failed and stop retrying.
+		if updatedHook != nil && updatedHook.FailureCount >= updatedHook.MaxRetries {
+			disableErr := db.WithOrgID(ctx, h.pool, p.OrgID, func(tx pgx.Tx) error {
+				return h.repo.SetWebhookStatus(ctx, tx, p.WebhookID, model.WebhookStatusFailed)
+			})
+			if disableErr != nil {
+				h.logger.Warn("webhook: failed to mark webhook as failed",
+					slog.String("webhook_id", p.WebhookID),
+					slog.String("error", disableErr.Error()),
+				)
+			} else {
+				h.logger.Warn("webhook: max retries reached, marking webhook as failed",
+					slog.String("webhook_id", p.WebhookID),
+					slog.Int("failure_count", updatedHook.FailureCount),
+					slog.Int("max_retries", updatedHook.MaxRetries),
+				)
+			}
+			if err != nil {
+				return fmt.Errorf("%w: webhook delivery failed (HTTP error): %w", asynq.SkipRetry, err)
+			}
+			return fmt.Errorf("%w: webhook delivery failed: HTTP %d", asynq.SkipRetry, responseStatus)
 		}
 
 		if err != nil {
