@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "1f09679b10e8",
+  "session_id": "fc9e8c4e-a337-4a7d-ae04-548ba3d20493",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-02T06:03:11.551409Z",
+  "branch": "feat/issue-58-livekit-agents",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "ai-worker/raven_worker/agent.py"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "0a03a5bd-a71f-46f5-8c8a-29b0cda047a7",
+  "checkpoint_transcript_start": 954,
+  "transcript_lines_at_start": 954,
+  "token_usage": {
+    "input_tokens": 11,
+    "cache_creation_tokens": 3076,
+    "cache_read_tokens": 2181931,
+    "output_tokens": 1044,
+    "api_call_count": 9
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-02T06:03:11.395425Z",
+    "agent_lines": 2,
+    "human_added": 338,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 340,
+    "agent_percentage": 0.5882352941176471
+  }
+}
