@@ -115,3 +115,25 @@ func (c *Client) EnqueueReindex(ctx context.Context, p ReindexPayload) error {
 	)
 	return nil
 }
+
+// EnqueueAirbyteSync enqueues an Airbyte connector sync task on the default queue.
+func (c *Client) EnqueueAirbyteSync(ctx context.Context, p AirbyteSyncPayload) error {
+	task, err := NewAirbyteSyncTask(p)
+	if err != nil {
+		return fmt.Errorf("create airbyte sync task: %w", err)
+	}
+	info, err := c.inner.EnqueueContext(ctx, task,
+		asynq.MaxRetry(c.maxRetry),
+		asynq.Queue("default"),
+	)
+	if err != nil {
+		return fmt.Errorf("enqueue airbyte sync task: %w", err)
+	}
+	c.logger.Info("enqueued task",
+		"type", task.Type(),
+		"id", info.ID,
+		"queue", info.Queue,
+		"connector_id", p.ConnectorID,
+	)
+	return nil
+}

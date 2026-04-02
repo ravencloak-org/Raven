@@ -135,7 +135,7 @@ func main() {
 			log.Printf("queue client close error: %v", err)
 		}
 	}()
-	_ = queueClient // TODO(#14): pass to services that enqueue jobs
+	// queueClient is passed to services that enqueue async jobs.
 
 	// --- Database pool ---
 	pool, err := db.New(context.Background(), cfg.Database.URL)
@@ -157,6 +157,7 @@ func main() {
 	processingEventRepo := repository.NewProcessingEventRepository()
 	apiKeyRepo := repository.NewAPIKeyRepository(pool)
 	routingRepo := repository.NewRoutingRepository(pool)
+	airbyteRepo := repository.NewAirbyteRepository(pool)
 
 	// --- gRPC client for AI worker ---
 	grpcClient, err := rpcClient.NewClient(cfg.GRPC.WorkerAddr)
@@ -188,6 +189,7 @@ func main() {
 	processingSvc := service.NewProcessingEventService(processingEventRepo, docRepo, pool)
 	apiKeySvc := service.NewAPIKeyService(apiKeyRepo, pool)
 	routingSvc := service.NewRoutingService(routingRepo, kbRepo, pool)
+	airbyteSvc := service.NewAirbyteService(airbyteRepo, pool, queueClient)
 	chatRepo := repository.NewChatRepository(pool)
 	chatSvc := service.NewChatService(chatRepo, grpcClient, pool)
 
@@ -204,6 +206,7 @@ func main() {
 	processingHandler := handler.NewProcessingEventHandler(processingSvc)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeySvc)
 	routingHandler := handler.NewRoutingHandler(routingSvc)
+	airbyteHandler := handler.NewAirbyteHandler(airbyteSvc)
 	chatHandler := handler.NewChatHandler(chatSvc)
 
 	// Create router
@@ -308,6 +311,18 @@ func main() {
 					apiKeys.DELETE("/:key_id", middleware.RequireWorkspaceRole("admin"), apiKeyHandler.Revoke)
 				}
 			}
+		}
+
+		// --- Airbyte connector routes (nested under org) ---
+		connectors := api.Group("/orgs/:org_id/connectors")
+		{
+			connectors.POST("", middleware.RequireOrgRole("org_admin"), airbyteHandler.Create)
+			connectors.GET("", airbyteHandler.List)
+			connectors.GET("/:connector_id", airbyteHandler.Get)
+			connectors.PUT("/:connector_id", middleware.RequireOrgRole("org_admin"), airbyteHandler.Update)
+			connectors.DELETE("/:connector_id", middleware.RequireOrgRole("org_admin"), airbyteHandler.Delete)
+			connectors.POST("/:connector_id/sync", middleware.RequireOrgRole("org_admin"), airbyteHandler.TriggerSync)
+			connectors.GET("/:connector_id/history", airbyteHandler.GetSyncHistory)
 		}
 
 		// --- LLM Provider routes (nested under org) ---

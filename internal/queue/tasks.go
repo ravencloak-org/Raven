@@ -15,6 +15,7 @@ const (
 	TypeDocumentProcess = "document:process"
 	TypeURLScrape       = "url:scrape"
 	TypeReindex         = "kb:reindex"
+	TypeAirbyteSync     = "airbyte:sync"
 )
 
 // DocumentProcessPayload is the payload for document processing tasks.
@@ -64,4 +65,20 @@ func NewReindexTask(p ReindexPayload) (*asynq.Task, error) {
 		return nil, fmt.Errorf("marshal ReindexPayload: %w", err)
 	}
 	return asynq.NewTask(TypeReindex, data), nil
+}
+
+// AirbyteSyncPayload is the payload for Airbyte connector sync tasks.
+type AirbyteSyncPayload struct {
+	ConnectorID     string `json:"connector_id"`
+	OrgID           string `json:"org_id"`
+	KnowledgeBaseID string `json:"knowledge_base_id"`
+}
+
+// NewAirbyteSyncTask creates a new Asynq task for an Airbyte connector sync.
+func NewAirbyteSyncTask(p AirbyteSyncPayload) (*asynq.Task, error) {
+	data, err := json.Marshal(p)
+	if err != nil {
+		return nil, fmt.Errorf("marshal AirbyteSyncPayload: %w", err)
+	}
+	return asynq.NewTask(TypeAirbyteSync, data), nil
 }
