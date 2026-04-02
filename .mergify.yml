@@ -17,13 +17,9 @@ pull_request_rules:
       - -draft
       - -title ~= "^WIP"
       - -conflict
-      - check-success = "Go CI / Build & Test"
-      - check-success = "Go CI / Lint"
-      - check-success = "Python CI / Lint, Type-check & Test"
-      - check-success = "Frontend CI / Lint & Build"
-      - check-success = "Frontend CI / Playwright E2E"
-      - check-success = "Docker Build & Push / Build go-api"
-      - check-success = "Docker Build & Push / Build python-worker"
+      - check-success = "CI Required / Gate"
+      - "#check-failure = 0"
+      - "#check-pending = 0"
       - label != "needs-review"
     actions:
       merge:

@@ -3,71 +3,45 @@ name: Python CI
 on:
   push:
     branches: [main]
+    paths:
+      - 'ai-worker/**'
+      - 'proto/**'
   pull_request:
     branches: [main]
+    paths:
+      - 'ai-worker/**'
+      - 'proto/**'
 
 permissions:
   contents: read
 
 jobs:
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      src: ${{ steps.filter.outputs.src }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v4
-        id: filter
-        with:
-          filters: |
-            src:
-              - 'ai-worker/**'
-              - 'proto/**'
-              - '.github/workflows/python.yml'
-
   test:
     name: Lint, Type-check & Test
-    needs: changes
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ai-worker
     steps:
-      - name: Checkout code
-        if: needs.changes.outputs.src == 'true'
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-      - name: Setup Python
-        if: needs.changes.outputs.src == 'true'
-        uses: actions/setup-python@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: pip
           cache-dependency-path: ai-worker/pyproject.toml
 
-      - name: Install dependencies
-        if: needs.changes.outputs.src == 'true'
-        run: pip install -e ".[dev]"
+      - run: pip install -e ".[dev]"
 
-      - name: Ruff lint
-        if: needs.changes.outputs.src == 'true'
-        run: ruff check
+      - run: ruff check
 
-      - name: Ruff format check
-        if: needs.changes.outputs.src == 'true'
-        run: ruff format --check
+      - run: ruff format --check
 
-      - name: Type check (mypy)
-        if: needs.changes.outputs.src == 'true'
-        run: mypy raven_worker
+      - run: mypy raven_worker
 
-      - name: Run tests with coverage
-        if: needs.changes.outputs.src == 'true'
-        run: pytest -v --cov=raven_worker --cov-report=xml --cov-report=term-missing
+      - run: pytest -v --cov=raven_worker --cov-report=xml --cov-report=term-missing
 
-      - name: Upload coverage report
-        if: needs.changes.outputs.src == 'true'
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: ai-worker/coverage.xml
