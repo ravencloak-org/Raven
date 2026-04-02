@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -61,8 +62,12 @@ func StrangerCheck(strangerSvc StrangerServiceInterface, valkey *redis.Client) g
 		}
 		user, err := strangerSvc.Upsert(c.Request.Context(), orgID, req)
 		if err != nil {
-			// Fail open — do not block the request if tracking fails.
-			c.Next()
+			slog.ErrorContext(c.Request.Context(), "stranger check: upsert failed, denying request",
+				slog.String("org_id", orgID),
+				slog.String("session_id", sessionID),
+				slog.String("error", err.Error()),
+			)
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "service temporarily unavailable"})
 			return
 		}
 
@@ -80,8 +85,12 @@ func StrangerCheck(strangerSvc StrangerServiceInterface, valkey *redis.Client) g
 			script := redis.NewScript(strangerRateLua)
 			count, err := script.Run(c.Request.Context(), valkey, []string{key}, "60").Int64()
 			if err != nil {
-				// Valkey unavailable — fail open rather than blocking valid users.
-				c.Next()
+				slog.ErrorContext(c.Request.Context(), "stranger check: Valkey rate-limit script failed, denying request",
+					slog.String("org_id", orgID),
+					slog.String("session_id", sessionID),
+					slog.String("error", err.Error()),
+				)
+				c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "service temporarily unavailable"})
 				return
 			}
 			if int(count) > rpm {
