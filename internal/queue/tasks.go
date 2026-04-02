@@ -8,6 +8,8 @@ import (
 	"fmt"
 
 	"github.com/hibiken/asynq"
+
+	"github.com/ravencloak-org/Raven/internal/model"
 )
 
 // Task type constants used for routing tasks to the correct handler.
@@ -16,6 +18,8 @@ const (
 	TypeURLScrape       = "url:scrape"
 	TypeReindex         = "kb:reindex"
 	TypeAirbyteSync     = "airbyte:sync"
+	// TypeSendEmail is the Asynq task type for outbound email delivery.
+	TypeSendEmail = "notification:send_email"
 )
 
 // DocumentProcessPayload is the payload for document processing tasks.
@@ -81,4 +85,13 @@ func NewAirbyteSyncTask(p AirbyteSyncPayload) (*asynq.Task, error) {
 		return nil, fmt.Errorf("marshal AirbyteSyncPayload: %w", err)
 	}
 	return asynq.NewTask(TypeAirbyteSync, data), nil
+}
+
+// NewSendEmailTask creates a new Asynq task for outbound email delivery.
+func NewSendEmailTask(p model.SendEmailPayload) (*asynq.Task, error) {
+	data, err := json.Marshal(p)
+	if err != nil {
+		return nil, fmt.Errorf("marshal SendEmailPayload: %w", err)
+	}
+	return asynq.NewTask(TypeSendEmail, data), nil
 }

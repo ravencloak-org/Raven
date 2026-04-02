@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"log/slog"
 	"os"
@@ -11,7 +12,10 @@ import (
 	"syscall"
 
 	"github.com/ravencloak-org/Raven/internal/config"
+	"github.com/ravencloak-org/Raven/internal/db"
+	"github.com/ravencloak-org/Raven/internal/jobs"
 	"github.com/ravencloak-org/Raven/internal/queue"
+	"github.com/ravencloak-org/Raven/internal/repository"
 )
 
 func main() {
@@ -22,12 +26,23 @@ func main() {
 
 	logger := slog.Default()
 
+	pool, err := db.New(context.Background(), cfg.Database.URL)
+	if err != nil {
+		log.Fatalf("failed to connect to database: %v", err)
+	}
+	defer pool.Close()
+
+	notifRepo := repository.NewNotificationRepository(pool)
+
 	srv := queue.NewServer(queue.ServerConfig{
 		RedisAddr:   cfg.Valkey.URL,
 		Concurrency: cfg.Queue.Concurrency,
 		MaxRetry:    cfg.Queue.MaxRetry,
 		Logger:      logger,
 	})
+
+	// Register email delivery handler.
+	srv.Mux().HandleFunc(queue.TypeSendEmail, jobs.HandleSendEmail(notifRepo))
 
 	// Start worker in a goroutine so we can listen for shutdown signals.
 	go func() {

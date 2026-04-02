@@ -46,6 +46,8 @@ var allExpectedTables = []string{
 	"stranger_users",
 	"user_identities",
 	"response_cache",
+	"notification_configs",
+	"notification_log",
 }
 
 // rlsTables are the tables that must have RLS enabled (all tables with org_id).
@@ -70,6 +72,8 @@ var rlsTables = []string{
 	"stranger_users",
 	"user_identities",
 	"response_cache",
+	"notification_configs",
+	"notification_log",
 }
 
 // allExpectedTypes lists every custom ENUM type.
@@ -90,6 +94,8 @@ var allExpectedTypes = []string{
 	"connector_status",
 	"sync_mode",
 	"stranger_status",
+	"notification_type",
+	"notification_status",
 }
 
 // startPostgresContainer spins up a pgvector-enabled PostgreSQL container.
