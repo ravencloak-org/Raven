@@ -18,14 +18,16 @@ export class VoiceSession {
   private _isMuted = false
   private _startTime: number | null = null
   private _durationTimer: ReturnType<typeof setInterval> | null = null
+  private _livekitUrl: string
   private _mockMode: boolean
   private _callbacks: VoiceSessionCallbacks
 
   constructor(
-    private _livekitUrl: string,
+    livekitUrl: string,
     callbacks: VoiceSessionCallbacks,
   ) {
-    this._mockMode = !_livekitUrl
+    this._livekitUrl = livekitUrl
+    this._mockMode = !livekitUrl
     this._callbacks = callbacks
   }
 
@@ -72,7 +74,7 @@ export class VoiceSession {
       // await room.connect(this._livekitUrl, token)
 
       // For now, fall back to mock since token endpoint doesn't exist yet
-      console.warn('[raven-chat] LiveKit URL set but no token endpoint available — using mock mode')
+      console.warn(`[raven-chat] LiveKit URL (${this._livekitUrl}) set but no token endpoint available — using mock mode`)
       await this._delay(1000)
       this._setState('connected')
       this._startTimer()
