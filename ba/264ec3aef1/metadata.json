@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "ba264ec3aef1",
+  "strategy": "manual-commit",
+  "branch": "fix/mergify-simplify-checks",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/docker.yml",
+    ".github/workflows/frontend.yml",
+    ".github/workflows/go.yml",
+    ".github/workflows/python.yml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ba/264ec3aef1/0/metadata.json",
+      "transcript": "/ba/264ec3aef1/0/full.jsonl",
+      "context": "/ba/264ec3aef1/0/context.md",
+      "content_hash": "/ba/264ec3aef1/0/content_hash.txt",
+      "prompt": "/ba/264ec3aef1/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 10,
+    "cache_creation_tokens": 43308,
+    "cache_read_tokens": 279709,
+    "output_tokens": 2044,
+    "api_call_count": 6
+  }
+}
