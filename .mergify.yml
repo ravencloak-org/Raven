@@ -17,6 +17,7 @@ pull_request_rules:
       - -draft
       - -title ~= "^WIP"
       - -conflict
+      - check-success = "CI Required / Gate"
       - "#check-failure = 0"
       - "#check-pending = 0"
       - label != "needs-review"
