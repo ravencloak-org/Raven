@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     encryption_key: str = ""  # base64-encoded 32-byte AES key for BYOK decryption
     memory_dir: str = ""  # directory for per-session memory files; empty = disabled
     enable_web_search: bool = False  # allow Anthropic web_search tool in RAG responses
+    livekit_url: str = "ws://localhost:7880"
+    livekit_api_key: str = ""
+    livekit_api_secret: str = ""
 
     model_config = SettingsConfigDict(env_prefix="RAVEN_")
 
