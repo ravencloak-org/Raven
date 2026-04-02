@@ -9,7 +9,6 @@ on:
       - 'pkg/**'
       - 'go.mod'
       - 'go.sum'
-      - '.github/workflows/go.yml'
   pull_request:
     branches: [main]
     paths:
@@ -18,7 +17,6 @@ on:
       - 'pkg/**'
       - 'go.mod'
       - 'go.sum'
-      - '.github/workflows/go.yml'
 
 permissions:
   contents: read

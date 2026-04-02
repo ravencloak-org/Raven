@@ -6,13 +6,11 @@ on:
     paths:
       - 'ai-worker/**'
       - 'proto/**'
-      - '.github/workflows/python.yml'
   pull_request:
     branches: [main]
     paths:
       - 'ai-worker/**'
       - 'proto/**'
-      - '.github/workflows/python.yml'
 
 permissions:
   contents: read
