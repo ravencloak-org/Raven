@@ -113,7 +113,7 @@ class MemoryStore:
         # Strip the logical /memories/ prefix Claude uses in its mental model
         for prefix in ("memories/", "memories"):
             if clean.startswith(prefix):
-                clean = clean[len(prefix):]
+                clean = clean[len(prefix) :]
                 break
 
         resolved = (self.root / clean).resolve()
@@ -136,9 +136,7 @@ class MemoryStore:
             entries = sorted(path.iterdir())
             if not entries:
                 return "(empty directory)"
-            return "\n".join(
-                f"  {e.name}{'/' if e.is_dir() else ''}" for e in entries
-            )
+            return "\n".join(f"  {e.name}{'/' if e.is_dir() else ''}" for e in entries)
         lines = path.read_text(encoding="utf-8").splitlines()
         numbered = "\n".join(f"{i + 1:>6}\t{line}" for i, line in enumerate(lines))
         return f"Contents of {path.name!r} ({len(lines)} lines):\n{numbered}"

@@ -224,8 +224,14 @@ class RAGServicer:
             final_sources: list[dict] = []
 
             async for chunk in self._run_pipeline(
-                query_text, org_id, kb_ids, provider_name, model, filters,
-                request.session_id, log,
+                query_text,
+                org_id,
+                kb_ids,
+                provider_name,
+                model,
+                filters,
+                request.session_id,
+                log,
             ):
                 if not chunk.is_final:
                     collected_text.append(chunk.text)
@@ -375,8 +381,13 @@ class RAGServicer:
 
         # 8. Stream LLM tokens
         async for token_chunk in self._stream_llm(
-            provider_name, llm_api_key, model, prompt, messages,
-            session_id=session_id, org_id=org_id,
+            provider_name,
+            llm_api_key,
+            model,
+            prompt,
+            messages,
+            session_id=session_id,
+            org_id=org_id,
         ):
             yield token_chunk
 
@@ -447,8 +458,12 @@ class RAGServicer:
                 yield chunk
         elif provider == "anthropic":
             async for chunk in self._stream_anthropic(
-                api_key, model, system_prompt, messages,
-                session_id=session_id, org_id=org_id,
+                api_key,
+                model,
+                system_prompt,
+                messages,
+                session_id=session_id,
+                org_id=org_id,
             ):
                 yield chunk
         else:
