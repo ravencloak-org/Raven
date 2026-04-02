@@ -41,6 +41,10 @@ var allExpectedTables = []string{
 	"processing_events",
 	"routing_rules",
 	"catalog_metadata",
+	"airbyte_connectors",
+	"airbyte_sync_history",
+	"user_identities",
+	"response_cache",
 }
 
 // rlsTables are the tables that must have RLS enabled (all tables with org_id).
@@ -60,6 +64,10 @@ var rlsTables = []string{
 	"processing_events",
 	"routing_rules",
 	"catalog_metadata",
+	"airbyte_connectors",
+	"airbyte_sync_history",
+	"user_identities",
+	"response_cache",
 }
 
 // allExpectedTypes lists every custom ENUM type.
@@ -77,6 +85,8 @@ var allExpectedTypes = []string{
 	"api_key_status",
 	"message_role",
 	"routing_mode",
+	"connector_status",
+	"sync_mode",
 }
 
 // startPostgresContainer spins up a pgvector-enabled PostgreSQL container.

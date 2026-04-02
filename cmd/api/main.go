@@ -43,6 +43,7 @@ import (
 	"github.com/ravencloak-org/Raven/internal/handler"
 	"github.com/ravencloak-org/Raven/internal/middleware"
 	"github.com/ravencloak-org/Raven/internal/model"
+	"github.com/ravencloak-org/Raven/internal/posthog"
 	"github.com/ravencloak-org/Raven/internal/queue"
 	"github.com/ravencloak-org/Raven/internal/repository"
 	"github.com/ravencloak-org/Raven/internal/service"
@@ -50,6 +51,28 @@ import (
 	"github.com/ravencloak-org/Raven/internal/telemetry"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
+
+// securityEvaluatorAdapter bridges the SecurityService to the middleware.SecurityEvaluator
+// interface without creating a circular import dependency.
+type securityEvaluatorAdapter struct {
+	svc *service.SecurityService
+}
+
+func (a *securityEvaluatorAdapter) EvaluateRequest(ctx context.Context, orgID, clientIP, path, method, userAgent string) (*middleware.SecurityRuleAction, error) {
+	action, err := a.svc.EvaluateRequest(ctx, orgID, clientIP, path, method, userAgent)
+	if err != nil {
+		return nil, err
+	}
+	if action == nil {
+		return nil, nil
+	}
+	return &middleware.SecurityRuleAction{
+		Block:    action.Block,
+		Throttle: action.Throttle,
+		RuleID:   action.RuleID,
+		RuleName: action.RuleName,
+	}, nil
+}
 
 // apiKeyLookupAdapter bridges the APIKeyRepository to the middleware.APIKeyLookup
 // interface without creating a circular import dependency.
@@ -135,7 +158,7 @@ func main() {
 			log.Printf("queue client close error: %v", err)
 		}
 	}()
-	_ = queueClient // TODO(#14): pass to services that enqueue jobs
+	// queueClient is passed to services that enqueue async jobs.
 
 	// --- Database pool ---
 	pool, err := db.New(context.Background(), cfg.Database.URL)
@@ -157,6 +180,10 @@ func main() {
 	processingEventRepo := repository.NewProcessingEventRepository()
 	apiKeyRepo := repository.NewAPIKeyRepository(pool)
 	routingRepo := repository.NewRoutingRepository(pool)
+	airbyteRepo := repository.NewAirbyteRepository(pool)
+	securityRepo := repository.NewSecurityRepository(pool)
+	identityRepo := repository.NewIdentityRepository(pool)
+	semCacheRepo := repository.NewSemanticCacheRepository(pool)
 
 	// --- gRPC client for AI worker ---
 	grpcClient, err := rpcClient.NewClient(cfg.GRPC.WorkerAddr)
@@ -188,6 +215,10 @@ func main() {
 	processingSvc := service.NewProcessingEventService(processingEventRepo, docRepo, pool)
 	apiKeySvc := service.NewAPIKeyService(apiKeyRepo, pool)
 	routingSvc := service.NewRoutingService(routingRepo, kbRepo, pool)
+	airbyteSvc := service.NewAirbyteService(airbyteRepo, pool, queueClient)
+	securitySvc := service.NewSecurityService(securityRepo, pool, valkeyClient)
+	posthogClient := posthog.NewClient(cfg.PostHog.APIKey, cfg.PostHog.Host)
+	identitySvc := service.NewIdentityService(identityRepo, posthogClient)
 	chatRepo := repository.NewChatRepository(pool)
 	chatSvc := service.NewChatService(chatRepo, grpcClient, pool)
 
@@ -204,7 +235,11 @@ func main() {
 	processingHandler := handler.NewProcessingEventHandler(processingSvc)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeySvc)
 	routingHandler := handler.NewRoutingHandler(routingSvc)
+	airbyteHandler := handler.NewAirbyteHandler(airbyteSvc)
+	securityHandler := handler.NewSecurityHandler(securitySvc)
+	identityHandler := handler.NewIdentityHandler(identitySvc)
 	chatHandler := handler.NewChatHandler(chatSvc)
+	semCacheHandler := handler.NewSemanticCacheHandler(semCacheRepo)
 
 	// Create router
 	router := gin.Default()
@@ -310,6 +345,18 @@ func main() {
 			}
 		}
 
+		// --- Airbyte connector routes (nested under org) ---
+		connectors := api.Group("/orgs/:org_id/connectors")
+		{
+			connectors.POST("", middleware.RequireOrgRole("org_admin"), airbyteHandler.Create)
+			connectors.GET("", airbyteHandler.List)
+			connectors.GET("/:connector_id", airbyteHandler.Get)
+			connectors.PUT("/:connector_id", middleware.RequireOrgRole("org_admin"), airbyteHandler.Update)
+			connectors.DELETE("/:connector_id", middleware.RequireOrgRole("org_admin"), airbyteHandler.Delete)
+			connectors.POST("/:connector_id/sync", middleware.RequireOrgRole("org_admin"), airbyteHandler.TriggerSync)
+			connectors.GET("/:connector_id/history", airbyteHandler.GetSyncHistory)
+		}
+
 		// --- LLM Provider routes (nested under org) ---
 		llm := api.Group("/orgs/:org_id/llm-providers")
 		{
@@ -335,6 +382,37 @@ func main() {
 		// --- Catalog metadata routes (nested under org) ---
 		api.GET("/orgs/:org_id/catalog", middleware.RequireOrgRole("org_admin"), routingHandler.ListCatalog)
 
+		// --- Semantic cache management routes (nested under org/kb) ---
+		semCache := api.Group("/orgs/:org_id/kbs/:kb_id/cache")
+		{
+			semCache.DELETE("", middleware.RequireOrgRole("org_admin"), semCacheHandler.InvalidateKBCache)
+			semCache.GET("/stats", middleware.RequireOrgRole("org_admin"), semCacheHandler.GetCacheStats)
+		}
+
+		// --- Security rules routes (nested under org, admin only) ---
+		sec := api.Group("/orgs/:org_id/security")
+		{
+			secRules := sec.Group("/rules", middleware.RequireOrgRole("org_admin"))
+			{
+				secRules.POST("", securityHandler.CreateRule)
+				secRules.GET("", securityHandler.ListRules)
+				secRules.GET("/:rule_id", securityHandler.GetRule)
+				secRules.PUT("/:rule_id", securityHandler.UpdateRule)
+				secRules.DELETE("/:rule_id", securityHandler.DeleteRule)
+				secRules.POST("/invalidate-cache", securityHandler.InvalidateRuleCache)
+			}
+			sec.GET("/events", middleware.RequireOrgRole("org_admin"), securityHandler.ListEvents)
+		}
+
+		// --- Identity / PostHog routes (nested under org) ---
+		identity := api.Group("/orgs/:org_id/identity")
+		{
+			identity.POST("", middleware.RequireOrgRole("org_member"), identityHandler.Identify)
+			identity.POST("/track", middleware.RequireOrgRole("org_member"), identityHandler.Track)
+			identity.GET("", middleware.RequireOrgRole("org_member"), identityHandler.ListIdentities)
+			identity.DELETE("/:id", middleware.RequireOrgRole("org_admin"), identityHandler.DeleteIdentity)
+		}
+
 		// --- User / me routes ---
 		api.GET("/me", userHandler.GetMe)
 		api.PUT("/me", userHandler.UpdateMe)
@@ -345,6 +423,7 @@ func main() {
 	// Public chat routes — API key authentication (for embeddable chat widget).
 	chatAPI := router.Group("/api/v1/chat")
 	chatAPI.Use(middleware.APIKeyAuth(&apiKeyLookupAdapter{repo: apiKeyRepo}))
+	chatAPI.Use(middleware.SecurityRulesMiddleware(&securityEvaluatorAdapter{svc: securitySvc}))
 	{
 		chatAPI.POST("/:kb_id/completions", chatHandler.StreamCompletion)
 		chatAPI.GET("/:kb_id/sessions", chatHandler.ListSessions)

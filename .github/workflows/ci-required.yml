@@ -1,0 +1,20 @@
+name: CI Required
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # Intentional Mergify marker job. Mergify gates merges on `#check-failure = 0`
+  # across all workflows, so this job does not need `needs:` dependencies — it
+  # is not the actual gate; it is a stable check name for branch-protection rules.
+  gate:
+    name: Gate
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "CI gate passed"
