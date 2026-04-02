@@ -62,6 +62,7 @@ jobs:
           ref: ${{ github.head_ref }}
 
       - name: Run Claude Code Review
+        id: claude-review
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -82,6 +83,14 @@ jobs:
             - Python: run `ruff check` and `pytest` inside ai-worker/ to validate
             - TypeScript: run `npm run lint` and `npm run test:unit` inside frontend/ to validate
             - Never commit secrets, never force-push, never modify unrelated files
+            - Do not add Co-Authored-By trailers to commit messages; commits must appear authored by the repo owner only
 
             If everything is clean after your fixes, approve the PR.
             If there are issues you cannot fix automatically, request changes with a clear explanation.
+
+      # If Claude committed fixes, label the PR so a human reviews before Mergify merges.
+      - name: Label PR for human review after automated fixes
+        if: steps.claude-review.outputs.commits_made == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr edit "${{ github.event.pull_request.number }}" --add-label "needs-review"
