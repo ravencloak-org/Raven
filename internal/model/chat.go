@@ -2,6 +2,56 @@ package model
 
 import "time"
 
+const (
+	// DefaultMaxTurns is the sliding window size: last 10 turns (5 user + 5 assistant pairs).
+	DefaultMaxTurns = 10
+	// DefaultTokenBudget is the maximum token count for conversation context history.
+	DefaultTokenBudget = 4096
+	// AnonymousSessionTTL is the time-to-live for anonymous (unauthenticated) chat sessions.
+	AnonymousSessionTTL = 24 * time.Hour
+)
+
+// ConversationContext represents the assembled history for a RAG query.
+type ConversationContext struct {
+	SessionID   string        `json:"session_id"`
+	Messages    []ChatMessage `json:"messages"`
+	TotalTokens int           `json:"total_tokens"`
+	Truncated   bool          `json:"truncated"`
+}
+
+// ChatCompletionResponse is the non-streaming response (for future use).
+type ChatCompletionResponse struct {
+	SessionID string       `json:"session_id"`
+	MessageID string       `json:"message_id"`
+	Text      string       `json:"text"`
+	Sources   []ChatSource `json:"sources"`
+}
+
+// HistoryResponse is the paginated message history returned by GET /sessions/:session_id/history.
+type HistoryResponse struct {
+	SessionID    string        `json:"session_id"`
+	Messages     []ChatMessage `json:"messages"`
+	TotalCount   int           `json:"total_count"`
+	Limit        int           `json:"limit"`
+	Offset       int           `json:"offset"`
+}
+
+// SessionListResponse is the list of sessions returned by GET /sessions.
+type SessionListResponse struct {
+	Sessions []ChatSession `json:"sessions"`
+	Limit    int           `json:"limit"`
+	Offset   int           `json:"offset"`
+}
+
+// EstimateTokens returns a rough token estimate for a string (approx 4 chars per token for English).
+func EstimateTokens(content string) int {
+	n := len(content) / 4
+	if n == 0 && len(content) > 0 {
+		n = 1
+	}
+	return n
+}
+
 // ChatSession represents an active or historical chat session scoped to a
 // knowledge base and organisation.
 type ChatSession struct {

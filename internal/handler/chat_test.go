@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ravencloak-org/Raven/internal/handler"
@@ -20,11 +21,35 @@ import (
 
 // mockChatService implements handler.ChatServicer for unit tests.
 type mockChatService struct {
-	streamFn func(ctx context.Context, orgID, kbID string, req *model.ChatCompletionRequest) (<-chan service.SSEEvent, error)
+	streamFn        func(ctx context.Context, orgID, kbID string, req *model.ChatCompletionRequest) (<-chan service.SSEEvent, error)
+	getHistoryFn    func(ctx context.Context, orgID, sessionID string, limit, offset int) (*model.HistoryResponse, error)
+	listSessionsFn  func(ctx context.Context, orgID, kbID string, limit, offset int) (*model.SessionListResponse, error)
+	deleteSessionFn func(ctx context.Context, orgID, sessionID string) error
 }
 
 func (m *mockChatService) StreamCompletion(ctx context.Context, orgID, kbID string, req *model.ChatCompletionRequest) (<-chan service.SSEEvent, error) {
 	return m.streamFn(ctx, orgID, kbID, req)
+}
+
+func (m *mockChatService) GetHistory(ctx context.Context, orgID, sessionID string, limit, offset int) (*model.HistoryResponse, error) {
+	if m.getHistoryFn != nil {
+		return m.getHistoryFn(ctx, orgID, sessionID, limit, offset)
+	}
+	return nil, nil
+}
+
+func (m *mockChatService) ListSessions(ctx context.Context, orgID, kbID string, limit, offset int) (*model.SessionListResponse, error) {
+	if m.listSessionsFn != nil {
+		return m.listSessionsFn(ctx, orgID, kbID, limit, offset)
+	}
+	return nil, nil
+}
+
+func (m *mockChatService) DeleteSession(ctx context.Context, orgID, sessionID string) error {
+	if m.deleteSessionFn != nil {
+		return m.deleteSessionFn(ctx, orgID, sessionID)
+	}
+	return nil
 }
 
 func newChatRouter(svc handler.ChatServicer) *gin.Engine {
@@ -39,6 +64,9 @@ func newChatRouter(svc handler.ChatServicer) *gin.Engine {
 	})
 	h := handler.NewChatHandler(svc)
 	r.POST("/api/v1/chat/:kb_id/completions", h.StreamCompletion)
+	r.GET("/api/v1/chat/:kb_id/sessions", h.ListSessions)
+	r.GET("/api/v1/chat/:kb_id/sessions/:session_id/history", h.GetHistory)
+	r.DELETE("/api/v1/chat/:kb_id/sessions/:session_id", h.DeleteSession)
 	return r
 }
 
@@ -279,6 +307,211 @@ func TestStreamCompletion_MissingOrgID_Returns401(t *testing.T) {
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodPost, "/api/v1/chat/kb-1/completions", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// --- Conversation History Tests ---
+
+func TestGetHistory_Success(t *testing.T) {
+	now := time.Now()
+	tc10 := 10
+	svc := &mockChatService{
+		getHistoryFn: func(_ context.Context, orgID, sessionID string, limit, offset int) (*model.HistoryResponse, error) {
+			if orgID != "org-abc" {
+				t.Errorf("expected orgID=org-abc, got %s", orgID)
+			}
+			if sessionID != "sess-123" {
+				t.Errorf("expected sessionID=sess-123, got %s", sessionID)
+			}
+			if limit != 50 {
+				t.Errorf("expected limit=50, got %d", limit)
+			}
+			if offset != 0 {
+				t.Errorf("expected offset=0, got %d", offset)
+			}
+			return &model.HistoryResponse{
+				SessionID: sessionID,
+				Messages: []model.ChatMessage{
+					{ID: "msg-1", SessionID: sessionID, OrgID: orgID, Role: "user", Content: "hello", TokenCount: &tc10, CreatedAt: now},
+					{ID: "msg-2", SessionID: sessionID, OrgID: orgID, Role: "assistant", Content: "hi there", TokenCount: &tc10, CreatedAt: now},
+				},
+				TotalCount: 2,
+				Limit:      50,
+				Offset:     0,
+			}, nil
+		},
+	}
+
+	r := newChatRouter(svc)
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/chat/kb-1/sessions/sess-123/history", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp model.HistoryResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+	if resp.SessionID != "sess-123" {
+		t.Errorf("session_id = %q, want 'sess-123'", resp.SessionID)
+	}
+	if len(resp.Messages) != 2 {
+		t.Errorf("expected 2 messages, got %d", len(resp.Messages))
+	}
+	if resp.TotalCount != 2 {
+		t.Errorf("total_count = %d, want 2", resp.TotalCount)
+	}
+}
+
+func TestGetHistory_NotFound(t *testing.T) {
+	svc := &mockChatService{
+		getHistoryFn: func(_ context.Context, _, _ string, _, _ int) (*model.HistoryResponse, error) {
+			return nil, apierror.NewNotFound("session not found")
+		},
+	}
+
+	r := newChatRouter(svc)
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/chat/kb-1/sessions/nonexistent/history", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestGetHistory_CustomPagination(t *testing.T) {
+	svc := &mockChatService{
+		getHistoryFn: func(_ context.Context, _, sessionID string, limit, offset int) (*model.HistoryResponse, error) {
+			if limit != 10 {
+				t.Errorf("expected limit=10, got %d", limit)
+			}
+			if offset != 5 {
+				t.Errorf("expected offset=5, got %d", offset)
+			}
+			return &model.HistoryResponse{
+				SessionID:  sessionID,
+				Messages:   []model.ChatMessage{},
+				TotalCount: 20,
+				Limit:      limit,
+				Offset:     offset,
+			}, nil
+		},
+	}
+
+	r := newChatRouter(svc)
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/chat/kb-1/sessions/sess-1/history?limit=10&offset=5", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestListSessions_Success(t *testing.T) {
+	now := time.Now()
+	svc := &mockChatService{
+		listSessionsFn: func(_ context.Context, orgID, kbID string, limit, offset int) (*model.SessionListResponse, error) {
+			if orgID != "org-abc" {
+				t.Errorf("expected orgID=org-abc, got %s", orgID)
+			}
+			if kbID != "kb-1" {
+				t.Errorf("expected kbID=kb-1, got %s", kbID)
+			}
+			return &model.SessionListResponse{
+				Sessions: []model.ChatSession{
+					{ID: "sess-1", OrgID: orgID, KnowledgeBaseID: kbID, SessionToken: "tok-1", Metadata: map[string]any{}, CreatedAt: now},
+					{ID: "sess-2", OrgID: orgID, KnowledgeBaseID: kbID, SessionToken: "tok-2", Metadata: map[string]any{}, CreatedAt: now},
+				},
+				Limit:  limit,
+				Offset: offset,
+			}, nil
+		},
+	}
+
+	r := newChatRouter(svc)
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/chat/kb-1/sessions", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp model.SessionListResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+	if len(resp.Sessions) != 2 {
+		t.Errorf("expected 2 sessions, got %d", len(resp.Sessions))
+	}
+}
+
+func TestDeleteSession_Success(t *testing.T) {
+	deleteCalled := false
+	svc := &mockChatService{
+		deleteSessionFn: func(_ context.Context, orgID, sessionID string) error {
+			deleteCalled = true
+			if orgID != "org-abc" {
+				t.Errorf("expected orgID=org-abc, got %s", orgID)
+			}
+			if sessionID != "sess-to-delete" {
+				t.Errorf("expected sessionID=sess-to-delete, got %s", sessionID)
+			}
+			return nil
+		},
+	}
+
+	r := newChatRouter(svc)
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodDelete, "/api/v1/chat/kb-1/sessions/sess-to-delete", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Errorf("expected 204, got %d: %s", w.Code, w.Body.String())
+	}
+	if !deleteCalled {
+		t.Error("expected delete to be called")
+	}
+}
+
+func TestDeleteSession_NotFound(t *testing.T) {
+	svc := &mockChatService{
+		deleteSessionFn: func(_ context.Context, _, _ string) error {
+			return apierror.NewNotFound("session not found")
+		},
+	}
+
+	r := newChatRouter(svc)
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodDelete, "/api/v1/chat/kb-1/sessions/nonexistent", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestListSessions_MissingOrgID_Returns401(t *testing.T) {
+	svc := &mockChatService{}
+
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(apierror.ErrorHandler())
+	// Intentionally do NOT set ContextKeyOrgID
+	h := handler.NewChatHandler(svc)
+	r.GET("/api/v1/chat/:kb_id/sessions", h.ListSessions)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/chat/kb-1/sessions", nil)
 	r.ServeHTTP(w, req)
 
 	if w.Code != http.StatusUnauthorized {

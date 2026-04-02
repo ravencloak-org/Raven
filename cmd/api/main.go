@@ -330,6 +330,9 @@ func main() {
 	chatAPI.Use(middleware.APIKeyAuth(&apiKeyLookupAdapter{repo: apiKeyRepo}))
 	{
 		chatAPI.POST("/:kb_id/completions", chatHandler.StreamCompletion)
+		chatAPI.GET("/:kb_id/sessions", chatHandler.ListSessions)
+		chatAPI.GET("/:kb_id/sessions/:session_id/history", chatHandler.GetHistory)
+		chatAPI.DELETE("/:kb_id/sessions/:session_id", chatHandler.DeleteSession)
 	}
 
 	// Internal routes — no JWT, no rate limiting.
