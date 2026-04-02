@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "377eaeacf02c",
+  "strategy": "manual-commit",
+  "branch": "feat/issue-68-voice-call-ui",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".github/workflows/docker.yml",
+    ".github/workflows/frontend.yml",
+    ".github/workflows/go.yml",
+    ".github/workflows/python.yml",
+    ".superpowers/brainstorm/90760-1775037623/architecture.html",
+    "CLAUDE.md",
+    "docs/superpowers/plans/2026-03-30-pr-automation.md",
+    "docs/superpowers/specs/2026-03-30-pr-automation-design.md",
+    "docs/superpowers/specs/2026-04-02-browser-webrtc-voice-ui-design.md",
+    "frontend/src/components/chat-widget/voice-session.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/37/7eaeacf02c/0/metadata.json",
+      "transcript": "/37/7eaeacf02c/0/full.jsonl",
+      "context": "/37/7eaeacf02c/0/context.md",
+      "content_hash": "/37/7eaeacf02c/0/content_hash.txt",
+      "prompt": "/37/7eaeacf02c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 242,
+    "cache_creation_tokens": 23483,
+    "cache_read_tokens": 4893628,
+    "output_tokens": 7172,
+    "api_call_count": 23
+  }
+}
