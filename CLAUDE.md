@@ -23,6 +23,11 @@ Use `type/descriptor` format:
 | `chore/` | Tooling, deps, config |
 | `deps/` | Dependency bumps |
 
+## Commit Style
+
+- **No AI attribution** — do not add `Co-Authored-By:` trailers to any commit message
+- Commits should appear as authored by the repo owner only
+
 ## Rules
 
 - **Never push directly to `main`** — always use a PR

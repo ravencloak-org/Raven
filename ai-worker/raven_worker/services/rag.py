@@ -28,6 +28,7 @@ from openai import AsyncOpenAI
 from raven_worker.config import settings
 from raven_worker.crypto import decrypt_api_key
 from raven_worker.generated import ai_worker_pb2
+from raven_worker.memory import MEMORY_TOOL, MemoryStore
 from raven_worker.providers.registry import get_provider_for_request
 from raven_worker.retrieval.bm25_search import bm25_search
 from raven_worker.retrieval.reranker import cohere_rerank
@@ -54,12 +55,42 @@ WHERE c.id = ANY($1::uuid[]) AND c.org_id = $2::uuid
 _CACHE_KEY_PREFIX = "raven:cache:rag:"
 _CACHE_TTL_SECONDS = 3600  # 1 hour
 
+_MEMORY_SYSTEM_PROMPT_SUFFIX = (
+    "\n\nIMPORTANT: Before answering, use the memory tool to check /memories "
+    "for relevant context from previous conversations with this user."
+)
+
 
 def _cache_key(kb_id: str, query: str) -> str:
     """Build a deterministic cache key matching the Go-side format exactly."""
     normalized = query.lower().strip()
     digest = hashlib.sha256(f"{kb_id}:{normalized}".encode()).hexdigest()
     return f"{_CACHE_KEY_PREFIX}{digest}"
+
+
+def _append_qa_to_memory(memory_store: MemoryStore, query: str, answer: str) -> None:
+    """Append a Q&A pair to the session memory file after each response."""
+    import datetime
+
+    ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M")
+    entry = f"\n## {ts}\n**Q:** {query}\n**A:** {answer[:800]}{'…' if len(answer) > 800 else ''}\n"
+
+    existing = memory_store.handle("view", "session.md")
+    if existing.startswith("Error") or "does not exist" in existing:
+        memory_store.handle(
+            "create",
+            "session.md",
+            file_text=f"# Session Memory\n{entry}",
+        )
+    else:
+        # Append by replacing the end of the file
+        current_text = memory_store.root.joinpath("session.md").read_text(encoding="utf-8")
+        memory_store.handle(
+            "str_replace",
+            "session.md",
+            old_str=current_text,
+            new_str=current_text + entry,
+        )
 
 
 class RAGServicer:
@@ -187,7 +218,8 @@ class RAGServicer:
             final_sources: list[dict] = []
 
             async for chunk in self._run_pipeline(
-                query_text, org_id, kb_ids, provider_name, model, filters, log
+                query_text, org_id, kb_ids, provider_name, model, filters,
+                request.session_id, log,
             ):
                 if not chunk.is_final:
                     collected_text.append(chunk.text)
@@ -229,6 +261,7 @@ class RAGServicer:
         provider_name: str,
         model: str,
         filters: dict[str, str],
+        session_id: str,
         log: structlog.BoundLogger,
     ) -> AsyncIterator[ai_worker_pb2.RAGChunk]:
         """Execute the full RAG pipeline and yield streaming chunks."""
@@ -336,7 +369,8 @@ class RAGServicer:
 
         # 8. Stream LLM tokens
         async for token_chunk in self._stream_llm(
-            provider_name, llm_api_key, model, prompt, messages
+            provider_name, llm_api_key, model, prompt, messages,
+            session_id=session_id, org_id=org_id,
         ):
             yield token_chunk
 
@@ -385,6 +419,8 @@ class RAGServicer:
         model: str,
         system_prompt: str,
         messages: list[dict],
+        session_id: str = "",
+        org_id: str = "",
     ) -> AsyncIterator[ai_worker_pb2.RAGChunk]:
         """Stream LLM completion tokens for the supported providers.
 
@@ -394,6 +430,8 @@ class RAGServicer:
             model: LLM model identifier.
             system_prompt: System-level prompt (with injected context).
             messages: User/assistant message history.
+            session_id: Session identifier for per-session memory (Anthropic only).
+            org_id: Org identifier for per-org memory scoping (Anthropic only).
 
         Yields:
             Non-final :class:`ai_worker_pb2.RAGChunk` messages, one per token.
@@ -402,7 +440,10 @@ class RAGServicer:
             async for chunk in self._stream_openai(api_key, model, system_prompt, messages):
                 yield chunk
         elif provider == "anthropic":
-            async for chunk in self._stream_anthropic(api_key, model, system_prompt, messages):
+            async for chunk in self._stream_anthropic(
+                api_key, model, system_prompt, messages,
+                session_id=session_id, org_id=org_id,
+            ):
                 yield chunk
         else:
             raise ValueError(f"LLM streaming not supported for provider '{provider}'")
@@ -434,14 +475,152 @@ class RAGServicer:
         model: str,
         system_prompt: str,
         messages: list[dict],
+        session_id: str = "",
+        org_id: str = "",
     ) -> AsyncIterator[ai_worker_pb2.RAGChunk]:
-        """Stream tokens from the Anthropic Messages API."""
+        """Stream tokens from the Anthropic Messages API.
+
+        Integrates three Anthropic features on top of plain streaming:
+
+        * **Prompt caching** — adds ``cache_control: ephemeral`` to the system
+          prompt so repeated RAG context tokens are cached across calls, reducing
+          input token costs by up to 90 % on cache hits.
+
+        * **Memory tool** — when ``RAVEN_MEMORY_DIR`` is set, Claude runs a
+          short non-streaming pre-flight to read per-session memory files, then
+          appends that context before streaming the final answer.  After streaming
+          completes, the Q&A pair is saved back to memory for future sessions.
+
+        * **Web search** — when ``RAVEN_ENABLE_WEB_SEARCH=true``, the Anthropic
+          server-side ``web_search_20260209`` tool is included so Claude can
+          supplement knowledge-base context with live web results.
+        """
         client = anthropic.AsyncAnthropic(api_key=api_key)
-        async with client.messages.stream(
-            model=model,
-            system=system_prompt,
-            messages=messages,  # type: ignore[arg-type]
-            max_tokens=2048,
-        ) as stream:
+
+        # ── Prompt caching: wrap system prompt as a cacheable block ──────────
+        # The cache_control marker tells Anthropic to cache this prefix across
+        # calls. Cache TTL is 5 minutes; a hit costs ~10 % of normal input price.
+        system_blocks: list[dict] = [
+            {"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}},
+        ]
+
+        # ── Build tools list ──────────────────────────────────────────────────
+        tools: list[dict] = []
+
+        # Memory tool (client-side) — we execute file operations locally
+        memory_store: MemoryStore | None = None
+        if settings.memory_dir and session_id and org_id:
+            memory_store = MemoryStore(settings.memory_dir, org_id, session_id)
+            # cache_control on last tool definition caches the entire tools prefix
+            tools.append({**MEMORY_TOOL, "cache_control": {"type": "ephemeral"}})
+
+        # Web search (server-side) — Anthropic executes searches automatically
+        if settings.enable_web_search:
+            web_tool: dict = {"type": "web_search_20260209", "name": "web_search"}
+            if tools:
+                # Move cache_control to the last tool to extend the cached prefix
+                tools[-1].pop("cache_control", None)
+            tools.append({**web_tool, "cache_control": {"type": "ephemeral"}})
+
+        # ── Memory pre-flight ─────────────────────────────────────────────────
+        # Non-streaming agentic loop: Claude views/reads memory files, then we
+        # inject what it learned into the conversation before streaming the answer.
+        current_messages: list[dict] = list(messages)
+
+        if memory_store:
+            memory_system = (
+                system_blocks[0]["text"]
+                + "\n\nIMPORTANT: Before answering, use the memory tool to check "
+                "/memories for any relevant context from previous conversations "
+                "with this user. Read files that seem relevant to the current query."
+            )
+            preflight_system = [
+                {"type": "text", "text": memory_system, "cache_control": {"type": "ephemeral"}}
+            ]
+            preflight_tools = [t for t in tools if t.get("name") == "memory"]
+
+            try:
+                response = await client.messages.create(
+                    model=model,
+                    system=preflight_system,  # type: ignore[arg-type]
+                    messages=current_messages,  # type: ignore[arg-type]
+                    tools=preflight_tools,  # type: ignore[arg-type]
+                    max_tokens=1024,
+                )
+
+                # Execute memory tool calls until Claude stops requesting them
+                while response.stop_reason == "tool_use":
+                    tool_results = []
+                    for block in response.content:
+                        if block.type == "tool_use" and block.name == "memory":
+                            result = memory_store.handle(
+                                command=block.input.get("command", "view"),
+                                path=block.input.get("path", "/memories"),
+                                **{
+                                    k: v
+                                    for k, v in block.input.items()
+                                    if k not in ("command", "path")
+                                },
+                            )
+                            logger.debug(
+                                "memory_tool_call",
+                                command=block.input.get("command"),
+                                path=block.input.get("path"),
+                            )
+                            tool_results.append(
+                                {
+                                    "type": "tool_result",
+                                    "tool_use_id": block.id,
+                                    "content": result,
+                                }
+                            )
+
+                    current_messages = [
+                        *current_messages,
+                        {"role": "assistant", "content": response.content},
+                        {"role": "user", "content": tool_results},
+                    ]
+                    response = await client.messages.create(
+                        model=model,
+                        system=preflight_system,  # type: ignore[arg-type]
+                        messages=current_messages,  # type: ignore[arg-type]
+                        tools=preflight_tools,  # type: ignore[arg-type]
+                        max_tokens=1024,
+                    )
+
+                # Append the completed pre-flight turn so the streaming call
+                # has full context of what Claude found in memory
+                current_messages = [
+                    *current_messages,
+                    {"role": "assistant", "content": response.content},
+                ]
+
+            except Exception:  # noqa: BLE001
+                logger.warning("memory_preflight_error", exc_info=True)
+                # Non-fatal: fall through and answer without memory context
+
+        # ── Stream the final answer ───────────────────────────────────────────
+        stream_kwargs: dict = {
+            "model": model,
+            "system": system_blocks,
+            "messages": current_messages,
+            "max_tokens": 2048,
+        }
+        if tools:
+            stream_kwargs["tools"] = tools
+
+        collected_tokens: list[str] = []
+        async with client.messages.stream(**stream_kwargs) as stream:  # type: ignore[arg-type]
             async for text in stream.text_stream:
+                collected_tokens.append(text)
                 yield ai_worker_pb2.RAGChunk(text=text, is_final=False, sources=[])
+
+        # ── Post-stream: save Q&A to memory ──────────────────────────────────
+        if memory_store and collected_tokens:
+            user_query = (
+                messages[-1]["content"]
+                if messages and isinstance(messages[-1].get("content"), str)
+                else ""
+            )
+            answer = "".join(collected_tokens)
+            _append_qa_to_memory(memory_store, user_query, answer)
