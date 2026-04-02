@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -29,7 +30,8 @@ func mapLeadDBError(err error) error {
 			return apierror.NewBadRequest("lead already exists with conflicting unique field")
 		}
 	}
-	return apierror.NewInternal(err.Error())
+	slog.Error("lead: unexpected database error", "error", err)
+	return apierror.NewInternal("an unexpected error occurred")
 }
 
 // LeadService contains business logic for lead profile management.
@@ -82,7 +84,8 @@ func (s *LeadService) List(ctx context.Context, orgID string, minScore *float32,
 
 	leads, total, err := s.repo.List(ctx, orgID, minScore, limit, offset)
 	if err != nil {
-		return nil, apierror.NewInternal("failed to list leads: " + err.Error())
+		slog.Error("lead: failed to list leads", "error", err)
+		return nil, apierror.NewInternal("failed to list leads")
 	}
 	leads = lo.Ternary(leads == nil, []model.LeadProfile{}, leads)
 

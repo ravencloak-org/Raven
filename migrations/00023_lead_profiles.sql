@@ -19,7 +19,9 @@ CREATE TABLE lead_profiles (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE UNIQUE INDEX idx_lead_profiles_org_email ON lead_profiles(org_id, email) WHERE email IS NOT NULL;
+-- Partial unique index acts as the ON CONFLICT arbiter for (org_id, email) upserts.
+-- PostgreSQL resolves ON CONFLICT (org_id, email) WHERE email IS NOT NULL against this index.
+CREATE UNIQUE INDEX uq_lead_profiles_org_email ON lead_profiles(org_id, email) WHERE email IS NOT NULL;
 CREATE INDEX idx_lead_profiles_org_score ON lead_profiles(org_id, engagement_score DESC);
 
 ALTER TABLE lead_profiles ENABLE ROW LEVEL SECURITY;
@@ -36,4 +38,5 @@ CREATE TRIGGER trg_lead_profiles_updated_at
 DROP TRIGGER IF EXISTS trg_lead_profiles_updated_at ON lead_profiles;
 DROP POLICY IF EXISTS admin_bypass ON lead_profiles;
 DROP POLICY IF EXISTS tenant_isolation ON lead_profiles;
+DROP INDEX IF EXISTS uq_lead_profiles_org_email;
 DROP TABLE IF EXISTS lead_profiles;

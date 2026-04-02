@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ravencloak-org/Raven/internal/model"
@@ -14,10 +13,14 @@ import (
 )
 
 // sanitizeCSVCell neutralizes CSV injection by prefixing cells that start with
-// formula-triggering characters (=, +, -, @) with a single quote.
+// formula-triggering characters (=, +, -, @, tab, carriage-return) with a single
+// quote, preventing spreadsheet applications from interpreting cell content as formulas.
 func sanitizeCSVCell(s string) string {
-	if len(s) > 0 && strings.ContainsRune("=+-@", rune(s[0])) {
-		return "'" + s
+	if len(s) > 0 {
+		switch s[0] {
+		case '=', '+', '-', '@', '\t', '\r':
+			return "'" + s
+		}
 	}
 	return s
 }
