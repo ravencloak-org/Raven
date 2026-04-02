@@ -185,6 +185,7 @@ func main() {
 	strangerRepo := repository.NewStrangerRepository(pool)
 	identityRepo := repository.NewIdentityRepository(pool)
 	semCacheRepo := repository.NewSemanticCacheRepository(pool)
+	webhookRepo := repository.NewWebhookRepository(pool)
 
 	// --- gRPC client for AI worker ---
 	grpcClient, err := rpcClient.NewClient(cfg.GRPC.WorkerAddr)
@@ -221,6 +222,7 @@ func main() {
 	strangerSvc := service.NewStrangerService(strangerRepo, pool)
 	posthogClient := posthog.NewClient(cfg.PostHog.APIKey, cfg.PostHog.Host)
 	identitySvc := service.NewIdentityService(identityRepo, posthogClient)
+	webhookSvc := service.NewWebhookService(webhookRepo, pool, queueClient)
 	chatRepo := repository.NewChatRepository(pool)
 	chatSvc := service.NewChatService(chatRepo, grpcClient, pool)
 
@@ -241,6 +243,7 @@ func main() {
 	securityHandler := handler.NewSecurityHandler(securitySvc)
 	strangerHandler := handler.NewStrangerHandler(strangerSvc)
 	identityHandler := handler.NewIdentityHandler(identitySvc)
+	webhookHandler := handler.NewWebhookHandler(webhookSvc)
 	chatHandler := handler.NewChatHandler(chatSvc)
 	semCacheHandler := handler.NewSemanticCacheHandler(semCacheRepo)
 
@@ -423,6 +426,17 @@ func main() {
 			identity.POST("/track", middleware.RequireOrgRole("org_member"), identityHandler.Track)
 			identity.GET("", middleware.RequireOrgRole("org_member"), identityHandler.ListIdentities)
 			identity.DELETE("/:id", middleware.RequireOrgRole("org_admin"), identityHandler.DeleteIdentity)
+		}
+
+		// --- Webhook routes (nested under org, admin only) ---
+		webhooks := api.Group("/orgs/:org_id/webhooks", middleware.RequireOrgRole("org_admin"))
+		{
+			webhooks.POST("", webhookHandler.Create)
+			webhooks.GET("", webhookHandler.List)
+			webhooks.GET("/:id", webhookHandler.Get)
+			webhooks.PUT("/:id", webhookHandler.Update)
+			webhooks.DELETE("/:id", webhookHandler.Delete)
+			webhooks.GET("/:id/deliveries", webhookHandler.ListDeliveries)
 		}
 
 		// --- User / me routes ---

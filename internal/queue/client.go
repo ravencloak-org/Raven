@@ -137,3 +137,26 @@ func (c *Client) EnqueueAirbyteSync(ctx context.Context, p AirbyteSyncPayload) e
 	)
 	return nil
 }
+
+// EnqueueWebhookDelivery enqueues a webhook delivery task on the default queue.
+func (c *Client) EnqueueWebhookDelivery(ctx context.Context, p WebhookDeliveryPayload) error {
+	task, err := NewWebhookDeliveryTask(p)
+	if err != nil {
+		return fmt.Errorf("create webhook delivery task: %w", err)
+	}
+	info, err := c.inner.EnqueueContext(ctx, task,
+		asynq.MaxRetry(c.maxRetry),
+		asynq.Queue("default"),
+	)
+	if err != nil {
+		return fmt.Errorf("enqueue webhook delivery task: %w", err)
+	}
+	c.logger.Info("enqueued task",
+		"type", task.Type(),
+		"id", info.ID,
+		"queue", info.Queue,
+		"webhook_id", p.WebhookID,
+		"event_type", p.EventType,
+	)
+	return nil
+}
