@@ -43,6 +43,7 @@ import (
 	"github.com/ravencloak-org/Raven/internal/handler"
 	"github.com/ravencloak-org/Raven/internal/middleware"
 	"github.com/ravencloak-org/Raven/internal/model"
+	"github.com/ravencloak-org/Raven/internal/posthog"
 	"github.com/ravencloak-org/Raven/internal/queue"
 	"github.com/ravencloak-org/Raven/internal/repository"
 	"github.com/ravencloak-org/Raven/internal/service"
@@ -181,6 +182,7 @@ func main() {
 	routingRepo := repository.NewRoutingRepository(pool)
 	airbyteRepo := repository.NewAirbyteRepository(pool)
 	securityRepo := repository.NewSecurityRepository(pool)
+	identityRepo := repository.NewIdentityRepository(pool)
 
 	// --- gRPC client for AI worker ---
 	grpcClient, err := rpcClient.NewClient(cfg.GRPC.WorkerAddr)
@@ -214,6 +216,8 @@ func main() {
 	routingSvc := service.NewRoutingService(routingRepo, kbRepo, pool)
 	airbyteSvc := service.NewAirbyteService(airbyteRepo, pool, queueClient)
 	securitySvc := service.NewSecurityService(securityRepo, pool, valkeyClient)
+	posthogClient := posthog.NewClient(cfg.PostHog.APIKey, cfg.PostHog.Host)
+	identitySvc := service.NewIdentityService(identityRepo, posthogClient)
 	chatRepo := repository.NewChatRepository(pool)
 	chatSvc := service.NewChatService(chatRepo, grpcClient, pool)
 
@@ -232,6 +236,7 @@ func main() {
 	routingHandler := handler.NewRoutingHandler(routingSvc)
 	airbyteHandler := handler.NewAirbyteHandler(airbyteSvc)
 	securityHandler := handler.NewSecurityHandler(securitySvc)
+	identityHandler := handler.NewIdentityHandler(identitySvc)
 	chatHandler := handler.NewChatHandler(chatSvc)
 
 	// Create router
@@ -388,6 +393,15 @@ func main() {
 				secRules.POST("/invalidate-cache", securityHandler.InvalidateRuleCache)
 			}
 			sec.GET("/events", middleware.RequireOrgRole("org_admin"), securityHandler.ListEvents)
+		}
+
+		// --- Identity / PostHog routes (nested under org) ---
+		identity := api.Group("/orgs/:org_id/identity")
+		{
+			identity.POST("", identityHandler.Identify)
+			identity.POST("/track", identityHandler.Track)
+			identity.GET("", identityHandler.ListIdentities)
+			identity.DELETE("/:id", identityHandler.DeleteIdentity)
 		}
 
 		// --- User / me routes ---
