@@ -87,7 +87,7 @@ services:
 
   # ─── Keycloak IAM ─────────────────────────────────────────────────────────
   keycloak:
-    image: quay.io/keycloak/keycloak:26
+    image: quay.io/keycloak/keycloak:26.2
     # start-dev is fine for staging; switch to 'start --optimized' for hardened prod
     command: start-dev --import-realm
     environment:
@@ -100,9 +100,9 @@ services:
       # Cloudflare Tunnel terminates TLS — Keycloak is behind a proxy
       KC_PROXY: edge
       KC_HTTP_ENABLED: "true"
-      KC_HOSTNAME: https://${RAVEN_DOMAIN:?RAVEN_DOMAIN is required}
+      KC_HOSTNAME: ${KC_HOSTNAME}
       KC_HOSTNAME_STRICT: "true"
-      KC_HTTP_RELATIVE_PATH: /auth
+      KC_HTTP_RELATIVE_PATH: ${KC_HTTP_RELATIVE_PATH:-/}
     # Bind to loopback — cloudflared reaches it at /auth path
     ports:
       - "127.0.0.1:8180:8080"
