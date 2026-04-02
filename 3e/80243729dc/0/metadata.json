@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "3e80243729dc",
+  "session_id": "fc9e8c4e-a337-4a7d-ae04-548ba3d20493",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-02T04:27:45.79651Z",
+  "branch": "feat/issue-57-livekit-config",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/docker.yml",
+    ".github/workflows/frontend.yml",
+    ".github/workflows/go.yml",
+    ".github/workflows/python.yml",
+    ".superpowers/brainstorm/90760-1775037623/.server-info",
+    ".superpowers/brainstorm/90760-1775037623/.server.log",
+    ".superpowers/brainstorm/90760-1775037623/.server.pid",
+    ".superpowers/brainstorm/90760-1775037623/architecture.html",
+    "CLAUDE.md",
+    "docs/superpowers/plans/2026-03-30-pr-automation.md",
+    "docs/superpowers/specs/2026-03-30-pr-automation-design.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "c41de701-15bf-4257-88b9-3f97ee795e7d",
+  "token_usage": {
+    "input_tokens": 602,
+    "cache_creation_tokens": 601986,
+    "cache_read_tokens": 28837575,
+    "output_tokens": 85257,
+    "api_call_count": 248
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-02T04:27:45.660094Z",
+    "agent_lines": 73,
+    "human_added": 4577,
+    "human_modified": 68,
+    "human_removed": 0,
+    "total_committed": 4718,
+    "agent_percentage": 1.5472657905892326
+  }
+}
