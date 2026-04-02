@@ -44,18 +44,24 @@ func main() {
 	// Register email delivery handler.
 	srv.Mux().HandleFunc(queue.TypeSendEmail, jobs.HandleSendEmail(notifRepo))
 
+	errCh := make(chan error, 1)
+
 	// Start worker in a goroutine so we can listen for shutdown signals.
 	go func() {
 		if err := srv.Start(); err != nil {
-			log.Fatalf("asynq server error: %v", err)
+			errCh <- err
 		}
 	}()
 
-	// Wait for interrupt signal.
+	// Wait for interrupt signal or server error.
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	sig := <-sigCh
-	logger.Info("received signal, shutting down worker", "signal", sig)
+	select {
+	case sig := <-sigCh:
+		logger.Info("received signal, shutting down worker", "signal", sig)
+	case err := <-errCh:
+		log.Fatalf("asynq server error: %v", err)
+	}
 
 	srv.Shutdown()
 	logger.Info("worker exited gracefully")

@@ -2,8 +2,11 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/hibiken/asynq"
 
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/internal/queue"
@@ -71,6 +74,9 @@ func (s *NotificationService) ListConfigs(ctx context.Context, orgID string) ([]
 
 // UpdateConfig applies partial updates to a notification config.
 func (s *NotificationService) UpdateConfig(ctx context.Context, orgID, id string, req model.UpdateNotificationConfigRequest) (*model.NotificationConfig, error) {
+	if req.Recipients != nil && len(*req.Recipients) == 0 {
+		return nil, apierror.NewBadRequest("recipients must not be empty")
+	}
 	cfg, err := s.repo.UpdateConfig(ctx, orgID, id, req)
 	if err != nil {
 		if strings.Contains(err.Error(), "no rows") {
@@ -123,7 +129,11 @@ func (s *NotificationService) TriggerConversationSummary(ctx context.Context, or
 			Subject:          subject,
 			Body:             summary,
 		}
-		if err := s.queueClient.EnqueueSendEmail(ctx, payload); err != nil {
+		// Use a deterministic TaskID so re-triggering the same session+config
+		// is idempotent — the second enqueue silently skips if already queued.
+		dedupeKey := fmt.Sprintf("send_email:%s:%s", cfg.ID, sessionID)
+		err := s.queueClient.EnqueueSendEmail(ctx, payload, asynq.TaskID(dedupeKey))
+		if err != nil && !errors.Is(err, asynq.ErrTaskIDConflict) {
 			return fmt.Errorf("enqueue send-email for config %s: %w", cfg.ID, err)
 		}
 	}

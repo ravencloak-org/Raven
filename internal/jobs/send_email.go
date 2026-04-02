@@ -44,6 +44,13 @@ func loadSMTPConfig() smtpConfig {
 	}
 }
 
+// sanitizeHeader removes CR and LF characters to prevent email header injection.
+func sanitizeHeader(s string) string {
+	s = strings.ReplaceAll(s, "\r", "")
+	s = strings.ReplaceAll(s, "\n", "")
+	return s
+}
+
 // HandleSendEmail processes outbound email notifications.
 //
 // It uses SMTP settings from environment variables:
@@ -51,34 +58,41 @@ func loadSMTPConfig() smtpConfig {
 //	SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM
 //
 // Falls back to logging if SMTP_HOST is empty (dev mode).
-// Records a delivery log entry (success or failure) via repo.CreateLog.
+// Records a delivery log entry (success or failure) per recipient via repo.CreateLog.
 func HandleSendEmail(repo NotificationRepository) asynq.HandlerFunc {
 	logger := slog.Default()
 
 	return func(ctx context.Context, t *asynq.Task) error {
 		var payload model.SendEmailPayload
 		if err := json.Unmarshal(t.Payload(), &payload); err != nil {
-			return fmt.Errorf("HandleSendEmail: unmarshal payload: %w", err)
+			// Payload is corrupt — retrying will never succeed.
+			return fmt.Errorf("HandleSendEmail: unmarshal payload: %v: %w", err, asynq.SkipRetry)
 		}
 
 		cfg := loadSMTPConfig()
-
-		var sendErr error
-		if cfg.host == "" {
-			// Dev mode: log to stdout instead of sending.
-			logger.Info("HandleSendEmail: SMTP not configured, logging email",
-				slog.String("org_id", payload.OrgID),
-				slog.String("config_id", payload.ConfigID),
-				slog.String("subject", payload.Subject),
-				slog.Any("recipients", payload.Recipients),
-			)
-		} else {
-			sendErr = sendViaSMTP(cfg, payload)
-		}
-
-		// Record a log entry per recipient.
 		now := time.Now().UTC()
+
 		for _, recipient := range payload.Recipients {
+			var sendErr error
+			if cfg.host == "" {
+				// Dev mode: log to stdout instead of sending.
+				logger.Info("HandleSendEmail: SMTP not configured, logging email",
+					slog.String("org_id", payload.OrgID),
+					slog.String("config_id", payload.ConfigID),
+					slog.String("subject", payload.Subject),
+					slog.String("recipient", recipient),
+				)
+			} else {
+				sendErr = sendToOne(cfg, payload, recipient)
+				if sendErr != nil {
+					logger.WarnContext(ctx, "HandleSendEmail: smtp delivery failed",
+						slog.String("org_id", payload.OrgID),
+						slog.String("recipient", recipient),
+						slog.String("error", sendErr.Error()),
+					)
+				}
+			}
+
 			logEntry := model.NotificationLog{
 				OrgID:            payload.OrgID,
 				ConfigID:         &payload.ConfigID,
@@ -103,15 +117,12 @@ func HandleSendEmail(repo NotificationRepository) asynq.HandlerFunc {
 			}
 		}
 
-		if sendErr != nil {
-			return fmt.Errorf("HandleSendEmail: smtp: %w", sendErr)
-		}
 		return nil
 	}
 }
 
-// sendViaSMTP delivers an email to all recipients using net/smtp.
-func sendViaSMTP(cfg smtpConfig, payload model.SendEmailPayload) error {
+// sendToOne delivers an email to a single recipient using net/smtp.
+func sendToOne(cfg smtpConfig, payload model.SendEmailPayload, recipient string) error {
 	port := cfg.port
 	if port == "" {
 		port = "587"
@@ -123,21 +134,21 @@ func sendViaSMTP(cfg smtpConfig, payload model.SendEmailPayload) error {
 	addr := cfg.host + ":" + port
 
 	auth := smtp.PlainAuth("", cfg.user, cfg.pass, cfg.host)
+	body := buildRawMessage(from, recipient, payload.Subject, payload.Body)
 
-	body := buildRawMessage(from, payload.Recipients, payload.Subject, payload.Body)
-
-	if err := smtp.SendMail(addr, auth, from, payload.Recipients, []byte(body)); err != nil {
+	if err := smtp.SendMail(addr, auth, from, []string{recipient}, []byte(body)); err != nil {
 		return fmt.Errorf("smtp.SendMail: %w", err)
 	}
 	return nil
 }
 
 // buildRawMessage assembles a minimal RFC 2822 email message.
-func buildRawMessage(from string, to []string, subject, body string) string {
+// Header values are sanitized to prevent CRLF injection.
+func buildRawMessage(from, to, subject, body string) string {
 	var sb strings.Builder
-	sb.WriteString("From: " + from + "\r\n")
-	sb.WriteString("To: " + strings.Join(to, ", ") + "\r\n")
-	sb.WriteString("Subject: " + subject + "\r\n")
+	sb.WriteString("From: " + sanitizeHeader(from) + "\r\n")
+	sb.WriteString("To: " + sanitizeHeader(to) + "\r\n")
+	sb.WriteString("Subject: " + sanitizeHeader(subject) + "\r\n")
 	sb.WriteString("MIME-Version: 1.0\r\n")
 	sb.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
 	sb.WriteString("\r\n")

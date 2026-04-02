@@ -63,15 +63,15 @@ type SendEmailPayload struct {
 
 // CreateNotificationConfigRequest is the payload for creating a notification config.
 type CreateNotificationConfigRequest struct {
-	NotificationType NotificationType `json:"notification_type" binding:"required"`
-	Recipients       []string         `json:"recipients" binding:"required,min=1"`
+	NotificationType NotificationType `json:"notification_type" binding:"required,oneof=conversation_summary admin_digest custom"`
+	Recipients       []string         `json:"recipients" binding:"required,min=1,dive,email"`
 	Enabled          *bool            `json:"enabled,omitempty"`
 	Config           map[string]any   `json:"config,omitempty"`
 }
 
 // UpdateNotificationConfigRequest is the payload for updating a notification config.
 type UpdateNotificationConfigRequest struct {
-	Recipients *[]string      `json:"recipients,omitempty"`
+	Recipients *[]string      `json:"recipients,omitempty" binding:"omitempty,dive,email"`
 	Enabled    *bool          `json:"enabled,omitempty"`
 	Config     map[string]any `json:"config,omitempty"`
 }

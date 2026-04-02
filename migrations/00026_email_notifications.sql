@@ -11,7 +11,8 @@ CREATE TABLE notification_configs (
     enabled BOOLEAN NOT NULL DEFAULT true,
     config JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uniq_notification_configs_org_type UNIQUE (org_id, notification_type)
 );
 
 CREATE INDEX idx_notification_configs_org ON notification_configs(org_id);
