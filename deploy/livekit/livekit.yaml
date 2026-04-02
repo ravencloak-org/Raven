@@ -1,0 +1,16 @@
+# LiveKit Server Configuration
+# Docs: https://docs.livekit.io/realtime/self-hosting/deployment/
+
+port: 7880
+rtc:
+  port_range_start: 50000
+  port_range_end: 60000
+  tcp_port: 7882
+  use_external_ip: true
+  stun_servers:
+    - stun:stun.l.google.com:19302
+    - stun:stun1.l.google.com:19302
+
+logging:
+  level: info
+  json: true
