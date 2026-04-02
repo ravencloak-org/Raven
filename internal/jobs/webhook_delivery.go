@@ -106,7 +106,7 @@ func (h *WebhookDeliveryHandler) ProcessTask(ctx context.Context, t *asynq.Task)
 	success := false
 
 	if err == nil {
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		responseStatus = resp.StatusCode
 		if rb, readErr := io.ReadAll(io.LimitReader(resp.Body, 4096)); readErr == nil {
 			responseBody = string(rb)
