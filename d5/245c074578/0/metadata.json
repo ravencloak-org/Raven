@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "d5245c074578",
+  "session_id": "fc9e8c4e-a337-4a7d-ae04-548ba3d20493",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-02T05:37:18.215678Z",
+  "branch": "feat/issue-58-livekit-agents",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".github/workflows/docker.yml",
+    ".github/workflows/frontend.yml",
+    ".github/workflows/go.yml",
+    ".github/workflows/python.yml",
+    ".superpowers/brainstorm/90760-1775037623/architecture.html",
+    "CLAUDE.md",
+    "ai-worker/raven_worker/agent.py",
+    "docs/superpowers/plans/2026-03-30-pr-automation.md",
+    "docs/superpowers/specs/2026-03-30-pr-automation-design.md",
+    "docs/superpowers/specs/2026-04-02-browser-webrtc-voice-ui-design.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "c41de701-15bf-4257-88b9-3f97ee795e7d",
+  "checkpoint_transcript_start": 923,
+  "transcript_lines_at_start": 923,
+  "token_usage": {
+    "input_tokens": 207,
+    "cache_creation_tokens": 12589,
+    "cache_read_tokens": 2337809,
+    "output_tokens": 3849,
+    "api_call_count": 10
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-02T05:37:18.055222Z",
+    "agent_lines": 106,
+    "human_added": 1613,
+    "human_modified": 154,
+    "human_removed": 0,
+    "total_committed": 1873,
+    "agent_percentage": 5.659369994660972
+  }
+}
