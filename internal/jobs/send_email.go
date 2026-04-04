@@ -44,15 +44,12 @@ func loadSMTPConfig() smtpConfig {
 	}
 }
 
-// errHeaderInjection is returned when a header value contains CR or LF characters.
-var errHeaderInjection = fmt.Errorf("header value contains CR or LF")
-
-// validateHeader returns an error if s contains \r or \n (prevents CRLF injection).
-func validateHeader(s string) error {
-	if strings.ContainsAny(s, "\r\n") {
-		return errHeaderInjection
-	}
-	return nil
+// sanitizeHeader strips CR and LF characters from a header value to prevent
+// CRLF injection attacks.
+func sanitizeHeader(s string) string {
+	s = strings.ReplaceAll(s, "\r", "")
+	s = strings.ReplaceAll(s, "\n", "")
+	return s
 }
 
 // HandleSendEmail processes outbound email notifications.
@@ -78,12 +75,14 @@ func HandleSendEmail(repo NotificationRepository) asynq.HandlerFunc {
 
 		devMode := cfg.host == ""
 
+		var successCount, failCount int
+
 		for _, recipient := range payload.Recipients {
 			var sendErr error
 			if devMode {
-				// Dev mode: log to stdout instead of sending.
+				// Dev mode: SMTP is unconfigured — email is NOT sent.
 				// Recipient and subject are omitted from logs to avoid storing PII.
-				logger.Info("HandleSendEmail: SMTP not configured, logging email",
+				logger.WarnContext(ctx, "HandleSendEmail: SMTP not configured, email not sent (stdout fallback)",
 					slog.String("org_id", payload.OrgID),
 					slog.String("config_id", payload.ConfigID),
 				)
@@ -107,13 +106,16 @@ func HandleSendEmail(repo NotificationRepository) asynq.HandlerFunc {
 			}
 			switch {
 			case sendErr != nil:
+				failCount++
 				errMsg := sendErr.Error()
 				logEntry.Status = model.NotificationStatusFailed
 				logEntry.ErrorMessage = &errMsg
 			case devMode:
 				// Dev-mode fallback: email was not actually sent.
+				successCount++
 				logEntry.Status = model.NotificationStatusPending
 			default:
+				successCount++
 				logEntry.Status = model.NotificationStatusSent
 				logEntry.SentAt = &now
 			}
@@ -126,6 +128,18 @@ func HandleSendEmail(repo NotificationRepository) asynq.HandlerFunc {
 			}
 		}
 
+		// Only trigger a retry if every recipient failed — partial success is
+		// not retried because already-delivered emails would be duplicated.
+		if failCount > 0 && successCount == 0 {
+			return fmt.Errorf("HandleSendEmail: all %d recipient(s) failed delivery", failCount)
+		}
+		if failCount > 0 {
+			logger.WarnContext(ctx, "HandleSendEmail: partial delivery failure, not retrying",
+				slog.String("org_id", payload.OrgID),
+				slog.Int("succeeded", successCount),
+				slog.Int("failed", failCount),
+			)
+		}
 		return nil
 	}
 }
@@ -143,10 +157,7 @@ func sendToOne(cfg smtpConfig, payload model.SendEmailPayload, recipient string)
 	addr := cfg.host + ":" + port
 
 	auth := smtp.PlainAuth("", cfg.user, cfg.pass, cfg.host)
-	body, err := buildRawMessage(from, recipient, payload.Subject, payload.Body)
-	if err != nil {
-		return fmt.Errorf("buildRawMessage: %w", err)
-	}
+	body := buildRawMessage(from, recipient, payload.Subject, payload.Body)
 
 	if err := smtp.SendMail(addr, auth, from, []string{recipient}, []byte(body)); err != nil {
 		return fmt.Errorf("smtp.SendMail: %w", err)
@@ -155,13 +166,11 @@ func sendToOne(cfg smtpConfig, payload model.SendEmailPayload, recipient string)
 }
 
 // buildRawMessage assembles a minimal RFC 2822 email message.
-// Returns an error if any header value contains CR or LF (CRLF injection prevention).
-func buildRawMessage(from, to, subject, body string) (string, error) {
-	for _, h := range []string{from, to, subject} {
-		if err := validateHeader(h); err != nil {
-			return "", err
-		}
-	}
+// Header values are sanitized to strip CR/LF characters (CRLF injection prevention).
+func buildRawMessage(from, to, subject, body string) string {
+	from = sanitizeHeader(from)
+	to = sanitizeHeader(to)
+	subject = sanitizeHeader(subject)
 	var sb strings.Builder
 	sb.WriteString("From: " + from + "\r\n")
 	sb.WriteString("To: " + to + "\r\n")
@@ -170,7 +179,7 @@ func buildRawMessage(from, to, subject, body string) (string, error) {
 	sb.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
 	sb.WriteString("\r\n")
 	sb.WriteString(body)
-	return sb.String(), nil
+	return sb.String()
 }
 
 // compile-time check that *repository.NotificationRepository satisfies the interface.
