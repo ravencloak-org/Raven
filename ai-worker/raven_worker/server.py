@@ -1,6 +1,7 @@
 """gRPC server setup with reflection, health checking, and graceful shutdown."""
 
 import asyncio
+import logging
 import signal
 
 import grpc
@@ -62,7 +63,7 @@ def _configure_logging() -> None:
             structlog.dev.ConsoleRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(
-            structlog.get_level_from_name(settings.log_level),
+            logging.getLevelName(settings.log_level.upper()),
         ),
         context_class=dict,
         logger_factory=structlog.PrintLoggerFactory(),
