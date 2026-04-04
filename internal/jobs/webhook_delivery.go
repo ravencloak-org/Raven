@@ -264,6 +264,17 @@ func (h *WebhookDeliveryHandler) ProcessTask(ctx context.Context, t *asynq.Task)
 		return fmt.Errorf("webhook delivery failed: HTTP %d", responseStatus)
 	}
 
+	// Reset failure_count on a successful delivery so subsequent failures start fresh.
+	resetErr := db.WithOrgID(ctx, h.pool, p.OrgID, func(tx pgx.Tx) error {
+		return h.repo.ResetFailureCount(ctx, tx, p.WebhookID)
+	})
+	if resetErr != nil {
+		h.logger.Warn("webhook: failed to reset failure count",
+			slog.String("webhook_id", p.WebhookID),
+			slog.String("error", resetErr.Error()),
+		)
+	}
+
 	h.logger.Info("webhook delivered",
 		"webhook_id", p.WebhookID,
 		"status", responseStatus,

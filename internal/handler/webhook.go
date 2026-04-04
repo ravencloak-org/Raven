@@ -20,6 +20,13 @@ var supportedWebhookEvents = map[string]struct{}{
 	string(model.WebhookEventSyncCompleted):         {},
 }
 
+// supportedWebhookStatuses is the set of valid status values for webhook updates.
+var supportedWebhookStatuses = map[model.WebhookStatus]struct{}{
+	model.WebhookStatusActive: {},
+	model.WebhookStatusPaused: {},
+	model.WebhookStatusFailed: {},
+}
+
 // maxAllowedRetries is the upper bound for max_retries to prevent abuse.
 const maxAllowedRetries = 20
 
@@ -45,6 +52,17 @@ func validateEvents(events []string) error {
 func validateMaxRetries(v *int) error {
 	if v != nil && (*v < 0 || *v > maxAllowedRetries) {
 		return fmt.Errorf("max_retries must be between 0 and %d", maxAllowedRetries)
+	}
+	return nil
+}
+
+// validateStatus checks that the status value is an allowed WebhookStatus.
+func validateStatus(s *model.WebhookStatus) error {
+	if s == nil {
+		return nil
+	}
+	if _, ok := supportedWebhookStatuses[*s]; !ok {
+		return fmt.Errorf("unsupported status value: %s", *s)
 	}
 	return nil
 }
@@ -236,6 +254,11 @@ func (h *WebhookHandler) Update(c *gin.Context) {
 			c.Abort()
 			return
 		}
+	}
+	if err := validateStatus(req.Status); err != nil {
+		_ = c.Error(apierror.NewBadRequest(err.Error()))
+		c.Abort()
+		return
 	}
 	if err := validateMaxRetries(req.MaxRetries); err != nil {
 		_ = c.Error(apierror.NewBadRequest(err.Error()))

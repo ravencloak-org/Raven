@@ -304,6 +304,18 @@ func (r *WebhookRepository) IncrementFailureCount(ctx context.Context, tx pgx.Tx
 	return nil
 }
 
+// ResetFailureCount resets the failure_count to zero on a successful delivery.
+func (r *WebhookRepository) ResetFailureCount(ctx context.Context, tx pgx.Tx, id string) error {
+	_, err := tx.Exec(ctx,
+		`UPDATE webhook_configs SET failure_count = 0 WHERE id = $1 AND org_id = current_setting('app.current_org_id')::uuid`,
+		id,
+	)
+	if err != nil {
+		return fmt.Errorf("WebhookRepository.ResetFailureCount: %w", err)
+	}
+	return nil
+}
+
 // ListDeliveries returns the most recent deliveries for a given webhook.
 func (r *WebhookRepository) ListDeliveries(ctx context.Context, tx pgx.Tx, orgID, webhookID string, limit int) ([]model.WebhookDelivery, error) {
 	rows, err := tx.Query(ctx,
