@@ -1,0 +1,40 @@
+# Cloudflare Tunnel configuration for Raven
+# Place at: /etc/cloudflared/config.yml
+#
+# Setup steps:
+#   1. cloudflared tunnel login
+#   2. cloudflared tunnel create raven
+#   3. Replace TUNNEL_ID below with the UUID from step 2
+#   4. cloudflared tunnel route dns raven ${RAVEN_DOMAIN}
+#   5. cloudflared tunnel route dns raven auth.${RAVEN_DOMAIN}
+#
+# Or use a Zero Trust token instead (see setup.sh --token option).
+
+tunnel: TUNNEL_ID
+credentials-file: /etc/cloudflared/TUNNEL_ID.json
+
+# No TLS origin — Keycloak and go-api serve plain HTTP internally.
+# Cloudflare handles TLS at the edge.
+originRequest:
+  noTLSVerify: false
+  connectTimeout: 10s
+  tcpKeepAlive: 30s
+  keepAliveTimeout: 90s
+  keepAliveConnections: 100
+
+ingress:
+  # Keycloak auth — must come before the catch-all
+  - hostname: "${RAVEN_DOMAIN}"
+    path: /auth
+    service: http://localhost:8180
+    originRequest:
+      httpHostHeader: "${RAVEN_DOMAIN}"
+
+  # Go API (handles /api/*, /healthz)
+  - hostname: "${RAVEN_DOMAIN}"
+    service: http://localhost:8080
+    originRequest:
+      httpHostHeader: "${RAVEN_DOMAIN}"
+
+  # Catch-all (required by cloudflared)
+  - service: http_status:404

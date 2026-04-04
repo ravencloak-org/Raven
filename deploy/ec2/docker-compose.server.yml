@@ -1,0 +1,177 @@
+# Raven — EC2 server deployment
+#
+# Runs on a secondary Docker daemon (hidden from default docker ps).
+# Cloudflare Tunnel handles all inbound traffic — no ports exposed to the internet.
+#
+# Usage:
+#   DOCKER_HOST=unix:///run/raven/docker.sock \
+#   docker compose -f deploy/ec2/docker-compose.server.yml --env-file .env.server up -d
+
+services:
+  # ─── Go API ────────────────────────────────────────────────────────────────
+  go-api:
+    image: ${GO_API_IMAGE:-ghcr.io/ravencloak-org/go-api:latest}
+    # Bind to loopback only — cloudflared reaches it, internet cannot.
+    ports:
+      - "127.0.0.1:8080:8080"
+    env_file: .env.server
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - raven-net
+    restart: unless-stopped
+
+  # ─── Python AI Worker (gRPC) ───────────────────────────────────────────────
+  python-worker:
+    image: ${PYTHON_WORKER_IMAGE:-ghcr.io/ravencloak-org/python-worker:latest}
+    env_file: .env.server
+    environment:
+      RAVEN_MEMORY_DIR: /var/raven/memories
+    volumes:
+      - raven-memories:/var/raven/memories
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    networks:
+      - raven-net
+    restart: unless-stopped
+    # No external ports — go-api reaches it via Docker network on :50051
+
+  # ─── PostgreSQL + pgvector ─────────────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg18
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-raven}
+      POSTGRES_USER: ${POSTGRES_USER:-raven}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - pg-data:/var/lib/postgresql
+      - ../../deploy/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-raven} -d ${POSTGRES_DB:-raven}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - raven-net
+    restart: unless-stopped
+    # No external port — only reachable inside raven-net
+
+  # ─── Valkey ────────────────────────────────────────────────────────────────
+  valkey:
+    image: valkey/valkey:8.1-alpine
+    command: ["valkey-server", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru", "--save", "60", "1"]
+    volumes:
+      - valkey-data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - raven-net
+    restart: unless-stopped
+
+  # ─── Keycloak IAM ─────────────────────────────────────────────────────────
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.2
+    # start-dev is fine for staging; switch to 'start --optimized' for hardened prod
+    command: start-dev --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: ${KC_DB_URL:-jdbc:postgresql://postgres:5432/keycloak}
+      KC_DB_USERNAME: ${KC_DB_USERNAME:-raven}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD:?KC_DB_PASSWORD is required}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?KEYCLOAK_ADMIN_PASSWORD is required}
+      # Cloudflare Tunnel terminates TLS — Keycloak is behind a proxy
+      KC_PROXY: edge
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME: ${KC_HOSTNAME}
+      KC_HOSTNAME_STRICT: "true"
+      KC_HTTP_RELATIVE_PATH: ${KC_HTTP_RELATIVE_PATH:-/}
+    # Bind to loopback — cloudflared reaches it at /auth path
+    ports:
+      - "127.0.0.1:8180:8080"
+    volumes:
+      - ../../deploy/keycloak:/opt/keycloak/data/import:ro
+      - kc-data:/opt/keycloak/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - raven-net
+    restart: unless-stopped
+
+  # ─── SeaweedFS (object storage) ───────────────────────────────────────────
+  seaweedfs-master:
+    image: chrislusf/seaweedfs
+    command: "master -ip=seaweedfs-master -ip.bind=0.0.0.0"
+    networks:
+      - raven-net
+    restart: unless-stopped
+
+  seaweedfs-volume:
+    image: chrislusf/seaweedfs
+    command: "volume -mserver=seaweedfs-master:9333 -ip.bind=0.0.0.0 -dir=/data"
+    volumes:
+      - seaweedfs-data:/data
+    depends_on:
+      - seaweedfs-master
+    networks:
+      - raven-net
+    restart: unless-stopped
+
+  seaweedfs-filer:
+    image: chrislusf/seaweedfs
+    command: "filer -master=seaweedfs-master:9333 -ip.bind=0.0.0.0 -s3"
+    depends_on:
+      - seaweedfs-master
+      - seaweedfs-volume
+    networks:
+      - raven-net
+    restart: unless-stopped
+    # No external port — go-api reaches it via Docker network
+
+  # ─── OpenObserve (observability) — loopback only ──────────────────────────
+  openobserve:
+    image: public.ecr.aws/zinclabs/openobserve:latest
+    ports:
+      - "127.0.0.1:5080:5080"
+    environment:
+      ZO_ROOT_USER_EMAIL: ${ZO_ROOT_USER_EMAIL:-admin@raven.local}
+      ZO_ROOT_USER_PASSWORD: ${ZO_ROOT_USER_PASSWORD:?ZO_ROOT_USER_PASSWORD is required}
+    volumes:
+      - openobserve-data:/data
+    networks:
+      - raven-net
+    restart: unless-stopped
+
+# ─── Volumes ──────────────────────────────────────────────────────────────────
+volumes:
+  pg-data:
+  kc-data:
+  seaweedfs-data:
+  valkey-data:
+  openobserve-data:
+  raven-memories:
+
+# ─── Networks ─────────────────────────────────────────────────────────────────
+networks:
+  raven-net:
+    driver: bridge
+    # Internal bridge — containers talk to each other by service name.
+    # No host-level routing needed (cloudflared handles ingress).
