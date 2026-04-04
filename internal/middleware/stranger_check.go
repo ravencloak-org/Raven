@@ -23,15 +23,35 @@ end
 return current
 `
 
+// suspiciousThreshold is the number of requests in SuspiciousWindowSec seconds
+// that triggers automatic throttling and suspicious-behavior flagging.
+const suspiciousThreshold = 30
+
+// suspiciousWindowSec is the sliding-window size used for suspicious-behavior
+// detection. When a stranger sends more than suspiciousThreshold requests in
+// this many seconds, they are auto-throttled.
+const suspiciousWindowSec = 60
+
 // StrangerServiceInterface is the subset of StrangerService the middleware requires.
 type StrangerServiceInterface interface {
 	Upsert(ctx context.Context, orgID string, req model.UpsertStrangerRequest) (*model.StrangerUser, error)
+	// FlagSuspicious upgrades an active stranger to throttled status when
+	// suspicious burst behaviour is detected. It is a best-effort call;
+	// errors are logged but do not block the current request.
+	FlagSuspicious(ctx context.Context, orgID, strangerID string) error
 }
 
 // StrangerCheck tracks anonymous sessions and enforces block/throttle rules.
 // It reads X-Session-ID header; upserts the stranger record on each request.
 // Returns 403 if status is blocked/banned.
-// For throttled users, enforces rate limit via Valkey INCR with 60s TTL.
+//
+// Suspicious-behavior detection: active strangers that exceed
+// suspiciousThreshold requests within suspiciousWindowSec seconds are
+// automatically promoted to "throttled" and the event is logged. This
+// provides baseline protection without requiring operator action.
+//
+// For throttled users, per-session rate limiting is enforced via a Valkey
+// INCR counter with a 60-second TTL.
 func StrangerCheck(strangerSvc StrangerServiceInterface, valkey *redis.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		orgIDVal, _ := c.Get(string(ContextKeyOrgID))
@@ -74,6 +94,48 @@ func StrangerCheck(strangerSvc StrangerServiceInterface, valkey *redis.Client) g
 		if user.Status == model.StrangerStatusBlocked || user.Status == model.StrangerStatusBanned {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "access denied"})
 			return
+		}
+
+		// --- Suspicious-behavior detection (active sessions only) ---
+		// We track every request in a Valkey counter keyed by org+session.
+		// If an active stranger blows past the threshold they are auto-throttled
+		// and the event is logged. Throttled/blocked/banned users skip this
+		// check because they are already under tighter controls.
+		if user.Status == model.StrangerStatusActive {
+			burstKey := fmt.Sprintf("stranger_burst:%s:%s", orgID, sessionID)
+			script := redis.NewScript(strangerRateLua)
+			burstCount, burstErr := script.Run(
+				c.Request.Context(), valkey, []string{burstKey},
+				fmt.Sprintf("%d", suspiciousWindowSec),
+			).Int64()
+			if burstErr != nil {
+				// Fail-open: log the error but allow the request through.
+				slog.WarnContext(c.Request.Context(), "stranger check: burst-detection Valkey error, allowing request",
+					slog.String("org_id", orgID),
+					slog.String("session_id", sessionID),
+					slog.String("error", burstErr.Error()),
+				)
+			} else if int(burstCount) > suspiciousThreshold {
+				slog.WarnContext(c.Request.Context(), "stranger check: suspicious burst detected, auto-throttling",
+					slog.String("org_id", orgID),
+					slog.String("stranger_id", user.ID),
+					slog.String("session_id", sessionID),
+					slog.Int64("burst_count", burstCount),
+				)
+				// Best-effort: flag the stranger as suspicious (throttled).
+				// Any DB error is logged but does not block the request.
+				if flagErr := strangerSvc.FlagSuspicious(c.Request.Context(), orgID, user.ID); flagErr != nil {
+					slog.WarnContext(c.Request.Context(), "stranger check: FlagSuspicious failed",
+						slog.String("org_id", orgID),
+						slog.String("stranger_id", user.ID),
+						slog.String("error", flagErr.Error()),
+					)
+				} else {
+					// Update local copy so the rate-limit check below takes effect
+					// immediately for the current request.
+					user.Status = model.StrangerStatusThrottled
+				}
+			}
 		}
 
 		if user.Status == model.StrangerStatusThrottled {

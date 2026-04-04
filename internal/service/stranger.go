@@ -164,3 +164,25 @@ func (s *StrangerService) Delete(ctx context.Context, orgID, id string) error {
 	}
 	return nil
 }
+
+// FlagSuspicious promotes an active stranger to "throttled" status when
+// suspicious burst behaviour is detected by the middleware. It is a
+// best-effort call: if the stranger is already throttled/blocked/banned the
+// update is a no-op at the database level (the WHERE clause filters them out).
+func (s *StrangerService) FlagSuspicious(ctx context.Context, orgID, id string) error {
+	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+		_, execErr := tx.Exec(ctx,
+			`UPDATE stranger_users
+			 SET status = 'throttled',
+			     block_reason = 'auto-throttled: suspicious burst activity detected'
+			 WHERE org_id = $1 AND id = $2 AND status = 'active'`,
+			orgID, id,
+		)
+		return execErr
+	})
+	if err != nil {
+		slog.WarnContext(ctx, "StrangerService.FlagSuspicious db error", "error", err)
+		return apierror.NewInternal("internal error")
+	}
+	return nil
+}

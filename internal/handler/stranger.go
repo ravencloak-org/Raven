@@ -22,6 +22,16 @@ type StrangerServicer interface {
 	Delete(ctx context.Context, orgID, id string) error
 }
 
+// OrgTierChecker is the interface the handler uses to verify that an
+// organisation's billing plan grants access to per-user stranger controls.
+// Free-tier orgs only receive global rate limiting; per-user block/rate-limit
+// overrides require Pro or Enterprise.
+type OrgTierChecker interface {
+	// IsPerUserControlsAllowed returns true when the organisation's active
+	// subscription tier is pro or enterprise.
+	IsPerUserControlsAllowed(ctx context.Context, orgID string) (bool, error)
+}
+
 // StrangerListResponse wraps a paginated list of stranger records.
 type StrangerListResponse struct {
 	Strangers []model.StrangerUser `json:"strangers"`
@@ -30,12 +40,43 @@ type StrangerListResponse struct {
 
 // StrangerHandler handles HTTP requests for stranger user management.
 type StrangerHandler struct {
-	svc StrangerServicer
+	svc         StrangerServicer
+	tierChecker OrgTierChecker
 }
 
 // NewStrangerHandler creates a new StrangerHandler.
+// tierChecker may be nil, in which case tier gating is skipped (useful for
+// development and tests that don't exercise gating paths).
 func NewStrangerHandler(svc StrangerServicer) *StrangerHandler {
 	return &StrangerHandler{svc: svc}
+}
+
+// NewStrangerHandlerWithTier creates a StrangerHandler with tier gating enabled.
+func NewStrangerHandlerWithTier(svc StrangerServicer, tierChecker OrgTierChecker) *StrangerHandler {
+	return &StrangerHandler{svc: svc, tierChecker: tierChecker}
+}
+
+// requirePerUserTier checks the org's tier and aborts with 402 Payment Required
+// when the org is on the free plan. Returns true if the request should proceed.
+func (h *StrangerHandler) requirePerUserTier(c *gin.Context, orgID string) bool {
+	if h.tierChecker == nil {
+		return true
+	}
+	allowed, err := h.tierChecker.IsPerUserControlsAllowed(c.Request.Context(), orgID)
+	if err != nil {
+		_ = c.Error(apierror.NewInternal("internal error"))
+		c.Abort()
+		return false
+	}
+	if !allowed {
+		c.AbortWithStatusJSON(http.StatusPaymentRequired, apierror.AppError{
+			Code:    http.StatusPaymentRequired,
+			Message: "Payment Required",
+			Detail:  "per-user stranger controls require a Pro or Enterprise subscription",
+		})
+		return false
+	}
+	return true
 }
 
 // List handles GET /api/v1/orgs/:org_id/strangers.
@@ -127,6 +168,7 @@ func (h *StrangerHandler) Get(c *gin.Context) {
 // @Param       id      path string true "Stranger user ID"
 // @Param       request body model.BlockStrangerRequest true "Block payload"
 // @Success     204
+// @Failure     402 {object} apierror.AppError
 // @Failure     404 {object} apierror.AppError
 // @Failure     422 {object} apierror.AppError
 // @Router      /orgs/{org_id}/strangers/{id}/block [post]
@@ -137,6 +179,11 @@ func (h *StrangerHandler) Block(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, apierror.AppError{Code: http.StatusUnauthorized, Message: "Unauthorized", Detail: "missing org context"})
 		return
 	}
+
+	if !h.requirePerUserTier(c, orgID) {
+		return
+	}
+
 	id := c.Param("id")
 
 	userIDVal, exists := c.Get(string(middleware.ContextKeyUserID))
@@ -213,6 +260,7 @@ func (h *StrangerHandler) Unblock(c *gin.Context) {
 // @Param       id      path string true "Stranger user ID"
 // @Param       request body model.SetRateLimitRequest true "Rate limit payload"
 // @Success     204
+// @Failure     402 {object} apierror.AppError
 // @Failure     404 {object} apierror.AppError
 // @Failure     422 {object} apierror.AppError
 // @Router      /orgs/{org_id}/strangers/{id}/rate-limit [put]
@@ -223,6 +271,11 @@ func (h *StrangerHandler) SetRateLimit(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, apierror.AppError{Code: http.StatusUnauthorized, Message: "Unauthorized", Detail: "missing org context"})
 		return
 	}
+
+	if !h.requirePerUserTier(c, orgID) {
+		return
+	}
+
 	id := c.Param("id")
 
 	var req model.SetRateLimitRequest
