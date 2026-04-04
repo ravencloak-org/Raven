@@ -223,6 +223,8 @@ func main() {
 	identitySvc := service.NewIdentityService(identityRepo, posthogClient)
 	chatRepo := repository.NewChatRepository(pool)
 	chatSvc := service.NewChatService(chatRepo, grpcClient, pool)
+	voiceRepo := repository.NewVoiceRepository(pool)
+	voiceSvc := service.NewVoiceService(voiceRepo, pool)
 
 	// --- Wire handlers ---
 	orgHandler := handler.NewOrgHandler(orgSvc)
@@ -243,6 +245,7 @@ func main() {
 	identityHandler := handler.NewIdentityHandler(identitySvc)
 	chatHandler := handler.NewChatHandler(chatSvc)
 	semCacheHandler := handler.NewSemanticCacheHandler(semCacheRepo)
+	voiceHandler := handler.NewVoiceHandler(voiceSvc)
 
 	// Create router
 	router := gin.Default()
@@ -425,6 +428,17 @@ func main() {
 			identity.POST("/track", middleware.RequireOrgRole("org_member"), identityHandler.Track)
 			identity.GET("", middleware.RequireOrgRole("org_member"), identityHandler.ListIdentities)
 			identity.DELETE("/:id", middleware.RequireOrgRole("org_admin"), identityHandler.DeleteIdentity)
+		}
+
+		// --- Voice session routes (nested under org) ---
+		voice := api.Group("/orgs/:org_id/voice-sessions")
+		{
+			voice.POST("", middleware.RequireOrgRole("org_member"), voiceHandler.CreateSession)
+			voice.GET("", middleware.RequireOrgRole("org_member"), voiceHandler.ListSessions)
+			voice.GET("/:session_id", middleware.RequireOrgRole("org_member"), voiceHandler.GetSession)
+			voice.PATCH("/:session_id", middleware.RequireOrgRole("org_member"), voiceHandler.UpdateSessionState)
+			voice.POST("/:session_id/turns", middleware.RequireOrgRole("org_member"), voiceHandler.AppendTurn)
+			voice.GET("/:session_id/turns", middleware.RequireOrgRole("org_member"), voiceHandler.ListTurns)
 		}
 
 		// --- User / me routes ---
