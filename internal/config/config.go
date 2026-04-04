@@ -175,6 +175,16 @@ func Load() (*Config, error) {
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 
+	// Explicitly bind nested keys — AutomaticEnv alone does not reliably surface
+	// dotted keys during Unmarshal in all viper versions.
+	_ = v.BindEnv("database.url", "RAVEN_DATABASE_URL")
+	_ = v.BindEnv("valkey.url", "RAVEN_VALKEY_URL")
+	_ = v.BindEnv("grpc.worker_addr", "RAVEN_GRPC_WORKER_ADDR")
+	_ = v.BindEnv("keycloak.issuer_url", "RAVEN_KEYCLOAK_ISSUER_URL")
+	_ = v.BindEnv("keycloak.audience", "RAVEN_KEYCLOAK_AUDIENCE")
+	_ = v.BindEnv("server.port", "RAVEN_SERVER_PORT")
+	_ = v.BindEnv("server.mode", "RAVEN_SERVER_MODE")
+
 	// Try to read config file but don't fail if not found
 	_ = v.ReadInConfig()
 

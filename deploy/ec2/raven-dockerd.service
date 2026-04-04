@@ -1,0 +1,37 @@
+[Unit]
+Description=Raven secondary Docker daemon
+Documentation=https://docs.docker.com/engine/reference/commandline/dockerd/
+After=network.target containerd.service
+Requires=containerd.service
+
+[Service]
+Type=notify
+# Separate socket, data root, and pid — invisible to the default Docker daemon.
+ExecStart=/usr/bin/dockerd \
+  --host=unix:///run/raven/docker.sock \
+  --pidfile=/run/raven/dockerd.pid \
+  --data-root=/var/lib/raven-docker \
+  --containerd=/run/containerd/containerd.sock \
+  --containerd-namespace=raven \
+  --log-level=error \
+  --iptables=true \
+  --ip-masq=true
+ExecReload=/bin/kill -s HUP $MAINPID
+TimeoutSec=0
+RestartSec=2
+Restart=always
+StartLimitBurst=3
+StartLimitInterval=60s
+LimitNOFILE=infinity
+LimitNPROC=infinity
+LimitCORE=infinity
+TasksMax=infinity
+Delegate=yes
+KillMode=process
+OOMScoreAdjust=-500
+
+RuntimeDirectory=raven
+RuntimeDirectoryMode=0750
+
+[Install]
+WantedBy=multi-user.target
