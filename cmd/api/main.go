@@ -50,6 +50,7 @@ import (
 	"github.com/ravencloak-org/Raven/internal/storage"
 	"github.com/ravencloak-org/Raven/internal/stt"
 	"github.com/ravencloak-org/Raven/internal/telemetry"
+	"github.com/ravencloak-org/Raven/internal/tts"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
 
@@ -233,6 +234,37 @@ func main() {
 	voiceRepo := repository.NewVoiceRepository(pool)
 	voiceSvc := service.NewVoiceService(voiceRepo, pool)
 
+	// --- Wire TTS provider ---
+	var ttsProvider tts.Provider
+	switch cfg.TTS.Provider {
+	case "piper":
+		ttsProvider = tts.NewPiperProvider(tts.PiperConfig{
+			Endpoint: cfg.TTS.PiperEndpoint,
+			Voice:    cfg.TTS.PiperVoice,
+		})
+		slog.Info("TTS provider initialised", "provider", "piper")
+	default: // "cartesia" or unset
+		if cfg.TTS.CartesiaAPIKey != "" {
+			var err2 error
+			ttsProvider, err2 = tts.NewCartesiaProvider(tts.CartesiaConfig{
+				APIKey:  cfg.TTS.CartesiaAPIKey,
+				VoiceID: cfg.TTS.CartesiaVoiceID,
+				Model:   cfg.TTS.CartesiaModel,
+				BaseURL: cfg.TTS.CartesiaBaseURL,
+			})
+			if err2 != nil {
+				log.Fatalf("failed to initialise Cartesia TTS provider: %v", err2)
+			}
+			slog.Info("TTS provider initialised", "provider", "cartesia")
+		} else {
+			slog.Warn("TTS provider not configured: CARTESIA_API_KEY is empty; TTS endpoint will return 503")
+		}
+	}
+	var ttsSvc *service.TTSService
+	if ttsProvider != nil {
+		ttsSvc = service.NewTTSService(ttsProvider)
+	}
+
 	// --- Wire STT provider ---
 	// The provider is selected by RAVEN_STT_PROVIDER ("deepgram" or "whisper").
 	// Defaults to Deepgram when RAVEN_STT_DEEPGRAM_API_KEY is set, otherwise falls
@@ -279,6 +311,10 @@ func main() {
 	chatHandler := handler.NewChatHandler(chatSvc)
 	semCacheHandler := handler.NewSemanticCacheHandler(semCacheRepo)
 	voiceHandler := handler.NewVoiceHandler(voiceSvc)
+	var ttsHandler *handler.TTSHandler
+	if ttsSvc != nil {
+		ttsHandler = handler.NewTTSHandler(ttsSvc)
+	}
 	leadHandler := handler.NewLeadHandler(leadSvc)
 
 	// Create router
@@ -494,6 +530,11 @@ func main() {
 			voice.PATCH("/:session_id", middleware.RequireOrgRole("org_member"), voiceHandler.UpdateSessionState)
 			voice.POST("/:session_id/turns", middleware.RequireOrgRole("org_member"), voiceHandler.AppendTurn)
 			voice.GET("/:session_id/turns", middleware.RequireOrgRole("org_member"), voiceHandler.ListTurns)
+		}
+
+		// --- TTS synthesis route (nested under org) ---
+		if ttsHandler != nil {
+			api.POST("/orgs/:org_id/tts", middleware.RequireOrgRole("org_member"), ttsHandler.Synthesize)
 		}
 
 		// --- Lead intelligence routes (nested under org) ---

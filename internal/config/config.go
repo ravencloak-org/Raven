@@ -24,6 +24,7 @@ type Config struct {
 	PostHog      PostHogConfig
 	Hyperswitch  HyperswitchConfig
 	LiveKit      LiveKitConfig
+	TTS          TTSConfig
 	STT          STTConfig
 }
 
@@ -46,6 +47,22 @@ type LiveKitConfig struct {
 	Host      string `mapstructure:"host"`
 	APIKey    string `mapstructure:"api_key"`
 	APISecret string `mapstructure:"api_secret"`
+}
+
+// TTSConfig holds text-to-speech provider settings.
+type TTSConfig struct {
+	// Provider selects the active TTS backend: "cartesia" or "piper".
+	Provider string `mapstructure:"provider"`
+
+	// Cartesia Sonic API settings.
+	CartesiaAPIKey  string `mapstructure:"cartesia_api_key"`
+	CartesiaVoiceID string `mapstructure:"cartesia_voice_id"`
+	CartesiaModel   string `mapstructure:"cartesia_model"`
+	CartesiaBaseURL string `mapstructure:"cartesia_base_url"`
+
+	// Piper self-hosted TTS settings.
+	PiperEndpoint string `mapstructure:"piper_endpoint"`
+	PiperVoice    string `mapstructure:"piper_voice"`
 }
 
 // STTConfig holds speech-to-text provider settings.
@@ -166,6 +183,15 @@ func Load() (*Config, error) {
 	v.SetDefault("livekit.host", "ws://localhost:7880")
 	v.SetDefault("livekit.api_key", "devkey")
 	v.SetDefault("livekit.api_secret", "devsecret")
+	// TTS defaults
+	v.SetDefault("tts.provider", "cartesia")
+	v.SetDefault("tts.cartesia_api_key", "")
+	v.SetDefault("tts.cartesia_voice_id", "")
+	v.SetDefault("tts.cartesia_model", "sonic-2")
+	v.SetDefault("tts.cartesia_base_url", "")
+	v.SetDefault("tts.piper_endpoint", "http://localhost:5000")
+	v.SetDefault("tts.piper_voice", "en_US-amy-medium")
+	// STT defaults
 	v.SetDefault("stt.provider", "")
 	v.SetDefault("stt.deepgram_api_key", "")
 	v.SetDefault("stt.deepgram_model", "nova-2")
@@ -203,6 +229,13 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("keycloak.audience", "RAVEN_KEYCLOAK_AUDIENCE")
 	_ = v.BindEnv("server.port", "RAVEN_SERVER_PORT")
 	_ = v.BindEnv("server.mode", "RAVEN_SERVER_MODE")
+	_ = v.BindEnv("tts.provider", "RAVEN_TTS_PROVIDER")
+	_ = v.BindEnv("tts.cartesia_api_key", "RAVEN_TTS_CARTESIA_API_KEY")
+	_ = v.BindEnv("tts.cartesia_voice_id", "RAVEN_TTS_CARTESIA_VOICE_ID")
+	_ = v.BindEnv("tts.cartesia_model", "RAVEN_TTS_CARTESIA_MODEL")
+	_ = v.BindEnv("tts.cartesia_base_url", "RAVEN_TTS_CARTESIA_BASE_URL")
+	_ = v.BindEnv("tts.piper_endpoint", "RAVEN_TTS_PIPER_ENDPOINT")
+	_ = v.BindEnv("tts.piper_voice", "RAVEN_TTS_PIPER_VOICE")
 	_ = v.BindEnv("stt.provider", "RAVEN_STT_PROVIDER")
 	_ = v.BindEnv("stt.deepgram_api_key", "RAVEN_STT_DEEPGRAM_API_KEY")
 	_ = v.BindEnv("stt.deepgram_model", "RAVEN_STT_DEEPGRAM_MODEL")
