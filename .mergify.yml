@@ -36,3 +36,5 @@ pull_request_rules:
           - needs-review
       comment:
         message: "Major version bump — needs manual review before merging."
+merge_protections_settings:
+  reporting_method: check-runs
