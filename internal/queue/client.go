@@ -6,6 +6,8 @@ import (
 	"log/slog"
 
 	"github.com/hibiken/asynq"
+
+	"github.com/ravencloak-org/Raven/internal/model"
 )
 
 // Client wraps asynq.Client with convenience methods for enqueueing tasks.
@@ -134,6 +136,28 @@ func (c *Client) EnqueueAirbyteSync(ctx context.Context, p AirbyteSyncPayload) e
 		"id", info.ID,
 		"queue", info.Queue,
 		"connector_id", p.ConnectorID,
+	)
+	return nil
+}
+
+// EnqueueSendEmail enqueues an outbound email delivery task on the default queue.
+// Optional asynq.Option values (e.g. asynq.TaskID for deduplication) may be passed as opts.
+func (c *Client) EnqueueSendEmail(ctx context.Context, p model.SendEmailPayload, opts ...asynq.Option) error {
+	task, err := NewSendEmailTask(p)
+	if err != nil {
+		return fmt.Errorf("create send-email task: %w", err)
+	}
+	baseOpts := []asynq.Option{asynq.MaxRetry(c.maxRetry), asynq.Queue("default")}
+	info, err := c.inner.EnqueueContext(ctx, task, append(baseOpts, opts...)...)
+	if err != nil {
+		return fmt.Errorf("enqueue send-email task: %w", err)
+	}
+	c.logger.Info("enqueued task",
+		"type", task.Type(),
+		"id", info.ID,
+		"queue", info.Queue,
+		"org_id", p.OrgID,
+		"config_id", p.ConfigID,
 	)
 	return nil
 }

@@ -183,6 +183,7 @@ func main() {
 	airbyteRepo := repository.NewAirbyteRepository(pool)
 	securityRepo := repository.NewSecurityRepository(pool)
 	strangerRepo := repository.NewStrangerRepository(pool)
+	notifRepo := repository.NewNotificationRepository(pool)
 	identityRepo := repository.NewIdentityRepository(pool)
 	semCacheRepo := repository.NewSemanticCacheRepository(pool)
 	webhookRepo := repository.NewWebhookRepository(pool)
@@ -223,6 +224,7 @@ func main() {
 	strangerSvc := service.NewStrangerService(strangerRepo, pool)
 	posthogClient := posthog.NewClient(cfg.PostHog.APIKey, cfg.PostHog.Host)
 	identitySvc := service.NewIdentityService(identityRepo, posthogClient)
+	notifSvc := service.NewNotificationService(notifRepo, queueClient)
 	webhookSvc := service.NewWebhookService(webhookRepo, pool, queueClient)
 	leadSvc := service.NewLeadService(leadRepo)
 	chatRepo := repository.NewChatRepository(pool)
@@ -245,6 +247,7 @@ func main() {
 	securityHandler := handler.NewSecurityHandler(securitySvc)
 	strangerHandler := handler.NewStrangerHandler(strangerSvc)
 	identityHandler := handler.NewIdentityHandler(identitySvc)
+	notifHandler := handler.NewNotificationHandler(notifSvc)
 	webhookHandler := handler.NewWebhookHandler(webhookSvc)
 	chatHandler := handler.NewChatHandler(chatSvc)
 	semCacheHandler := handler.NewSemanticCacheHandler(semCacheRepo)
@@ -431,6 +434,16 @@ func main() {
 			identity.POST("/track", middleware.RequireOrgRole("org_member"), identityHandler.Track)
 			identity.GET("", middleware.RequireOrgRole("org_member"), identityHandler.ListIdentities)
 			identity.DELETE("/:id", middleware.RequireOrgRole("org_admin"), identityHandler.DeleteIdentity)
+		}
+
+		// --- Notification config and log routes (nested under org, admin only) ---
+		notif := api.Group("/orgs/:org_id/notifications", middleware.RequireOrgRole("org_admin"))
+		{
+			notif.POST("/configs", notifHandler.CreateConfig)
+			notif.GET("/configs", notifHandler.ListConfigs)
+			notif.PUT("/configs/:id", notifHandler.UpdateConfig)
+			notif.DELETE("/configs/:id", notifHandler.DeleteConfig)
+			notif.GET("/logs", notifHandler.ListLogs)
 		}
 
 		// --- Webhook routes (nested under org, admin only) ---

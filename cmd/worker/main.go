@@ -33,6 +33,8 @@ func main() {
 	}
 	defer pool.Close()
 
+	notifRepo := repository.NewNotificationRepository(pool)
+
 	srv := queue.NewServer(queue.ServerConfig{
 		RedisAddr:   cfg.Valkey.URL,
 		Concurrency: cfg.Queue.Concurrency,
@@ -40,23 +42,32 @@ func main() {
 		Logger:      logger,
 	})
 
+	// Register email delivery handler.
+	srv.Mux().HandleFunc(queue.TypeSendEmail, jobs.HandleSendEmail(notifRepo))
+
 	// Register the webhook delivery handler on the server mux.
 	webhookRepo := repository.NewWebhookRepository(pool)
 	webhookDeliveryHandler := jobs.NewWebhookDeliveryHandler(pool, webhookRepo, logger)
 	srv.Mux().Handle(queue.TypeWebhookDelivery, webhookDeliveryHandler)
 
+	errCh := make(chan error, 1)
+
 	// Start worker in a goroutine so we can listen for shutdown signals.
 	go func() {
 		if err := srv.Start(); err != nil {
-			log.Fatalf("asynq server error: %v", err)
+			errCh <- err
 		}
 	}()
 
-	// Wait for interrupt signal.
+	// Wait for interrupt signal or server error.
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	sig := <-sigCh
-	logger.Info("received signal, shutting down worker", "signal", sig)
+	select {
+	case sig := <-sigCh:
+		logger.Info("received signal, shutting down worker", "signal", sig)
+	case err := <-errCh:
+		logger.Error("asynq server error, shutting down", "error", err)
+	}
 
 	srv.Shutdown()
 	pool.Close()
