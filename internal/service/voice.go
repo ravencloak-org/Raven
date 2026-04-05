@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"strings"
 
@@ -10,7 +11,6 @@ import (
 
 	"github.com/ravencloak-org/Raven/internal/db"
 	"github.com/ravencloak-org/Raven/internal/model"
-	"github.com/ravencloak-org/Raven/internal/repository"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
 
@@ -26,17 +26,20 @@ type VoiceRepository interface {
 
 // VoiceService contains business logic for voice session lifecycle and transcription storage.
 type VoiceService struct {
-	repo *repository.VoiceRepository
+	repo VoiceRepository
 	pool *pgxpool.Pool
 }
 
 // NewVoiceService creates a new VoiceService.
-func NewVoiceService(repo *repository.VoiceRepository, pool *pgxpool.Pool) *VoiceService {
+func NewVoiceService(repo VoiceRepository, pool *pgxpool.Pool) *VoiceService {
 	return &VoiceService{repo: repo, pool: pool}
 }
 
 // CreateSession creates a new voice session in the 'created' state.
 func (s *VoiceService) CreateSession(ctx context.Context, orgID string, req *model.CreateVoiceSessionRequest) (*model.VoiceSession, error) {
+	if req == nil {
+		return nil, apierror.NewBadRequest("request body must not be nil")
+	}
 	var session *model.VoiceSession
 	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
 		var e error
@@ -127,6 +130,9 @@ func (s *VoiceService) ListSessions(ctx context.Context, orgID string, limit, of
 
 // AppendTurn stores a transcribed turn for an existing voice session.
 func (s *VoiceService) AppendTurn(ctx context.Context, orgID, sessionID string, req *model.AppendVoiceTurnRequest) (*model.VoiceTurn, error) {
+	if req == nil {
+		return nil, apierror.NewBadRequest("request body must not be nil")
+	}
 	var turn *model.VoiceTurn
 	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
 		// Verify the session exists and belongs to this org before appending.
@@ -179,6 +185,9 @@ func (s *VoiceService) ListTurns(ctx context.Context, orgID, sessionID string) (
 func isVoiceNotFound(err error) bool {
 	if err == nil {
 		return false
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		return true
 	}
 	msg := err.Error()
 	return strings.Contains(msg, "no rows in result set") ||
