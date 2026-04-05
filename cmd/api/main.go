@@ -185,6 +185,7 @@ func main() {
 	strangerRepo := repository.NewStrangerRepository(pool)
 	identityRepo := repository.NewIdentityRepository(pool)
 	semCacheRepo := repository.NewSemanticCacheRepository(pool)
+	leadRepo := repository.NewLeadRepository(pool)
 
 	// --- gRPC client for AI worker ---
 	grpcClient, err := rpcClient.NewClient(cfg.GRPC.WorkerAddr)
@@ -221,6 +222,7 @@ func main() {
 	strangerSvc := service.NewStrangerService(strangerRepo, pool)
 	posthogClient := posthog.NewClient(cfg.PostHog.APIKey, cfg.PostHog.Host)
 	identitySvc := service.NewIdentityService(identityRepo, posthogClient)
+	leadSvc := service.NewLeadService(leadRepo)
 	chatRepo := repository.NewChatRepository(pool)
 	chatSvc := service.NewChatService(chatRepo, grpcClient, pool)
 	voiceRepo := repository.NewVoiceRepository(pool)
@@ -246,6 +248,7 @@ func main() {
 	chatHandler := handler.NewChatHandler(chatSvc)
 	semCacheHandler := handler.NewSemanticCacheHandler(semCacheRepo)
 	voiceHandler := handler.NewVoiceHandler(voiceSvc)
+	leadHandler := handler.NewLeadHandler(leadSvc)
 
 	// Create router
 	router := gin.Default()
@@ -439,6 +442,17 @@ func main() {
 			voice.PATCH("/:session_id", middleware.RequireOrgRole("org_member"), voiceHandler.UpdateSessionState)
 			voice.POST("/:session_id/turns", middleware.RequireOrgRole("org_member"), voiceHandler.AppendTurn)
 			voice.GET("/:session_id/turns", middleware.RequireOrgRole("org_member"), voiceHandler.ListTurns)
+		}
+
+		// --- Lead intelligence routes (nested under org) ---
+		leads := api.Group("/orgs/:org_id/leads", middleware.RequireOrgRole("member"))
+		{
+			leads.POST("", leadHandler.UpsertLead)
+			leads.GET("", leadHandler.ListLeads)
+			leads.GET("/export", leadHandler.ExportLeadsCSV)
+			leads.GET("/:id", leadHandler.GetLead)
+			leads.PUT("/:id", leadHandler.UpdateLead)
+			leads.DELETE("/:id", middleware.RequireOrgRole("org_admin"), leadHandler.DeleteLead)
 		}
 
 		// --- User / me routes ---

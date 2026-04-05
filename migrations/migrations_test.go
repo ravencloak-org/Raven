@@ -46,6 +46,7 @@ var allExpectedTables = []string{
 	"stranger_users",
 	"user_identities",
 	"response_cache",
+	"lead_profiles",
 }
 
 // rlsTables are the tables that must have RLS enabled (all tables with org_id).
@@ -70,6 +71,7 @@ var rlsTables = []string{
 	"stranger_users",
 	"user_identities",
 	"response_cache",
+	"lead_profiles",
 }
 
 // allExpectedTypes lists every custom ENUM type.
