@@ -17,7 +17,7 @@ pull_request_rules:
       - -draft
       - -title ~= "^WIP"
       - -conflict
-      - check-success = "CI Required / Gate"
+      - check-success = "Gate"
       - "#check-failure = 0"
       - "#check-pending = 0"
       - label != "needs-review"
@@ -36,3 +36,5 @@ pull_request_rules:
           - needs-review
       comment:
         message: "Major version bump — needs manual review before merging."
+merge_protections_settings:
+  reporting_method: check-runs
