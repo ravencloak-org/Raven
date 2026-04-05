@@ -229,6 +229,8 @@ func main() {
 	leadSvc := service.NewLeadService(leadRepo)
 	chatRepo := repository.NewChatRepository(pool)
 	chatSvc := service.NewChatService(chatRepo, grpcClient, pool)
+	voiceRepo := repository.NewVoiceRepository(pool)
+	voiceSvc := service.NewVoiceService(voiceRepo, pool)
 
 	// --- Wire handlers ---
 	orgHandler := handler.NewOrgHandler(orgSvc)
@@ -251,6 +253,7 @@ func main() {
 	webhookHandler := handler.NewWebhookHandler(webhookSvc)
 	chatHandler := handler.NewChatHandler(chatSvc)
 	semCacheHandler := handler.NewSemanticCacheHandler(semCacheRepo)
+	voiceHandler := handler.NewVoiceHandler(voiceSvc)
 	leadHandler := handler.NewLeadHandler(leadSvc)
 
 	// Create router
@@ -455,6 +458,17 @@ func main() {
 			webhooks.PUT("/:id", webhookHandler.Update)
 			webhooks.DELETE("/:id", webhookHandler.Delete)
 			webhooks.GET("/:id/deliveries", webhookHandler.ListDeliveries)
+		}
+
+		// --- Voice session routes (nested under org) ---
+		voice := api.Group("/orgs/:org_id/voice-sessions")
+		{
+			voice.POST("", middleware.RequireOrgRole("org_member"), voiceHandler.CreateSession)
+			voice.GET("", middleware.RequireOrgRole("org_member"), voiceHandler.ListSessions)
+			voice.GET("/:session_id", middleware.RequireOrgRole("org_member"), voiceHandler.GetSession)
+			voice.PATCH("/:session_id", middleware.RequireOrgRole("org_member"), voiceHandler.UpdateSessionState)
+			voice.POST("/:session_id/turns", middleware.RequireOrgRole("org_member"), voiceHandler.AppendTurn)
+			voice.GET("/:session_id/turns", middleware.RequireOrgRole("org_member"), voiceHandler.ListTurns)
 		}
 
 		// --- Lead intelligence routes (nested under org) ---
