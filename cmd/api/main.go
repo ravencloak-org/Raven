@@ -169,6 +169,22 @@ func main() {
 	}
 	defer pool.Close()
 
+	// --- ClickHouse connection (enterprise, optional) ---
+	chConn, err := db.NewClickHouse(context.Background(), db.ClickHouseConfig{
+		Host:     cfg.ClickHouse.Host,
+		Port:     cfg.ClickHouse.Port,
+		Database: cfg.ClickHouse.Database,
+		User:     cfg.ClickHouse.User,
+		Password: cfg.ClickHouse.Password,
+	})
+	if err != nil {
+		// ClickHouse is optional — log and continue without it.
+		slog.Warn("ClickHouse connection failed; vector search will use pgvector only", "error", err)
+	}
+	if chConn != nil {
+		defer chConn.Close()
+	}
+
 	// --- Wire repositories ---
 	orgRepo := repository.NewOrgRepository(pool)
 	wsRepo := repository.NewWorkspaceRepository(pool)
@@ -190,6 +206,16 @@ func main() {
 	semCacheRepo := repository.NewSemanticCacheRepository(pool)
 	webhookRepo := repository.NewWebhookRepository(pool)
 	leadRepo := repository.NewLeadRepository(pool)
+
+	// --- ClickHouse embedding repository (enterprise, optional) ---
+	var chEmbeddingRepo *repository.ClickHouseEmbeddingRepository
+	if chConn != nil {
+		chEmbeddingRepo = repository.NewClickHouseEmbeddingRepository(chConn)
+		if err := chEmbeddingRepo.EnsureSchema(context.Background()); err != nil {
+			slog.Warn("ClickHouse schema init failed", "error", err)
+			chEmbeddingRepo = nil
+		}
+	}
 
 	// --- gRPC client for AI worker ---
 	grpcClient, err := rpcClient.NewClient(cfg.GRPC.WorkerAddr)
@@ -213,6 +239,12 @@ func main() {
 	sourceSvc := service.NewSourceService(sourceRepo, pool)
 	docSvc := service.NewDocumentService(docRepo, pool)
 	searchSvc := service.NewSearchService(searchRepo, pool)
+	hybridRetrievalSvc := service.NewHybridRetrievalService(
+		searchRepo, chEmbeddingRepo, pool,
+		model.VectorBackend(cfg.ClickHouse.VectorBackend),
+		cfg.ClickHouse.ChunkThreshold,
+	)
+	_ = hybridRetrievalSvc // TODO: wire into chat handler for enterprise hybrid search
 	llmSvc, err := service.NewLLMProviderService(llmRepo, pool, cfg.Encryption.AESKey)
 	if err != nil {
 		log.Fatalf("failed to initialise LLM provider service: %v", err)

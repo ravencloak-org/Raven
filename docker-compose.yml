@@ -131,6 +131,30 @@ services:
       - raven-internal
     restart: unless-stopped
 
+  # ─── ClickHouse (Enterprise vector storage) ────────────────────────────────
+  clickhouse:
+    image: clickhouse/clickhouse-server:25
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-raven}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:8123:8123"
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./deploy/clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --query 'SELECT 1'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - raven-internal
+    restart: unless-stopped
+
   # ─── Valkey (Redis-compatible cache) ───────────────────────────────────────
   valkey:
     image: valkey/valkey:8.1-alpine
@@ -278,6 +302,7 @@ volumes:
   kc-data:
   seaweedfs-data:
   valkey-data:
+  clickhouse-data:
   openobserve-data:
   acme-data:
   pgbackrest-repo:

@@ -24,8 +24,22 @@ type Config struct {
 	PostHog      PostHogConfig
 	Hyperswitch  HyperswitchConfig
 	LiveKit      LiveKitConfig
+	ClickHouse   ClickHouseConfig
 	TTS          TTSConfig
 	STT          STTConfig
+}
+
+// ClickHouseConfig holds ClickHouse connection and vector backend settings.
+type ClickHouseConfig struct {
+	Host     string `mapstructure:"host"`
+	Port     int    `mapstructure:"port"`
+	Database string `mapstructure:"database"`
+	User     string `mapstructure:"user"`
+	Password string `mapstructure:"password"`
+	// VectorBackend selects the default vector storage backend: "pgvector" or "clickhouse".
+	VectorBackend string `mapstructure:"vector_backend"`
+	// ChunkThreshold is the per-org chunk count above which ClickHouse is preferred.
+	ChunkThreshold int64 `mapstructure:"chunk_threshold"`
 }
 
 // PostHogConfig holds PostHog analytics settings.
@@ -183,6 +197,13 @@ func Load() (*Config, error) {
 	v.SetDefault("livekit.host", "ws://localhost:7880")
 	v.SetDefault("livekit.api_key", "devkey")
 	v.SetDefault("livekit.api_secret", "devsecret")
+	v.SetDefault("clickhouse.host", "")
+	v.SetDefault("clickhouse.port", 9000)
+	v.SetDefault("clickhouse.database", "raven")
+	v.SetDefault("clickhouse.user", "default")
+	v.SetDefault("clickhouse.password", "")
+	v.SetDefault("clickhouse.vector_backend", "pgvector")
+	v.SetDefault("clickhouse.chunk_threshold", 5000000)
 	// TTS defaults
 	v.SetDefault("tts.provider", "cartesia")
 	v.SetDefault("tts.cartesia_api_key", "")
@@ -229,6 +250,13 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("keycloak.audience", "RAVEN_KEYCLOAK_AUDIENCE")
 	_ = v.BindEnv("server.port", "RAVEN_SERVER_PORT")
 	_ = v.BindEnv("server.mode", "RAVEN_SERVER_MODE")
+	_ = v.BindEnv("clickhouse.host", "RAVEN_CLICKHOUSE_HOST")
+	_ = v.BindEnv("clickhouse.port", "RAVEN_CLICKHOUSE_PORT")
+	_ = v.BindEnv("clickhouse.database", "RAVEN_CLICKHOUSE_DATABASE")
+	_ = v.BindEnv("clickhouse.user", "RAVEN_CLICKHOUSE_USER")
+	_ = v.BindEnv("clickhouse.password", "RAVEN_CLICKHOUSE_PASSWORD")
+	_ = v.BindEnv("clickhouse.vector_backend", "RAVEN_CLICKHOUSE_VECTOR_BACKEND")
+	_ = v.BindEnv("clickhouse.chunk_threshold", "RAVEN_CLICKHOUSE_CHUNK_THRESHOLD")
 	_ = v.BindEnv("tts.provider", "RAVEN_TTS_PROVIDER")
 	_ = v.BindEnv("tts.cartesia_api_key", "RAVEN_TTS_CARTESIA_API_KEY")
 	_ = v.BindEnv("tts.cartesia_voice_id", "RAVEN_TTS_CARTESIA_VOICE_ID")
