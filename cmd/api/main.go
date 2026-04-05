@@ -48,6 +48,7 @@ import (
 	"github.com/ravencloak-org/Raven/internal/repository"
 	"github.com/ravencloak-org/Raven/internal/service"
 	"github.com/ravencloak-org/Raven/internal/storage"
+	"github.com/ravencloak-org/Raven/internal/stt"
 	"github.com/ravencloak-org/Raven/internal/telemetry"
 	"github.com/ravencloak-org/Raven/internal/tts"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
@@ -263,6 +264,30 @@ func main() {
 	if ttsProvider != nil {
 		ttsSvc = service.NewTTSService(ttsProvider)
 	}
+
+	// --- Wire STT provider ---
+	// The provider is selected by RAVEN_STT_PROVIDER ("deepgram" or "whisper").
+	// Defaults to Deepgram when RAVEN_STT_DEEPGRAM_API_KEY is set, otherwise falls
+	// back to the self-hosted faster-whisper endpoint.
+	sttProvider, err := stt.NewProvider(stt.Config{
+		Provider: stt.ProviderName(cfg.STT.Provider),
+		Deepgram: stt.DeepgramConfig{
+			APIKey:  cfg.STT.DeepgramAPIKey,
+			Model:   cfg.STT.DeepgramModel,
+			BaseURL: cfg.STT.DeepgramBaseURL,
+		},
+		Whisper: stt.WhisperConfig{
+			Endpoint: cfg.STT.WhisperEndpoint,
+			Model:    cfg.STT.WhisperModel,
+		},
+	})
+	if err != nil {
+		slog.Warn("stt provider not initialised — transcription unavailable", "error", err)
+		sttProvider = nil
+	} else {
+		slog.Info("stt provider initialised", "provider", sttProvider.Name())
+	}
+	_ = sttProvider // available for future wiring into voice turn transcription
 
 	// --- Wire handlers ---
 	orgHandler := handler.NewOrgHandler(orgSvc)

@@ -25,6 +25,7 @@ type Config struct {
 	Hyperswitch  HyperswitchConfig
 	LiveKit      LiveKitConfig
 	TTS          TTSConfig
+	STT          STTConfig
 }
 
 // PostHogConfig holds PostHog analytics settings.
@@ -62,6 +63,18 @@ type TTSConfig struct {
 	// Piper self-hosted TTS settings.
 	PiperEndpoint string `mapstructure:"piper_endpoint"`
 	PiperVoice    string `mapstructure:"piper_voice"`
+}
+
+// STTConfig holds speech-to-text provider settings.
+// Provider selects the backend: "deepgram" (cloud) or "whisper" (self-hosted).
+// When Provider is empty, Deepgram is used if an API key is set, otherwise whisper.
+type STTConfig struct {
+	Provider        string `mapstructure:"provider"`
+	DeepgramAPIKey  string `mapstructure:"deepgram_api_key"`
+	DeepgramModel   string `mapstructure:"deepgram_model"`
+	DeepgramBaseURL string `mapstructure:"deepgram_base_url"`
+	WhisperEndpoint string `mapstructure:"whisper_endpoint"`
+	WhisperModel    string `mapstructure:"whisper_model"`
 }
 
 // QueueConfig holds Asynq job queue settings.
@@ -178,7 +191,13 @@ func Load() (*Config, error) {
 	v.SetDefault("tts.cartesia_base_url", "")
 	v.SetDefault("tts.piper_endpoint", "http://localhost:5000")
 	v.SetDefault("tts.piper_voice", "en_US-amy-medium")
-
+	// STT defaults
+	v.SetDefault("stt.provider", "")
+	v.SetDefault("stt.deepgram_api_key", "")
+	v.SetDefault("stt.deepgram_model", "nova-2")
+	v.SetDefault("stt.deepgram_base_url", "https://api.deepgram.com")
+	v.SetDefault("stt.whisper_endpoint", "http://localhost:8000")
+	v.SetDefault("stt.whisper_model", "large-v3")
 	v.SetDefault("upload.max_size_bytes", 52428800) // 50 MB
 	v.SetDefault("upload.allowed_types", []string{
 		"application/pdf",
@@ -210,6 +229,19 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("keycloak.audience", "RAVEN_KEYCLOAK_AUDIENCE")
 	_ = v.BindEnv("server.port", "RAVEN_SERVER_PORT")
 	_ = v.BindEnv("server.mode", "RAVEN_SERVER_MODE")
+	_ = v.BindEnv("tts.provider", "RAVEN_TTS_PROVIDER")
+	_ = v.BindEnv("tts.cartesia_api_key", "RAVEN_TTS_CARTESIA_API_KEY")
+	_ = v.BindEnv("tts.cartesia_voice_id", "RAVEN_TTS_CARTESIA_VOICE_ID")
+	_ = v.BindEnv("tts.cartesia_model", "RAVEN_TTS_CARTESIA_MODEL")
+	_ = v.BindEnv("tts.cartesia_base_url", "RAVEN_TTS_CARTESIA_BASE_URL")
+	_ = v.BindEnv("tts.piper_endpoint", "RAVEN_TTS_PIPER_ENDPOINT")
+	_ = v.BindEnv("tts.piper_voice", "RAVEN_TTS_PIPER_VOICE")
+	_ = v.BindEnv("stt.provider", "RAVEN_STT_PROVIDER")
+	_ = v.BindEnv("stt.deepgram_api_key", "RAVEN_STT_DEEPGRAM_API_KEY")
+	_ = v.BindEnv("stt.deepgram_model", "RAVEN_STT_DEEPGRAM_MODEL")
+	_ = v.BindEnv("stt.deepgram_base_url", "RAVEN_STT_DEEPGRAM_BASE_URL")
+	_ = v.BindEnv("stt.whisper_endpoint", "RAVEN_STT_WHISPER_ENDPOINT")
+	_ = v.BindEnv("stt.whisper_model", "RAVEN_STT_WHISPER_MODEL")
 
 	// Try to read config file but don't fail if not found
 	_ = v.ReadInConfig()
