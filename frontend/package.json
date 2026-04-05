@@ -18,7 +18,7 @@
     "@tailwindcss/typography": "^0.5.19",
     "@vueuse/core": "^14.2.1",
     "keycloak-js": "^26.2.3",
-    "livekit-client": "^2.18.0",
+    "livekit-client": "^2.18.1",
     "pinia": "^3.0.4",
     "remeda": "^2.33.6",
     "vue": "^3.5.30",
