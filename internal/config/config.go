@@ -24,6 +24,7 @@ type Config struct {
 	PostHog      PostHogConfig
 	Hyperswitch  HyperswitchConfig
 	LiveKit      LiveKitConfig
+	TTS          TTSConfig
 }
 
 // PostHogConfig holds PostHog analytics settings.
@@ -45,6 +46,22 @@ type LiveKitConfig struct {
 	Host      string `mapstructure:"host"`
 	APIKey    string `mapstructure:"api_key"`
 	APISecret string `mapstructure:"api_secret"`
+}
+
+// TTSConfig holds text-to-speech provider settings.
+type TTSConfig struct {
+	// Provider selects the active TTS backend: "cartesia" or "piper".
+	Provider string `mapstructure:"provider"`
+
+	// Cartesia Sonic API settings.
+	CartesiaAPIKey  string `mapstructure:"cartesia_api_key"`
+	CartesiaVoiceID string `mapstructure:"cartesia_voice_id"`
+	CartesiaModel   string `mapstructure:"cartesia_model"`
+	CartesiaBaseURL string `mapstructure:"cartesia_base_url"`
+
+	// Piper self-hosted TTS settings.
+	PiperEndpoint string `mapstructure:"piper_endpoint"`
+	PiperVoice    string `mapstructure:"piper_voice"`
 }
 
 // QueueConfig holds Asynq job queue settings.
@@ -153,6 +170,15 @@ func Load() (*Config, error) {
 	v.SetDefault("livekit.host", "ws://localhost:7880")
 	v.SetDefault("livekit.api_key", "devkey")
 	v.SetDefault("livekit.api_secret", "devsecret")
+	// TTS defaults
+	v.SetDefault("tts.provider", "cartesia")
+	v.SetDefault("tts.cartesia_api_key", "")
+	v.SetDefault("tts.cartesia_voice_id", "")
+	v.SetDefault("tts.cartesia_model", "sonic-2")
+	v.SetDefault("tts.cartesia_base_url", "")
+	v.SetDefault("tts.piper_endpoint", "http://localhost:5000")
+	v.SetDefault("tts.piper_voice", "en_US-amy-medium")
+
 	v.SetDefault("upload.max_size_bytes", 52428800) // 50 MB
 	v.SetDefault("upload.allowed_types", []string{
 		"application/pdf",
