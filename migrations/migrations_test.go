@@ -46,6 +46,8 @@ var allExpectedTables = []string{
 	"stranger_users",
 	"user_identities",
 	"response_cache",
+	"webhook_configs",
+	"webhook_deliveries",
 	"lead_profiles",
 }
 
@@ -71,6 +73,8 @@ var rlsTables = []string{
 	"stranger_users",
 	"user_identities",
 	"response_cache",
+	"webhook_configs",
+	"webhook_deliveries",
 	"lead_profiles",
 }
 
@@ -92,6 +96,7 @@ var allExpectedTypes = []string{
 	"connector_status",
 	"sync_mode",
 	"stranger_status",
+	"webhook_status",
 }
 
 // startPostgresContainer spins up a pgvector-enabled PostgreSQL container.

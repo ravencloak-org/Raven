@@ -1,9 +1,10 @@
 // Package main is the entry point for the Asynq background worker process.
 // It connects to Valkey using the same config as the API server and processes
-// async tasks (document processing, URL scraping, KB reindexing).
+// async tasks (document processing, URL scraping, KB reindexing, webhook delivery).
 package main
 
 import (
+	"context"
 	"log"
 	"log/slog"
 	"os"
@@ -11,7 +12,10 @@ import (
 	"syscall"
 
 	"github.com/ravencloak-org/Raven/internal/config"
+	"github.com/ravencloak-org/Raven/internal/db"
+	"github.com/ravencloak-org/Raven/internal/jobs"
 	"github.com/ravencloak-org/Raven/internal/queue"
+	"github.com/ravencloak-org/Raven/internal/repository"
 )
 
 func main() {
@@ -22,12 +26,24 @@ func main() {
 
 	logger := slog.Default()
 
+	// Connect to the database so job handlers can access it.
+	pool, err := db.New(context.Background(), cfg.Database.URL)
+	if err != nil {
+		log.Fatalf("failed to connect to database: %v", err)
+	}
+	defer pool.Close()
+
 	srv := queue.NewServer(queue.ServerConfig{
 		RedisAddr:   cfg.Valkey.URL,
 		Concurrency: cfg.Queue.Concurrency,
 		MaxRetry:    cfg.Queue.MaxRetry,
 		Logger:      logger,
 	})
+
+	// Register the webhook delivery handler on the server mux.
+	webhookRepo := repository.NewWebhookRepository(pool)
+	webhookDeliveryHandler := jobs.NewWebhookDeliveryHandler(pool, webhookRepo, logger)
+	srv.Mux().Handle(queue.TypeWebhookDelivery, webhookDeliveryHandler)
 
 	// Start worker in a goroutine so we can listen for shutdown signals.
 	go func() {
@@ -43,5 +59,6 @@ func main() {
 	logger.Info("received signal, shutting down worker", "signal", sig)
 
 	srv.Shutdown()
+	pool.Close()
 	logger.Info("worker exited gracefully")
 }
