@@ -1,0 +1,33 @@
+what's the status?
+
+---
+
+Let's do the in progress one as completed and check the PR if anything is pending. After that, let's close it and then check the other pending ones and pick it up from the priority list.
+
+---
+
+Yes, use parallel agent and fix all those issues.
+
+---
+
+yes and start others in parallel as well
+
+---
+
+continue
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+Continue from where you left off.
+
+---
+
+continue
+
+---
+
+sure go for it, were the rest fixed and merged?
