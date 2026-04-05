@@ -161,3 +161,30 @@ func (c *Client) EnqueueSendEmail(ctx context.Context, p model.SendEmailPayload,
 	)
 	return nil
 }
+
+// EnqueueWebhookDelivery enqueues a webhook delivery task on the default queue.
+// Callers may pass additional asynq.Option values (e.g. asynq.ProcessIn, asynq.Unique)
+// that are appended after the defaults.
+func (c *Client) EnqueueWebhookDelivery(ctx context.Context, p WebhookDeliveryPayload, opts ...asynq.Option) error {
+	task, err := NewWebhookDeliveryTask(p)
+	if err != nil {
+		return fmt.Errorf("create webhook delivery task: %w", err)
+	}
+	baseOpts := []asynq.Option{
+		asynq.MaxRetry(0), // retries are managed by the job handler
+		asynq.Queue("default"),
+	}
+	info, err := c.inner.EnqueueContext(ctx, task, append(baseOpts, opts...)...)
+	if err != nil {
+		return fmt.Errorf("enqueue webhook delivery task: %w", err)
+	}
+	c.logger.Info("enqueued task",
+		"type", task.Type(),
+		"id", info.ID,
+		"queue", info.Queue,
+		"webhook_id", p.WebhookID,
+		"delivery_id", p.DeliveryID,
+		"event_type", p.EventType,
+	)
+	return nil
+}

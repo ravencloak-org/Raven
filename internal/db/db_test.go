@@ -11,6 +11,8 @@ import (
 
 // TestWithOrgID_SignatureStable confirms the exported symbol is callable
 // and has the expected function signature.
+// SetOrgIDQuery was removed in favour of the parameterized set_config call inside
+// WithOrgID. Full integration coverage requires a live database.
 func TestWithOrgID_SignatureStable(t *testing.T) {
 	// Verify the function signature matches the expected contract.
 	var fn func(ctx context.Context, pool interface{ Begin(context.Context) (pgx.Tx, error) }, orgID string, fn func(tx pgx.Tx) error) error

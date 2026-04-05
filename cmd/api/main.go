@@ -186,6 +186,8 @@ func main() {
 	notifRepo := repository.NewNotificationRepository(pool)
 	identityRepo := repository.NewIdentityRepository(pool)
 	semCacheRepo := repository.NewSemanticCacheRepository(pool)
+	webhookRepo := repository.NewWebhookRepository(pool)
+	leadRepo := repository.NewLeadRepository(pool)
 
 	// --- gRPC client for AI worker ---
 	grpcClient, err := rpcClient.NewClient(cfg.GRPC.WorkerAddr)
@@ -223,6 +225,8 @@ func main() {
 	posthogClient := posthog.NewClient(cfg.PostHog.APIKey, cfg.PostHog.Host)
 	identitySvc := service.NewIdentityService(identityRepo, posthogClient)
 	notifSvc := service.NewNotificationService(notifRepo, queueClient)
+	webhookSvc := service.NewWebhookService(webhookRepo, pool, queueClient)
+	leadSvc := service.NewLeadService(leadRepo)
 	chatRepo := repository.NewChatRepository(pool)
 	chatSvc := service.NewChatService(chatRepo, grpcClient, pool)
 
@@ -244,8 +248,10 @@ func main() {
 	strangerHandler := handler.NewStrangerHandler(strangerSvc)
 	identityHandler := handler.NewIdentityHandler(identitySvc)
 	notifHandler := handler.NewNotificationHandler(notifSvc)
+	webhookHandler := handler.NewWebhookHandler(webhookSvc)
 	chatHandler := handler.NewChatHandler(chatSvc)
 	semCacheHandler := handler.NewSemanticCacheHandler(semCacheRepo)
+	leadHandler := handler.NewLeadHandler(leadSvc)
 
 	// Create router
 	router := gin.Default()
@@ -438,6 +444,28 @@ func main() {
 			notif.PUT("/configs/:id", notifHandler.UpdateConfig)
 			notif.DELETE("/configs/:id", notifHandler.DeleteConfig)
 			notif.GET("/logs", notifHandler.ListLogs)
+		}
+
+		// --- Webhook routes (nested under org, admin only) ---
+		webhooks := api.Group("/orgs/:org_id/webhooks", middleware.RequireOrgRole("org_admin"))
+		{
+			webhooks.POST("", webhookHandler.Create)
+			webhooks.GET("", webhookHandler.List)
+			webhooks.GET("/:id", webhookHandler.Get)
+			webhooks.PUT("/:id", webhookHandler.Update)
+			webhooks.DELETE("/:id", webhookHandler.Delete)
+			webhooks.GET("/:id/deliveries", webhookHandler.ListDeliveries)
+		}
+
+		// --- Lead intelligence routes (nested under org) ---
+		leads := api.Group("/orgs/:org_id/leads", middleware.RequireOrgRole("member"))
+		{
+			leads.POST("", leadHandler.UpsertLead)
+			leads.GET("", leadHandler.ListLeads)
+			leads.GET("/export", leadHandler.ExportLeadsCSV)
+			leads.GET("/:id", leadHandler.GetLead)
+			leads.PUT("/:id", leadHandler.UpdateLead)
+			leads.DELETE("/:id", middleware.RequireOrgRole("org_admin"), leadHandler.DeleteLead)
 		}
 
 		// --- User / me routes ---

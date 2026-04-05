@@ -1,6 +1,6 @@
 // Package main is the entry point for the Asynq background worker process.
 // It connects to Valkey using the same config as the API server and processes
-// async tasks (document processing, URL scraping, KB reindexing).
+// async tasks (document processing, URL scraping, KB reindexing, webhook delivery).
 package main
 
 import (
@@ -26,6 +26,7 @@ func main() {
 
 	logger := slog.Default()
 
+	// Connect to the database so job handlers can access it.
 	pool, err := db.New(context.Background(), cfg.Database.URL)
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
@@ -43,6 +44,11 @@ func main() {
 
 	// Register email delivery handler.
 	srv.Mux().HandleFunc(queue.TypeSendEmail, jobs.HandleSendEmail(notifRepo))
+
+	// Register the webhook delivery handler on the server mux.
+	webhookRepo := repository.NewWebhookRepository(pool)
+	webhookDeliveryHandler := jobs.NewWebhookDeliveryHandler(pool, webhookRepo, logger)
+	srv.Mux().Handle(queue.TypeWebhookDelivery, webhookDeliveryHandler)
 
 	errCh := make(chan error, 1)
 
@@ -64,5 +70,6 @@ func main() {
 	}
 
 	srv.Shutdown()
-	logger.Info("worker exited")
+	pool.Close()
+	logger.Info("worker exited gracefully")
 }
