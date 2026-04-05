@@ -20,7 +20,7 @@
     "keycloak-js": "^26.2.3",
     "livekit-client": "^2.18.1",
     "pinia": "^3.0.4",
-    "remeda": "^2.33.6",
+    "remeda": "^2.33.7",
     "vue": "^3.5.30",
     "vue-router": "^5.0.4"
   },
