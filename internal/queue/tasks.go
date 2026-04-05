@@ -8,6 +8,8 @@ import (
 	"fmt"
 
 	"github.com/hibiken/asynq"
+
+	"github.com/ravencloak-org/Raven/internal/model"
 )
 
 // Task type constants used for routing tasks to the correct handler.
@@ -16,6 +18,9 @@ const (
 	TypeURLScrape       = "url:scrape"
 	TypeReindex         = "kb:reindex"
 	TypeAirbyteSync     = "airbyte:sync"
+	// TypeSendEmail is the Asynq task type for outbound email delivery.
+	TypeSendEmail       = "notification:send_email"
+	TypeWebhookDelivery = "webhook:deliver"
 )
 
 // DocumentProcessPayload is the payload for document processing tasks.
@@ -81,4 +86,32 @@ func NewAirbyteSyncTask(p AirbyteSyncPayload) (*asynq.Task, error) {
 		return nil, fmt.Errorf("marshal AirbyteSyncPayload: %w", err)
 	}
 	return asynq.NewTask(TypeAirbyteSync, data), nil
+}
+
+// NewSendEmailTask creates a new Asynq task for outbound email delivery.
+func NewSendEmailTask(p model.SendEmailPayload) (*asynq.Task, error) {
+	data, err := json.Marshal(p)
+	if err != nil {
+		return nil, fmt.Errorf("marshal SendEmailPayload: %w", err)
+	}
+	return asynq.NewTask(TypeSendEmail, data), nil
+}
+
+// WebhookDeliveryPayload is the payload for webhook delivery tasks.
+type WebhookDeliveryPayload struct {
+	DeliveryID string         `json:"delivery_id"`
+	WebhookID  string         `json:"webhook_id"`
+	OrgID      string         `json:"org_id"`
+	EventType  string         `json:"event_type"`
+	Payload    map[string]any `json:"payload"`
+}
+
+// NewWebhookDeliveryTask creates a new Asynq task for webhook delivery.
+// It uses DeliveryID as a unique task identifier to prevent duplicate deliveries.
+func NewWebhookDeliveryTask(p WebhookDeliveryPayload) (*asynq.Task, error) {
+	data, err := json.Marshal(p)
+	if err != nil {
+		return nil, fmt.Errorf("marshal WebhookDeliveryPayload: %w", err)
+	}
+	return asynq.NewTask(TypeWebhookDelivery, data, asynq.TaskID(p.DeliveryID)), nil
 }

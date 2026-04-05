@@ -41,7 +41,7 @@ jobs:
 
       - run: pytest -v --cov=raven_worker --cov-report=xml --cov-report=term-missing
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: ai-worker/coverage.xml

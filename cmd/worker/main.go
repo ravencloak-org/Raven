@@ -1,9 +1,10 @@
 // Package main is the entry point for the Asynq background worker process.
 // It connects to Valkey using the same config as the API server and processes
-// async tasks (document processing, URL scraping, KB reindexing).
+// async tasks (document processing, URL scraping, KB reindexing, webhook delivery).
 package main
 
 import (
+	"context"
 	"log"
 	"log/slog"
 	"os"
@@ -11,7 +12,10 @@ import (
 	"syscall"
 
 	"github.com/ravencloak-org/Raven/internal/config"
+	"github.com/ravencloak-org/Raven/internal/db"
+	"github.com/ravencloak-org/Raven/internal/jobs"
 	"github.com/ravencloak-org/Raven/internal/queue"
+	"github.com/ravencloak-org/Raven/internal/repository"
 )
 
 func main() {
@@ -22,6 +26,15 @@ func main() {
 
 	logger := slog.Default()
 
+	// Connect to the database so job handlers can access it.
+	pool, err := db.New(context.Background(), cfg.Database.URL)
+	if err != nil {
+		log.Fatalf("failed to connect to database: %v", err)
+	}
+	defer pool.Close()
+
+	notifRepo := repository.NewNotificationRepository(pool)
+
 	srv := queue.NewServer(queue.ServerConfig{
 		RedisAddr:   cfg.Valkey.URL,
 		Concurrency: cfg.Queue.Concurrency,
@@ -29,19 +42,34 @@ func main() {
 		Logger:      logger,
 	})
 
+	// Register email delivery handler.
+	srv.Mux().HandleFunc(queue.TypeSendEmail, jobs.HandleSendEmail(notifRepo))
+
+	// Register the webhook delivery handler on the server mux.
+	webhookRepo := repository.NewWebhookRepository(pool)
+	webhookDeliveryHandler := jobs.NewWebhookDeliveryHandler(pool, webhookRepo, logger)
+	srv.Mux().Handle(queue.TypeWebhookDelivery, webhookDeliveryHandler)
+
+	errCh := make(chan error, 1)
+
 	// Start worker in a goroutine so we can listen for shutdown signals.
 	go func() {
 		if err := srv.Start(); err != nil {
-			log.Fatalf("asynq server error: %v", err)
+			errCh <- err
 		}
 	}()
 
-	// Wait for interrupt signal.
+	// Wait for interrupt signal or server error.
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	sig := <-sigCh
-	logger.Info("received signal, shutting down worker", "signal", sig)
+	select {
+	case sig := <-sigCh:
+		logger.Info("received signal, shutting down worker", "signal", sig)
+	case err := <-errCh:
+		logger.Error("asynq server error, shutting down", "error", err)
+	}
 
 	srv.Shutdown()
+	pool.Close()
 	logger.Info("worker exited gracefully")
 }
