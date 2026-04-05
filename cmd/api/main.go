@@ -186,6 +186,7 @@ func main() {
 	identityRepo := repository.NewIdentityRepository(pool)
 	semCacheRepo := repository.NewSemanticCacheRepository(pool)
 	webhookRepo := repository.NewWebhookRepository(pool)
+	leadRepo := repository.NewLeadRepository(pool)
 
 	// --- gRPC client for AI worker ---
 	grpcClient, err := rpcClient.NewClient(cfg.GRPC.WorkerAddr)
@@ -223,6 +224,7 @@ func main() {
 	posthogClient := posthog.NewClient(cfg.PostHog.APIKey, cfg.PostHog.Host)
 	identitySvc := service.NewIdentityService(identityRepo, posthogClient)
 	webhookSvc := service.NewWebhookService(webhookRepo, pool, queueClient)
+	leadSvc := service.NewLeadService(leadRepo)
 	chatRepo := repository.NewChatRepository(pool)
 	chatSvc := service.NewChatService(chatRepo, grpcClient, pool)
 
@@ -246,6 +248,7 @@ func main() {
 	webhookHandler := handler.NewWebhookHandler(webhookSvc)
 	chatHandler := handler.NewChatHandler(chatSvc)
 	semCacheHandler := handler.NewSemanticCacheHandler(semCacheRepo)
+	leadHandler := handler.NewLeadHandler(leadSvc)
 
 	// Create router
 	router := gin.Default()
@@ -439,6 +442,17 @@ func main() {
 			webhooks.PUT("/:id", webhookHandler.Update)
 			webhooks.DELETE("/:id", webhookHandler.Delete)
 			webhooks.GET("/:id/deliveries", webhookHandler.ListDeliveries)
+		}
+
+		// --- Lead intelligence routes (nested under org) ---
+		leads := api.Group("/orgs/:org_id/leads", middleware.RequireOrgRole("member"))
+		{
+			leads.POST("", leadHandler.UpsertLead)
+			leads.GET("", leadHandler.ListLeads)
+			leads.GET("/export", leadHandler.ExportLeadsCSV)
+			leads.GET("/:id", leadHandler.GetLead)
+			leads.PUT("/:id", leadHandler.UpdateLead)
+			leads.DELETE("/:id", middleware.RequireOrgRole("org_admin"), leadHandler.DeleteLead)
 		}
 
 		// --- User / me routes ---

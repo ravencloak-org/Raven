@@ -48,6 +48,7 @@ var allExpectedTables = []string{
 	"response_cache",
 	"webhook_configs",
 	"webhook_deliveries",
+	"lead_profiles",
 }
 
 // rlsTables are the tables that must have RLS enabled (all tables with org_id).
@@ -74,6 +75,7 @@ var rlsTables = []string{
 	"response_cache",
 	"webhook_configs",
 	"webhook_deliveries",
+	"lead_profiles",
 }
 
 // allExpectedTypes lists every custom ENUM type.
