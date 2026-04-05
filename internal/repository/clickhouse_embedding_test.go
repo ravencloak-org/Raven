@@ -12,7 +12,7 @@ func TestNewClickHouseEmbeddingRepository(t *testing.T) {
 	}
 }
 
-func TestNewClickHouseEmbeddingRepository_NotNil(t *testing.T) {
+func TestNewClickHouseEmbeddingRepository_NilConn(t *testing.T) {
 	repo := NewClickHouseEmbeddingRepository(nil)
 	if repo.conn != nil {
 		t.Error("expected nil conn for test repository")

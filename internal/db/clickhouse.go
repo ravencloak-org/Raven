@@ -26,8 +26,13 @@ func NewClickHouse(ctx context.Context, cfg ClickHouseConfig) (driver.Conn, erro
 		return nil, nil
 	}
 
+	port := cfg.Port
+	if port == 0 {
+		port = 9000
+	}
+
 	conn, err := clickhouse.Open(&clickhouse.Options{
-		Addr: []string{fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)},
+		Addr: []string{fmt.Sprintf("%s:%d", cfg.Host, port)},
 		Auth: clickhouse.Auth{
 			Database: cfg.Database,
 			Username: cfg.User,

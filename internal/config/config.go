@@ -167,7 +167,7 @@ func Load() (*Config, error) {
 	v.SetDefault("livekit.host", "ws://localhost:7880")
 	v.SetDefault("livekit.api_key", "devkey")
 	v.SetDefault("livekit.api_secret", "devsecret")
-	v.SetDefault("clickhouse.host", "localhost")
+	v.SetDefault("clickhouse.host", "")
 	v.SetDefault("clickhouse.port", 9000)
 	v.SetDefault("clickhouse.database", "raven")
 	v.SetDefault("clickhouse.user", "default")
