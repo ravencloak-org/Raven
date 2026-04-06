@@ -1,0 +1,352 @@
+what's the status?
+
+---
+
+Let's do the in progress one as completed and check the PR if anything is pending. After that, let's close it and then check the other pending ones and pick it up from the priority list.
+
+---
+
+Yes, use parallel agent and fix all those issues.
+
+---
+
+yes and start others in parallel as well
+
+---
+
+continue
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+Continue from where you left off.
+
+---
+
+continue
+
+---
+
+sure go for it, were the rest fixed and merged?
+
+---
+
+<task-notification>
+<task-id>bygb6yjy0</task-id>
+<tool-use-id>toolu_018NR18SafkcEtWFW1rERZzu</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait 2 min then check PR states" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a0b15a839203b7055</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Implement issue #118 ClickHouse QBit vectors" completed</summary>
+<result>Done. Here is the summary of what was implemented:
+
+---
+
+## What was done
+
+**Issue #118: Enterprise ClickHouse + QBit Vector Storage**
+
+### New files created
+- `/deploy/clickhouse/init.sql` — ClickHouse DDL with QBit-indexed embeddings table partitioned by `org_id`
+- `/internal/db/clickhouse.go` — ClickHouse connection client with LZ4 compression; returns nil gracefully when host is empty
+- `/internal/db/clickhouse_test.go` — Tests for empty-host fallback and config fields
+- `/internal/model/clickhouse.go` — `VectorBackend` type (`pgvector`|`clickhouse`), `ClickHouseEmbedding`, `ClickHouseSearchResult` models
+- `/internal/repository/clickhouse_embedding.go` — Full repository: `StoreEmbedding`, `StoreBatch`, `SearchSimilar` (cosine distance via QBit), `DeleteByKB`, `DeleteByChunk`, `CountByOrg`, `EnsureSchema`
+- `/internal/repository/clickhouse_embedding_test.go` — Unit tests
+- `/internal/service/hybrid_retrieval.go` — `HybridRetrievalService` that runs BM25 (PostgreSQL) and QBit vector (ClickHouse) searches in **parallel goroutines**, fuses with RRF (k=60), and enriches ClickHouse-only results with chunk content from PostgreSQL
+- `/internal/service/hybrid_retrieval_test.go` — Unit tests for backend resolution, RRF fusion, and truncation
+
+### Modified files
+- `/internal/config/config.go` — Added `ClickHouseConfig` struct with 7 env vars (`RAVEN_CLICKHOUSE_*`)
+- `/cmd/api/main.go` — Wired ClickHouse connection (graceful fallback), `ClickHouseEmbeddingRepository`, and `HybridRetrievalService`
+- `/docker-compose.yml` — Added `clickhouse` service (image `clickhouse/clickhouse-server:25`) with health checks, volumes, and init script
+- `go.mod` / `go.sum` — Added `github.com/ClickHouse/clickhouse-go/v2`
+
+### Key design decisions
+- **Graceful degradation**: When ClickHouse is unavailable, the system falls back to pgvector with zero disruption
+- **Backend is configurable**: `REDACTED` (default) vs `clickhouse`, with a configurable chunk threshold (5M default)
+- **QBit over HNSW**: QBit columns encode float arrays as bit planes — no in-memory index needed, tunable precision at query time
+
+PR: https://github.com/ravencloak-org/Raven/pull/181 (queued for auto squash-merge)</result>
+<usage><total_tokens>96892</total_tokens><tool_uses>81</tool_uses><duration_ms>462105</duration_ms></usage>
+<worktree><worktreePath>/Users/jobinlawrance/Project/raven/.claude/worktrees/agent-a0b15a83</worktreePath><worktreeBranch>worktree-agent-a0b15a83</worktreeBranch></worktree>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bxnt2d9md</task-id>
+<tool-use-id>toolu_01VBcG8utYbGKJB6Gpr3czaC</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait 3 min then check PR states" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a57fc3e9d746e4be4</task-id>
+<tool-use-id>toolu_017EQG2vyRZ4Wb7CW3Lstove</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Resolve conflicts on PR #178 again" completed</summary>
+<result>Done. Here is a summary of what was completed:
+
+**Merge conflict resolution for PR #178 (`feat/issue-61-voice-sessions`)**
+
+- **Conflicted file:** `/Users/jobinlawrance/Project/raven/cmd/api/main.go` (the only conflict)
+- **Conflict:** The feature branch had voice session routes while `origin/main` had notification config + webhook routes added in the same location
+- **Resolution:** Kept both sets of routes — notification/webhook routes first (from main), then voice session routes (from the feature branch), maintaining proper route group structure
+- **Verification:** `go build ./...` and `go vet ./...` both passed cleanly
+- **Commit:** `75f1be4 Merge origin/main into feat/issue-61-voice-sessions`
+- **Pushed** to `origin/feat/issue-61-voice-sessions`</result>
+<usage><total_tokens>31125</total_tokens><tool_uses>23</tool_uses><duration_ms>162153</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a910ceb4358a594c5</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix voice service CodeRabbit issues" completed</summary>
+<result>Done. Here is the summary:
+
+**Branch:** `fix/voice-service-review`
+**PR:** https://github.com/ravencloak-org/Raven/pull/182 (queued for auto-squash-merge)
+
+**Changes in `/internal/service/voice.go`:**
+
+1. **Interface repo type** -- Changed `VoiceService.repo` from `*repository.VoiceRepository` (concrete) to `VoiceRepository` (interface already defined at the top of the file). The constructor `NewVoiceService` now accepts the interface. This removed the `repository` import entirely. The concrete `*repository.VoiceRepository` satisfies the interface implicitly, so `cmd/api/main.go` required no changes.
+
+2. **Nil-request guards** -- Added `if req == nil` checks returning `apierror.NewBadRequest("request body must not be nil")` at the top of both `CreateSession` and `AppendTurn`, before any DB work.
+
+3. **Not-found error handling** -- Enhanced `isVoiceNotFound` to call `errors.Is(err, pgx.ErrNoRows)` first (proper unwrapped error matching), falling back to the existing string-based checks. Added `"errors"` to the import block.
+
+All existing tests pass, `go build ./...` and `go vet ./...` are clean.</result>
+<usage><total_tokens>40705</total_tokens><tool_uses>31</tool_uses><duration_ms>177769</duration_ms></usage>
+<worktree><worktreePath>/Users/jobinlawrance/Project/raven/.claude/worktrees/agent-a57fc3e9/.claude/worktrees/agent-a910ceb4</worktreePath><worktreeBranch>worktree-agent-a910ceb4</worktreeBranch></worktree>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ae704099e9bae477b</task-id>
+<tool-use-id>toolu_01DVtmS8S9mTbbkoP3nvURb3</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Implement issue #59 STT integration" completed</summary>
+<result>You're out of extra usage · resets 3:30pm (Asia/Calcutta)</result>
+<usage><total_tokens>1435</total_tokens><tool_uses>48</tool_uses><duration_ms>202711</duration_ms></usage>
+<worktree><worktreePath>/Users/jobinlawrance/Project/raven/.claude/worktrees/agent-a57fc3e9/.claude/worktrees/agent-ae704099</worktreePath><worktreeBranch>worktree-agent-ae704099</worktreeBranch></worktree>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a76e28664734d650e</task-id>
+<tool-use-id>toolu_01681ts3UFoSyhMAtYhh65sd</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Implement issue #60 TTS integration" completed</summary>
+<result>You're out of extra usage · resets 3:30pm (Asia/Calcutta)</result>
+<usage><total_tokens>183</total_tokens><tool_uses>34</tool_uses><duration_ms>197160</duration_ms></usage>
+<worktree><worktreePath>/Users/jobinlawrance/Project/raven/.claude/worktrees/agent-a57fc3e9/.claude/worktrees/agent-a76e2866</worktreePath><worktreeBranch>worktree-agent-a76e2866</worktreeBranch></worktree>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a5108f1aeb2793ffd</task-id>
+<tool-use-id>toolu_01M7CxxmgpLgh8SYyCBMUMTH</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix CodeRabbit issues on PR #181" completed</summary>
+<result>You're out of extra usage · resets 3:30pm (Asia/Calcutta)</result>
+<usage><total_tokens>1073</total_tokens><tool_uses>30</tool_uses><duration_ms>363705</duration_ms></usage>
+</task-notification>
+
+---
+
+continue
+
+---
+
+<task-notification>
+<task-id>aa1f34d8a0d97ae1c</task-id>
+<tool-use-id>toolu_01WZpokEu7PoQLf3PmVyD1bG</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Continue ClickHouse fix #181 from partial work" completed</summary>
+<result>I need Bash access to commit and push. Let me explain the situation clearly.
+
+Here is what I found after reviewing all four files in the worktree at `/Users/jobinlawrance/Project/raven/.claude/worktrees/agent-a0b15a83`:
+
+**All four fixes are already correctly applied:**
+
+1. `/Users/jobinlawrance/Project/raven/.claude/worktrees/agent-a0b15a83/internal/config/config.go` line 170: `v.SetDefault("clickhouse.host", "")` — empty string default, not `"localhost"`. Done.
+
+2. `/Users/jobinlawrance/Project/raven/.claude/worktrees/agent-a0b15a83/docker-compose.yml` lines 143–144: ClickHouse ports bound to `127.0.0.1:9000:9000` and `127.0.0.1:8123:8123`. Done.
+
+3. `/Users/jobinlawrance/Project/raven/.claude/worktrees/agent-a0b15a83/internal/db/clickhouse.go` lines 29–32: port defaults to 9000 when host is set but port is 0. Done.
+
+4. `/Users/jobinlawrance/Project/raven/.claude/worktrees/agent-a0b15a83/internal/repository/clickhouse_embedding_test.go`: Has two well-named test functions — `TestNewClickHouseEmbeddingRepository` and `TestNewClickHouseEmbeddingRepository_NilConn`. Done.
+
+**What I cannot do:** Both Bash and the GitHub MCP tools are unavailable (Bash was denied; GitHub API returns a 403 because the fine-grained personal access token has a lifetime greater than 366 days, which is forbidden by the `ravencloak-org` organization).
+
+**What you need to do manually:**
+
+```bash
+cd /Users/jobinlawrance/Project/raven/.claude/worktrees/agent-a0b15a83
+
+# Verify the fixes are in place
+git diff
+
+# Build and vet
+go build ./...
+go vet ./...
+
+# Stage the four files
+git add internal/config/config.go internal/db/clickhouse.go internal/repository/clickhouse_embedding_test.go docker-compose.yml
+
+# Commit (no Co-Authored-By per project rules)
+git commit -m "fix(clickhouse): address CodeRabbit review — empty default host, port binding, validation"
+
+# Push
+git push origin feat/issue-118-clickhouse-qbit
+```
+
+For the GitHub token issue, you'll need to adjust the token lifetime at: https://github.com/settings/personal-access-tokens/12849861 — set it to 366 days or less to satisfy the org policy.</result>
+<usage><total_tokens>34778</total_tokens><tool_uses>21</tool_uses><duration_ms>65782</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ac4afa25dcd130629</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Continue TTS #60 from partial work" completed</summary>
+<result>Bash permission has been denied. The code changes are complete and verified (go build and go vet pass), but I cannot complete the git commit, push, and PR creation steps without Bash access.
+
+Here is what was accomplished and what still needs to be done manually:
+
+**Completed:**
+- All TTS source files were already present and correct:
+  - `/internal/tts/provider.go` — `Provider` interface, `SynthesizeOpts`, `AudioFormat` types
+  - `/internal/tts/sentence.go` — `SplitSentences()` for sentence-boundary dispatch
+  - `/internal/tts/cartesia.go` — Cartesia Sonic API provider
+  - `/internal/tts/piper.go` — Piper TTS HTTP provider
+  - `/internal/service/tts.go` — TTSService wrapping the provider
+  - `/internal/handler/tts.go` — HTTP handler for POST `/orgs/:org_id/tts`
+  - `/internal/config/config.go` — `TTSConfig` struct + defaults
+- **Fixed the only compile error**: `ttsHandler` was declared but never used. Added the TTS route to the router in `/cmd/api/main.go`:
+  ```go
+  if ttsHandler != nil {
+      api.POST("/orgs/:org_id/tts", middleware.RequireOrgRole("org_member"), ttsHandler.Synthesize)
+  }
+  ```
+- `go build ./...` — passes cleanly
+- `go vet ./...` — passes cleanly
+
+**Needs manual completion** (Bash permission denied):
+```bash
+cd /Users/jobinlawrance/Project/raven/.claude/worktrees/agent-a57fc3e9/.claude/worktrees/agent-a76e2866
+
+git add cmd/api/main.go internal/tts/ internal/handler/tts.go internal/service/tts.go internal/config/config.go
+git commit -m "feat(tts): Cartesia Sonic and Piper text-to-speech providers (#60)"
+git push origin feat/issue-60-tts-integration
+gh pr create --title "feat: TTS integration — Cartesia Sonic + Piper providers (#60)" --body "Implements text-to-speech via Cartesia Sonic API (primary) and Piper TTS (self-hosted MIT fallback). Sentence-boundary dispatch for low latency streaming. Closes #60"
+gh pr merge &lt;PR_NUMBER&gt; --auto --squash
+```</result>
+<usage><total_tokens>37563</total_tokens><tool_uses>22</tool_uses><duration_ms>76230</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a8985aa8723ea53d5</task-id>
+<tool-use-id>toolu_01CksDuYSAFnD866HXD2RtWX</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Continue STT #59 from partial work" completed</summary>
+<result>Bash permission has been denied again. I need to stop and explain the situation to you.
+
+---
+
+## Status Report
+
+**File edits completed successfully:**
+
+All code changes are in place at `/Users/jobinlawrance/Project/raven/.claude/worktrees/agent-a57fc3e9/.claude/worktrees/agent-ae704099`:
+
+1. **`internal/config/config.go`** — Added `STTConfig` struct (Provider, DeepgramAPIKey, DeepgramModel, DeepgramBaseURL, WhisperEndpoint, WhisperModel) with defaults and `BindEnv` calls for all 6 `RAVEN_STT_*` environment variables.
+
+2. **`cmd/api/main.go`** — Added `stt` import and provider instantiation block that:
+   - Reads config from `cfg.STT`
+   - Calls `stt.NewProvider(...)` to create the appropriate provider
+   - Logs a warning if initialization fails (e.g., Deepgram selected but no API key)
+   - Logs the active provider name on success
+   - Suppresses the unused-variable warning with `_ = sttProvider`
+
+3. **`internal/stt/`** — All four files (`provider.go`, `deepgram.go`, `whisper.go`, `factory.go`) were already complete.
+
+**Build and vet both passed** (`go build ./...` and `go vet ./...` returned no output/errors).
+
+**What I cannot do without Bash permission:**
+- Run `golangci-lint` (the linter keeps getting killed — also may need Bash permission)
+- `git add`, `git commit`, `git push`
+- `gh pr create` and `gh pr merge --auto --squash`
+
+**To finish the task, please run these commands yourself:**
+
+```bash
+cd /Users/jobinlawrance/Project/raven/.claude/worktrees/agent-a57fc3e9/.claude/worktrees/agent-ae704099
+
+# Lint (optional but recommended per project rules)
+golangci-lint run ./internal/stt/... ./internal/config/... ./cmd/api/...
+
+# Commit
+git add internal/stt/ internal/config/config.go cmd/api/main.go
+git commit -m "feat(stt): Deepgram and faster-whisper speech-to-text providers (#59)"
+
+# Push
+git push origin feat/issue-59-stt-integration
+
+# Create PR
+gh pr create --title "feat: STT integration — Deepgram + faster-whisper providers (#59)" \
+  --body "Implements speech-to-text via Deepgram API (primary) and faster-whisper (self-hosted fallback). Streaming transcription support, configurable per org. Closes #59"
+
+# Auto-merge (replace &lt;PR_NUMBER&gt; with actual number)
+gh pr merge &lt;PR_NUMBER&gt; --auto --squash
+```
+
+Or grant me Bash permission and I'll run all of it.</result>
+<usage><total_tokens>47567</total_tokens><tool_uses>31</tool_uses><duration_ms>137037</duration_ms></usage>
+</task-notification>
+
+---
+
+claude
+
+---
+
+That's lets just remove it if it's not being used
+
+---
+
+what's the status?

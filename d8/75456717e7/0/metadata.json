@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "d875456717e7",
+  "session_id": "a3bdb71e-7c57-4524-9f2b-d19b2f441918",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-06T13:08:28.564321Z",
+  "branch": "fix/encryption-env-bind",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".mergify.yml"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 234,
+    "cache_creation_tokens": 719617,
+    "cache_read_tokens": 11138915,
+    "output_tokens": 42716,
+    "api_call_count": 149
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-06T13:08:28.454562Z",
+    "agent_lines": 0,
+    "human_added": 1981,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1981,
+    "agent_percentage": 0
+  }
+}

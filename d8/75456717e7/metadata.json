@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "d875456717e7",
+  "strategy": "manual-commit",
+  "branch": "fix/encryption-env-bind",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".mergify.yml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/d8/75456717e7/0/metadata.json",
+      "transcript": "/d8/75456717e7/0/full.jsonl",
+      "context": "/d8/75456717e7/0/context.md",
+      "content_hash": "/d8/75456717e7/0/content_hash.txt",
+      "prompt": "/d8/75456717e7/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 234,
+    "cache_creation_tokens": 719617,
+    "cache_read_tokens": 11138915,
+    "output_tokens": 42716,
+    "api_call_count": 149
+  }
+}
