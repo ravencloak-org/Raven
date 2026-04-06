@@ -1,0 +1,111 @@
+what's the status?
+
+---
+
+what's the status?
+
+---
+
+Let's work on the other items from the milestone.
+
+---
+
+Let's start with the important ones. WhatsApp is not that important. I mean, web art is sure edge optimization, maybe later enterprise connector. I think maybe we can start that. Let me know what are the parallel ones that we can pick up.
+
+---
+
+We run the whole stack locally to test it out before I deploy it.
+
+---
+
+let's use a different server to host everything, it's a fresh server. let's deploy the cms, the demo and the dark variant all here. ssh ubuntu@ec2-65-0-85-115.ap-south-1.compute.amazonaws.com also along with that let's create a docker compose page for this specifically.
+
+---
+
+I'm pretty sure it's very bare, so if you can create an infra as code which will install everything from top to bottom except our current stack, that will be really great. I'm sure there will be an online tool that will install Docker, PM2, and Node.js, and I'll tell you what other stack I need. Till then, you figure out the Ansible, and I'll give you the list of all the software that I want you to install, okay. ?
+
+---
+
+SSH keypath for what exactly? What is this inventory? Also ignore the CMS part; that's from a different project. I'll go there and do it. Ignore it for now. We'll just take care of the current repository, which is Raven.
+
+---
+
+Right, the key that I use for SSH is the id_ed25519. That's the key used. I don't think you need to specify it if you just SSH into the server; it'll automatically pick it up. For now, these are the only main stack I want. Does bescel take care of open telemetry as well, or is it only for metrics?
+
+---
+
+So, let's go for that.
+
+---
+
+What is the vault password?
+
+---
+
+Can we remove this vault thingy that is required?
+
+---
+
+yes
+
+---
+
+TASK [docker : Add Docker repository] *********************************************************************************************************************************************************
+[DEPRECATION WARNING]: INJECT_FACTS_AS_VARS default to `True` is deprecated, top-level facts will not be auto injected after the change. This feature will be removed from ansible-core version 2.24.
+Origin: /Users/jobinlawrance/Project/raven/deploy/ansible/roles/docker/tasks/main.yml:19:15
+
+17     - name: Add Docker repository
+18       ansible.builtin.apt_repository:
+19         repo: >-
+                 ^ column 15
+
+Use `ansible_facts["fact_name"]` (no `ansible_` prefix) instead.
+
+changed: [raven-server]
+
+---
+
+TASK [raven-stack : Start Raven stack] ********************************************************************************************************************************************************
+[ERROR]: Task failed: Module failed: non-zero return code
+Origin: /Users/jobinlawrance/Project/raven/deploy/ansible/roles/raven-stack/tasks/main.yml:32:3
+
+30   changed_when: true
+31
+32 - name: Start Raven stack
+     ^ column 3
+
+fatal: [raven-server]: FAILED! => {"changed": true, "cmd": ["docker", "compose", "-f", "deploy/ec2/docker-compose.server.yml", "--env-file", ".env.server", "up", "-d"], "delta": "0:00:00.051718", "end": "2026-04-06 18:24:39.892185", "msg": "non-zero return code", "rc": 1, "start": "2026-04-06 18:24:39.840467", "stderr": "env file /opt/raven/deploy/ec2/.env.server not found: stat /opt/raven/deploy/ec2/.env.server: no such file or directory", "stderr_lines": ["env file /opt/raven/deploy/ec2/.env.server not found: stat /opt/raven/deploy/ec2/.env.server: no such file or directory"], "stdout": "", "stdout_lines": []}
+
+PLAY RECAP ************************************************************************************************************************************************************************************
+raven-server               : ok=42   changed=28   unreachable=0    failed=1    skipped=0    rescued=0    ignored=0
+
+---
+
+TASK [admin-tools : Copy Glance config] *******************************************************************************************************************************************************
+changed: [raven-server]
+
+TASK [admin-tools : Pull admin tool images] ***************************************************************************************************************************************************
+[ERROR]: Task failed: Module failed: non-zero return code
+Origin: /Users/jobinlawrance/Project/raven/deploy/ansible/roles/admin-tools/tasks/main.yml:34:3
+
+32     mode: "0644"
+33
+34 - name: Pull admin tool images
+     ^ column 3
+
+fatal: [raven-server]: FAILED! => {"changed": true, "cmd": ["docker", "compose", "pull"], "delta": "0:00:01.135213", "end": "2026-04-06 18:27:58.114479", "msg": "non-zero return code", "rc": 1, "start": "2026-04-06 18:27:56.979266", "stderr": " Image henrygd/beszel:latest Pulling \n Image henrygd/beszel-agent:latest Pulling \n Image finsys/dockhand:latest Pulling \n Image glanceapp/glance:latest Pulling \n Image finsys/dockhand:latest Error pull access denied for finsys/dockhand, repository does not exist or may require 'docker login'\n Image henrygd/beszel:latest Interrupted \n Image glanceapp/glance:latest Interrupted \n Image henrygd/beszel-agent:latest Interrupted \nError response from daemon: pull access denied for finsys/dockhand, repository does not exist or may require 'docker login'", "stderr_lines": [" Image henrygd/beszel:latest Pulling ", " Image henrygd/beszel-agent:latest Pulling ", " Image finsys/dockhand:latest Pulling ", " Image glanceapp/glance:latest Pulling ", " Image finsys/dockhand:latest Error pull access denied for finsys/dockhand, repository does not exist or may require 'docker login'", " Image henrygd/beszel:latest Interrupted ", " Image glanceapp/glance:latest Interrupted ", " Image henrygd/beszel-agent:latest Interrupted ", "Error response from daemon: pull access denied for finsys/dockhand, repository does not exist or may require 'docker login'"], "stdout": "", "stdout_lines": []}
+
+PLAY RECAP ************************************************************************************************************************************************************************************
+raven-server               : ok=4    changed=4    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0
+
+---
+
+is everything up there?
+
+---
+
+is everything up there?
+
+---
+
+Well, that's mostly the software stack. Let's go ahead and install Raven.

@@ -1,12 +1,13 @@
 {
   "cli_version": "0.4.2",
   "checkpoint_id": "d875456717e7",
+  "session_id": "facb1bb1-3f38-4aa3-b85c-431a05541fe7",
   "strategy": "manual-commit",
+  "created_at": "2026-04-06T13:14:30.04627Z",
   "branch": "fix/encryption-env-bind",
   "checkpoints_count": 9,
   "files_touched": [
     ".gitignore",
-    ".mergify.yml",
     "deploy/ansible/files/docker-compose.admin.yml",
     "deploy/ansible/files/glance/config/glance.yml",
     "deploy/ansible/group_vars/all.yml",
@@ -27,27 +28,22 @@
     "frontend/wrangler.toml",
     "internal/config/config.go"
   ],
-  "sessions": [
-    {
-      "metadata": "/d8/75456717e7/0/metadata.json",
-      "transcript": "/d8/75456717e7/0/full.jsonl",
-      "context": "/d8/75456717e7/0/context.md",
-      "content_hash": "/d8/75456717e7/0/content_hash.txt",
-      "prompt": "/d8/75456717e7/0/prompt.txt"
-    },
-    {
-      "metadata": "/d8/75456717e7/1/metadata.json",
-      "transcript": "/d8/75456717e7/1/full.jsonl",
-      "context": "/d8/75456717e7/1/context.md",
-      "content_hash": "/d8/75456717e7/1/content_hash.txt",
-      "prompt": "/d8/75456717e7/1/prompt.txt"
-    }
-  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "2939c131-1f8d-476b-ac0b-a798d578fc15",
   "token_usage": {
-    "input_tokens": 408,
-    "cache_creation_tokens": 838821,
-    "cache_read_tokens": 20545471,
-    "output_tokens": 74186,
-    "api_call_count": 275
+    "input_tokens": 174,
+    "cache_creation_tokens": 119204,
+    "cache_read_tokens": 9406556,
+    "output_tokens": 31470,
+    "api_call_count": 126
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-06T13:14:29.991555Z",
+    "agent_lines": 1,
+    "human_added": 1454,
+    "human_modified": 571,
+    "human_removed": 0,
+    "total_committed": 2026,
+    "agent_percentage": 0.04935834155972359
   }
 }
