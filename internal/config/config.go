@@ -270,6 +270,7 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("stt.deepgram_base_url", "RAVEN_STT_DEEPGRAM_BASE_URL")
 	_ = v.BindEnv("stt.whisper_endpoint", "RAVEN_STT_WHISPER_ENDPOINT")
 	_ = v.BindEnv("stt.whisper_model", "RAVEN_STT_WHISPER_MODEL")
+	_ = v.BindEnv("encryption.aes_key", "RAVEN_ENCRYPTION_AES_KEY")
 
 	// Try to read config file but don't fail if not found
 	_ = v.ReadInConfig()
