@@ -137,8 +137,7 @@
         "https://*.raven-frontend.pages.dev/*"
       ],
       "webOrigins": [
-        "https://raven-frontend.pages.dev",
-        "https://*.raven-frontend.pages.dev"
+        "+"
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256"

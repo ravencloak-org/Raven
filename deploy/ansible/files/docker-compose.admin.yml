@@ -36,8 +36,6 @@ services:
       - "127.0.0.1:8085:8080"
     volumes:
       - ./glance/config:/app/config
-    extra_hosts:
-      - "api.open-meteo.com:5.9.98.184"
     dns:
       - 8.8.8.8
       - 1.1.1.1

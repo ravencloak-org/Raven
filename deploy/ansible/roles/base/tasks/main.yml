@@ -37,6 +37,7 @@
       ansible.builtin.command: fallocate -l {{ swap_size_mb }}M /swapfile
       args:
         creates: /swapfile
+      register: swapfile_created
 
     - name: Set swap file permissions
       ansible.builtin.file:
@@ -45,8 +46,7 @@
 
     - name: Format swap file
       ansible.builtin.command: mkswap /swapfile
-      args:
-        creates: /swapfile
+      when: swapfile_created.changed
 
     - name: Enable swap file
       ansible.builtin.command: swapon /swapfile

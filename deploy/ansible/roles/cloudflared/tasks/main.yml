@@ -29,7 +29,7 @@
     src: config.yml.j2
     dest: /etc/cloudflared/config.yml
     mode: "0644"
-  notify: Restart cloudflared
+  register: cloudflared_config
 
 - name: Check if tunnel credentials file exists
   ansible.builtin.stat:
@@ -62,7 +62,7 @@
       [Install]
       WantedBy=multi-user.target
     mode: "0644"
-  notify: Restart cloudflared
+  register: cloudflared_unit
 
 - name: Enable and start cloudflared
   ansible.builtin.systemd:
@@ -71,6 +71,15 @@
     enabled: true
     daemon_reload: true
   when: cf_creds.stat.exists
+
+- name: Restart cloudflared when config changes
+  ansible.builtin.systemd:
+    name: cloudflared
+    state: restarted
+    daemon_reload: true
+  when:
+    - cf_creds.stat.exists
+    - cloudflared_config.changed or cloudflared_unit.changed
 
 - name: Verify cloudflared installation
   ansible.builtin.command: cloudflared --version

@@ -27,13 +27,15 @@
   ansible.builtin.command: docker compose -f deploy/ec2/docker-compose.server.yml --env-file deploy/ec2/.env.server pull
   args:
     chdir: /opt/raven
-  changed_when: true
+  register: pull_result
+  changed_when: "'Downloaded' in pull_result.stderr or 'Pull complete' in pull_result.stderr"
 
 - name: raven-stack | Start Raven stack
   ansible.builtin.command: docker compose -f deploy/ec2/docker-compose.server.yml --env-file deploy/ec2/.env.server up -d
   args:
     chdir: /opt/raven
-  changed_when: true
+  register: up_result
+  changed_when: "'Started' in up_result.stderr or 'Created' in up_result.stderr"
 
 - name: raven-stack | Wait for Go API health check
   ansible.builtin.uri:
@@ -51,5 +53,5 @@
     exec -T go-api /app/api migrate-up
   args:
     chdir: /opt/raven
-  changed_when: true
-  failed_when: false
+  register: migrate_result
+  changed_when: "'goose: successfully migrated' in migrate_result.stdout"
