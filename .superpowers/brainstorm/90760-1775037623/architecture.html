@@ -1,0 +1,63 @@
+<h2>LiveKit Network Architecture</h2>
+<p class="subtitle">How should LiveKit fit into your existing Docker Compose + Traefik setup?</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>LiveKit behind Traefik (WebSocket signaling only)</h3>
+      <p>Traefik handles WSS signaling on port 443. LiveKit exposes UDP ports 7882 + 50000-60000 directly to the host for WebRTC media (UDP can't go through HTTP reverse proxy).</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul>
+          <li>Single TLS termination at Traefik</li>
+          <li>Consistent with existing pattern (go-api, keycloak)</li>
+          <li>Signaling gets Traefik's security headers + rate limiting</li>
+        </ul></div>
+        <div class="cons"><h4>Cons</h4><ul>
+          <li>UDP ports still exposed directly (unavoidable for WebRTC media)</li>
+          <li>Traefik config slightly more complex (WebSocket upgrade)</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>LiveKit fully standalone (own ports)</h3>
+      <p>LiveKit manages its own TLS on port 7880 (WSS signaling) + 7882 (TCP) + 50000-60000 (UDP media). No Traefik involvement.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul>
+          <li>Simpler — LiveKit handles everything itself</li>
+          <li>LiveKit docs assume this setup</li>
+          <li>No Traefik WebSocket config needed</li>
+        </ul></div>
+        <div class="cons"><h4>Cons</h4><ul>
+          <li>Separate TLS cert management for LiveKit</li>
+          <li>Different port (7880) for signaling — firewall/DNS considerations</li>
+          <li>Breaks pattern of Traefik as single ingress</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>LiveKit behind Traefik + TURN colocated</h3>
+      <p>Same as A, but also run LiveKit's built-in TURN server on port 443 (TCP) as fallback for restrictive networks where UDP is blocked.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul>
+          <li>Works on corporate networks that block UDP</li>
+          <li>Best connectivity for end-users</li>
+          <li>LiveKit has built-in TURN — no separate Coturn needed</li>
+        </ul></div>
+        <div class="cons"><h4>Cons</h4><ul>
+          <li>Port 443 conflict — TURN and Traefik can't both use 443</li>
+          <li>Needs a separate IP or subdomain for TURN (e.g., turn.raven.example.com)</li>
+          <li>Most complex setup</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+</div>

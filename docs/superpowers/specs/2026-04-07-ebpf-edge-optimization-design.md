@@ -29,7 +29,7 @@ One package owns the eBPF lifecycle. All three features depend on it.
 
 | File | Responsibility |
 |------|---------------|
-| `capabilities.go` | Check `CAP_BPF` / `CAP_SYS_ADMIN` at startup; return typed error if missing |
+| `capabilities.go` | Check `CAP_BPF` / `CAP_NET_ADMIN` at startup; detect kernel version (floor: 5.8); return typed error if missing; calls `setrlimit(RLIMIT_MEMLOCK)` on kernels < 5.11 |
 | `loader.go` | Wrap `cilium/ebpf` collection loading; detect BTF availability; return typed handles |
 | `manager.go` | Lifecycle: `Start()` / `Stop()` / `io.Closer`; detach all probes on shutdown; hooked into API server SIGTERM |
 | `maps.go` | Typed helpers for BPF hash maps and ring buffers shared between kernel and userspace |
@@ -50,10 +50,10 @@ One package owns the eBPF lifecycle. All three features depend on it.
 
 | Program type | Hook | Metric |
 |---|---|---|
-| `kprobe` | `finish_task_switch` | Per-process CPU time |
-| `tracepoint` | `sys_exit` | Syscall error rates by syscall nr |
-| `tracepoint` | `net/net_dev_xmit` + `netif_receive_skb` | Network bytes in/out per PID |
-| `kprobe` | `__fd_install` | File descriptor count |
+| `tp_btf` | `sched_switch` | Per-process CPU time (via `prev_sum_exec_runtime` delta) |
+| `tracepoint` | `syscalls/sys_exit` | Syscall error rates by syscall nr |
+| `tracepoint` | `net/net_dev_start_xmit` + `net/netif_receive_skb` | Network bytes in/out per PID |
+| `kprobe` | `__fd_install` | File descriptor count (internal; BTF CO-RE provides relocation resilience) |
 
 ### Userspace (`observability/collector.go`)
 
@@ -71,6 +71,7 @@ One package owns the eBPF lifecycle. All three features depend on it.
 | `ebpf.net.bytes_out` | Counter | bytes |
 | `ebpf.syscall.errors` | Counter | count |
 | `ebpf.fd.count` | Gauge | count |
+| `ebpf.audit.dropped_events` | Counter | count |
 
 **Replaces:** Prometheus node exporter on edge nodes — zero additional process on Pi.
 
@@ -85,15 +86,18 @@ One package owns the eBPF lifecycle. All three features depend on it.
 
 | Program type | Hook | Event |
 |---|---|---|
-| `kprobe` | `sys_execve` | Process spawn: PID, binary path, parent PID, timestamp |
+| `tracepoint` | `syscalls/sys_enter_execve` | Process spawn: PID, binary path, parent PID, timestamp |
 | `tracepoint` | `sock/inet_sock_set_state` | TCP connection established: src/dst IP, port |
 | `tracepoint` | `syscalls/sys_enter_connect` | Outbound connect: destination IP + port |
 
 Events written to a **BPF ring buffer** — efficient, ordered, no polling overhead.
 
+**Ring buffer sizing:** `RAVEN_EBPF_AUDIT_RING_BUFFER_SIZE` (default `1048576` = 1MB, must be a power of 2). On overflow, the kernel drops events and increments a lost-event counter.
+
 ### Userspace (`audit/consumer.go`)
 
-- Reads ring buffer in dedicated goroutine
+- Reads ring buffer in dedicated goroutine via `ringbuf.Reader`
+- On `ringbuf.ErrRingbufferFull`: increments `ebpf.audit.dropped_events` OTel counter and logs a warning — no panic, no crash
 - Emits structured `slog` JSON log entries into existing logging pipeline (same OTLP endpoint)
 - Configurable IP allowlist in a BPF hash map — alerts on connections outside the list
 - Configurable exec path allowlist — alerts on unexpected binary spawns
@@ -105,6 +109,7 @@ Events written to a **BPF ring buffer** — efficient, ordered, no polling overh
 |-----|---------|---------|
 | `RAVEN_EBPF_AUDIT_IP_ALLOWLIST` | `""` | Comma-separated CIDRs allowed for outbound |
 | `RAVEN_EBPF_AUDIT_EXEC_ALLOWLIST` | `""` | Comma-separated binary paths allowed to exec |
+| `RAVEN_EBPF_AUDIT_RING_BUFFER_SIZE` | `1048576` | Ring buffer size in bytes (power of 2) |
 
 **Compliance target:** GDPR/SOC2 audit log of all process activity and network connections on edge nodes.
 
@@ -130,7 +135,7 @@ XDP hook on primary NIC
 
 | Map | Type | Content |
 |-----|------|---------|
-| `blocked_ips` | Hash | Permanently blocked CIDRs from Valkey blocklist |
+| `blocked_ips` | `BPF_MAP_TYPE_LPM_TRIE` | Permanently blocked CIDRs; uses LPM for prefix matching. Go-side insert uses `struct bpf_lpm_trie_key` + 4-byte IPv4 prefix data. |
 | `throttle_state` | LRU Hash | Per-IP packet counters + timestamps |
 
 ### Userspace (`xdp/controller.go`)
@@ -153,12 +158,13 @@ All flags live in a new `EBPFConfig` struct added to `internal/config/config.go`
 
 ```go
 type EBPFConfig struct {
-    ObservabilityEnabled bool
-    AuditEnabled         bool
-    AuditIPAllowlist     []string
-    AuditExecAllowlist   []string
-    XDPEnabled           bool
-    XDPInterface         string
+    ObservabilityEnabled  bool
+    AuditEnabled          bool
+    AuditIPAllowlist      []string
+    AuditExecAllowlist    []string
+    AuditRingBufferSize   int      // bytes, must be power of 2
+    XDPEnabled            bool
+    XDPInterface          string
 }
 ```
 
@@ -168,6 +174,7 @@ type EBPFConfig struct {
 | `RAVEN_EBPF_AUDIT_ENABLED` | `false` | #123 audit trail |
 | `RAVEN_EBPF_AUDIT_IP_ALLOWLIST` | `""` | Comma-sep CIDRs |
 | `RAVEN_EBPF_AUDIT_EXEC_ALLOWLIST` | `""` | Comma-sep binary paths |
+| `RAVEN_EBPF_AUDIT_RING_BUFFER_SIZE` | `1048576` | Ring buffer bytes (power of 2) |
 | `RAVEN_EBPF_XDP_ENABLED` | `false` | #120 XDP drop |
 | `RAVEN_EBPF_XDP_INTERFACE` | `eth0` | NIC to attach XDP to |
 
@@ -179,29 +186,49 @@ All features default to `false` — opt-in only, safe for existing deployments.
 
 ### Dockerfile (builder stage)
 
-Add to the builder stage:
+Change the builder stage (currently `CGO_ENABLED=0`):
 ```dockerfile
-RUN apk add --no-cache clang llvm linux-headers libbpf-dev
+RUN apk add --no-cache clang llvm linux-headers libbpf-dev musl-dev
 RUN go install github.com/cilium/ebpf/cmd/bpf2go@latest
+# CGO_ENABLED=1 required for cilium/ebpf userspace bindings
+# -extldflags "-static" preserves fully static binary for Alpine runtime stage
+RUN CGO_ENABLED=1 go build -ldflags="-s -w -extldflags '-static'" -o /api ./cmd/api
 ```
 
-Runtime stage unchanged — BPF bytecode is embedded at build time.
+Runtime stage unchanged — BPF bytecode embedded at build time, binary remains fully static.
 
-### CGO
+### CGO & Makefile.edge
 
-`CGO_ENABLED` must be `1` for `cilium/ebpf`. Cross-compilation for ARM64 in `Makefile.edge`:
+`CGO_ENABLED=0` (current) breaks `cilium/ebpf`. `Makefile.edge` must split targets:
+
 ```makefile
-CC=aarch64-linux-musl-gcc CGO_ENABLED=1 GOOS=linux GOARCH=arm64 go build ...
+# Existing non-eBPF build (unchanged)
+build-arm64:
+    CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
+        go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(APP_NAME)-linux-arm64 ./cmd/api
+
+# New eBPF-enabled build
+build-arm64-ebpf:
+    CC=aarch64-linux-musl-gcc CGO_ENABLED=1 GOOS=linux GOARCH=arm64 \
+        go build -ldflags="$(LDFLAGS) -extldflags '-static'" \
+        -o $(BUILD_DIR)/$(APP_NAME)-linux-arm64-ebpf ./cmd/api
 ```
 
-### go generate
+Non-eBPF edge builds are unaffected.
+
+### go generate & Generated Files
 
 Each feature package contains a `//go:generate` directive:
 ```go
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64,arm64 Observability ../programs/observability.c
 ```
 
-Run `make generate` before `make build`.
+**Generated `_bpfel.go`/`_bpfeb.go` files are committed to the repository** (standard cilium/ebpf practice). Edge nodes require no C toolchain at runtime.
+
+CI workflow (`.github/workflows/go.yml`) additions needed:
+- Install `clang` on the runner: `sudo apt-get install -y clang llvm libbpf-dev`
+- Add a `make generate && git diff --exit-code` step to verify generated files are up-to-date
+- eBPF integration tests run on a separate `ebpf-integration` job with `--privileged` Docker
 
 ---
 
@@ -211,20 +238,19 @@ Both `docker-compose.yml` and `docker-compose.edge.yml` — `go-api` service:
 
 ```yaml
 cap_add:
-  - CAP_BPF
-  - CAP_NET_ADMIN      # XDP only
-  - CAP_SYS_ADMIN      # fallback for kernels < 5.8
-security_opt:
-  - no-new-privileges:false
+  - CAP_BPF        # eBPF program loading, map creation (kernel >= 5.8)
+  - CAP_NET_ADMIN  # XDP attachment only; omit if XDP disabled
 ```
+
+`CAP_SYS_ADMIN` is **not** added — it is excessively broad. Minimum supported kernel is 5.8 where `CAP_BPF` suffices. `capabilities.go` detects the kernel version at startup and logs a clear error if the floor is not met rather than relying on container capabilities to paper over it.
+
+**Kernel floor:** >= 5.8 with `CONFIG_DEBUG_INFO_BTF=y`. Raspberry Pi OS Bullseye (5.15 LTS) and Bookworm (6.1 LTS) both qualify.
 
 **Prerequisite check on edge nodes:**
 ```bash
-# Verify BTF is available (kernel >= 5.2 with CONFIG_DEBUG_INFO_BTF=y)
-ls /sys/kernel/btf/vmlinux
+uname -r                          # must be >= 5.8
+ls /sys/kernel/btf/vmlinux        # must exist (BTF enabled)
 ```
-
-Raspberry Pi OS 6.x confirmed BTF-compatible per research doc.
 
 ---
 
