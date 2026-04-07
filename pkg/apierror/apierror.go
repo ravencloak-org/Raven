@@ -57,6 +57,15 @@ func NewConflict(detail string) *AppError {
 	}
 }
 
+// NewTooManyRequests creates a 429 Too Many Requests error.
+func NewTooManyRequests(detail string) *AppError {
+	return &AppError{
+		Code:    http.StatusTooManyRequests,
+		Message: "Too Many Requests",
+		Detail:  detail,
+	}
+}
+
 // NewInternal creates a 500 Internal Server Error.
 func NewInternal(detail string) *AppError {
 	return &AppError{

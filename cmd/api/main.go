@@ -52,7 +52,7 @@ import (
 	"github.com/ravencloak-org/Raven/internal/telemetry"
 	"github.com/ravencloak-org/Raven/internal/tts"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
-	livekitpkg "github.com/ravencloak-org/Raven/pkg/livekit"
+	lk "github.com/ravencloak-org/Raven/pkg/livekit"
 )
 
 // securityEvaluatorAdapter bridges the SecurityService to the middleware.SecurityEvaluator
@@ -276,14 +276,22 @@ func main() {
 	chatRepo := repository.NewChatRepository(pool)
 	chatSvc := service.NewChatService(chatRepo, grpcClient, pool)
 	voiceRepo := repository.NewVoiceRepository(pool)
-	voiceSvc := service.NewVoiceService(voiceRepo, pool)
-
-	// --- Wire WhatsApp-LiveKit bridge ---
-	lkClient := livekitpkg.NewClient(livekitpkg.Config{
+	// Instantiate shared LiveKit client for WebRTC room management and token generation.
+	lkClient := lk.NewClient(lk.Config{
 		Host:      cfg.LiveKit.Host,
 		APIKey:    cfg.LiveKit.APIKey,
 		APISecret: cfg.LiveKit.APISecret,
 	})
+	var livekitClient *lk.Client
+	if cfg.LiveKit.APIKey != "" && cfg.LiveKit.APISecret != "" {
+		livekitClient = lkClient
+		slog.Info("LiveKit client initialised", "host", cfg.LiveKit.Host)
+	} else {
+		slog.Warn("LiveKit not configured: voice session room management disabled")
+	}
+	voiceSvc := service.NewVoiceService(voiceRepo, pool, livekitClient, cfg.LiveKit.Host)
+
+	// --- Wire WhatsApp-LiveKit bridge ---
 	waBridgeRepo := repository.NewWhatsAppBridgeRepository(pool)
 	sdpRelay := service.NewLiveKitSDPRelay(lkClient)
 	waBridgeSvc := service.NewWhatsAppBridgeService(waBridgeRepo, voiceRepo, pool, lkClient, sdpRelay)
@@ -584,6 +592,7 @@ func main() {
 			voice.GET("", middleware.RequireOrgRole("org_member"), voiceHandler.ListSessions)
 			voice.GET("/:session_id", middleware.RequireOrgRole("org_member"), voiceHandler.GetSession)
 			voice.PATCH("/:session_id", middleware.RequireOrgRole("org_member"), voiceHandler.UpdateSessionState)
+			voice.POST("/:session_id/token", middleware.RequireOrgRole("org_member"), voiceHandler.GenerateToken)
 			voice.POST("/:session_id/turns", middleware.RequireOrgRole("org_member"), voiceHandler.AppendTurn)
 			voice.GET("/:session_id/turns", middleware.RequireOrgRole("org_member"), voiceHandler.ListTurns)
 		}
