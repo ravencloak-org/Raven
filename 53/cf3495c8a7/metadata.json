@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "53cf3495c8a7",
+  "strategy": "manual-commit",
+  "branch": "feat/ec2-deployment-stack",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "deploy/ansible/files/docker-compose.admin.yml",
+    "deploy/ansible/roles/base/tasks/main.yml",
+    "deploy/ansible/roles/cloudflared/tasks/main.yml",
+    "deploy/ansible/roles/raven-stack/tasks/main.yml",
+    "deploy/keycloak/raven-realm.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/53/cf3495c8a7/0/metadata.json",
+      "transcript": "/53/cf3495c8a7/0/full.jsonl",
+      "context": "/53/cf3495c8a7/0/context.md",
+      "content_hash": "/53/cf3495c8a7/0/content_hash.txt",
+      "prompt": "/53/cf3495c8a7/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 12787,
+    "cache_read_tokens": 3071484,
+    "output_tokens": 3820,
+    "api_call_count": 10
+  }
+}
