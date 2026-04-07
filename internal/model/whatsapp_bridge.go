@@ -13,22 +13,6 @@ const (
 	BridgeStateClosed       BridgeState = "closed"
 )
 
-// WhatsAppCall represents a WhatsApp voice call tracked by the platform.
-// This model is created here since issues #65/#66 are in parallel worktrees.
-type WhatsAppCall struct {
-	ID          string     `json:"id"`
-	OrgID       string     `json:"org_id"`
-	CallID      string     `json:"call_id"`
-	PhoneNumber string     `json:"phone_number"`
-	Direction   string     `json:"direction"` // "inbound" or "outbound"
-	Status      string     `json:"status"`    // "ringing", "answered", "ended"
-	SDPOffer    string     `json:"sdp_offer,omitempty"`
-	SDPAnswer   string     `json:"sdp_answer,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
-	EndedAt     *time.Time `json:"ended_at,omitempty"`
-}
-
 // WhatsAppBridge represents a bridge between a WhatsApp call and a LiveKit room.
 type WhatsAppBridge struct {
 	ID             string      `json:"id"`
