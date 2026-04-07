@@ -63,6 +63,10 @@
       ExecStart=/usr/local/bin/cloudflared --no-autoupdate --config /etc/cloudflared/config.yml tunnel run
       Restart=on-failure
       RestartSec=5
+      NoNewPrivileges=true
+      ProtectSystem=strict
+      ProtectHome=true
+      ReadWritePaths=/etc/cloudflared
 
       [Install]
       WantedBy=multi-user.target

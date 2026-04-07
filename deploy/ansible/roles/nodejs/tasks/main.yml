@@ -6,7 +6,7 @@
   failed_when: false
 
 - name: Install Node.js via NodeSource
-  when: node_check.rc != 0 or (nodejs_version not in (node_check.stdout | default('')))
+  when: node_check.rc != 0 or (node_check.stdout | default('') | regex_search('v(\\d+)', '\\1') | first | default('0')) != nodejs_version
   block:
     - name: Download NodeSource setup script
       ansible.builtin.get_url:

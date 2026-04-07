@@ -133,8 +133,7 @@
       "rootUrl": "https://raven-frontend.pages.dev",
       "baseUrl": "/",
       "redirectUris": [
-        "https://raven-frontend.pages.dev/*",
-        "https://*.raven-frontend.pages.dev/*"
+        "https://raven-frontend.pages.dev/*"
       ],
       "webOrigins": [
         "+"

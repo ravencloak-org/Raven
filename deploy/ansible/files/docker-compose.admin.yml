@@ -20,6 +20,8 @@ services:
   # NOT via this compose file. See roles/admin-tools/tasks/main.yml.
 
   # ─── Dockhand (Docker management UI) ──────────────────────────────────────
+  # Docker socket is mounted read-only. For production hardening, consider
+  # replacing with a socket proxy (e.g. tecnativa/docker-socket-proxy).
   dockhand:
     image: fnsys/dockhand:latest
     container_name: dockhand
