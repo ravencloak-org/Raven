@@ -1,0 +1,48 @@
+# Admin & monitoring tools — deployed alongside the Raven stack
+# Usage: docker compose -f docker-compose.admin.yml up -d
+
+services:
+  # ─── Beszel Hub (server monitoring dashboard) ──────────────────────────────
+  beszel-hub:
+    image: henrygd/beszel:latest
+    container_name: beszel-hub
+    network_mode: host
+    environment:
+      USER_CREATION: "true"
+    volumes:
+      - beszel-data:/beszel_data
+    restart: unless-stopped
+
+  # ─── Beszel Agent ──────────────────────────────────────────────────────────
+  # The agent is started as a standalone docker container by Ansible,
+  # NOT via this compose file. See roles/admin-tools/tasks/main.yml.
+
+  # ─── Dockhand (Docker management UI) ──────────────────────────────────────
+  dockhand:
+    image: fnsys/dockhand:latest
+    container_name: dockhand
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - dockhand-data:/app/data
+    restart: unless-stopped
+
+  # ─── Glance (self-hosted dashboard) ────────────────────────────────────────
+  glance:
+    image: glanceapp/glance:latest
+    container_name: glance
+    ports:
+      - "127.0.0.1:8085:8080"
+    volumes:
+      - ./glance/config:/app/config
+    extra_hosts:
+      - "api.open-meteo.com:5.9.98.184"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    restart: unless-stopped
+
+volumes:
+  beszel-data:
+  dockhand-data:

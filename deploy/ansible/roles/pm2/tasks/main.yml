@@ -1,0 +1,17 @@
+---
+- name: Install PM2 globally
+  community.general.npm:
+    name: pm2
+    global: true
+    state: present
+
+- name: Configure PM2 startup
+  ansible.builtin.command: pm2 startup systemd -u ubuntu --hp /home/ubuntu
+  changed_when: true
+
+- name: Set PM2 log rotation
+  ansible.builtin.command: pm2 install pm2-logrotate
+  become: true
+  become_user: ubuntu
+  changed_when: true
+  failed_when: false

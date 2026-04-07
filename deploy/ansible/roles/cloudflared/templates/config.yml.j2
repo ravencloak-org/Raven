@@ -1,0 +1,36 @@
+tunnel: {{ cloudflare_tunnel_id }}
+credentials-file: /etc/cloudflared/{{ cloudflare_tunnel_id }}.json
+
+originRequest:
+  connectTimeout: 10s
+  tcpKeepAlive: 30s
+  keepAliveTimeout: 90s
+  keepAliveConnections: 100
+
+ingress:
+  # Go API
+  - hostname: api.ravencloak.org
+    service: http://localhost:8080
+
+  # Keycloak IAM
+  - hostname: auth.ravencloak.org
+    service: http://localhost:8180
+
+  # Beszel monitoring
+  - hostname: monitor.ravencloak.org
+    service: http://localhost:8090
+
+  # Dockhand Docker management
+  - hostname: docker.ravencloak.org
+    service: http://localhost:3000
+
+  # Glance dashboard
+  - hostname: dash.ravencloak.org
+    service: http://localhost:8085
+
+  # OpenObserve logs
+  - hostname: logs.ravencloak.org
+    service: http://localhost:5080
+
+  # Catch-all
+  - service: http_status:404

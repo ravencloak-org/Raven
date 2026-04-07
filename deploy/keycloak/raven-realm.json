@@ -121,6 +121,36 @@
       ]
     },
     {
+      "clientId": "raven-frontend",
+      "name": "Raven Frontend (Production)",
+      "description": "Vue.js SPA deployed on Cloudflare Pages",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect",
+      "rootUrl": "https://raven-frontend.pages.dev",
+      "baseUrl": "/",
+      "redirectUris": [
+        "https://raven-frontend.pages.dev/*",
+        "https://*.raven-frontend.pages.dev/*"
+      ],
+      "webOrigins": [
+        "https://raven-frontend.pages.dev",
+        "https://*.raven-frontend.pages.dev"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "defaultClientScopes": [
+        "openid",
+        "profile",
+        "email",
+        "raven-org"
+      ]
+    },
+    {
       "clientId": "raven-api",
       "name": "Raven API Backend",
       "description": "Go backend service for Raven platform",
