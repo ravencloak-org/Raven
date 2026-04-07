@@ -182,7 +182,7 @@ func main() {
 		slog.Warn("ClickHouse connection failed; vector search will use pgvector only", "error", err)
 	}
 	if chConn != nil {
-		defer chConn.Close()
+		defer chConn.Close() //nolint:errcheck // best-effort cleanup on shutdown
 	}
 
 	// --- Wire repositories ---
