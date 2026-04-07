@@ -1,0 +1,82 @@
+---
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Upgrade all packages
+  ansible.builtin.apt:
+    upgrade: dist
+    autoremove: true
+
+- name: Install essential packages
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+      - git
+      - unzip
+      - htop
+      - jq
+      - ufw
+      - fail2ban
+      - logrotate
+    state: present
+
+- name: Set timezone
+  community.general.timezone:
+    name: "{{ timezone }}"
+
+- name: Configure swap file
+  when: ansible_swaptotal_mb < swap_size_mb
+  block:
+    - name: Create swap file
+      ansible.builtin.command: fallocate -l {{ swap_size_mb }}M /swapfile
+      args:
+        creates: /swapfile
+      register: swapfile_created
+
+    - name: Set swap file permissions
+      ansible.builtin.file:
+        path: /swapfile
+        mode: "0600"
+
+    - name: Format swap file
+      ansible.builtin.command: mkswap /swapfile
+      when: swapfile_created.changed
+
+    - name: Enable swap file
+      ansible.builtin.command: swapon /swapfile
+      changed_when: false
+
+    - name: Add swap to fstab
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        line: "/swapfile none swap sw 0 0"
+        state: present
+
+- name: Configure UFW - allow SSH
+  community.general.ufw:
+    rule: allow
+    name: OpenSSH
+
+- name: Configure UFW - allow HTTP
+  community.general.ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
+
+- name: Configure UFW - allow HTTPS
+  community.general.ufw:
+    rule: allow
+    port: "443"
+    proto: tcp
+
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled
+    default: deny
+    direction: incoming

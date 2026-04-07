@@ -271,6 +271,9 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("stt.whisper_endpoint", "RAVEN_STT_WHISPER_ENDPOINT")
 	_ = v.BindEnv("stt.whisper_model", "RAVEN_STT_WHISPER_MODEL")
 	_ = v.BindEnv("encryption.aes_key", "RAVEN_ENCRYPTION_AES_KEY")
+	_ = v.BindEnv("otel.endpoint", "RAVEN_OTEL_ENDPOINT")
+	_ = v.BindEnv("otel.service_name", "RAVEN_OTEL_SERVICE_NAME")
+	_ = v.BindEnv("otel.enabled", "RAVEN_OTEL_ENABLED")
 
 	// Try to read config file but don't fail if not found
 	_ = v.ReadInConfig()

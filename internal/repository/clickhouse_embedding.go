@@ -91,7 +91,7 @@ func (r *ClickHouseEmbeddingRepository) SearchSimilar(ctx context.Context, orgID
 	if err != nil {
 		return nil, fmt.Errorf("ClickHouseEmbeddingRepository.SearchSimilar: %w", err)
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck // rows.Close error is non-actionable
 
 	var results []model.ClickHouseSearchResult
 	for rows.Next() {

@@ -39,6 +39,10 @@ frontend/dist/
 .env.secrets
 .env.local
 .env.*.local
+.env.server
+
+# Ansible secrets
+deploy/ansible/group_vars/all.yml
 
 # Docker
 docker-compose.override.yml

@@ -1,6 +1,10 @@
 -- Raven PostgreSQL initialisation
 -- Runs once when the data volume is first created.
 
+-- Keycloak needs its own database
+SELECT 'CREATE DATABASE keycloak'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'keycloak')\gexec
+
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "vector";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";

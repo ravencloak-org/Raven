@@ -1,0 +1,11 @@
+# Copy to vault.yml and encrypt with: ansible-vault encrypt group_vars/vault.yml
+#
+# All secrets referenced by all.yml live here.
+
+vault_postgres_password: ""      # REQUIRED — set a strong random password
+vault_keycloak_admin_password: "" # REQUIRED — set a strong random password
+vault_openobserve_password: ""    # REQUIRED — set a strong random password
+vault_anthropic_api_key: ""       # REQUIRED — your Anthropic API key (sk-ant-...)
+vault_livekit_api_secret: ""      # REQUIRED — generate with: openssl rand -base64 32
+vault_encryption_aes_key: ""      # REQUIRED — generate with: openssl rand -hex 32
+vault_beszel_agent_key: ""        # obtain from Beszel Hub UI after adding system

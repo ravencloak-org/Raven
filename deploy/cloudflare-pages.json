@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json.schemastore.org/wrangler.json",
+  "_comment": "Cloudflare Pages deployment config for Raven frontend. Use CF dashboard or wrangler CLI.",
+  "project_name": "raven-frontend",
+  "build": {
+    "command": "npm run build",
+    "output_directory": "dist",
+    "root_directory": "frontend"
+  },
+  "deployment": {
+    "production_branch": "main"
+  },
+  "env_vars": {
+    "VITE_API_URL": "https://api.ravencloak.org",
+    "VITE_API_BASE_URL": "https://api.ravencloak.org/api/v1",
+    "VITE_KEYCLOAK_URL": "https://auth.ravencloak.org",
+    "VITE_KEYCLOAK_REALM": "raven",
+    "VITE_KEYCLOAK_CLIENT_ID": "raven-frontend",
+    "VITE_LIVEKIT_URL": "wss://livekit.ravencloak.org",
+    "NODE_VERSION": "22"
+  }
+}

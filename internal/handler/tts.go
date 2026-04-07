@@ -67,7 +67,7 @@ func (h *TTSHandler) Synthesize(c *gin.Context) {
 		return
 	}
 
-	format := tts.AudioFormatMP3
+	var format tts.AudioFormat
 	switch req.Format {
 	case "pcm":
 		format = tts.AudioFormatPCM
