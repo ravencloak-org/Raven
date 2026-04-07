@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "d74eb7afe640",
+  "strategy": "manual-commit",
+  "branch": "feat/ec2-deployment-stack",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "cmd/api/main.go",
+    "internal/handler/tts.go",
+    "internal/repository/clickhouse_embedding.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/d7/4eb7afe640/0/metadata.json",
+      "transcript": "/d7/4eb7afe640/0/full.jsonl",
+      "context": "/d7/4eb7afe640/0/context.md",
+      "content_hash": "/d7/4eb7afe640/0/content_hash.txt",
+      "prompt": "/d7/4eb7afe640/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 10,
+    "cache_creation_tokens": 6375,
+    "cache_read_tokens": 2363126,
+    "output_tokens": 1582,
+    "api_call_count": 8
+  }
+}
