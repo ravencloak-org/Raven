@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "02a3897bc8ac",
+  "strategy": "manual-commit",
+  "branch": "feat/ec2-deployment-stack",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/superpowers/specs/2026-04-07-ebpf-edge-optimization-design.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/02/a3897bc8ac/0/metadata.json",
+      "transcript": "/02/a3897bc8ac/0/full.jsonl",
+      "context": "/02/a3897bc8ac/0/context.md",
+      "content_hash": "/02/a3897bc8ac/0/content_hash.txt",
+      "prompt": "/02/a3897bc8ac/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 115,
+    "cache_creation_tokens": 179555,
+    "cache_read_tokens": 3612168,
+    "output_tokens": 22593,
+    "api_call_count": 66
+  }
+}
