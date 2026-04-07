@@ -1,0 +1,14 @@
+---
+- name: Provision Raven server
+  hosts: raven-server
+  become: true
+  gather_facts: true
+
+  roles:
+    - base
+    - docker
+    - nodejs
+    - pm2
+    - cloudflared
+    - raven-stack
+    - admin-tools

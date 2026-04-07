@@ -1,0 +1,57 @@
+---
+- name: raven-stack | Create Raven directory
+  ansible.builtin.file:
+    path: /opt/raven
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: "0755"
+
+- name: raven-stack | Clone Raven repository
+  ansible.builtin.git:
+    repo: "{{ raven_repo }}"
+    dest: /opt/raven
+    version: "{{ raven_branch }}"
+    force: true
+  become_user: ubuntu
+
+- name: raven-stack | Template .env.server
+  ansible.builtin.template:
+    src: env.server.j2
+    dest: /opt/raven/deploy/ec2/.env.server
+    owner: ubuntu
+    group: ubuntu
+    mode: "0600"
+
+- name: raven-stack | Pull Raven images
+  ansible.builtin.command: docker compose -f deploy/ec2/docker-compose.server.yml --env-file deploy/ec2/.env.server pull
+  args:
+    chdir: /opt/raven
+  register: pull_result
+  changed_when: "'Downloaded' in pull_result.stderr or 'Pull complete' in pull_result.stderr"
+
+- name: raven-stack | Start Raven stack
+  ansible.builtin.command: docker compose -f deploy/ec2/docker-compose.server.yml --env-file deploy/ec2/.env.server up -d
+  args:
+    chdir: /opt/raven
+  register: up_result
+  changed_when: "'Started' in up_result.stderr or 'Created' in up_result.stderr"
+
+- name: raven-stack | Wait for Go API health check
+  ansible.builtin.uri:
+    url: http://127.0.0.1:8080/healthz
+    method: GET
+    status_code: 200
+  register: health
+  retries: 30
+  delay: 5
+  until: health.status == 200
+
+- name: raven-stack | Run database migrations
+  ansible.builtin.command: >
+    docker compose -f deploy/ec2/docker-compose.server.yml --env-file deploy/ec2/.env.server
+    exec -T go-api /app/api migrate-up
+  args:
+    chdir: /opt/raven
+  register: migrate_result
+  changed_when: "'goose: successfully migrated' in migrate_result.stdout"

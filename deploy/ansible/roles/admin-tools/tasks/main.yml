@@ -1,0 +1,75 @@
+---
+- name: Create admin tools directory
+  ansible.builtin.file:
+    path: /opt/raven-admin
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: "0755"
+
+- name: Create Glance config directory
+  ansible.builtin.file:
+    path: /opt/raven-admin/glance/config
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: "0755"
+
+- name: Copy admin docker-compose file
+  ansible.builtin.copy:
+    src: docker-compose.admin.yml
+    dest: /opt/raven-admin/docker-compose.yml
+    owner: ubuntu
+    group: ubuntu
+    mode: "0644"
+
+- name: Copy Glance config
+  ansible.builtin.copy:
+    src: glance/config/glance.yml
+    dest: /opt/raven-admin/glance/config/glance.yml
+    owner: ubuntu
+    group: ubuntu
+    mode: "0644"
+
+- name: Pull admin tool images
+  ansible.builtin.command: docker compose pull
+  args:
+    chdir: /opt/raven-admin
+  changed_when: true
+
+- name: Start admin tools (hub, dockhand, glance)
+  ansible.builtin.command: docker compose up -d
+  args:
+    chdir: /opt/raven-admin
+  changed_when: true
+
+# ─── Beszel Agent ────────────────────────────────────────────────────────────
+# The agent runs as a standalone docker container, NOT via compose profiles.
+# It requires a BESZEL_KEY obtained after adding the server in Beszel Hub UI.
+# On first deployment, skip this task (beszel_agent_key will be empty).
+# After adding the system in the Hub, re-run the playbook with beszel_agent_key set.
+
+- name: Check if Beszel Agent is running
+  ansible.builtin.command: docker inspect beszel-agent --format '{{ '{{' }}.State.Running{{ '}}' }}'
+  register: beszel_agent_check
+  changed_when: false
+  failed_when: false
+
+- name: Start Beszel Agent container
+  no_log: true
+  when:
+    - beszel_agent_key is defined
+    - beszel_agent_key | length > 0
+    - beszel_agent_check.rc != 0 or beszel_agent_check.stdout != 'true'
+  community.docker.docker_container:
+    name: beszel-agent
+    image: henrygd/beszel-agent:0.18.7
+    state: started
+    restart_policy: unless-stopped
+    network_mode: host
+    env:
+      PORT: "45876"
+      KEY: "{{ beszel_agent_key }}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    pull: true

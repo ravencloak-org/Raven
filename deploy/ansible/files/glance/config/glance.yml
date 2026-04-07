@@ -1,0 +1,38 @@
+pages:
+  - name: Home
+    columns:
+      - size: small
+        widgets:
+          - type: clock
+            hour-format: 24h
+            timezones:
+              - timezone: Asia/Kolkata
+                label: India
+
+          - type: bookmarks
+            groups:
+              - title: Raven Services
+                links:
+                  - title: API Health
+                    url: https://api.ravencloak.org/healthz
+                  - title: Keycloak
+                    url: https://auth.ravencloak.org
+              - title: Admin Tools
+                links:
+                  - title: Beszel
+                    url: https://monitor.ravencloak.org
+                  - title: Dockhand
+                    url: https://docker.ravencloak.org
+                  - title: OpenObserve
+                    url: https://logs.ravencloak.org
+
+      - size: full
+        widgets:
+          - type: hacker-news
+
+      - size: small
+        widgets:
+          - type: weather
+            location: Mumbai, India
+            units: metric
+            hour-format: 24h

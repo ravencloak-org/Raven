@@ -1,0 +1,100 @@
+---
+- name: Check if cloudflared is installed
+  ansible.builtin.command: cloudflared --version
+  register: cf_check
+  changed_when: false
+  failed_when: false
+
+- name: Install cloudflared
+  when: cf_check.rc != 0
+  block:
+    - name: Fail on unsupported CPU architecture
+      ansible.builtin.fail:
+        msg: "Unsupported architecture: {{ ansible_architecture }}. Only x86_64 and aarch64 are supported."
+      when: ansible_architecture not in ['x86_64', 'aarch64']
+
+    - name: Determine architecture
+      ansible.builtin.set_fact:
+        cf_arch: "{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' }}"
+
+    - name: Download cloudflared
+      ansible.builtin.get_url:
+        url: "https://github.com/cloudflare/cloudflared/releases/download/{{ cloudflared_version }}/cloudflared-linux-{{ cf_arch }}"
+        dest: /usr/local/bin/cloudflared
+        mode: "0755"
+
+- name: Create cloudflared config directory
+  ansible.builtin.file:
+    path: /etc/cloudflared
+    state: directory
+    mode: "0755"
+
+- name: Deploy cloudflared tunnel config
+  ansible.builtin.template:
+    src: config.yml.j2
+    dest: /etc/cloudflared/config.yml
+    mode: "0644"
+  register: cloudflared_config
+
+- name: Check if tunnel credentials file exists
+  ansible.builtin.stat:
+    path: "/etc/cloudflared/{{ cloudflare_tunnel_id }}.json"
+  register: cf_creds
+
+- name: Warn if tunnel credentials are missing
+  ansible.builtin.debug:
+    msg: >
+      Tunnel credentials file /etc/cloudflared/{{ cloudflare_tunnel_id }}.json
+      not found. You must manually copy the credentials JSON from Cloudflare
+      before cloudflared can start.
+  when: not cf_creds.stat.exists
+
+- name: Create cloudflared systemd service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/cloudflared.service
+    content: |
+      [Unit]
+      Description=cloudflared
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=simple
+      ExecStart=/usr/local/bin/cloudflared --no-autoupdate --config /etc/cloudflared/config.yml tunnel run
+      Restart=on-failure
+      RestartSec=5
+      NoNewPrivileges=true
+      ProtectSystem=strict
+      ProtectHome=true
+      ReadWritePaths=/etc/cloudflared
+
+      [Install]
+      WantedBy=multi-user.target
+    mode: "0644"
+  register: cloudflared_unit
+
+- name: Enable and start cloudflared
+  ansible.builtin.systemd:
+    name: cloudflared
+    state: started
+    enabled: true
+    daemon_reload: true
+  when: cf_creds.stat.exists
+
+- name: Restart cloudflared when config changes
+  ansible.builtin.systemd:
+    name: cloudflared
+    state: restarted
+    daemon_reload: true
+  when:
+    - cf_creds.stat.exists
+    - cloudflared_config.changed or cloudflared_unit.changed
+
+- name: Verify cloudflared installation
+  ansible.builtin.command: cloudflared --version
+  register: cf_version
+  changed_when: false
+
+- name: Print cloudflared version
+  ansible.builtin.debug:
+    msg: "cloudflared {{ cf_version.stdout }} installed"

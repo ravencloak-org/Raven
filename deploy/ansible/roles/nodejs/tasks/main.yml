@@ -1,0 +1,39 @@
+---
+- name: Check if Node.js is installed
+  ansible.builtin.command: node --version
+  register: node_check
+  changed_when: false
+  failed_when: false
+
+- name: Install Node.js via NodeSource
+  when: node_check.rc != 0 or (node_check.stdout | default('') | regex_search('v(\\d+)', '\\1') | first | default('0')) != nodejs_version
+  block:
+    - name: Download NodeSource setup script
+      ansible.builtin.get_url:
+        url: "https://deb.nodesource.com/setup_{{ nodejs_version }}.x"
+        dest: /tmp/nodesource_setup.sh
+        mode: "0755"
+
+    - name: Run NodeSource setup
+      ansible.builtin.command: bash /tmp/nodesource_setup.sh
+      changed_when: true
+
+    - name: Install Node.js
+      ansible.builtin.apt:
+        name: nodejs
+        state: present
+        update_cache: true
+
+    - name: Clean up setup script
+      ansible.builtin.file:
+        path: /tmp/nodesource_setup.sh
+        state: absent
+
+- name: Verify Node.js installation
+  ansible.builtin.command: node --version
+  register: node_version
+  changed_when: false
+
+- name: Print Node.js version
+  ansible.builtin.debug:
+    msg: "Node.js {{ node_version.stdout }} installed"

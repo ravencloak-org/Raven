@@ -1,0 +1,44 @@
+# ─── System ───────────────────────────────────────────────────────────────────
+swap_size_mb: 2048
+timezone: Asia/Kolkata
+
+# ─── Node.js ──────────────────────────────────────────────────────────────────
+nodejs_version: "22"
+
+# ─── Raven Repository ────────────────────────────────────────────────────────
+raven_repo: "https://github.com/ravencloak-org/Raven.git"
+raven_branch: main
+
+# ─── PostgreSQL ───────────────────────────────────────────────────────────────
+postgres_user: raven
+postgres_password: CHANGE_ME_POSTGRES_PASSWORD
+postgres_db: raven
+
+# ─── Keycloak ─────────────────────────────────────────────────────────────────
+keycloak_admin: admin
+keycloak_admin_password: CHANGE_ME_KEYCLOAK_ADMIN_PASSWORD
+keycloak_hostname: "auth.example.com"
+
+# ─── OpenObserve ──────────────────────────────────────────────────────────────
+openobserve_email: admin@example.com
+openobserve_password: CHANGE_ME_OPENOBSERVE_PASSWORD
+
+# ─── LLM ──────────────────────────────────────────────────────────────────────
+anthropic_api_key: sk-ant-CHANGE_ME
+
+# ─── Encryption ───────────────────────────────────────────────────────────────
+# Generate with: openssl rand -hex 32
+encryption_aes_key: CHANGE_ME_64_HEX_CHARS
+
+# ─── LiveKit ──────────────────────────────────────────────────────────────────
+livekit_api_key: devkey
+livekit_api_secret: devsecret
+
+# ─── Cloudflare Tunnel ───────────────────────────────────────────────────────
+# Obtain after running: cloudflared tunnel create <name>
+cloudflare_tunnel_id: CHANGE_ME_TUNNEL_UUID
+
+# ─── Beszel Agent ────────────────────────────────────────────────────────────
+# Obtain after adding the server in Beszel Hub UI.
+# Leave empty on first deployment; set after Hub setup.
+beszel_agent_key: ""
