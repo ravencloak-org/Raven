@@ -51,9 +51,9 @@ One package owns the eBPF lifecycle. All three features depend on it.
 | Program type | Hook | Metric |
 |---|---|---|
 | `tp_btf` | `sched_switch` | Per-process CPU time (via `prev_sum_exec_runtime` delta) |
-| `tracepoint` | `syscalls/sys_exit` | Syscall error rates by syscall nr |
+| `tracepoint` | `raw_syscalls/sys_exit` | Syscall error rates by syscall nr (all syscalls, single tracepoint) |
 | `tracepoint` | `net/net_dev_start_xmit` + `net/netif_receive_skb` | Network bytes in/out per PID |
-| `kprobe` | `__fd_install` | File descriptor count (internal; BTF CO-RE provides relocation resilience) |
+| `kprobe` | `__fd_install` | File descriptor count (kernel-internal symbol; monitor for rename across kernel upgrades) |
 
 ### Userspace (`observability/collector.go`)
 
@@ -71,7 +71,6 @@ One package owns the eBPF lifecycle. All three features depend on it.
 | `ebpf.net.bytes_out` | Counter | bytes |
 | `ebpf.syscall.errors` | Counter | count |
 | `ebpf.fd.count` | Gauge | count |
-| `ebpf.audit.dropped_events` | Counter | count |
 
 **Replaces:** Prometheus node exporter on edge nodes — zero additional process on Pi.
 
@@ -97,7 +96,7 @@ Events written to a **BPF ring buffer** — efficient, ordered, no polling overh
 ### Userspace (`audit/consumer.go`)
 
 - Reads ring buffer in dedicated goroutine via `ringbuf.Reader`
-- On `ringbuf.ErrRingbufferFull`: increments `ebpf.audit.dropped_events` OTel counter and logs a warning — no panic, no crash
+- On `ringbuf.ErrRingbufferFull`: increments `ebpf.audit.dropped_events` OTel counter (Counter, unit: count) and logs a warning — no panic, no crash
 - Emits structured `slog` JSON log entries into existing logging pipeline (same OTLP endpoint)
 - Configurable IP allowlist in a BPF hash map — alerts on connections outside the list
 - Configurable exec path allowlist — alerts on unexpected binary spawns
@@ -110,6 +109,14 @@ Events written to a **BPF ring buffer** — efficient, ordered, no polling overh
 | `RAVEN_EBPF_AUDIT_IP_ALLOWLIST` | `""` | Comma-separated CIDRs allowed for outbound |
 | `RAVEN_EBPF_AUDIT_EXEC_ALLOWLIST` | `""` | Comma-separated binary paths allowed to exec |
 | `RAVEN_EBPF_AUDIT_RING_BUFFER_SIZE` | `1048576` | Ring buffer size in bytes (power of 2) |
+
+**New OTel metrics exported (Feature #123):**
+
+| Metric | Type | Unit |
+|--------|------|------|
+| `ebpf.audit.dropped_events` | Counter | count |
+
+**Power-of-2 validation:** `internal/config/config.go` validates `AuditRingBufferSize` on load using `bits.OnesCount(uint(size)) == 1 && size > 0`. A non-power-of-2 value returns a clear config error before any BPF load is attempted, preventing the opaque kernel error from `ringbuf.NewReader`.
 
 **Compliance target:** GDPR/SOC2 audit log of all process activity and network connections on edge nodes.
 
