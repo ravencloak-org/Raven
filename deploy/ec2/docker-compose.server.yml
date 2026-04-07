@@ -101,6 +101,8 @@ services:
       KC_PROXY_HEADERS: xforwarded
       KC_HTTP_ENABLED: "true"
       KC_HOSTNAME: ${KC_HOSTNAME}
+      # HOSTNAME_STRICT=false is safe here: Cloudflare Tunnel is the only ingress
+      # (no ports are exposed to the public internet), so hostname spoofing is not possible.
       KC_HOSTNAME_STRICT: "false"
     # Bind to loopback — cloudflared reaches it at /auth path
     ports:

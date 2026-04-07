@@ -8,6 +8,12 @@
 - name: Install Docker
   when: docker_check.rc != 0
   block:
+    - name: Ensure /etc/apt/keyrings directory exists
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
     - name: Add Docker GPG key
       ansible.builtin.get_url:
         url: https://download.docker.com/linux/ubuntu/gpg
@@ -34,6 +40,10 @@
           - docker-compose-plugin
         state: present
         update_cache: true
+
+- name: Verify docker compose plugin is available
+  ansible.builtin.command: docker compose version
+  changed_when: false
 
 - name: Ensure Docker is running
   ansible.builtin.systemd:

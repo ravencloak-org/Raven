@@ -56,13 +56,14 @@
   failed_when: false
 
 - name: Start Beszel Agent container
+  no_log: true
   when:
     - beszel_agent_key is defined
     - beszel_agent_key | length > 0
     - beszel_agent_check.rc != 0 or beszel_agent_check.stdout != 'true'
   community.docker.docker_container:
     name: beszel-agent
-    image: henrygd/beszel-agent:latest
+    image: henrygd/beszel-agent:0.18.7
     state: started
     restart_policy: unless-stopped
     network_mode: host

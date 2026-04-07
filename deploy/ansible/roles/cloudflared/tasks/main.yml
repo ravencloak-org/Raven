@@ -8,13 +8,18 @@
 - name: Install cloudflared
   when: cf_check.rc != 0
   block:
+    - name: Fail on unsupported CPU architecture
+      ansible.builtin.fail:
+        msg: "Unsupported architecture: {{ ansible_architecture }}. Only x86_64 and aarch64 are supported."
+      when: ansible_architecture not in ['x86_64', 'aarch64']
+
     - name: Determine architecture
       ansible.builtin.set_fact:
         cf_arch: "{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' }}"
 
     - name: Download cloudflared
       ansible.builtin.get_url:
-        url: "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-{{ cf_arch }}"
+        url: "https://github.com/cloudflare/cloudflared/releases/download/{{ cloudflared_version }}/cloudflared-linux-{{ cf_arch }}"
         dest: /usr/local/bin/cloudflared
         mode: "0755"
 

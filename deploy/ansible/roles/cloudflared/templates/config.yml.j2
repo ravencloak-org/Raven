@@ -16,6 +16,7 @@ ingress:
   - hostname: auth.ravencloak.org
     service: http://localhost:8180
 
+  # ─── Admin tool services (from docker-compose.admin.yml, not docker-compose.server.yml) ───
   # Beszel monitoring
   - hostname: monitor.ravencloak.org
     service: http://localhost:8090

@@ -4,8 +4,10 @@
 services:
   # ─── Beszel Hub (server monitoring dashboard) ──────────────────────────────
   beszel-hub:
-    image: henrygd/beszel:latest
+    image: henrygd/beszel:0.18.7
     container_name: beszel-hub
+    # Host networking required: the Beszel agent communicates via SSH on localhost:45876,
+    # so the hub must share the host network to reach it directly.
     network_mode: host
     environment:
       USER_CREATION: "true"
@@ -30,7 +32,7 @@ services:
 
   # ─── Glance (self-hosted dashboard) ────────────────────────────────────────
   glance:
-    image: glanceapp/glance:latest
+    image: glanceapp/glance:0.8.4
     container_name: glance
     ports:
       - "127.0.0.1:8085:8080"

@@ -2,10 +2,10 @@
 #
 # All secrets referenced by all.yml live here.
 
-vault_postgres_password: changeme
-vault_keycloak_admin_password: changeme
-vault_openobserve_password: changeme
-vault_anthropic_api_key: sk-ant-...
-vault_livekit_api_secret: devsecret
-vault_encryption_aes_key: changeme  # openssl rand -hex 32
-vault_beszel_agent_key: ""  # obtain from Beszel Hub UI after adding system
+vault_postgres_password: ""      # REQUIRED — set a strong random password
+vault_keycloak_admin_password: "" # REQUIRED — set a strong random password
+vault_openobserve_password: ""    # REQUIRED — set a strong random password
+vault_anthropic_api_key: ""       # REQUIRED — your Anthropic API key (sk-ant-...)
+vault_livekit_api_secret: ""      # REQUIRED — generate with: openssl rand -base64 32
+vault_encryption_aes_key: ""      # REQUIRED — generate with: openssl rand -hex 32
+vault_beszel_agent_key: ""        # obtain from Beszel Hub UI after adding system

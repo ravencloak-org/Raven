@@ -14,4 +14,3 @@
   become: true
   become_user: ubuntu
   changed_when: true
-  failed_when: false

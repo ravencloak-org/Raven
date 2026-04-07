@@ -51,7 +51,6 @@
     - name: Enable swap file
       ansible.builtin.command: swapon /swapfile
       changed_when: false
-      failed_when: false
 
     - name: Add swap to fstab
       ansible.builtin.lineinfile:
