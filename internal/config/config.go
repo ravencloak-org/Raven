@@ -27,6 +27,15 @@ type Config struct {
 	ClickHouse   ClickHouseConfig
 	TTS          TTSConfig
 	STT          STTConfig
+	Meta         MetaConfig
+}
+
+// MetaConfig holds Meta WhatsApp Business API settings.
+type MetaConfig struct {
+	AccessToken   string `mapstructure:"access_token"`
+	PhoneNumberID string `mapstructure:"phone_number_id"`
+	AppSecret     string `mapstructure:"app_secret"`    // for webhook HMAC verification
+	WebhookToken  string `mapstructure:"webhook_token"` // hub.verify_token
 }
 
 // ClickHouseConfig holds ClickHouse connection and vector backend settings.
@@ -219,6 +228,11 @@ func Load() (*Config, error) {
 	v.SetDefault("stt.deepgram_base_url", "https://api.deepgram.com")
 	v.SetDefault("stt.whisper_endpoint", "http://localhost:8000")
 	v.SetDefault("stt.whisper_model", "large-v3")
+	// Meta WhatsApp Business API defaults
+	v.SetDefault("meta.access_token", "")
+	v.SetDefault("meta.phone_number_id", "")
+	v.SetDefault("meta.app_secret", "")
+	v.SetDefault("meta.webhook_token", "")
 	v.SetDefault("upload.max_size_bytes", 52428800) // 50 MB
 	v.SetDefault("upload.allowed_types", []string{
 		"application/pdf",
@@ -270,6 +284,10 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("stt.deepgram_base_url", "RAVEN_STT_DEEPGRAM_BASE_URL")
 	_ = v.BindEnv("stt.whisper_endpoint", "RAVEN_STT_WHISPER_ENDPOINT")
 	_ = v.BindEnv("stt.whisper_model", "RAVEN_STT_WHISPER_MODEL")
+	_ = v.BindEnv("meta.access_token", "META_ACCESS_TOKEN")
+	_ = v.BindEnv("meta.phone_number_id", "META_PHONE_NUMBER_ID")
+	_ = v.BindEnv("meta.app_secret", "META_APP_SECRET")
+	_ = v.BindEnv("meta.webhook_token", "META_WEBHOOK_TOKEN")
 	_ = v.BindEnv("encryption.aes_key", "RAVEN_ENCRYPTION_AES_KEY")
 	_ = v.BindEnv("otel.endpoint", "RAVEN_OTEL_ENDPOINT")
 	_ = v.BindEnv("otel.service_name", "RAVEN_OTEL_SERVICE_NAME")
