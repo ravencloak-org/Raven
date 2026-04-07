@@ -1,0 +1,52 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "ae717cfdc843",
+  "session_id": "facb1bb1-3f38-4aa3-b85c-431a05541fe7",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-07T06:30:02.505856Z",
+  "branch": "feat/ec2-deployment-stack",
+  "checkpoints_count": 4,
+  "files_touched": [
+    ".gitignore",
+    "deploy/ansible/files/docker-compose.admin.yml",
+    "deploy/ansible/files/glance/config/glance.yml",
+    "deploy/ansible/group_vars/all.yml",
+    "deploy/ansible/group_vars/vault.yml.example",
+    "deploy/ansible/inventory/hosts.yml",
+    "deploy/ansible/playbook.yml",
+    "deploy/ansible/roles/admin-tools/tasks/main.yml",
+    "deploy/ansible/roles/base/tasks/main.yml",
+    "deploy/ansible/roles/cloudflared/tasks/main.yml",
+    "deploy/ansible/roles/docker/handlers/main.yml",
+    "deploy/ansible/roles/docker/tasks/main.yml",
+    "deploy/ansible/roles/nodejs/tasks/main.yml",
+    "deploy/ansible/roles/pm2/tasks/main.yml",
+    "deploy/ansible/roles/raven-stack/tasks/main.yml",
+    "deploy/ansible/roles/raven-stack/templates/env.server.j2",
+    "deploy/cloudflare-pages.json",
+    "deploy/ec2/docker-compose.server.yml",
+    "deploy/postgres/init.sql",
+    "frontend/wrangler.toml",
+    "internal/config/config.go"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "4f242826-e912-4cc1-a126-891456a144de",
+  "checkpoint_transcript_start": 465,
+  "transcript_lines_at_start": 465,
+  "token_usage": {
+    "input_tokens": 393,
+    "cache_creation_tokens": 820385,
+    "cache_read_tokens": 51928354,
+    "output_tokens": 54772,
+    "api_call_count": 265
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-07T06:30:02.248678Z",
+    "agent_lines": 11,
+    "human_added": 1573,
+    "human_modified": 70,
+    "human_removed": 0,
+    "total_committed": 1615,
+    "agent_percentage": 0.6811145510835914
+  }
+}
