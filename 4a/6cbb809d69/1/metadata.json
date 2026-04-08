@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "4a6cbb809d69",
+  "session_id": "facb1bb1-3f38-4aa3-b85c-431a05541fe7",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-08T15:40:38.695578Z",
+  "branch": "feat/meta-graph-webhooks",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "cmd/api/main.go",
+    "internal/handler/whatsapp_webhook.go",
+    "internal/model/whatsapp_bridge.go",
+    "internal/service/whatsapp_webhook.go",
+    "pkg/meta/client.go"
+  ],
+  "agent": "Claude Code",
+  "checkpoint_transcript_start": 1746,
+  "transcript_lines_at_start": 1746,
+  "token_usage": {
+    "input_tokens": 395,
+    "cache_creation_tokens": 560140,
+    "cache_read_tokens": 25392441,
+    "output_tokens": 31984,
+    "api_call_count": 171
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-08T15:40:38.275446Z",
+    "agent_lines": 700,
+    "human_added": 8618,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 9318,
+    "agent_percentage": 7.512341704228376
+  }
+}

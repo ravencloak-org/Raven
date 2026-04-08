@@ -2,10 +2,15 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "4a6cbb809d69",
   "strategy": "manual-commit",
-  "branch": "feat/ebpf-edge-optimization",
-  "checkpoints_count": 1,
+  "branch": "feat/meta-graph-webhooks",
+  "checkpoints_count": 3,
   "files_touched": [
-    "Makefile.edge"
+    "Makefile.edge",
+    "cmd/api/main.go",
+    "internal/handler/whatsapp_webhook.go",
+    "internal/model/whatsapp_bridge.go",
+    "internal/service/whatsapp_webhook.go",
+    "pkg/meta/client.go"
   ],
   "sessions": [
     {
@@ -14,13 +19,20 @@
       "context": "/4a/6cbb809d69/0/context.md",
       "content_hash": "/4a/6cbb809d69/0/content_hash.txt",
       "prompt": "/4a/6cbb809d69/0/prompt.txt"
+    },
+    {
+      "metadata": "/4a/6cbb809d69/1/metadata.json",
+      "transcript": "/4a/6cbb809d69/1/full.jsonl",
+      "context": "/4a/6cbb809d69/1/context.md",
+      "content_hash": "/4a/6cbb809d69/1/content_hash.txt",
+      "prompt": "/4a/6cbb809d69/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 14,
-    "cache_creation_tokens": 5734,
-    "cache_read_tokens": 1693764,
-    "output_tokens": 1606,
-    "api_call_count": 10
+    "input_tokens": 409,
+    "cache_creation_tokens": 565874,
+    "cache_read_tokens": 27086205,
+    "output_tokens": 33590,
+    "api_call_count": 181
   }
 }
