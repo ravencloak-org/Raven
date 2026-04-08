@@ -1,0 +1,52 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "5a90b470d611",
+  "session_id": "b8cbf483-2ecd-48c1-b57f-151f9ee615c5",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-08T17:07:17.139863Z",
+  "branch": "feat/webrtc-session-management",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/go.yml",
+    ".gitignore",
+    "Dockerfile",
+    "Makefile.edge",
+    "cmd/api/main.go",
+    "docker-compose.ebpf.yml",
+    "docker-compose.edge.yml",
+    "docker-compose.yml",
+    "docs/superpowers/plans/2026-04-07-ebpf-edge-optimization.md",
+    "docs/superpowers/specs/2026-04-07-ebpf-edge-optimization-design.md",
+    "internal/config/config.go",
+    "internal/config/config_ebpf_test.go",
+    "internal/ebpf/audit/consumer.go",
+    "internal/ebpf/observability/collector.go",
+    "internal/ebpf/programs/xdp.c",
+    "internal/ebpf/xdp/controller.go",
+    "internal/ebpf/xdp/controller_test.go",
+    "internal/ebpf/xdp/stub.go",
+    "internal/handler/voice_test.go",
+    "pkg/livekit/client.go",
+    "pkg/meta/client.go"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "46483600-661d-455f-8427-e34ecea930a9",
+  "checkpoint_transcript_start": 1053,
+  "transcript_lines_at_start": 1053,
+  "token_usage": {
+    "input_tokens": 83,
+    "cache_creation_tokens": 138253,
+    "cache_read_tokens": 7366916,
+    "output_tokens": 31873,
+    "api_call_count": 63
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-08T17:07:16.795513Z",
+    "agent_lines": 0,
+    "human_added": 172,
+    "human_modified": 140,
+    "human_removed": 0,
+    "total_committed": 305,
+    "agent_percentage": 0
+  }
+}
