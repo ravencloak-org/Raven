@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/ravencloak-org/Raven/internal/model"
+	"github.com/ravencloak-org/Raven/internal/service"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
 
@@ -56,7 +58,7 @@ func (h *WhatsAppWebhookHandler) Verify(c *gin.Context) {
 
 	result, err := h.svc.VerifyWebhook(mode, token, challenge)
 	if err != nil {
-		_ = c.Error(err)
+		_ = c.Error(translateWebhookError(err))
 		c.Abort()
 		return
 	}
@@ -210,7 +212,7 @@ func (h *WhatsAppWebhookHandler) GetCall(c *gin.Context) {
 
 	call, err := h.svc.GetCall(c.Request.Context(), orgID, callID)
 	if err != nil {
-		_ = c.Error(err)
+		_ = c.Error(translateWebhookError(err))
 		c.Abort()
 		return
 	}
@@ -242,7 +244,7 @@ func (h *WhatsAppWebhookHandler) ListCalls(c *gin.Context) {
 
 	resp, err := h.svc.ListCalls(c.Request.Context(), orgID, limit, offset)
 	if err != nil {
-		_ = c.Error(err)
+		_ = c.Error(translateWebhookError(err))
 		c.Abort()
 		return
 	}
@@ -287,11 +289,30 @@ func (h *WhatsAppWebhookHandler) SendSDPAnswer(c *gin.Context) {
 
 	call, err := h.svc.SetSDPAnswer(c.Request.Context(), orgID, callID, req.SDPAnswer)
 	if err != nil {
-		_ = c.Error(err)
+		_ = c.Error(translateWebhookError(err))
 		c.Abort()
 		return
 	}
 	c.JSON(http.StatusOK, call)
+}
+
+// translateWebhookError maps service-layer sentinel errors to HTTP-shaped apierror values.
+// Any error that is not a known sentinel is returned as a 500 Internal Server Error.
+func translateWebhookError(err error) *apierror.AppError {
+	switch {
+	case errors.Is(err, service.ErrWebhookInvalidMode):
+		return apierror.NewBadRequest(err.Error())
+	case errors.Is(err, service.ErrWebhookChallengeMissing):
+		return apierror.NewBadRequest(err.Error())
+	case errors.Is(err, service.ErrWebhookTokenMismatch):
+		return apierror.NewUnauthorized(err.Error())
+	case errors.Is(err, service.ErrWebhookCallNotFound):
+		return apierror.NewNotFound(err.Error())
+	case errors.Is(err, service.ErrWebhookInternal):
+		return apierror.NewInternal(err.Error())
+	default:
+		return apierror.NewInternal(err.Error())
+	}
 }
 
 // parseJSON is a helper to parse JSON from raw bytes.

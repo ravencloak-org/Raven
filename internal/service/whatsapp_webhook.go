@@ -16,7 +16,17 @@ import (
 
 	"github.com/ravencloak-org/Raven/internal/db"
 	"github.com/ravencloak-org/Raven/internal/model"
-	"github.com/ravencloak-org/Raven/pkg/apierror"
+)
+
+// Sentinel errors for WhatsApp webhook operations.
+// Callers (e.g. HTTP handlers) should use errors.Is to translate these into
+// transport-layer responses; the service layer must not import apierror.
+var (
+	ErrWebhookInvalidMode      = errors.New("invalid hub.mode: expected 'subscribe'")
+	ErrWebhookTokenMismatch    = errors.New("verify token mismatch")
+	ErrWebhookChallengeMissing = errors.New("hub.challenge is required")
+	ErrWebhookCallNotFound     = errors.New("call not found")
+	ErrWebhookInternal         = errors.New("internal error")
 )
 
 // WhatsAppCallRepository defines the persistence interface for WhatsApp calls.
@@ -52,13 +62,13 @@ func NewWhatsAppWebhookService(repo WhatsAppCallRepository, pool *pgxpool.Pool, 
 // Returns the hub.challenge value if the verify_token matches.
 func (s *WhatsAppWebhookService) VerifyWebhook(mode, token, challenge string) (string, error) {
 	if mode != "subscribe" {
-		return "", apierror.NewBadRequest("invalid hub.mode: expected 'subscribe'")
+		return "", ErrWebhookInvalidMode
 	}
 	if token != s.verifyToken {
-		return "", apierror.NewUnauthorized("verify token mismatch")
+		return "", ErrWebhookTokenMismatch
 	}
 	if challenge == "" {
-		return "", apierror.NewBadRequest("hub.challenge is required")
+		return "", ErrWebhookChallengeMissing
 	}
 	return challenge, nil
 }
@@ -121,12 +131,13 @@ func (s *WhatsAppWebhookService) HandleCallStarted(ctx context.Context, phoneNum
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "WhatsAppWebhookService.HandleCallStarted db error", "error", err, "call_id", callID)
-		return nil, apierror.NewInternal("failed to create call record")
+		return nil, fmt.Errorf("failed to create call record: %w", ErrWebhookInternal)
 	}
 
+	maskedFrom := "***" + from[max(0, len(from)-4):]
 	slog.InfoContext(ctx, "WhatsApp call started",
 		"call_id", callID,
-		"from", from,
+		"caller", maskedFrom,
 		"phone_number_id", phoneNumberID,
 		"org_id", orgID,
 	)
@@ -148,10 +159,10 @@ func (s *WhatsAppWebhookService) HandleCallConnected(ctx context.Context, phoneN
 	})
 	if err != nil {
 		if isWhatsAppNotFound(err) {
-			return nil, apierror.NewNotFound("call not found")
+			return nil, ErrWebhookCallNotFound
 		}
 		slog.ErrorContext(ctx, "WhatsAppWebhookService.HandleCallConnected db error", "error", err, "call_id", callID)
-		return nil, apierror.NewInternal("failed to update call state")
+		return nil, fmt.Errorf("failed to update call state: %w", ErrWebhookInternal)
 	}
 
 	slog.InfoContext(ctx, "WhatsApp call connected", "call_id", callID, "org_id", orgID)
@@ -173,10 +184,10 @@ func (s *WhatsAppWebhookService) HandleCallEnded(ctx context.Context, phoneNumbe
 	})
 	if err != nil {
 		if isWhatsAppNotFound(err) {
-			return nil, apierror.NewNotFound("call not found")
+			return nil, ErrWebhookCallNotFound
 		}
 		slog.ErrorContext(ctx, "WhatsAppWebhookService.HandleCallEnded db error", "error", err, "call_id", callID)
-		return nil, apierror.NewInternal("failed to update call state")
+		return nil, fmt.Errorf("failed to update call state: %w", ErrWebhookInternal)
 	}
 
 	slog.InfoContext(ctx, "WhatsApp call ended", "call_id", callID, "org_id", orgID)
@@ -193,10 +204,10 @@ func (s *WhatsAppWebhookService) SetSDPAnswer(ctx context.Context, orgID, callID
 	})
 	if err != nil {
 		if isWhatsAppNotFound(err) {
-			return nil, apierror.NewNotFound("call not found")
+			return nil, ErrWebhookCallNotFound
 		}
 		slog.ErrorContext(ctx, "WhatsAppWebhookService.SetSDPAnswer db error", "error", err, "call_id", callID)
-		return nil, apierror.NewInternal("failed to set SDP answer")
+		return nil, fmt.Errorf("failed to set SDP answer: %w", ErrWebhookInternal)
 	}
 	return result, nil
 }
@@ -211,10 +222,10 @@ func (s *WhatsAppWebhookService) GetCall(ctx context.Context, orgID, id string) 
 	})
 	if err != nil {
 		if isWhatsAppNotFound(err) {
-			return nil, apierror.NewNotFound("call not found")
+			return nil, ErrWebhookCallNotFound
 		}
 		slog.ErrorContext(ctx, "WhatsAppWebhookService.GetCall db error", "error", err)
-		return nil, apierror.NewInternal("failed to get call")
+		return nil, fmt.Errorf("failed to get call: %w", ErrWebhookInternal)
 	}
 	return result, nil
 }
@@ -240,7 +251,7 @@ func (s *WhatsAppWebhookService) ListCalls(ctx context.Context, orgID string, li
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "WhatsAppWebhookService.ListCalls db error", "error", err)
-		return nil, apierror.NewInternal("failed to list calls")
+		return nil, fmt.Errorf("failed to list calls: %w", ErrWebhookInternal)
 	}
 	if calls == nil {
 		calls = []model.WhatsAppCall{}
@@ -272,7 +283,7 @@ func (s *WhatsAppWebhookService) lookupOrgByPhone(ctx context.Context, phoneNumb
 	if err != nil {
 		if isWhatsAppNotFound(err) {
 			slog.WarnContext(ctx, "unregistered WhatsApp phone number", "phone_number_id", phoneNumberID)
-			return "", apierror.NewNotFound("phone number not registered")
+			return "", ErrWebhookCallNotFound
 		}
 		return "", fmt.Errorf("lookupOrgByPhone: %w", err)
 	}

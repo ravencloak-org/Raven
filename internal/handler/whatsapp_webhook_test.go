@@ -17,6 +17,7 @@ import (
 	"github.com/ravencloak-org/Raven/internal/handler"
 	"github.com/ravencloak-org/Raven/internal/middleware"
 	"github.com/ravencloak-org/Raven/internal/model"
+	"github.com/ravencloak-org/Raven/internal/service"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
 
@@ -152,7 +153,7 @@ func TestWhatsAppVerify_Success(t *testing.T) {
 func TestWhatsAppVerify_BadToken_Returns401(t *testing.T) {
 	svc := &mockWhatsAppWebhookService{
 		verifyWebhookFn: func(_, _, _ string) (string, error) {
-			return "", apierror.NewUnauthorized("verify token mismatch")
+			return "", service.ErrWebhookTokenMismatch
 		},
 	}
 
@@ -171,7 +172,7 @@ func TestWhatsAppVerify_BadToken_Returns401(t *testing.T) {
 func TestWhatsAppVerify_BadMode_Returns400(t *testing.T) {
 	svc := &mockWhatsAppWebhookService{
 		verifyWebhookFn: func(_, _, _ string) (string, error) {
-			return "", apierror.NewBadRequest("invalid hub.mode: expected 'subscribe'")
+			return "", service.ErrWebhookInvalidMode
 		},
 	}
 
@@ -458,7 +459,7 @@ func TestWhatsAppGetCall_Success(t *testing.T) {
 func TestWhatsAppGetCall_NotFound(t *testing.T) {
 	svc := &mockWhatsAppWebhookService{
 		getCallFn: func(_ context.Context, _, _ string) (*model.WhatsAppCall, error) {
-			return nil, apierror.NewNotFound("call not found")
+			return nil, service.ErrWebhookCallNotFound
 		},
 	}
 
