@@ -1,0 +1,47 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "2653b793b1d5",
+  "session_id": "b8cbf483-2ecd-48c1-b57f-151f9ee615c5",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-08T16:25:18.890435Z",
+  "branch": "feat/meta-graph-webhooks",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/go.yml",
+    ".gitignore",
+    "Dockerfile",
+    "Makefile.edge",
+    "cmd/api/main.go",
+    "docker-compose.ebpf.yml",
+    "docker-compose.edge.yml",
+    "docker-compose.yml",
+    "docs/superpowers/plans/2026-04-07-ebpf-edge-optimization.md",
+    "docs/superpowers/specs/2026-04-07-ebpf-edge-optimization-design.md",
+    "internal/config/config.go",
+    "internal/config/config_ebpf_test.go",
+    "internal/ebpf/audit/consumer.go",
+    "internal/ebpf/observability/collector.go",
+    "internal/ebpf/programs/xdp.c",
+    "internal/ebpf/xdp/controller.go",
+    "internal/ebpf/xdp/controller_test.go",
+    "internal/ebpf/xdp/stub.go"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "617d15ba-09c3-49d9-95cc-3719a2d4c54d",
+  "token_usage": {
+    "input_tokens": 421,
+    "cache_creation_tokens": 702919,
+    "cache_read_tokens": 35575548,
+    "output_tokens": 135997,
+    "api_call_count": 285
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-08T16:25:18.600831Z",
+    "agent_lines": 76,
+    "human_added": 5423,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 5499,
+    "agent_percentage": 1.38206946717585
+  }
+}
