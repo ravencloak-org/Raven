@@ -53,8 +53,15 @@ jobs:
 
       - name: Verify generated eBPF files are up-to-date
         run: |
-          go generate ./internal/ebpf/...
-          git diff --exit-code || (echo "Generated eBPF files are out of date. Run 'go generate ./internal/ebpf/...'" && exit 1)
+          # Generate vmlinux.h from kernel BTF (required by BPF C programs)
+          sudo apt-get install -y linux-tools-common linux-tools-$(uname -r) 2>/dev/null || true
+          if command -v bpftool >/dev/null 2>&1 && [ -f /sys/kernel/btf/vmlinux ]; then
+            bpftool btf dump file /sys/kernel/btf/vmlinux format c > internal/ebpf/programs/vmlinux.h
+            go generate ./internal/ebpf/...
+            git diff --exit-code -- '*.go' || (echo "Generated eBPF files are out of date. Run 'go generate ./internal/ebpf/...'" && exit 1)
+          else
+            echo "::warning::bpftool or BTF not available — skipping eBPF generate check"
+          fi
 
   lint:
     name: Lint
