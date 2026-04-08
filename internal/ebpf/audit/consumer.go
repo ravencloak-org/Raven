@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"slices"
 
 	"github.com/cilium/ebpf/ringbuf"
 	"go.opentelemetry.io/otel/metric"
@@ -127,7 +128,7 @@ func (c *Consumer) handleRecord(ctx context.Context, rec ringbuf.Record) {
 		if len(rec.RawSample) >= 164 {
 			path = nullTermStr(rec.RawSample[36:164])
 		}
-		violation := len(c.cfg.ExecAllowlist) > 0 && !sliceContains(c.cfg.ExecAllowlist, path)
+		violation := len(c.cfg.ExecAllowlist) > 0 && !slices.Contains(c.cfg.ExecAllowlist, path)
 		slog.InfoContext(ctx, "ebpf/audit: exec",
 			"pid", pid, "comm", comm, "path", path,
 			"timestamp_ns", ts, "audit.violation", violation,
@@ -181,3 +182,13 @@ func (c *Consumer) Close() error {
 }
 
 var _ io.Closer = (*Consumer)(nil)
+
+// nullTermStr converts a null-terminated byte slice to a string.
+func nullTermStr(b []byte) string {
+	for i, c := range b {
+		if c == 0 {
+			return string(b[:i])
+		}
+	}
+	return string(b)
+}
