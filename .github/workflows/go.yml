@@ -36,7 +36,7 @@ jobs:
       - run: go mod download
 
       - name: Install eBPF build tools
-        run: sudo apt-get install -y clang llvm libbpf-dev
+        run: sudo apt-get install -y clang llvm libbpf-dev bpftool
 
       - run: CGO_ENABLED=1 go build ./cmd/api
 
@@ -53,14 +53,12 @@ jobs:
 
       - name: Verify generated eBPF files are up-to-date
         run: |
-          # Generate vmlinux.h from kernel BTF (required by BPF C programs)
-          sudo apt-get install -y linux-tools-common linux-tools-$(uname -r)
-          if command -v bpftool >/dev/null 2>&1 && bpftool version >/dev/null 2>&1 && [ -f /sys/kernel/btf/vmlinux ]; then
+          if [ -f /sys/kernel/btf/vmlinux ]; then
             bpftool btf dump file /sys/kernel/btf/vmlinux format c > internal/ebpf/programs/vmlinux.h
             go generate ./internal/ebpf/...
             git diff --exit-code -- internal/ebpf ':(exclude)internal/ebpf/programs/vmlinux.h' || (echo "Generated eBPF artifacts are out of date. Run 'go generate ./internal/ebpf/...'" && exit 1)
           else
-            echo "::error::bpftool or BTF not available — cannot verify eBPF generated files"
+            echo "::error::BTF not available — cannot verify eBPF generated files"
             exit 1
           fi
 
@@ -76,7 +74,7 @@ jobs:
           cache: true
 
       - name: Install eBPF build tools
-        run: sudo apt-get install -y clang llvm libbpf-dev
+        run: sudo apt-get install -y clang llvm libbpf-dev bpftool
 
       - uses: golangci/golangci-lint-action@v9
         with:
