@@ -37,6 +37,6 @@ type MetaCallEvent struct {
 	From      string `json:"from"`                // caller phone number
 	To        string `json:"to"`                  // callee phone number
 	Status    string `json:"status"`              // "ringing", "answered", "ended"
-	SDPOffer  string `json:"sdp,omitempty"`        // SDP offer (present on "ringing")
+	SDPOffer  string `json:"sdp_offer,omitempty"`   // SDP offer (present on "ringing")
 	Timestamp string `json:"timestamp"`
 }

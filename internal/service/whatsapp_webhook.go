@@ -23,7 +23,7 @@ import (
 type WhatsAppCallRepository interface {
 	UpsertCall(ctx context.Context, tx pgx.Tx, orgID string, call *model.WhatsAppCall) (*model.WhatsAppCall, error)
 	GetCallByID(ctx context.Context, tx pgx.Tx, orgID, id string) (*model.WhatsAppCall, error)
-	GetCallByCallID(ctx context.Context, tx pgx.Tx, callID string) (*model.WhatsAppCall, error)
+	GetCallByCallID(ctx context.Context, tx pgx.Tx, orgID, callID string) (*model.WhatsAppCall, error)
 	UpdateCallState(ctx context.Context, tx pgx.Tx, orgID, callID string, state model.WhatsAppCallState) (*model.WhatsAppCall, error)
 	SetSDPAnswer(ctx context.Context, tx pgx.Tx, orgID, callID, sdpAnswer string) (*model.WhatsAppCall, error)
 	ListCalls(ctx context.Context, tx pgx.Tx, orgID string, limit, offset int) ([]model.WhatsAppCall, int, error)
@@ -108,6 +108,9 @@ func (s *WhatsAppWebhookService) HandleCallStarted(ctx context.Context, phoneNum
 		Direction:     model.WhatsAppCallDirectionInbound,
 		State:         model.WhatsAppCallStateRinging,
 		StartedAt:     &now,
+	}
+	if sdpOffer != "" {
+		call.SDPOffer = &sdpOffer
 	}
 
 	var result *model.WhatsAppCall
@@ -262,7 +265,7 @@ func (s *WhatsAppWebhookService) lookupOrgByPhone(ctx context.Context, phoneNumb
 
 	// Set admin role to bypass RLS for phone number lookup.
 	if _, err := tx.Exec(ctx, "SET LOCAL ROLE raven_admin"); err != nil {
-		slog.WarnContext(ctx, "failed to set admin role for phone lookup, trying without RLS bypass", "error", err)
+		return "", fmt.Errorf("lookupOrgByPhone set role: %w", err)
 	}
 
 	phone, err := s.repo.LookupPhoneNumber(ctx, tx, phoneNumberID)

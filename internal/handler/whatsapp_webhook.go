@@ -214,7 +214,7 @@ func (h *WhatsAppWebhookHandler) GetCall(c *gin.Context) {
 		c.Abort()
 		return
 	}
-	c.JSON(http.StatusOK, call)
+	c.JSON(http.StatusOK, model.WhatsAppCallResponse{Call: *call})
 }
 
 // ListCalls handles GET /orgs/:org_id/whatsapp/calls.

@@ -213,7 +213,7 @@ func metaPayload(status, callID, phoneNumberID, from, to, sdp string) []byte {
 									"from":      from,
 									"to":        to,
 									"status":    status,
-									"sdp":       sdp,
+									"sdp_offer": sdp,
 									"timestamp": "1712345678",
 								},
 							},
