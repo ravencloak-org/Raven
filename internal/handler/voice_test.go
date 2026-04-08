@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -73,7 +74,7 @@ func (m *mockVoiceService) GenerateToken(ctx context.Context, orgID, sessionID, 
 	if m.generateTokenFn != nil {
 		return m.generateTokenFn(ctx, orgID, sessionID, identity)
 	}
-	panic("unexpected GenerateToken call")
+	return nil, errors.New("unexpected GenerateToken call: generateTokenFn not configured")
 }
 
 func newVoiceRouter(svc handler.VoiceServicer) *gin.Engine {

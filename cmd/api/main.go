@@ -284,11 +284,11 @@ func main() {
 		APISecret: cfg.LiveKit.APISecret,
 	})
 	var livekitClient *lk.Client
-	if cfg.LiveKit.APIKey != "" && cfg.LiveKit.APISecret != "" {
+	if cfg.LiveKit.APIURL != "" && cfg.LiveKit.APIKey != "" && cfg.LiveKit.APISecret != "" {
 		livekitClient = lkClient
 		slog.Info("LiveKit client initialised", "api_url", cfg.LiveKit.APIURL, "ws_url", cfg.LiveKit.WSURL)
 	} else {
-		slog.Warn("LiveKit not configured: voice session room management disabled")
+		slog.Warn("LiveKit not configured: api_url, api_key, and api_secret are all required; voice session room management disabled")
 	}
 	voiceSvc := service.NewVoiceService(voiceRepo, pool, livekitClient, cfg.LiveKit.WSURL, 1)
 
