@@ -1,7 +1,7 @@
 # Makefile.edge — Cross-compilation targets for Raven edge deployment.
 #
 # Build static Go binaries for ARM64 (Raspberry Pi) and AMD64 targets.
-# All builds use CGO_ENABLED=0 for fully static binaries with no libc dependency.
+# Non-eBPF builds use CGO_ENABLED=0; eBPF-enabled targets (*-ebpf) use CGO_ENABLED=1 with musl.
 #
 # Usage:
 #   make -f Makefile.edge build-arm64
@@ -73,3 +73,19 @@ docker-all: docker-arm64 docker-amd64
 clean:
 	rm -rf $(BUILD_DIR)
 	@echo "Cleaned $(BUILD_DIR)/"
+
+# ─── eBPF-enabled builds (require cross-compiler toolchain) ─────────────────
+
+build-arm64-ebpf:
+	@command -v aarch64-linux-musl-gcc >/dev/null 2>&1 || { echo "Error: aarch64-linux-musl-gcc not found. Install musl cross-compiler toolchain (e.g., 'brew install FiloSottile/musl-cross/musl-cross' on macOS or 'apt install musl-tools gcc-aarch64-linux-gnu' on Debian)."; exit 1; }
+	@mkdir -p $(BUILD_DIR)
+	CC=aarch64-linux-musl-gcc CGO_ENABLED=1 GOOS=linux GOARCH=arm64 \
+		go build -ldflags="$(LDFLAGS) -extldflags '-static'" \
+		-o $(BUILD_DIR)/$(APP_NAME)-linux-arm64-ebpf ./cmd/api
+
+build-amd64-ebpf:
+	@command -v x86_64-linux-musl-gcc >/dev/null 2>&1 || { echo "Error: x86_64-linux-musl-gcc not found. Install musl cross-compiler toolchain (e.g., 'brew install FiloSottile/musl-cross/musl-cross' on macOS or 'apt install musl-tools' on Debian)."; exit 1; }
+	@mkdir -p $(BUILD_DIR)
+	CC=x86_64-linux-musl-gcc CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
+		go build -ldflags="$(LDFLAGS) -extldflags '-static'" \
+		-o $(BUILD_DIR)/$(APP_NAME)-linux-amd64-ebpf ./cmd/api

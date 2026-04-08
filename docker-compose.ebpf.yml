@@ -1,0 +1,13 @@
+# eBPF capabilities overlay — opt-in when RAVEN_EBPF_ENABLED=true.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.ebpf.yml up
+#   docker compose -f docker-compose.edge.yml -f docker-compose.ebpf.yml up
+
+services:
+  go-api:
+    cap_add:
+      - CAP_BPF         # eBPF program loading and map creation (kernel ≥ 5.8)
+      - CAP_NET_ADMIN   # XDP attachment; omit if RAVEN_EBPF_XDP_ENABLED=false
+    environment:
+      - RAVEN_EBPF_ENABLED=true

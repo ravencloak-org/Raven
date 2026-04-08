@@ -3,12 +3,16 @@ FROM golang:1.26.1-alpine AS builder
 
 RUN apk add --no-cache git ca-certificates
 
+# eBPF build tools — required for bpf2go and cilium/ebpf CGO bindings
+RUN apk add --no-cache clang llvm linux-headers libbpf-dev musl-dev \
+    && go install github.com/cilium/ebpf/cmd/bpf2go@v0.21.0
+
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /api ./cmd/api
+RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w -extldflags '-static'" -o /api ./cmd/api
 
 # ── Stage 2: Runtime ─────────────────────────────────────────────────────────
 FROM alpine:3.23

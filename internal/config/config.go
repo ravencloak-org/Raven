@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"math/bits"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -27,6 +28,7 @@ type Config struct {
 	ClickHouse   ClickHouseConfig
 	TTS          TTSConfig
 	STT          STTConfig
+	EBPF         EBPFConfig
 	Meta         MetaConfig
 }
 
@@ -98,6 +100,26 @@ type STTConfig struct {
 	DeepgramBaseURL string `mapstructure:"deepgram_base_url"`
 	WhisperEndpoint string `mapstructure:"whisper_endpoint"`
 	WhisperModel    string `mapstructure:"whisper_model"`
+}
+
+// EBPFConfig holds eBPF feature flags. All features default to false — opt-in only.
+// Kernel requirement: Linux ≥ 5.8 with CONFIG_DEBUG_INFO_BTF=y.
+//
+// Master switch: set RAVEN_EBPF_ENABLED=true to activate the subsystem.
+// When false (the default) no eBPF code runs regardless of individual flags.
+// On non-Linux platforms the subsystem is always a no-op regardless of this flag.
+type EBPFConfig struct {
+	// Enabled is the master switch for the entire eBPF subsystem.
+	// Set RAVEN_EBPF_ENABLED=true to activate. All other flags are ignored when false.
+	Enabled              bool     `mapstructure:"enabled"`
+	ObservabilityEnabled bool     `mapstructure:"observability_enabled"`
+	AuditEnabled         bool     `mapstructure:"audit_enabled"`
+	AuditIPAllowlist     []string `mapstructure:"audit_ip_allowlist"`
+	AuditExecAllowlist   []string `mapstructure:"audit_exec_allowlist"`
+	// AuditRingBufferSize is the BPF ring buffer size in bytes. Must be a power of 2.
+	AuditRingBufferSize int    `mapstructure:"audit_ring_buffer_size"`
+	XDPEnabled          bool   `mapstructure:"xdp_enabled"`
+	XDPInterface        string `mapstructure:"xdp_interface"`
 }
 
 // QueueConfig holds Asynq job queue settings.
@@ -228,6 +250,15 @@ func Load() (*Config, error) {
 	v.SetDefault("stt.deepgram_base_url", "https://api.deepgram.com")
 	v.SetDefault("stt.whisper_endpoint", "http://localhost:8000")
 	v.SetDefault("stt.whisper_model", "large-v3")
+	// eBPF defaults — master switch off; safe for non-Linux and existing deployments
+	v.SetDefault("ebpf.enabled", false)
+	v.SetDefault("ebpf.observability_enabled", false)
+	v.SetDefault("ebpf.audit_enabled", false)
+	v.SetDefault("ebpf.audit_ip_allowlist", []string{})
+	v.SetDefault("ebpf.audit_exec_allowlist", []string{})
+	v.SetDefault("ebpf.audit_ring_buffer_size", 1048576)
+	v.SetDefault("ebpf.xdp_enabled", false)
+	v.SetDefault("ebpf.xdp_interface", "eth0")
 	// Meta WhatsApp Business API defaults
 	v.SetDefault("meta.access_token", "")
 	v.SetDefault("meta.phone_number_id", "")
@@ -292,6 +323,14 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("otel.endpoint", "RAVEN_OTEL_ENDPOINT")
 	_ = v.BindEnv("otel.service_name", "RAVEN_OTEL_SERVICE_NAME")
 	_ = v.BindEnv("otel.enabled", "RAVEN_OTEL_ENABLED")
+	_ = v.BindEnv("ebpf.enabled", "RAVEN_EBPF_ENABLED")
+	_ = v.BindEnv("ebpf.observability_enabled", "RAVEN_EBPF_OBSERVABILITY_ENABLED")
+	_ = v.BindEnv("ebpf.audit_enabled", "RAVEN_EBPF_AUDIT_ENABLED")
+	_ = v.BindEnv("ebpf.audit_ip_allowlist", "RAVEN_EBPF_AUDIT_IP_ALLOWLIST")
+	_ = v.BindEnv("ebpf.audit_exec_allowlist", "RAVEN_EBPF_AUDIT_EXEC_ALLOWLIST")
+	_ = v.BindEnv("ebpf.audit_ring_buffer_size", "RAVEN_EBPF_AUDIT_RING_BUFFER_SIZE")
+	_ = v.BindEnv("ebpf.xdp_enabled", "RAVEN_EBPF_XDP_ENABLED")
+	_ = v.BindEnv("ebpf.xdp_interface", "RAVEN_EBPF_XDP_INTERFACE")
 
 	// Try to read config file but don't fail if not found
 	_ = v.ReadInConfig()
@@ -306,6 +345,16 @@ func Load() (*Config, error) {
 	}
 	if cfg.RateLimit.DefaultOrgLimit <= 0 {
 		return nil, fmt.Errorf("ratelimit.default_org_limit must be > 0, got %d", cfg.RateLimit.DefaultOrgLimit)
+	}
+
+	// Validate ring buffer size when eBPF is enabled — catches misconfiguration before any BPF load.
+	// Validated even when individual AuditEnabled=false so that a stale invalid value doesn't
+	// silently survive until someone enables audit later.
+	if cfg.EBPF.Enabled {
+		size := cfg.EBPF.AuditRingBufferSize
+		if size <= 0 || bits.OnesCount(uint(size)) != 1 {
+			return nil, fmt.Errorf("ebpf.audit_ring_buffer_size must be a power of 2 > 0, got %d", size)
+		}
 	}
 
 	return &cfg, nil
