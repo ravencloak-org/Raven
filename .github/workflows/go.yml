@@ -35,7 +35,10 @@ jobs:
 
       - run: go mod download
 
-      - run: go build ./cmd/api
+      - name: Install eBPF build tools
+        run: sudo apt-get install -y clang llvm libbpf-dev
+
+      - run: CGO_ENABLED=1 go build ./cmd/api
 
       - run: go test -race -coverprofile=coverage.txt ./...
 
@@ -48,6 +51,12 @@ jobs:
 
       - run: go vet ./...
 
+      - name: Verify generated eBPF files are up-to-date
+        run: |
+          go install github.com/cilium/ebpf/cmd/bpf2go@latest
+          go generate ./internal/ebpf/...
+          git diff --exit-code || (echo "Generated eBPF files are out of date. Run 'go generate ./internal/ebpf/...'" && exit 1)
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -59,6 +68,28 @@ jobs:
           go-version: '1.26'
           cache: true
 
+      - name: Install eBPF build tools
+        run: sudo apt-get install -y clang llvm libbpf-dev
+
       - uses: golangci/golangci-lint-action@v9
         with:
           version: v2.11.4
+
+  ebpf-integration:
+    name: eBPF Integration Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - name: Install eBPF build tools
+        run: sudo apt-get install -y clang llvm libbpf-dev
+
+      - name: Run eBPF integration tests
+        run: go test -race -v ./internal/ebpf/... ./cmd/api/...
