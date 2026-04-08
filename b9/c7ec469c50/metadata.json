@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "b9c7ec469c50",
+  "strategy": "manual-commit",
+  "branch": "feat/webrtc-session-management",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/go.yml",
+    "pkg/meta/client.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b9/c7ec469c50/0/metadata.json",
+      "transcript": "/b9/c7ec469c50/0/full.jsonl",
+      "context": "/b9/c7ec469c50/0/context.md",
+      "content_hash": "/b9/c7ec469c50/0/content_hash.txt",
+      "prompt": "/b9/c7ec469c50/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 66,
+    "cache_creation_tokens": 81147,
+    "cache_read_tokens": 5600895,
+    "output_tokens": 18067,
+    "api_call_count": 56
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "b9c7ec469c50",
+  "session_id": "b8cbf483-2ecd-48c1-b57f-151f9ee615c5",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-08T16:38:18.611802Z",
+  "branch": "feat/webrtc-session-management",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/go.yml",
+    "pkg/meta/client.go"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "c4a7d00b-fb0c-48e7-8718-022c71ad0681",
+  "checkpoint_transcript_start": 868,
+  "transcript_lines_at_start": 868,
+  "token_usage": {
+    "input_tokens": 66,
+    "cache_creation_tokens": 81147,
+    "cache_read_tokens": 5600895,
+    "output_tokens": 18067,
+    "api_call_count": 56
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-08T16:38:18.290606Z",
+    "agent_lines": 2,
+    "human_added": 596,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 598,
+    "agent_percentage": 0.33444816053511706
+  }
+}
