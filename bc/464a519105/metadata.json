@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "bc464a519105",
+  "strategy": "manual-commit",
+  "branch": "feat/ebpf-edge-optimization",
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".github/workflows/go.yml",
+    ".serena/memories/ci_workflows.md",
+    ".serena/memories/project_overview.md",
+    ".serena/memories/style_and_conventions.md",
+    ".serena/memories/suggested_commands.md",
+    "Dockerfile",
+    "Makefile.edge",
+    "cmd/api/main.go",
+    "docs/superpowers/plans/2026-04-07-ebpf-edge-optimization.md",
+    "internal/config/config.go",
+    "internal/config/config_ebpf_test.go",
+    "internal/ebpf/audit/consumer.go",
+    "internal/ebpf/observability/collector.go",
+    "internal/ebpf/xdp/controller.go",
+    "internal/ebpf/xdp/controller_test.go",
+    "internal/ebpf/xdp/stub.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/bc/464a519105/0/metadata.json",
+      "transcript": "/bc/464a519105/0/full.jsonl",
+      "context": "/bc/464a519105/0/context.md",
+      "content_hash": "/bc/464a519105/0/content_hash.txt",
+      "prompt": "/bc/464a519105/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 290,
+    "cache_creation_tokens": 508990,
+    "cache_read_tokens": 18908753,
+    "output_tokens": 108132,
+    "api_call_count": 180
+  }
+}

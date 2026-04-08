@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "bc464a519105",
+  "session_id": "b8cbf483-2ecd-48c1-b57f-151f9ee615c5",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-08T13:59:21.870854Z",
+  "branch": "feat/ebpf-edge-optimization",
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".github/workflows/go.yml",
+    ".serena/memories/ci_workflows.md",
+    ".serena/memories/project_overview.md",
+    ".serena/memories/style_and_conventions.md",
+    ".serena/memories/suggested_commands.md",
+    "Dockerfile",
+    "Makefile.edge",
+    "cmd/api/main.go",
+    "docs/superpowers/plans/2026-04-07-ebpf-edge-optimization.md",
+    "internal/config/config.go",
+    "internal/config/config_ebpf_test.go",
+    "internal/ebpf/audit/consumer.go",
+    "internal/ebpf/observability/collector.go",
+    "internal/ebpf/xdp/controller.go",
+    "internal/ebpf/xdp/controller_test.go",
+    "internal/ebpf/xdp/stub.go"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 290,
+    "cache_creation_tokens": 508990,
+    "cache_read_tokens": 18908753,
+    "output_tokens": 108132,
+    "api_call_count": 180
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-08T13:59:21.621459Z",
+    "agent_lines": 2719,
+    "human_added": 771,
+    "human_modified": 225,
+    "human_removed": 0,
+    "total_committed": 3715,
+    "agent_percentage": 73.18977119784657
+  }
+}
