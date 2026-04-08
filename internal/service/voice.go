@@ -153,7 +153,13 @@ func (s *VoiceService) UpdateSessionState(ctx context.Context, orgID, sessionID 
 
 	var session *model.VoiceSession
 	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
-		var e error
+		current, e := s.repo.GetSession(ctx, tx, orgID, sessionID)
+		if e != nil {
+			return e
+		}
+		if current.State == model.VoiceSessionStateEnded {
+			return apierror.NewBadRequest("cannot transition from ended state: session is terminal")
+		}
 		session, e = s.repo.UpdateSessionState(ctx, tx, orgID, sessionID, state)
 		return e
 	})

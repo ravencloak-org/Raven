@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -204,11 +205,20 @@ func (h *VoiceHandler) GenerateToken(c *gin.Context) {
 	sessionID := c.Param("session_id")
 
 	// Use the authenticated user's ID as the LiveKit participant identity.
-	identity := "anonymous"
-	if userID, exists := c.Get(string(middleware.ContextKeyUserID)); exists {
-		if uid, ok := userID.(string); ok && uid != "" {
-			identity = uid
-		}
+	// Missing identity behind JWTMiddleware indicates broken auth context — fail closed.
+	userID, exists := c.Get(string(middleware.ContextKeyUserID))
+	if !exists {
+		slog.WarnContext(c.Request.Context(), "GenerateToken: missing user identity in auth context")
+		_ = c.Error(apierror.NewUnauthorized("missing user identity"))
+		c.Abort()
+		return
+	}
+	identity, ok := userID.(string)
+	if !ok || identity == "" {
+		slog.WarnContext(c.Request.Context(), "GenerateToken: empty or invalid user identity in auth context")
+		_ = c.Error(apierror.NewUnauthorized("invalid user identity"))
+		c.Abort()
+		return
 	}
 
 	resp, err := h.svc.GenerateToken(c.Request.Context(), orgID, sessionID, identity)
