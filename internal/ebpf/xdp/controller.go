@@ -10,6 +10,8 @@ import (
 	"log/slog"
 	"net"
 
+	"github.com/cilium/ebpf"
+	"github.com/cilium/ebpf/link"
 	"go.opentelemetry.io/otel/metric"
 )
 
@@ -53,10 +55,11 @@ type Controller struct {
 	stop    chan struct{}
 	done    chan struct{}
 	dropped metric.Int64Counter
+	xdpLink link.Link
 }
 
 // NewController creates a Controller. Pass nil objects for a no-op (graceful degrade).
-func NewController(objects XDPObjects, meter metric.Meter, cfg Config) (*Controller, error) {
+func NewController(objects XDPObjects, prog *ebpf.Program, meter metric.Meter, cfg Config) (*Controller, error) {
 	dropped, err := meter.Int64Counter(
 		"ebpf.xdp.dropped_packets",
 		metric.WithDescription("Packets dropped by XDP pre-filter"),
@@ -66,13 +69,43 @@ func NewController(objects XDPObjects, meter metric.Meter, cfg Config) (*Control
 		return nil, err
 	}
 
-	return &Controller{
+	c := &Controller{
 		objects: objects,
 		cfg:     cfg,
 		stop:    make(chan struct{}),
 		done:    make(chan struct{}),
 		dropped: dropped,
-	}, nil
+	}
+
+	if prog != nil {
+		iface, err := net.InterfaceByName(cfg.Interface)
+		if err != nil {
+			slog.Warn("ebpf/xdp: interface not found; XDP disabled", "interface", cfg.Interface, "error", err)
+			return c, nil
+		}
+		// Try native XDP mode first; fall back to generic if driver doesn't support it.
+		xdpLink, err := link.AttachXDP(link.XDPOptions{
+			Program:   prog,
+			Interface: iface.Index,
+			Flags:     link.XDPDriverMode,
+		})
+		if err != nil {
+			slog.Warn("ebpf/xdp: native XDP attach failed, falling back to generic mode", "error", err)
+			xdpLink, err = link.AttachXDP(link.XDPOptions{
+				Program:   prog,
+				Interface: iface.Index,
+				Flags:     link.XDPGenericMode,
+			})
+			if err != nil {
+				slog.Warn("ebpf/xdp: generic XDP attach also failed; XDP disabled", "error", err)
+				return c, nil
+			}
+		}
+		c.xdpLink = xdpLink
+		slog.Info("ebpf/xdp: program attached", "interface", cfg.Interface)
+	}
+
+	return c, nil
 }
 
 // Close detaches the XDP program and stops the sync loop.
@@ -81,6 +114,11 @@ func (c *Controller) Close() error {
 	case <-c.stop:
 	default:
 		close(c.stop)
+	}
+	if c.xdpLink != nil {
+		if err := c.xdpLink.Close(); err != nil {
+			slog.Warn("ebpf/xdp: error detaching XDP program", "error", err)
+		}
 	}
 	if c.objects != nil {
 		return c.objects.Close()
@@ -98,4 +136,9 @@ func (c *Controller) SyncBlocklist(cidrs []string) {
 		return
 	}
 	slog.Debug("ebpf/xdp: syncing blocklist", "count", len(cidrs))
+}
+
+// xdpAttachFlags returns the preferred XDP attach flags for testing.
+func xdpAttachFlags() link.XDPAttachFlags {
+	return link.XDPGenericMode
 }
