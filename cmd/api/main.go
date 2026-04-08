@@ -130,6 +130,12 @@ func main() {
 		}
 	}()
 
+	// Initialise eBPF subsystem (no-op when unavailable or disabled).
+	if cfg.EBPF.Enabled {
+		ebpfManager, _ := initEBPF(&cfg.EBPF, nil)
+		defer ebpfManager.Stop()
+	}
+
 	// Set Gin mode
 	gin.SetMode(cfg.Server.Mode)
 
