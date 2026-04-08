@@ -1,7 +1,7 @@
 # Makefile.edge — Cross-compilation targets for Raven edge deployment.
 #
 # Build static Go binaries for ARM64 (Raspberry Pi) and AMD64 targets.
-# All builds use CGO_ENABLED=0 for fully static binaries with no libc dependency.
+# Non-eBPF builds use CGO_ENABLED=0; eBPF-enabled targets (*-ebpf) use CGO_ENABLED=1 with musl.
 #
 # Usage:
 #   make -f Makefile.edge build-arm64

@@ -132,7 +132,10 @@ func main() {
 
 	// Initialise eBPF subsystem (no-op when unavailable or disabled).
 	if cfg.EBPF.Enabled {
-		ebpfManager, _ := initEBPF(&cfg.EBPF, nil)
+		ebpfManager, err := initEBPF(&cfg.EBPF, nil)
+		if err != nil {
+			log.Printf("eBPF subsystem degraded: %v", err)
+		}
 		defer ebpfManager.Stop()
 	}
 

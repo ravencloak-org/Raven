@@ -1,6 +1,6 @@
 //go:build linux
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64,arm64 Audit ../programs/audit.c -- -I/usr/include/$(shell uname -m)-linux-gnu
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64,arm64 Audit ../programs/audit.c -- -I/usr/include/$(uname -m)-linux-gnu
 
 // Package audit implements Feature #123: security audit trail via eBPF ring buffer.
 package audit

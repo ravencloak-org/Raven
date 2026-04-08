@@ -1,6 +1,6 @@
 //go:build linux
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64,arm64 XDP ../programs/xdp.c -- -I/usr/include/$(shell uname -m)-linux-gnu
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64,arm64 XDP ../programs/xdp.c -- -I/usr/include/$(uname -m)-linux-gnu
 
 // Package xdp implements Feature #120: XDP pre-filtering at the network driver level.
 package xdp

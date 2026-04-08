@@ -1,6 +1,6 @@
 //go:build linux
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64,arm64 Observability ../programs/observability.c -- -I/usr/include/$(shell uname -m)-linux-gnu
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64,arm64 Observability ../programs/observability.c -- -I/usr/include/$(uname -m)-linux-gnu
 
 // Package observability implements Feature #122: kernel-level metrics via eBPF.
 // When maps is nil (no BPF objects loaded), the collector is a no-op —

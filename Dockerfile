@@ -4,7 +4,8 @@ FROM golang:1.26.1-alpine AS builder
 RUN apk add --no-cache git ca-certificates
 
 # eBPF build tools — required for bpf2go and cilium/ebpf CGO bindings
-RUN apk add --no-cache clang llvm linux-headers libbpf-dev musl-dev
+RUN apk add --no-cache clang llvm linux-headers libbpf-dev musl-dev \
+    && go install github.com/cilium/ebpf/cmd/bpf2go@latest
 
 WORKDIR /src
 COPY go.mod go.sum ./
