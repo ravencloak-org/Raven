@@ -88,6 +88,17 @@ func NewScheduler(cfg SchedulerConfig) (*Scheduler, error) {
 		return nil, fmt.Errorf("register usage aggregation cron: %w", err)
 	}
 
+	voiceUsageTask, err := NewVoiceUsageTask(VoiceUsagePayload{})
+	if err != nil {
+		return nil, fmt.Errorf("create voice usage aggregation task: %w", err)
+	}
+	if _, err := scheduler.Register(CronVoiceUsageAggregation, voiceUsageTask,
+		asynq.Queue("default"),
+		asynq.MaxRetry(3),
+	); err != nil {
+		return nil, fmt.Errorf("register voice usage aggregation cron: %w", err)
+	}
+
 	// Build a ServeMux with handlers for each scheduled task type.
 	mux := asynq.NewServeMux()
 
@@ -100,10 +111,14 @@ func NewScheduler(cfg SchedulerConfig) (*Scheduler, error) {
 	usageHandler := NewUsageAggregationHandler(cfg.Pool, cfg.Logger)
 	mux.Handle(TypeUsageAggregation, usageHandler)
 
+	voiceUsageHandler := NewVoiceUsageHandler(cfg.Pool, cfg.Logger)
+	mux.Handle(TypeVoiceUsageAggregation, voiceUsageHandler)
+
 	cfg.Logger.Info("scheduler configured",
 		"recrawl_cron", CronRecrawl,
 		"cleanup_cron", CronCleanup,
 		"usage_aggregation_cron", CronUsageAggregation,
+		"voice_usage_aggregation_cron", CronVoiceUsageAggregation,
 	)
 
 	return &Scheduler{

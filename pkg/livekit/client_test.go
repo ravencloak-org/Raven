@@ -12,7 +12,7 @@ import (
 
 func TestClient_CreateRoom_EmptyName(t *testing.T) {
 	c := livekit.NewClient(livekit.Config{
-		Host:      "ws://localhost:7880",
+		APIURL:    "http://localhost:7880",
 		APIKey:    "devkey",
 		APISecret: "devsecret",
 	})
@@ -25,7 +25,7 @@ func TestClient_CreateRoom_EmptyName(t *testing.T) {
 
 func TestClient_CreateRoom_Success(t *testing.T) {
 	c := livekit.NewClient(livekit.Config{
-		Host:      "ws://localhost:7880",
+		APIURL:    "http://localhost:7880",
 		APIKey:    "devkey",
 		APISecret: "devsecret",
 	})
@@ -38,7 +38,7 @@ func TestClient_CreateRoom_Success(t *testing.T) {
 
 func TestClient_DeleteRoom_EmptyName(t *testing.T) {
 	c := livekit.NewClient(livekit.Config{
-		Host:      "ws://localhost:7880",
+		APIURL:    "http://localhost:7880",
 		APIKey:    "devkey",
 		APISecret: "devsecret",
 	})
@@ -51,7 +51,7 @@ func TestClient_DeleteRoom_EmptyName(t *testing.T) {
 
 func TestClient_DeleteRoom_Success(t *testing.T) {
 	c := livekit.NewClient(livekit.Config{
-		Host:      "ws://localhost:7880",
+		APIURL:    "http://localhost:7880",
 		APIKey:    "devkey",
 		APISecret: "devsecret",
 	})
@@ -72,7 +72,7 @@ func TestClient_GenerateToken_MissingCredentials(t *testing.T) {
 
 func TestClient_GenerateToken_Success(t *testing.T) {
 	c := livekit.NewClient(livekit.Config{
-		Host:      "ws://localhost:7880",
+		APIURL:    "http://localhost:7880",
 		APIKey:    "devkey",
 		APISecret: "devsecret",
 	})

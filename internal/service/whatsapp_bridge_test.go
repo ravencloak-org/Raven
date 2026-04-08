@@ -79,33 +79,7 @@ func (m *mockSDPRelay) GenerateAnswer(ctx context.Context, roomName, sdpOffer st
 
 var _ service.SDPRelay = (*mockSDPRelay)(nil)
 
-// mockLiveKitClient implements livekitpkg.RoomClient.
-type mockLiveKitClient struct {
-	createRoomFn    func(ctx context.Context, name, metadata string) error
-	deleteRoomFn    func(ctx context.Context, name string) error
-	generateTokenFn func(roomName, identity, name string) (string, error)
-}
-
-func (m *mockLiveKitClient) CreateRoom(ctx context.Context, name, metadata string) error {
-	if m.createRoomFn != nil {
-		return m.createRoomFn(ctx, name, metadata)
-	}
-	return nil
-}
-
-func (m *mockLiveKitClient) DeleteRoom(ctx context.Context, name string) error {
-	if m.deleteRoomFn != nil {
-		return m.deleteRoomFn(ctx, name)
-	}
-	return nil
-}
-
-func (m *mockLiveKitClient) GenerateToken(roomName, identity, name string) (string, error) {
-	if m.generateTokenFn != nil {
-		return m.generateTokenFn(roomName, identity, name)
-	}
-	return "mock-token", nil
-}
+// mockLiveKitClient is defined in voice_test.go and shared across service_test package.
 
 // --- CreateBridge service-level tests (no DB pool needed for validation) ---
 

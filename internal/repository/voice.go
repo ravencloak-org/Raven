@@ -52,6 +52,8 @@ const (
 
 	sqlVoiceSessionCount = `SELECT COUNT(*) FROM voice_sessions WHERE org_id = $1`
 
+	sqlVoiceActiveSessionCount = `SELECT COUNT(*) FROM voice_sessions WHERE org_id = $1 AND state IN ('created', 'active')`
+
 	sqlVoiceTurnInsert = `
 		INSERT INTO voice_turns (session_id, org_id, speaker, transcript, started_at, ended_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
@@ -190,6 +192,16 @@ func (r *VoiceRepository) AppendTurn(ctx context.Context, tx pgx.Tx, orgID, sess
 		return nil, fmt.Errorf("VoiceRepository.AppendTurn: %w", err)
 	}
 	return t, nil
+}
+
+// CountActiveSessions returns the number of voice sessions in 'created' or
+// 'active' state for a given org. This is used for concurrent session limit checks.
+func (r *VoiceRepository) CountActiveSessions(ctx context.Context, tx pgx.Tx, orgID string) (int, error) {
+	var count int
+	if err := tx.QueryRow(ctx, sqlVoiceActiveSessionCount, orgID).Scan(&count); err != nil {
+		return 0, fmt.Errorf("VoiceRepository.CountActiveSessions: %w", err)
+	}
+	return count, nil
 }
 
 // ListTurns returns all turns for a session ordered by started_at ASC.

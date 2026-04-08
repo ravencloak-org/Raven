@@ -27,48 +27,52 @@ const (
 
 // Plan describes a billing plan and its feature limits.
 type Plan struct {
-	ID            string   `json:"id"`
-	Tier          PlanTier `json:"tier"`
-	Name          string   `json:"name"`
-	PriceMonthly  int64    `json:"price_monthly"`  // amount in cents
-	MaxUsers      int      `json:"max_users"`
-	MaxWorkspaces int      `json:"max_workspaces"`
-	MaxKBs        int      `json:"max_kbs"`
-	MaxStorageMB  int64    `json:"max_storage_mb"`
+	ID                          string   `json:"id"`
+	Tier                        PlanTier `json:"tier"`
+	Name                        string   `json:"name"`
+	PriceMonthly                int64    `json:"price_monthly"`  // amount in cents
+	MaxUsers                    int      `json:"max_users"`
+	MaxWorkspaces               int      `json:"max_workspaces"`
+	MaxKBs                      int      `json:"max_kbs"`
+	MaxStorageMB                int64    `json:"max_storage_mb"`
+	MaxConcurrentVoiceSessions  int      `json:"max_concurrent_voice_sessions"` // -1 = unlimited
 }
 
 // DefaultPlans returns the pre-defined plans with their feature limits.
 func DefaultPlans() []Plan {
 	return []Plan{
 		{
-			ID:            "plan_free",
-			Tier:          PlanTierFree,
-			Name:          "Free",
-			PriceMonthly:  0,
-			MaxUsers:      5,
-			MaxWorkspaces: 2,
-			MaxKBs:        3,
-			MaxStorageMB:  500,
+			ID:                         "plan_free",
+			Tier:                       PlanTierFree,
+			Name:                       "Free",
+			PriceMonthly:               0,
+			MaxUsers:                   5,
+			MaxWorkspaces:              2,
+			MaxKBs:                     3,
+			MaxStorageMB:               500,
+			MaxConcurrentVoiceSessions: 1,
 		},
 		{
-			ID:            "plan_pro",
-			Tier:          PlanTierPro,
-			Name:          "Pro",
-			PriceMonthly:  2900, // $29.00
-			MaxUsers:      25,
-			MaxWorkspaces: 10,
-			MaxKBs:        50,
-			MaxStorageMB:  10240,
+			ID:                         "plan_pro",
+			Tier:                       PlanTierPro,
+			Name:                       "Pro",
+			PriceMonthly:               2900, // $29.00
+			MaxUsers:                   25,
+			MaxWorkspaces:              10,
+			MaxKBs:                     50,
+			MaxStorageMB:               10240,
+			MaxConcurrentVoiceSessions: 5,
 		},
 		{
-			ID:            "plan_enterprise",
-			Tier:          PlanTierEnterprise,
-			Name:          "Enterprise",
-			PriceMonthly:  9900, // $99.00
-			MaxUsers:      -1,   // unlimited
-			MaxWorkspaces: -1,
-			MaxKBs:        -1,
-			MaxStorageMB:  -1,
+			ID:                         "plan_enterprise",
+			Tier:                       PlanTierEnterprise,
+			Name:                       "Enterprise",
+			PriceMonthly:               9900, // $99.00
+			MaxUsers:                   -1,   // unlimited
+			MaxWorkspaces:              -1,
+			MaxKBs:                     -1,
+			MaxStorageMB:               -1,
+			MaxConcurrentVoiceSessions: -1, // unlimited
 		},
 	}
 }
