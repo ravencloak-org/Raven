@@ -17,7 +17,7 @@ type Config struct {
 // Controller is a no-op on non-Linux.
 type Controller struct{}
 
-func NewController(_ XDPObjects, _ interface{}, _ metric.Meter, _ Config) (*Controller, error) {
+func NewController(_ XDPObjects, _ any, _ metric.Meter, _ Config) (*Controller, error) {
 	return &Controller{}, nil
 }
 func (c *Controller) SyncBlocklist(_ []string) {}
