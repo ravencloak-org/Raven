@@ -289,7 +289,7 @@ func main() {
 	} else {
 		slog.Warn("LiveKit not configured: voice session room management disabled")
 	}
-	voiceSvc := service.NewVoiceService(voiceRepo, pool, livekitClient, cfg.LiveKit.Host)
+	voiceSvc := service.NewVoiceService(voiceRepo, pool, livekitClient, cfg.LiveKit.Host, 1)
 
 	// --- Wire WhatsApp-LiveKit bridge ---
 	waBridgeRepo := repository.NewWhatsAppBridgeRepository(pool)

@@ -73,7 +73,7 @@ func (m *mockVoiceService) GenerateToken(ctx context.Context, orgID, sessionID, 
 	if m.generateTokenFn != nil {
 		return m.generateTokenFn(ctx, orgID, sessionID, identity)
 	}
-	return nil, nil
+	panic("unexpected GenerateToken call")
 }
 
 func newVoiceRouter(svc handler.VoiceServicer) *gin.Engine {

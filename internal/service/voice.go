@@ -47,13 +47,17 @@ type VoiceService struct {
 
 // NewVoiceService creates a new VoiceService. The livekit client may be nil if
 // LiveKit is not configured (room operations become no-ops).
-func NewVoiceService(repo VoiceRepository, pool *pgxpool.Pool, lkc LiveKitClient, lkHost string) *VoiceService {
+// maxSessions controls the concurrent session cap per org (1 = free, -1 = unlimited).
+func NewVoiceService(repo VoiceRepository, pool *pgxpool.Pool, lkc LiveKitClient, lkHost string, maxSessions int) *VoiceService {
+	if maxSessions == 0 {
+		maxSessions = 1 // default to free tier
+	}
 	return &VoiceService{
 		repo:                  repo,
 		pool:                  pool,
 		lkc:                   lkc,
 		lkHost:                lkHost,
-		maxConcurrentSessions: 1, // Free plan default
+		maxConcurrentSessions: maxSessions,
 	}
 }
 
@@ -81,8 +85,14 @@ func (s *VoiceService) CreateSession(ctx context.Context, orgID string, req *mod
 
 	var session *model.VoiceSession
 	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
-		// Check concurrent session limit.
+		// Check concurrent session limit with advisory lock to prevent races.
 		if s.maxConcurrentSessions >= 0 {
+			// Acquire a transaction-scoped advisory lock keyed on a hash of the orgID
+			// to serialize concurrent session-create requests for the same org.
+			lockKey := int64(fnv32a(orgID))
+			if _, e := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", lockKey); e != nil {
+				return e
+			}
 			active, e := s.repo.CountActiveSessions(ctx, tx, orgID)
 			if e != nil {
 				return e
@@ -313,4 +323,14 @@ func isTooManyRequests(err error) bool {
 		return appErr.Code == 429
 	}
 	return false
+}
+
+// fnv32a produces a 32-bit FNV-1a hash for advisory lock keys.
+func fnv32a(s string) uint32 {
+	var h uint32 = 2166136261
+	for i := 0; i < len(s); i++ {
+		h ^= uint32(s[i])
+		h *= 16777619
+	}
+	return h
 }

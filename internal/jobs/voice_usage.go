@@ -101,7 +101,8 @@ func (h *VoiceUsageHandler) aggregateVoiceUsage(ctx context.Context, orgID strin
 		FROM voice_sessions
 		WHERE state = 'ended'
 		  AND ended_at IS NOT NULL
-		  AND ended_at >= NOW() - make_interval(mins => $1)`
+		  AND ended_at >= date_trunc('hour', NOW() - make_interval(mins => $1))
+		  AND ended_at < date_trunc('hour', NOW())`
 
 	args := []any{windowMinutes}
 

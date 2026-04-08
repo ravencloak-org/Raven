@@ -170,7 +170,7 @@ func TestVoiceModel_SessionState_Values(t *testing.T) {
 // directly with a nil pool; the guard fires before any pool access.
 func TestVoiceService_UpdateSessionState_InvalidState_GuardCheck(t *testing.T) {
 	// NewVoiceService with nil pool: the guard check fires before db.WithOrgID.
-	svc := service.NewVoiceService(nil, nil, nil, "")
+	svc := service.NewVoiceService(nil, nil, nil, "", 1)
 	_, err := svc.UpdateSessionState(context.Background(), "org-1", "sess-1", model.VoiceSessionStateCreated)
 	if err == nil {
 		t.Fatal("expected error for invalid state 'created', got nil")
@@ -207,7 +207,7 @@ func TestVoiceTokenResponse_Fields(t *testing.T) {
 
 // TestVoiceService_CreateSession_NilRequest checks nil request guard.
 func TestVoiceService_CreateSession_NilRequest(t *testing.T) {
-	svc := service.NewVoiceService(nil, nil, nil, "")
+	svc := service.NewVoiceService(nil, nil, nil, "", 1)
 	_, err := svc.CreateSession(context.Background(), "org-1", nil)
 	if err == nil {
 		t.Fatal("expected error for nil request, got nil")
@@ -216,7 +216,7 @@ func TestVoiceService_CreateSession_NilRequest(t *testing.T) {
 
 // TestVoiceService_GenerateToken_NoLiveKit checks error when LiveKit is not configured.
 func TestVoiceService_GenerateToken_NoLiveKit(t *testing.T) {
-	svc := service.NewVoiceService(nil, nil, nil, "")
+	svc := service.NewVoiceService(nil, nil, nil, "", 1)
 	_, err := svc.GenerateToken(context.Background(), "org-1", "sess-1", "user-1")
 	if err == nil {
 		t.Fatal("expected error when LiveKit not configured")
