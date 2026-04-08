@@ -12,7 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Task type for voice usage aggregation.
+// TypeVoiceUsageAggregation is the task type for voice usage aggregation.
 const TypeVoiceUsageAggregation = "scheduled:voice_usage_aggregation"
 
 // CronVoiceUsageAggregation runs voice usage aggregation every hour at minute 10.
