@@ -2,6 +2,8 @@ package handler
 
 import (
 	"context"
+	"errors"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -56,9 +58,8 @@ func (h *VoiceHandler) CreateSession(c *gin.Context) {
 
 	var req model.CreateVoiceSessionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		// Allow empty body for CreateSession since LiveKitRoom is auto-generated.
-		// Only fail if the body is present but malformed.
-		if c.Request.ContentLength > 0 {
+		// Allow an empty body (LiveKitRoom is auto-generated), but reject malformed JSON.
+		if !errors.Is(err, io.EOF) {
 			_ = c.Error(&apierror.AppError{
 				Code:    http.StatusBadRequest,
 				Message: "Bad Request",
