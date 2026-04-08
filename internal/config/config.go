@@ -95,7 +95,14 @@ type STTConfig struct {
 
 // EBPFConfig holds eBPF feature flags. All features default to false — opt-in only.
 // Kernel requirement: Linux ≥ 5.8 with CONFIG_DEBUG_INFO_BTF=y.
+//
+// Master switch: set RAVEN_EBPF_ENABLED=true to activate the subsystem.
+// When false (the default) no eBPF code runs regardless of individual flags.
+// On non-Linux platforms the subsystem is always a no-op regardless of this flag.
 type EBPFConfig struct {
+	// Enabled is the master switch for the entire eBPF subsystem.
+	// Set RAVEN_EBPF_ENABLED=true to activate. All other flags are ignored when false.
+	Enabled              bool     `mapstructure:"enabled"`
 	ObservabilityEnabled bool     `mapstructure:"observability_enabled"`
 	AuditEnabled         bool     `mapstructure:"audit_enabled"`
 	AuditIPAllowlist     []string `mapstructure:"audit_ip_allowlist"`
@@ -234,7 +241,8 @@ func Load() (*Config, error) {
 	v.SetDefault("stt.deepgram_base_url", "https://api.deepgram.com")
 	v.SetDefault("stt.whisper_endpoint", "http://localhost:8000")
 	v.SetDefault("stt.whisper_model", "large-v3")
-	// eBPF defaults — all disabled; safe for existing deployments
+	// eBPF defaults — master switch off; safe for non-Linux and existing deployments
+	v.SetDefault("ebpf.enabled", false)
 	v.SetDefault("ebpf.observability_enabled", false)
 	v.SetDefault("ebpf.audit_enabled", false)
 	v.SetDefault("ebpf.audit_ip_allowlist", []string{})
@@ -297,6 +305,7 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("otel.endpoint", "RAVEN_OTEL_ENDPOINT")
 	_ = v.BindEnv("otel.service_name", "RAVEN_OTEL_SERVICE_NAME")
 	_ = v.BindEnv("otel.enabled", "RAVEN_OTEL_ENABLED")
+	_ = v.BindEnv("ebpf.enabled", "RAVEN_EBPF_ENABLED")
 	_ = v.BindEnv("ebpf.observability_enabled", "RAVEN_EBPF_OBSERVABILITY_ENABLED")
 	_ = v.BindEnv("ebpf.audit_enabled", "RAVEN_EBPF_AUDIT_ENABLED")
 	_ = v.BindEnv("ebpf.audit_ip_allowlist", "RAVEN_EBPF_AUDIT_IP_ALLOWLIST")
@@ -320,8 +329,10 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("ratelimit.default_org_limit must be > 0, got %d", cfg.RateLimit.DefaultOrgLimit)
 	}
 
-	// Validate ring buffer size unconditionally — catches misconfiguration before any BPF load.
-	{
+	// Validate ring buffer size when eBPF is enabled — catches misconfiguration before any BPF load.
+	// Validated even when individual AuditEnabled=false so that a stale invalid value doesn't
+	// silently survive until someone enables audit later.
+	if cfg.EBPF.Enabled {
 		size := cfg.EBPF.AuditRingBufferSize
 		if size <= 0 || bits.OnesCount(uint(size)) != 1 {
 			return nil, fmt.Errorf("ebpf.audit_ring_buffer_size must be a power of 2 > 0, got %d", size)
