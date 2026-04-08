@@ -43,6 +43,10 @@ type WhatsAppCall struct {
 	State           WhatsAppCallState     `json:"state"`
 	Caller          string                `json:"caller"`
 	Callee          string                `json:"callee"`
+	From            string                `json:"from,omitempty"`
+	To              string                `json:"to,omitempty"`
+	SDPOffer        *string               `json:"sdp_offer,omitempty"   db:"sdp_offer"`
+	SDPAnswer       *string               `json:"sdp_answer,omitempty"  db:"sdp_answer"`
 	StartedAt       *time.Time            `json:"started_at,omitempty"`
 	EndedAt         *time.Time            `json:"ended_at,omitempty"`
 	DurationSeconds *int                  `json:"duration_seconds,omitempty"`
@@ -90,6 +94,16 @@ type WhatsAppCallListResponse struct {
 	Total  int            `json:"total"`
 	Limit  int            `json:"limit"`
 	Offset int            `json:"offset"`
+}
+
+// WhatsAppCallResponse wraps a single WhatsAppCall for JSON API responses.
+type WhatsAppCallResponse struct {
+	Call WhatsAppCall `json:"call"`
+}
+
+// SendSDPAnswerRequest is the payload for POST /whatsapp/calls/:call_id/answer.
+type SendSDPAnswerRequest struct {
+	SDPAnswer string `json:"sdp_answer" binding:"required"`
 }
 
 // --- Webhook payload types (Meta Graph API) ---

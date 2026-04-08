@@ -662,6 +662,11 @@ func main() {
 		chatAPI.DELETE("/:kb_id/sessions/:session_id", chatHandler.DeleteSession)
 	}
 
+	// --- Meta Graph API Webhook (public, no JWT — Meta sends to a single URL) ---
+	metaWebhookHandler := handler.NewMetaWebhookHandler(cfg.Meta.AppSecret, cfg.Meta.WebhookToken, nil)
+	router.GET("/webhooks/meta", metaWebhookHandler.VerifyWebhook)
+	router.POST("/webhooks/meta", metaWebhookHandler.HandleEvent)
+
 	// Internal routes — no JWT, no rate limiting.
 	// Must only be reachable from the compose-internal network (enforce via firewall/network policy).
 	internal := router.Group("/api/v1/internal")
