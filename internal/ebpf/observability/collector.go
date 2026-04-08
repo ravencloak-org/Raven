@@ -88,7 +88,7 @@ func NewCollector(meter metric.Meter, maps *Maps) (*Collector, error) {
 	}
 
 	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
-		// Stub: real implementation reads from BPF fd_count_map
+		// Stub: real implementation reads from BPF fd_installs_map
 		return nil
 	}, fdGauge)
 	if err != nil {
