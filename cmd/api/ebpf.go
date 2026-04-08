@@ -17,7 +17,7 @@ import (
 // initEBPF starts the eBPF subsystem based on cfg.
 // It always returns a non-nil Manager — features that fail to start are logged
 // and skipped; the API server continues regardless.
-func initEBPF(cfg *config.EBPFConfig, _ any) (*ebpf.Manager, error) {
+func initEBPF(cfg *config.EBPFConfig) (*ebpf.Manager, error) {
 	manager := ebpf.NewManager()
 
 	if err := ebpf.CheckCapabilities(); err != nil {
@@ -32,7 +32,9 @@ func initEBPF(cfg *config.EBPFConfig, _ any) (*ebpf.Manager, error) {
 		if err != nil {
 			slog.Warn("eBPF observability failed to start", "error", err)
 		} else {
-			manager.Register(col)
+			if err := manager.Register(col); err != nil {
+				slog.Warn("eBPF: failed to register component", "error", err)
+			}
 			slog.Info("eBPF observability enabled")
 		}
 	}
@@ -45,7 +47,9 @@ func initEBPF(cfg *config.EBPFConfig, _ any) (*ebpf.Manager, error) {
 		if err != nil {
 			slog.Warn("eBPF audit consumer failed to start", "error", err)
 		} else {
-			manager.Register(con)
+			if err := manager.Register(con); err != nil {
+				slog.Warn("eBPF: failed to register component", "error", err)
+			}
 			slog.Info("eBPF audit trail enabled")
 		}
 	}
@@ -57,7 +61,9 @@ func initEBPF(cfg *config.EBPFConfig, _ any) (*ebpf.Manager, error) {
 		if err != nil {
 			slog.Warn("eBPF XDP controller failed to start", "error", err)
 		} else {
-			manager.Register(ctrl)
+			if err := manager.Register(ctrl); err != nil {
+				slog.Warn("eBPF: failed to register component", "error", err)
+			}
 			slog.Info("eBPF XDP pre-filtering enabled", "interface", cfg.XDPInterface)
 		}
 	}

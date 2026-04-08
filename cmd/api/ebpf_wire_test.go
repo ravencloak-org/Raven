@@ -11,16 +11,18 @@ import (
 
 func TestEBPFManager_GracefulDegradeOnCI(t *testing.T) {
 	cfg := &config.EBPFConfig{
+		Enabled:              true,
 		ObservabilityEnabled: true,
 		AuditEnabled:         true,
 		XDPEnabled:           true,
 		XDPInterface:         "lo",
 		AuditRingBufferSize:  1048576,
 	}
-	// initEBPF must not panic or crash even when capabilities are unavailable
-	manager, err := initEBPF(cfg, nil)
-	// On CI without CAP_BPF, err may be non-nil but manager must not be nil
+	manager, err := initEBPF(cfg)
 	assert.NotNil(t, manager)
-	_ = err
+	// On CI without CAP_BPF, initEBPF returns a non-nil manager with a degradation error
+	if err != nil {
+		t.Logf("eBPF gracefully degraded: %v", err)
+	}
 	manager.Stop()
 }

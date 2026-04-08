@@ -3,6 +3,7 @@
 package ebpf
 
 import (
+	"errors"
 	"io"
 	"log/slog"
 	"sync"
@@ -27,10 +28,15 @@ func NewManager() *Manager {
 }
 
 // Register adds a Closer that will be called on Stop().
-func (m *Manager) Register(c Closer) {
+// Returns an error if the manager has already been stopped.
+func (m *Manager) Register(c Closer) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.stopped {
+		return errors.New("ebpf: manager already stopped")
+	}
 	m.closers = append(m.closers, c)
+	return nil
 }
 
 // Stop closes all registered features in reverse registration order.

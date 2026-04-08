@@ -4,8 +4,8 @@ package xdp
 
 import "go.opentelemetry.io/otel/metric"
 
-// XDPObjects is a no-op interface on non-Linux.
-type XDPObjects interface {
+// Objects is a no-op interface on non-Linux.
+type Objects interface {
 	Close() error
 }
 
@@ -17,7 +17,7 @@ type Config struct {
 // Controller is a no-op on non-Linux.
 type Controller struct{}
 
-func NewController(_ XDPObjects, _ any, _ metric.Meter, _ Config) (*Controller, error) {
+func NewController(_ Objects, _ any, _ metric.Meter, _ Config) (*Controller, error) {
 	return &Controller{}, nil
 }
 func (c *Controller) SyncBlocklist(_ []string) {}

@@ -78,11 +78,19 @@ func NewCollector(meter metric.Meter, maps *Maps) (*Collector, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = meter.Int64ObservableGauge(
+	fdGauge, err := meter.Int64ObservableGauge(
 		"ebpf.fd.count",
-		metric.WithDescription("Open file descriptor count per PID"),
+		metric.WithDescription("Number of open file descriptors per process"),
 		metric.WithUnit("{fd}"),
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
+		// Stub: real implementation reads from BPF fd_count_map
+		return nil
+	}, fdGauge)
 	if err != nil {
 		return nil, err
 	}

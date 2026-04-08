@@ -31,7 +31,7 @@ type Manager struct{}
 func NewManager() *Manager { return &Manager{} }
 
 // Register is a no-op on non-Linux.
-func (m *Manager) Register(_ Closer) {}
+func (m *Manager) Register(_ Closer) error { return nil }
 
 // Stop is a no-op on non-Linux.
 func (m *Manager) Stop() {}

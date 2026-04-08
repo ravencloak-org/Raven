@@ -39,8 +39,8 @@ func parseLPMKey(cidr string) (LPMKey, error) {
 	return LPMKey{Prefixlen: uint32(ones), Addr: addr}, nil
 }
 
-// XDPObjects holds the bpf2go-generated map handles. Nil = no eBPF objects loaded.
-type XDPObjects interface {
+// Objects holds the bpf2go-generated map handles. Nil = no eBPF objects loaded.
+type Objects interface {
 	// BlockedIPs returns the LPM trie map for blocked CIDRs.
 	io.Closer
 }
@@ -52,7 +52,7 @@ type Config struct {
 
 // Controller attaches the XDP program and syncs the blocklist from Valkey.
 type Controller struct {
-	objects XDPObjects
+	objects Objects
 	cfg     Config
 	stop    chan struct{}
 	done    chan struct{}
@@ -61,7 +61,7 @@ type Controller struct {
 }
 
 // NewController creates a Controller. Pass nil objects for a no-op (graceful degrade).
-func NewController(objects XDPObjects, prog *ebpf.Program, meter metric.Meter, cfg Config) (*Controller, error) {
+func NewController(objects Objects, prog *ebpf.Program, meter metric.Meter, cfg Config) (*Controller, error) {
 	dropped, err := meter.Int64Counter(
 		"ebpf.xdp.dropped_packets",
 		metric.WithDescription("Packets dropped by XDP pre-filter"),
