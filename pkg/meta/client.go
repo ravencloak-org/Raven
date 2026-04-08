@@ -11,6 +11,19 @@ import (
 	"time"
 )
 
+// readAndClose reads the full response body and closes it, returning errors from either step.
+func readAndClose(body io.ReadCloser) ([]byte, error) {
+	data, readErr := io.ReadAll(body)
+	closeErr := body.Close()
+	if readErr != nil {
+		return nil, fmt.Errorf("meta: read response: %w", readErr)
+	}
+	if closeErr != nil {
+		return nil, fmt.Errorf("meta: close response body: %w", closeErr)
+	}
+	return data, nil
+}
+
 const (
 	defaultAPIVersion = "v20.0"
 	defaultBaseURL    = "https://graph.facebook.com"
@@ -92,11 +105,10 @@ func (c *Client) InitiateCall(ctx context.Context, to string, sdpOffer string) (
 	if err != nil {
 		return nil, fmt.Errorf("meta.Client.InitiateCall http: %w", err)
 	}
-	defer resp.Body.Close() //nolint:errcheck
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := readAndClose(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("meta.Client.InitiateCall read body: %w", err)
+		return nil, fmt.Errorf("meta.Client.InitiateCall: %w", err)
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -136,11 +148,13 @@ func (c *Client) SendSDPAnswer(ctx context.Context, callID string, sdpAnswer str
 	if err != nil {
 		return fmt.Errorf("meta.Client.SendSDPAnswer http: %w", err)
 	}
-	defer resp.Body.Close() //nolint:errcheck
 
+	respBody, err := readAndClose(resp.Body)
+	if err != nil {
+		return fmt.Errorf("meta.Client.SendSDPAnswer: %w", err)
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("meta.Client.SendSDPAnswer non-2xx status %d: %s", resp.StatusCode, string(body))
+		return fmt.Errorf("meta.Client.SendSDPAnswer non-2xx status %d: %s", resp.StatusCode, string(respBody))
 	}
 	return nil
 }
@@ -158,11 +172,13 @@ func (c *Client) EndCall(ctx context.Context, callID string) error {
 	if err != nil {
 		return fmt.Errorf("meta.Client.EndCall http: %w", err)
 	}
-	defer resp.Body.Close() //nolint:errcheck
 
+	respBody, err := readAndClose(resp.Body)
+	if err != nil {
+		return fmt.Errorf("meta.Client.EndCall: %w", err)
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("meta.Client.EndCall non-2xx status %d: %s", resp.StatusCode, string(body))
+		return fmt.Errorf("meta.Client.EndCall non-2xx status %d: %s", resp.StatusCode, string(respBody))
 	}
 	return nil
 }
