@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "2653b793b1d5",
+  "strategy": "manual-commit",
+  "branch": "feat/webrtc-session-management",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "cmd/api/main.go",
+    "internal/handler/voice.go",
+    "internal/handler/voice_test.go",
+    "internal/jobs/voice_usage.go",
+    "internal/service/voice.go",
+    "internal/service/voice_test.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/26/53b793b1d5/0/metadata.json",
+      "transcript": "/26/53b793b1d5/0/full.jsonl",
+      "context": "/26/53b793b1d5/0/context.md",
+      "content_hash": "/26/53b793b1d5/0/content_hash.txt",
+      "prompt": "/26/53b793b1d5/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 43,
+    "cache_creation_tokens": 22734,
+    "cache_read_tokens": 7520858,
+    "output_tokens": 6170,
+    "api_call_count": 37
+  }
+}

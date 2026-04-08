@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "2653b793b1d5",
+  "session_id": "facb1bb1-3f38-4aa3-b85c-431a05541fe7",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-08T16:17:44.759644Z",
+  "branch": "feat/webrtc-session-management",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "cmd/api/main.go",
+    "internal/handler/voice.go",
+    "internal/handler/voice_test.go",
+    "internal/jobs/voice_usage.go",
+    "internal/service/voice.go",
+    "internal/service/voice_test.go"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "f1326995-abb6-4ae1-8cff-5be902952554",
+  "checkpoint_transcript_start": 2294,
+  "transcript_lines_at_start": 2294,
+  "token_usage": {
+    "input_tokens": 43,
+    "cache_creation_tokens": 22734,
+    "cache_read_tokens": 7520858,
+    "output_tokens": 6170,
+    "api_call_count": 37
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-08T16:17:44.313598Z",
+    "agent_lines": 466,
+    "human_added": 406,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 872,
+    "agent_percentage": 53.44036697247706
+  }
+}
