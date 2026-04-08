@@ -26,6 +26,7 @@ struct {
 struct throttle_val {
     __u64 count;
     __u64 window_start_ns;
+    struct bpf_spin_lock lock;
 };
 
 struct {
@@ -72,18 +73,21 @@ int xdp_filter(struct xdp_md *ctx)
     u64 now = bpf_ktime_get_ns();
     struct throttle_val *tv = bpf_map_lookup_elem(&throttle_state, &src);
     if (tv) {
+        bpf_spin_lock(&tv->lock);
         if (now - tv->window_start_ns > THROTTLE_WINDOW) {
             tv->window_start_ns = now;
             tv->count = 1;
         } else {
-            __sync_fetch_and_add(&tv->count, 1);
+            tv->count += 1;
             if (tv->count > THROTTLE_LIMIT) {
+                bpf_spin_unlock(&tv->lock);
                 u32 idx = 0;
                 u64 *cnt = bpf_map_lookup_elem(&drop_count, &idx);
                 if (cnt) __sync_fetch_and_add(cnt, 1);
                 return XDP_DROP;
             }
         }
+        bpf_spin_unlock(&tv->lock);
     } else {
         struct throttle_val new_tv = { .count = 1, .window_start_ns = now };
         bpf_map_update_elem(&throttle_state, &src, &new_tv, BPF_ANY);

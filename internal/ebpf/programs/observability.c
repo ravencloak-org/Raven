@@ -40,26 +40,41 @@ struct {
     __type(value, u64);
 } syscall_errors SEC(".maps");
 
-// FD count per PID
+// FD installs per PID (monotonic counter — does not track closes)
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
     __uint(max_entries, 4096);
     __type(key, u32);
     __type(value, u64);
-} fd_count_map SEC(".maps");
+} fd_installs_map SEC(".maps");
+
+// Last observed sum_exec_runtime per TGID (for delta computation)
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(max_entries, 4096);
+    __type(key, u32);
+    __type(value, u64);
+} last_runtime_map SEC(".maps");
 
 // sched_switch: accumulate prev task CPU time delta
 SEC("tp_btf/sched_switch")
 int BPF_PROG(handle_sched_switch, bool preempt,
              struct task_struct *prev, struct task_struct *next)
 {
-    u32 pid = BPF_CORE_READ(prev, pid);
+    u32 tgid = BPF_CORE_READ(prev, tgid);
     u64 runtime = BPF_CORE_READ(prev, se.sum_exec_runtime);
-    u64 *val = bpf_map_lookup_elem(&cpu_time_map, &pid);
-    if (val)
-        __sync_fetch_and_add(val, runtime);
-    else
-        bpf_map_update_elem(&cpu_time_map, &pid, &runtime, BPF_ANY);
+
+    u64 *last = bpf_map_lookup_elem(&last_runtime_map, &tgid);
+    u64 delta = last ? (runtime - *last) : 0;
+    bpf_map_update_elem(&last_runtime_map, &tgid, &runtime, BPF_ANY);
+
+    if (delta > 0) {
+        u64 *val = bpf_map_lookup_elem(&cpu_time_map, &tgid);
+        if (val)
+            __sync_fetch_and_add(val, delta);
+        else
+            bpf_map_update_elem(&cpu_time_map, &tgid, &delta, BPF_ANY);
+    }
     return 0;
 }
 
@@ -77,6 +92,11 @@ int handle_sys_exit(struct trace_event_raw_sys_exit *ctx)
         bpf_map_update_elem(&syscall_errors, &nr, &one, BPF_ANY);
     return 0;
 }
+
+// TODO: bpf_get_current_pid_tgid() in softirq context (netif_receive_skb,
+// net_dev_start_xmit) returns the interrupted task, not the socket owner.
+// For accurate per-process attribution, migrate to cgroup_skb programs or
+// socket-level tracing (e.g., sock_sendmsg/sock_recvmsg kprobes).
 
 // net/netif_receive_skb: bytes in per PID
 SEC("tracepoint/net/netif_receive_skb")
@@ -106,16 +126,16 @@ int handle_net_tx(struct trace_event_raw_net_dev_start_xmit *ctx)
     return 0;
 }
 
-// kprobe/__fd_install: track FD creation per PID
+// kprobe/__fd_install: count FD installs per PID (monotonic)
 SEC("kprobe/__fd_install")
 int BPF_KPROBE(handle_fd_install)
 {
     u32 pid = bpf_get_current_pid_tgid() >> 32;
     u64 one = 1;
-    u64 *val = bpf_map_lookup_elem(&fd_count_map, &pid);
+    u64 *val = bpf_map_lookup_elem(&fd_installs_map, &pid);
     if (val)
         __sync_fetch_and_add(val, 1);
     else
-        bpf_map_update_elem(&fd_count_map, &pid, &one, BPF_ANY);
+        bpf_map_update_elem(&fd_installs_map, &pid, &one, BPF_ANY);
     return 0;
 }

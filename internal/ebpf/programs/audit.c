@@ -17,6 +17,8 @@ char LICENSE[] SEC("license") = "GPL";
 #define AUDIT_TCP     2
 #define AUDIT_CONNECT 3
 
+#define TCP_ESTABLISHED 1
+
 struct audit_event {
     __u8  type;
     __u32 pid;
@@ -36,7 +38,9 @@ struct audit_event {
     };
 };
 
-// Ring buffer for audit events
+// Ring buffer for audit events.
+// max_entries is fixed at compile time. Userspace overrides via AuditRingBufferSize
+// when creating the ring reader or by resizing the map at load time (LoadCollection).
 struct {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
     __uint(max_entries, 1 << 20);
@@ -66,7 +70,7 @@ int handle_execve(struct trace_event_raw_sys_enter *ctx)
 SEC("tracepoint/sock/inet_sock_set_state")
 int handle_tcp_state(struct trace_event_raw_inet_sock_set_state *ctx)
 {
-    if (ctx->newstate != 1 /* TCP_ESTABLISHED */) return 0;
+    if (ctx->newstate != TCP_ESTABLISHED) return 0;
 
     struct audit_event *e = bpf_ringbuf_reserve(&audit_events, sizeof(*e), 0);
     if (!e) return 0;
@@ -94,6 +98,14 @@ int handle_connect(struct trace_event_raw_sys_enter *ctx)
     e->pid  = bpf_get_current_pid_tgid() >> 32;
     e->timestamp_ns = bpf_ktime_get_ns();
     bpf_get_current_comm(e->comm, sizeof(e->comm));
+
+    // Read destination sockaddr from userspace (args[1] = sockaddr *)
+    struct sockaddr_in sa = {};
+    if (bpf_probe_read_user(&sa, sizeof(sa), (void *)ctx->args[1]) == 0 &&
+        sa.sin_family == AF_INET) {
+        e->net.daddr = sa.sin_addr.s_addr;
+        e->net.dport = sa.sin_port;
+    }
 
     bpf_ringbuf_submit(e, 0);
     return 0;
