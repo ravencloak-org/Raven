@@ -52,6 +52,7 @@ import (
 	"github.com/ravencloak-org/Raven/internal/telemetry"
 	"github.com/ravencloak-org/Raven/internal/tts"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
+	livekitpkg "github.com/ravencloak-org/Raven/pkg/livekit"
 )
 
 // securityEvaluatorAdapter bridges the SecurityService to the middleware.SecurityEvaluator
@@ -215,6 +216,7 @@ func main() {
 	semCacheRepo := repository.NewSemanticCacheRepository(pool)
 	webhookRepo := repository.NewWebhookRepository(pool)
 	leadRepo := repository.NewLeadRepository(pool)
+	whatsappRepo := repository.NewWhatsAppRepository(pool)
 
 	// --- ClickHouse embedding repository (enterprise, optional) ---
 	var chEmbeddingRepo *repository.ClickHouseEmbeddingRepository
@@ -270,10 +272,21 @@ func main() {
 	notifSvc := service.NewNotificationService(notifRepo, queueClient)
 	webhookSvc := service.NewWebhookService(webhookRepo, pool, queueClient)
 	leadSvc := service.NewLeadService(leadRepo)
+	whatsappSvc := service.NewWhatsAppService(whatsappRepo, pool)
 	chatRepo := repository.NewChatRepository(pool)
 	chatSvc := service.NewChatService(chatRepo, grpcClient, pool)
 	voiceRepo := repository.NewVoiceRepository(pool)
 	voiceSvc := service.NewVoiceService(voiceRepo, pool)
+
+	// --- Wire WhatsApp-LiveKit bridge ---
+	lkClient := livekitpkg.NewClient(livekitpkg.Config{
+		Host:      cfg.LiveKit.Host,
+		APIKey:    cfg.LiveKit.APIKey,
+		APISecret: cfg.LiveKit.APISecret,
+	})
+	waBridgeRepo := repository.NewWhatsAppBridgeRepository(pool)
+	sdpRelay := service.NewLiveKitSDPRelay(lkClient)
+	waBridgeSvc := service.NewWhatsAppBridgeService(waBridgeRepo, voiceRepo, pool, lkClient, sdpRelay)
 
 	// --- Wire TTS provider ---
 	var ttsProvider tts.Provider
@@ -352,11 +365,13 @@ func main() {
 	chatHandler := handler.NewChatHandler(chatSvc)
 	semCacheHandler := handler.NewSemanticCacheHandler(semCacheRepo)
 	voiceHandler := handler.NewVoiceHandler(voiceSvc)
+	waBridgeHandler := handler.NewWhatsAppBridgeHandler(waBridgeSvc)
 	var ttsHandler *handler.TTSHandler
 	if ttsSvc != nil {
 		ttsHandler = handler.NewTTSHandler(ttsSvc)
 	}
 	leadHandler := handler.NewLeadHandler(leadSvc)
+	whatsappHandler := handler.NewWhatsAppHandler(whatsappSvc)
 
 	// Create router
 	router := gin.Default()
@@ -573,6 +588,15 @@ func main() {
 			voice.GET("/:session_id/turns", middleware.RequireOrgRole("org_member"), voiceHandler.ListTurns)
 		}
 
+		// --- WhatsApp-LiveKit bridge routes (nested under org) ---
+		waCallBridge := api.Group("/orgs/:org_id/whatsapp")
+		{
+			waCallBridge.POST("/calls/:call_id/bridge", middleware.RequireOrgRole("org_member"), waBridgeHandler.CreateBridge)
+			waCallBridge.GET("/calls/:call_id/bridge", middleware.RequireOrgRole("org_member"), waBridgeHandler.GetBridge)
+			waCallBridge.DELETE("/calls/:call_id/bridge", middleware.RequireOrgRole("org_member"), waBridgeHandler.TeardownBridge)
+			waCallBridge.GET("/bridges", middleware.RequireOrgRole("org_member"), waBridgeHandler.ListActiveBridges)
+		}
+
 		// --- TTS synthesis route (nested under org) ---
 		if ttsHandler != nil {
 			api.POST("/orgs/:org_id/tts", middleware.RequireOrgRole("org_member"), ttsHandler.Synthesize)
@@ -587,6 +611,26 @@ func main() {
 			leads.GET("/:id", leadHandler.GetLead)
 			leads.PUT("/:id", leadHandler.UpdateLead)
 			leads.DELETE("/:id", middleware.RequireOrgRole("org_admin"), leadHandler.DeleteLead)
+		}
+
+		// --- WhatsApp Business Calling routes (nested under org, admin only) ---
+		wa := api.Group("/orgs/:org_id/whatsapp", middleware.RequireOrgRole("org_admin"))
+		{
+			waPhones := wa.Group("/phone-numbers")
+			{
+				waPhones.POST("", whatsappHandler.CreatePhoneNumber)
+				waPhones.GET("", whatsappHandler.ListPhoneNumbers)
+				waPhones.GET("/:phone_id", whatsappHandler.GetPhoneNumber)
+				waPhones.PUT("/:phone_id", whatsappHandler.UpdatePhoneNumber)
+				waPhones.DELETE("/:phone_id", whatsappHandler.DeletePhoneNumber)
+			}
+			waCalls := wa.Group("/calls")
+			{
+				waCalls.POST("", whatsappHandler.InitiateCall)
+				waCalls.GET("", whatsappHandler.ListCalls)
+				waCalls.GET("/:call_id", whatsappHandler.GetCall)
+				waCalls.PATCH("/:call_id", whatsappHandler.UpdateCallState)
+			}
 		}
 
 		// --- User / me routes ---
