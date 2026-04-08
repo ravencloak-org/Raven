@@ -108,27 +108,49 @@ const (
 	auditConnect = 3
 )
 
+// Byte offsets matching struct audit_event layout (with C struct padding):
+//
+//	type           u8    offset  0
+//	(padding)            offset  1..3
+//	pid            u32   offset  4
+//	ppid           u32   offset  8
+//	(padding)            offset 12..15
+//	timestamp_ns   u64   offset 16
+//	comm           [16]  offset 24
+//	union                offset 40
+//	  exec.path    [128] offset 40..167
+//	  net.saddr    u32   offset 40
+//	  net.daddr    u32   offset 44
+//	  net.sport    u16   offset 48
+//	  net.dport    u16   offset 50
+const (
+	offPID  = 4
+	offTS   = 16
+	offComm = 24
+	endComm = 40 // offComm + TASK_COMM_LEN(16)
+	offExec = 40
+	endExec = 168 // offExec + PATH_LEN(128)
+	offNet  = 40
+)
+
 func (c *Consumer) handleRecord(ctx context.Context, rec ringbuf.Record) {
 	if len(rec.RawSample) < 1 {
 		return
 	}
 	eventType := rec.RawSample[0]
-	if len(rec.RawSample) < 20 {
+	if len(rec.RawSample) < endComm {
 		return
 	}
 
-	pid := binary.LittleEndian.Uint32(rec.RawSample[4:8])
-	ts := binary.LittleEndian.Uint64(rec.RawSample[12:20])
-	comm := ""
-	if len(rec.RawSample) >= 36 {
-		comm = nullTermStr(rec.RawSample[20:36])
-	}
+	pid := binary.LittleEndian.Uint32(rec.RawSample[offPID : offPID+4])
+	ts := binary.LittleEndian.Uint64(rec.RawSample[offTS : offTS+8])
+	comm := nullTermStr(rec.RawSample[offComm:endComm])
 
 	switch eventType {
 	case auditExec:
 		path := ""
-		if len(rec.RawSample) >= 164 {
-			path = nullTermStr(rec.RawSample[36:164])
+		if len(rec.RawSample) >= endExec {
+			path = nullTermStr(rec.RawSample[offExec:endExec])
 		}
 		violation := len(c.cfg.ExecAllowlist) > 0 && !slices.Contains(c.cfg.ExecAllowlist, path)
 		slog.InfoContext(ctx, "ebpf/audit: exec",
@@ -136,11 +158,11 @@ func (c *Consumer) handleRecord(ctx context.Context, rec ringbuf.Record) {
 			"timestamp_ns", ts, "audit.violation", violation,
 		)
 	case auditTCP:
-		if len(rec.RawSample) < 44 {
+		if len(rec.RawSample) < offNet+8 {
 			return
 		}
-		saddr := netip.AddrFrom4([4]byte(rec.RawSample[36:40]))
-		daddr := netip.AddrFrom4([4]byte(rec.RawSample[40:44]))
+		saddr := netip.AddrFrom4([4]byte(rec.RawSample[offNet : offNet+4]))
+		daddr := netip.AddrFrom4([4]byte(rec.RawSample[offNet+4 : offNet+8]))
 		violation := !c.ipAllowed(daddr.Unmap().String())
 		slog.InfoContext(ctx, "ebpf/audit: tcp-established",
 			"pid", pid, "comm", comm,
