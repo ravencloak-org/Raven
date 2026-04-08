@@ -5,7 +5,7 @@ RUN apk add --no-cache git ca-certificates
 
 # eBPF build tools — required for bpf2go and cilium/ebpf CGO bindings
 RUN apk add --no-cache clang llvm linux-headers libbpf-dev musl-dev \
-    && go install github.com/cilium/ebpf/cmd/bpf2go@latest
+    && go install github.com/cilium/ebpf/cmd/bpf2go@v0.21.0
 
 WORKDIR /src
 COPY go.mod go.sum ./

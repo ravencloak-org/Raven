@@ -129,10 +129,10 @@ Events written to a **BPF ring buffer** — efficient, ordered, no polling overh
 
 ### BPF Program (`programs/xdp.c`)
 
-```
+```text
 XDP hook on primary NIC
 → Parse Ethernet/IP header
-→ Lookup src IP in blocked_ips BPF hash map
+→ Lookup src IP in blocked_ips BPF LPM trie
    → BLOCKED:   XDP_DROP  (never reaches TCP stack)
    → THROTTLED: XDP_DROP if rate exceeded, else XDP_PASS
    → DEFAULT:   XDP_PASS

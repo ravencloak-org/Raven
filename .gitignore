@@ -57,3 +57,9 @@ htmlcov/
 .worktrees/
 .claude/worktrees/
 .mcp_data/
+
+# Superpowers brainstorm artifacts
+.superpowers/brainstorm/
+
+# Test results
+frontend/test-results/

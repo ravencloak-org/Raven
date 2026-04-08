@@ -42,9 +42,7 @@ services:
       - "traefik.http.routers.api.entrypoints=web,websecure"
       - "traefik.http.services.api.loadbalancer.server.port=8080"
     restart: unless-stopped
-    cap_add:
-      - CAP_BPF         # eBPF program loading and map creation (kernel ≥ 5.8)
-      - CAP_NET_ADMIN   # XDP attachment; omit if RAVEN_EBPF_XDP_ENABLED=false
+    # eBPF capabilities (CAP_BPF, CAP_NET_ADMIN) are in docker-compose.ebpf.yml overlay
     deploy:
       resources:
         limits:
