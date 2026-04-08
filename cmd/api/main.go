@@ -278,18 +278,19 @@ func main() {
 	voiceRepo := repository.NewVoiceRepository(pool)
 	// Instantiate shared LiveKit client for WebRTC room management and token generation.
 	lkClient := lk.NewClient(lk.Config{
-		Host:      cfg.LiveKit.Host,
+		APIURL:    cfg.LiveKit.APIURL,
+		WSURL:     cfg.LiveKit.WSURL,
 		APIKey:    cfg.LiveKit.APIKey,
 		APISecret: cfg.LiveKit.APISecret,
 	})
 	var livekitClient *lk.Client
 	if cfg.LiveKit.APIKey != "" && cfg.LiveKit.APISecret != "" {
 		livekitClient = lkClient
-		slog.Info("LiveKit client initialised", "host", cfg.LiveKit.Host)
+		slog.Info("LiveKit client initialised", "api_url", cfg.LiveKit.APIURL, "ws_url", cfg.LiveKit.WSURL)
 	} else {
 		slog.Warn("LiveKit not configured: voice session room management disabled")
 	}
-	voiceSvc := service.NewVoiceService(voiceRepo, pool, livekitClient, cfg.LiveKit.Host, 1)
+	voiceSvc := service.NewVoiceService(voiceRepo, pool, livekitClient, cfg.LiveKit.WSURL, 1)
 
 	// --- Wire WhatsApp-LiveKit bridge ---
 	waBridgeRepo := repository.NewWhatsAppBridgeRepository(pool)

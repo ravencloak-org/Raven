@@ -24,9 +24,12 @@ type RoomClient interface {
 
 // Config holds LiveKit connection settings.
 type Config struct {
-	// Host is the LiveKit server URL (e.g. "https://project.livekit.cloud" or "wss://...").
-	// The LiveKit SDK normalizes wss:// → https:// for API calls automatically.
-	Host      string
+	// APIURL is the LiveKit server HTTP(S) URL used for RoomService API calls
+	// (e.g. "https://project.livekit.cloud").
+	APIURL string
+	// WSURL is the WebSocket URL returned to frontend clients for real-time
+	// room connections (e.g. "wss://project.livekit.cloud").
+	WSURL     string
 	APIKey    string
 	APISecret string
 }

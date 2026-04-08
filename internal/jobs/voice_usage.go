@@ -8,8 +8,11 @@ import (
 	"log/slog"
 
 	"github.com/hibiken/asynq"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/ravencloak-org/Raven/internal/db"
 )
 
 // TypeVoiceUsageAggregation is the task type for voice usage aggregation.
@@ -119,8 +122,9 @@ func (h *VoiceUsageHandler) aggregateVoiceUsage(ctx context.Context, orgID strin
 			total_duration_seconds = EXCLUDED.total_duration_seconds,
 			updated_at             = NOW()`
 
-	tag, err := h.pool.Exec(ctx, q, args...)
-	if err != nil {
+	// check42P01 inspects a query error and returns (0, nil) when the table has
+	// not yet been created by migrations, or the original error otherwise.
+	check42P01 := func(err error) (int64, error) {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "42P01" {
 			// Tables not yet created by migrations — treat as no-op.
@@ -129,5 +133,50 @@ func (h *VoiceUsageHandler) aggregateVoiceUsage(ctx context.Context, orgID strin
 		}
 		return 0, fmt.Errorf("voice usage aggregation query: %w", err)
 	}
+
+	if orgID != "" {
+		// Org-scoped run: execute inside a transaction with app.current_org_id
+		// set so that row-level security on voice_usage_summaries is satisfied.
+		var rowsAffected int64
+		if err := db.WithOrgID(ctx, h.pool, orgID, func(tx pgx.Tx) error {
+			tag, err := tx.Exec(ctx, q, args...)
+			if err != nil {
+				return err
+			}
+			rowsAffected = tag.RowsAffected()
+			return nil
+		}); err != nil {
+			return check42P01(err)
+		}
+		return rowsAffected, nil
+	}
+
+	// Cross-org scheduled run: acquire a connection, open a transaction, elevate
+	// to the raven_admin role to bypass RLS, then run the INSERT across all orgs.
+	conn, err := h.pool.Acquire(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("acquire connection for cross-org voice usage aggregation: %w", err)
+	}
+	defer conn.Release()
+
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("begin tx for cross-org voice usage aggregation: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	if _, err := tx.Exec(ctx, "SET LOCAL ROLE raven_admin"); err != nil {
+		return 0, fmt.Errorf("set role raven_admin: %w", err)
+	}
+
+	tag, err := tx.Exec(ctx, q, args...)
+	if err != nil {
+		return check42P01(err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return 0, fmt.Errorf("commit cross-org voice usage aggregation: %w", err)
+	}
+
 	return tag.RowsAffected(), nil
 }
