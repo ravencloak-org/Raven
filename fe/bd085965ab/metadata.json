@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "febd085965ab",
+  "strategy": "manual-commit",
+  "branch": "feat/ebpf-edge-optimization",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/go.yml",
+    ".gitignore",
+    "Dockerfile",
+    "Makefile.edge",
+    "cmd/api/main.go",
+    "docker-compose.ebpf.yml",
+    "docker-compose.edge.yml",
+    "docker-compose.yml",
+    "docs/superpowers/plans/2026-04-07-ebpf-edge-optimization.md",
+    "docs/superpowers/specs/2026-04-07-ebpf-edge-optimization-design.md",
+    "internal/config/config.go",
+    "internal/config/config_ebpf_test.go",
+    "internal/ebpf/audit/consumer.go",
+    "internal/ebpf/observability/collector.go",
+    "internal/ebpf/programs/xdp.c",
+    "internal/ebpf/xdp/controller.go",
+    "internal/ebpf/xdp/controller_test.go",
+    "internal/ebpf/xdp/stub.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/fe/bd085965ab/0/metadata.json",
+      "transcript": "/fe/bd085965ab/0/full.jsonl",
+      "context": "/fe/bd085965ab/0/context.md",
+      "content_hash": "/fe/bd085965ab/0/content_hash.txt",
+      "prompt": "/fe/bd085965ab/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 70,
+    "cache_creation_tokens": 166742,
+    "cache_read_tokens": 8557341,
+    "output_tokens": 18452,
+    "api_call_count": 60
+  }
+}
