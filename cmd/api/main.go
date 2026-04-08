@@ -206,6 +206,7 @@ func main() {
 	semCacheRepo := repository.NewSemanticCacheRepository(pool)
 	webhookRepo := repository.NewWebhookRepository(pool)
 	leadRepo := repository.NewLeadRepository(pool)
+	whatsappRepo := repository.NewWhatsAppRepository(pool)
 
 	// --- ClickHouse embedding repository (enterprise, optional) ---
 	var chEmbeddingRepo *repository.ClickHouseEmbeddingRepository
@@ -261,6 +262,7 @@ func main() {
 	notifSvc := service.NewNotificationService(notifRepo, queueClient)
 	webhookSvc := service.NewWebhookService(webhookRepo, pool, queueClient)
 	leadSvc := service.NewLeadService(leadRepo)
+	whatsappSvc := service.NewWhatsAppService(whatsappRepo, pool)
 	chatRepo := repository.NewChatRepository(pool)
 	chatSvc := service.NewChatService(chatRepo, grpcClient, pool)
 	voiceRepo := repository.NewVoiceRepository(pool)
@@ -348,6 +350,7 @@ func main() {
 		ttsHandler = handler.NewTTSHandler(ttsSvc)
 	}
 	leadHandler := handler.NewLeadHandler(leadSvc)
+	whatsappHandler := handler.NewWhatsAppHandler(whatsappSvc)
 
 	// Create router
 	router := gin.Default()
@@ -578,6 +581,26 @@ func main() {
 			leads.GET("/:id", leadHandler.GetLead)
 			leads.PUT("/:id", leadHandler.UpdateLead)
 			leads.DELETE("/:id", middleware.RequireOrgRole("org_admin"), leadHandler.DeleteLead)
+		}
+
+		// --- WhatsApp Business Calling routes (nested under org, admin only) ---
+		wa := api.Group("/orgs/:org_id/whatsapp", middleware.RequireOrgRole("org_admin"))
+		{
+			waPhones := wa.Group("/phone-numbers")
+			{
+				waPhones.POST("", whatsappHandler.CreatePhoneNumber)
+				waPhones.GET("", whatsappHandler.ListPhoneNumbers)
+				waPhones.GET("/:phone_id", whatsappHandler.GetPhoneNumber)
+				waPhones.PUT("/:phone_id", whatsappHandler.UpdatePhoneNumber)
+				waPhones.DELETE("/:phone_id", whatsappHandler.DeletePhoneNumber)
+			}
+			waCalls := wa.Group("/calls")
+			{
+				waCalls.POST("", whatsappHandler.InitiateCall)
+				waCalls.GET("", whatsappHandler.ListCalls)
+				waCalls.GET("/:call_id", whatsappHandler.GetCall)
+				waCalls.PATCH("/:call_id", whatsappHandler.UpdateCallState)
+			}
 		}
 
 		// --- User / me routes ---

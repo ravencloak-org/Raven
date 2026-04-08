@@ -48,6 +48,15 @@ func NewUnauthorized(detail string) *AppError {
 	}
 }
 
+// NewConflict creates a 409 Conflict error.
+func NewConflict(detail string) *AppError {
+	return &AppError{
+		Code:    http.StatusConflict,
+		Message: "Conflict",
+		Detail:  detail,
+	}
+}
+
 // NewInternal creates a 500 Internal Server Error.
 func NewInternal(detail string) *AppError {
 	return &AppError{
