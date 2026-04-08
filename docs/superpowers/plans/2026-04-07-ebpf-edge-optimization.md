@@ -2153,17 +2153,17 @@ Add at the top of each collector/consumer/controller Linux file (after the build
 
 `internal/ebpf/observability/collector.go`:
 ```go
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64,arm64 Observability ../programs/observability.c -- -I/usr/include/$(uname -m)-linux-gnu
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64,arm64 Observability ../programs/observability.c
 ```
 
 `internal/ebpf/audit/consumer.go`:
 ```go
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64,arm64 Audit ../programs/audit.c -- -I/usr/include/$(uname -m)-linux-gnu
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64,arm64 Audit ../programs/audit.c
 ```
 
 `internal/ebpf/xdp/controller.go`:
 ```go
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64,arm64 XDP ../programs/xdp.c -- -I/usr/include/$(uname -m)-linux-gnu
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64,arm64 XDP ../programs/xdp.c
 ```
 
 - [ ] **Step 11.2: Run full test suite**
