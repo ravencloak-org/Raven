@@ -73,3 +73,15 @@ docker-all: docker-arm64 docker-amd64
 clean:
 	rm -rf $(BUILD_DIR)
 	@echo "Cleaned $(BUILD_DIR)/"
+
+# ─── eBPF-enabled builds (require cross-compiler toolchain) ─────────────────
+
+build-arm64-ebpf:
+	CC=aarch64-linux-musl-gcc CGO_ENABLED=1 GOOS=linux GOARCH=arm64 \
+		go build -ldflags="$(LDFLAGS) -extldflags '-static'" \
+		-o $(BUILD_DIR)/$(APP_NAME)-linux-arm64-ebpf ./cmd/api
+
+build-amd64-ebpf:
+	CC=x86_64-linux-musl-gcc CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
+		go build -ldflags="$(LDFLAGS) -extldflags '-static'" \
+		-o $(BUILD_DIR)/$(APP_NAME)-linux-amd64-ebpf ./cmd/api
