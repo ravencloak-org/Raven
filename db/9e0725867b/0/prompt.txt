@@ -1,0 +1,1094 @@
+index everything using relevant mcps
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/skills/context-mode
+
+# Context Mode: Default for All Large Output
+
+## MANDATORY RULE
+
+<context_mode_logic>
+  <mandatory_rule>
+    Default to context-mode for ALL commands. Only use Bash for guaranteed-small-output operations.
+  </mandatory_rule>
+</context_mode_logic>
+
+Bash whitelist (safe to run directly):
+- **File mutations**: `mkdir`, `mv`, `cp`, `rm`, `touch`, `chmod`
+- **Git writes**: `git add`, `git commit`, `git push`, `git checkout`, `git branch`, `git merge`
+- **Navigation**: `cd`, `pwd`, `which`
+- **Process control**: `kill`, `pkill`
+- **Package management**: `npm install`, `npm publish`, `pip install`
+- **Simple output**: `echo`, `printf`
+
+**Everything else → `ctx_execute` or `ctx_execute_file`.** Any command that reads, queries, fetches, lists, logs, tests, builds, diffs, inspects, or calls an external service. This includes ALL CLIs (gh, aws, kubectl, docker, terraform, wrangler, fly, heroku, gcloud, etc.) — there are thousands and we cannot list them all.
+
+**When uncertain, use context-mode.** Every KB of unnecessary context reduces the quality and speed of the entire session.
+
+## Decision Tree
+
+```
+About to run a command / read a file / call an API?
+│
+├── Command is on the Bash whitelist (file mutations, git writes, navigation, echo)?
+│   └── Use Bash
+│
+├── Output MIGHT be large or you're UNSURE?
+│   └── Use context-mode ctx_execute or ctx_execute_file
+│
+├── Fetching web documentation or HTML page?
+│   └── Use ctx_fetch_and_index → ctx_search
+│
+├── Using Playwright (navigate, snapshot, console, network)?
+│   └── ALWAYS use filename parameter to save to file, then:
+│       browser_snapshot(filename) → ctx_index(path) or ctx_execute_file(path)
+│       browser_console_messages(filename) → ctx_execute_file(path)
+│       browser_network_requests(filename) → ctx_execute_file(path)
+│       ⚠ browser_navigate returns a snapshot automatically — ignore it,
+│         use browser_snapshot(filename) for any inspection.
+│       ⚠ Playwright MCP uses a SINGLE browser instance — NOT parallel-safe.
+│         For parallel browser ops, use agent-browser via execute instead.
+│
+├── Using agent-browser (parallel-safe browser automation)?
+│   └── Run via execute (shell) — each call gets its own subprocess:
+│       execute("agent-browser open example.com && agent-browser snapshot -i -c")
+│       ✓ Supports sessions for isolated browser instances
+│       ✓ Safe for parallel subagent execution
+│       ✓ Lightweight accessibility tree with ref-based interaction
+│
+├── Processing output from another MCP tool (Context7, GitHub API, etc.)?
+│   ├── Output already in context from a previous tool call?
+│   │   └── Use it directly. Do NOT re-index with ctx_index(content: ...).
+│   ├── Need to search the output multiple times?
+│   │   └── Save to file via ctx_execute, then ctx_index(path) → ctx_search
+│   └── One-shot extraction?
+│       └── Save to file via ctx_execute, then ctx_execute_file(path)
+│
+└── Reading a file to analyze/summarize (not edit)?
+    └── Use ctx_execute_file (file loads into FILE_CONTENT, not context)
+```
+
+## When to Use Each Tool
+
+| Situation | Tool | Example |
+|-----------|------|---------|
+| Hit an API endpoint | `ctx_execute` | `fetch('http://localhost:3000/api/orders')` |
+| Run CLI that returns data | `ctx_execute` | `gh pr list`, `aws s3 ls`, `kubectl get pods` |
+| Run tests | `ctx_execute` | `npm test`, `pytest`, `go test ./...` |
+| Git operations | `ctx_execute` | `git log --oneline -50`, `git diff HEAD~5` |
+| Docker/K8s inspection | `ctx_execute` | `docker stats --no-stream`, `kubectl describe pod` |
+| Read a log file | `ctx_execute_file` | Parse access.log, error.log, build output |
+| Read a data file | `ctx_execute_file` | Analyze CSV, JSON, YAML, XML |
+| Read source code to analyze | `ctx_execute_file` | Count functions, find patterns, extract metrics |
+| Fetch web docs | `ctx_fetch_and_index` | Index React/Next.js/Zod docs, then search |
+| Playwright snapshot | `browser_snapshot(filename)` → `ctx_index(path)` → `ctx_search` | Save to file, index server-side, query |
+| Playwright snapshot (one-shot) | `browser_snapshot(filename)` → `ctx_execute_file(path)` | Save to file, extract in sandbox |
+| Playwright console/network | `browser_*(filename)` → `ctx_execute_file(path)` | Save to file, analyze in sandbox |
+| MCP output (already in context) | Use directly | Don't re-index — it's already loaded |
+| MCP output (need multi-query) | `ctx_execute` to save → `ctx_index(path)` → `ctx_search` | Save to file first, index server-side |
+
+## Automatic Triggers
+
+Use context-mode for ANY of these, without being asked:
+
+- **API debugging**: "hit this endpoint", "call the API", "check the response", "find the bug in the response"
+- **Log analysis**: "check the logs", "what errors", "read access.log", "debug the 500s"
+- **Test runs**: "run the tests", "check if tests pass", "test suite output"
+- **Git history**: "show recent commits", "git log", "what changed", "diff between branches"
+- **Data inspection**: "look at the CSV", "parse the JSON", "analyze the config"
+- **Infrastructure**: "list containers", "check pods", "S3 buckets", "show running services"
+- **Dependency audit**: "check dependencies", "outdated packages", "security audit"
+- **Build output**: "build the project", "check for warnings", "compile errors"
+- **Code metrics**: "count lines", "find TODOs", "function count", "analyze codebase"
+- **Web docs lookup**: "look up the docs", "check the API reference", "find examples"
+
+## Language Selection
+
+| Situation | Language | Why |
+|-----------|----------|-----|
+| HTTP/API calls, JSON | `javascript` | Native fetch, JSON.parse, async/await |
+| Data analysis, CSV, stats | `python` | csv, statistics, collections, re |
+| Shell commands with pipes | `shell` | grep, awk, jq, native tools |
+| File pattern matching | `shell` | find, wc, sort, uniq |
+
+## Search Query Strategy
+
+- BM25 uses **OR semantics** — results matching more terms rank higher automatically
+- Use 2-4 specific technical terms per query
+- **Always use `source` parameter** when multiple docs are indexed to avoid cross-source contamination
+  - Partial match works: `source: "Node"` matches `"Node.js v22 CHANGELOG"`
+- **Always use `queries` array** — batch ALL search questions in ONE call:
+  - `ctx_search(queries: ["transform pipe", "refine superRefine", "coerce codec"], source: "Zod")`
+  - NEVER make multiple separate ctx_search() calls — put all queries in one array
+
+## External Documentation
+
+- **Always use `ctx_fetch_and_index`** for external docs — NEVER `cat` or `ctx_execute` with local paths for packages you don't own
+- For GitHub-hosted projects, use the raw URL: `https://raw.githubusercontent.com/org/repo/main/CHANGELOG.md`
+- After indexing, use the `source` parameter in search to scope results to that specific document
+
+## Critical Rules
+
+1. **Always console.log/print your findings.** stdout is all that enters context. No output = wasted call.
+2. **Write analysis code, not just data dumps.** Don't `console.log(JSON.stringify(data))` — analyze first, print findings.
+3. **Be specific in output.** Print bug details with IDs, line numbers, exact values — not just counts.
+4. **For files you need to EDIT**: Use the normal Read tool. context-mode is for analysis, not editing.
+5. **For Bash whitelist commands only**: Use Bash for file mutations, git writes, navigation, process control, package install, and echo. Everything else goes through context-mode.
+6. **Never use `ctx_index(content: large_data)`.** Use `ctx_index(path: ...)` to read files server-side. The `content` parameter sends data through context as a tool parameter — use it only for small inline text.
+7. **Always use `filename` parameter** on Playwright tools (`browser_snapshot`, `browser_console_messages`, `browser_network_requests`). Without it, the full output enters context.
+8. **Don't re-index data already in context.** If an MCP tool returned data in a previous response, it's already loaded — use it directly or save to file first.
+
+## Sandboxed Data Workflow
+
+<sandboxed_data_workflow>
+  <critical_rule>
+    When using tools that support saving to a file: ALWAYS use the 'filename' parameter.
+    NEVER return large raw datasets directly to context.
+  </critical_rule>
+  <workflow>
+    LargeDataTool(filename: "path") → mcp__context-mode__ctx_index(path: "path") → ctx_search()
+  </workflow>
+</sandboxed_data_workflow>
+
+This is the universal pattern for context preservation regardless of
+the source tool (Playwright, GitHub API, AWS CLI, etc.).
+
+## Examples
+
+### Debug an API endpoint
+```javascript
+const resp = await fetch('http://localhost:3000/api/orders');
+const { orders } = await resp.json();
+
+const bugs = [];
+const negQty = orders.filter(o => o.quantity < 0);
+if (negQty.length) bugs.push(`Negative qty: ${negQty.map(o => o.id).join(', ')}`);
+
+const nullFields = orders.filter(o => !o.product || !o.customer);
+if (nullFields.length) bugs.push(`Null fields: ${nullFields.map(o => o.id).join(', ')}`);
+
+console.log(`${orders.length} orders, ${bugs.length} bugs found:`);
+bugs.forEach(b => console.log(`- ${b}`));
+```
+
+### Analyze test output
+```shell
+npm test 2>&1
+echo "EXIT=$?"
+```
+
+### Check GitHub PRs
+```shell
+gh pr list --json number,title,state,reviewDecision --jq '.[] | "\(.number) [\(.state)] \(.title) — \(.reviewDecision // "no review")"'
+```
+
+### Read and analyze a large file
+```python
+# FILE_CONTENT is pre-loaded by ctx_execute_file
+import json
+data = json.loads(FILE_CONTENT)
+print(f"Records: {len(data)}")
+# ... analyze and print findings
+```
+
+## Browser & Playwright Integration
+
+**When a task involves Playwright snapshots, screenshots, or page inspection, ALWAYS route through file → sandbox.**
+
+Playwright `browser_snapshot` returns 10K–135K tokens of accessibility tree data. Calling it without `filename` dumps all of that into context. Passing the output to `ctx_index(content: ...)` sends it into context a SECOND time as a parameter. Both are wrong.
+
+**The key insight**: `browser_snapshot` has a `filename` parameter that saves to file instead of returning to context. `ctx_index` has a `path` parameter that reads files server-side. `ctx_execute_file` processes files in a sandbox. **None of these touch context.**
+
+### Workflow A: Snapshot → File → Index → Search (multiple queries)
+
+```
+Step 1: browser_snapshot(filename: "/tmp/playwright-snapshot.md")
+        → saves to file, returns ~50B confirmation (NOT 135K tokens)
+
+Step 2: ctx_index(path: "/tmp/playwright-snapshot.md", source: "Playwright snapshot")
+        → reads file SERVER-SIDE, indexes into FTS5, returns ~80B confirmation
+
+Step 3: ctx_search(queries: ["login form email password"], source: "Playwright")
+        → returns only matching chunks (~300B)
+```
+
+**Total context: ~430B** instead of 270K tokens. Real 99% savings.
+
+### Workflow B: Snapshot → File → Execute File (one-shot extraction)
+
+```
+Step 1: browser_snapshot(filename: "/tmp/playwright-snapshot.md")
+        → saves to file, returns ~50B confirmation
+
+Step 2: ctx_execute_file(path: "/tmp/playwright-snapshot.md", language: "javascript", code: "
+          const links = [...FILE_CONTENT.matchAll(/- link \"([^\"]+)\"/g)].map(m => m[1]);
+          const buttons = [...FILE_CONTENT.matchAll(/- button \"([^\"]+)\"/g)].map(m => m[1]);
+          const inputs = [...FILE_CONTENT.matchAll(/- textbox|- checkbox|- radio/g)];
+          console.log('Links:', links.length, '| Buttons:', buttons.length, '| Inputs:', inputs.length);
+          console.log('Navigation:', links.slice(0, 10).join(', '));
+        ")
+        → processes in sandbox, returns ~200B summary
+```
+
+**Total context: ~250B** instead of 135K tokens.
+
+### Workflow C: Console & Network (save to file if large)
+
+```
+browser_console_messages(level: "error", filename: "/tmp/console.md")
+→ ctx_execute_file(path: "/tmp/console.md", ...) or ctx_index(path: "/tmp/console.md", ...)
+
+browser_network_requests(includeStatic: false, filename: "/tmp/network.md")
+→ ctx_execute_file(path: "/tmp/network.md", ...) or ctx_index(path: "/tmp/network.md", ...)
+```
+
+### CRITICAL: Why `filename` + `path` is mandatory
+
+| Approach | Context cost | Correct? |
+|----------|-------------|----------|
+| `browser_snapshot()` → raw into context | **135K tokens** | NO |
+| `browser_snapshot()` → `ctx_index(content: raw)` | **270K tokens** (doubled!) | NO |
+| `browser_snapshot(filename)` → `ctx_index(path)` → `ctx_search` | **~430B** | YES |
+| `browser_snapshot(filename)` → `ctx_execute_file(path)` | **~250B** | YES |
+
+### Key Rule
+
+> **ALWAYS use `filename` parameter when calling `browser_snapshot`, `browser_console_messages`, or `browser_network_requests`.**
+> Then process via `ctx_index(path: ...)` or `ctx_execute_file(path: ...)` — never `ctx_index(content: ...)`.
+>
+> Data flow: **Playwright → file → server-side read → context**. Never: **Playwright → context → ctx_index(content) → context again**.
+
+## Subagent Usage
+
+Subagents automatically receive context-mode tool routing via a PreToolUse hook. You do NOT need to manually add tool names to subagent prompts — the hook injects them. Just write natural task descriptions.
+
+## Anti-Patterns
+
+- Using `curl http://api/endpoint` via Bash → 50KB floods context. Use `ctx_execute` with fetch instead.
+- Using `cat large-file.json` via Bash → entire file in context. Use `ctx_execute_file` instead.
+- Using `gh pr list` via Bash → raw JSON in context. Use `ctx_execute` with `--jq` filter instead.
+- Piping Bash output through `| head -20` → you lose the rest. Use `ctx_execute` to analyze ALL data and print summary.
+- Running `npm test` via Bash → full test output in context. Use `ctx_execute` to capture and summarize.
+- Calling `browser_snapshot()` WITHOUT `filename` parameter → 135K tokens flood context. **Always** use `browser_snapshot(filename: "/tmp/snap.md")`.
+- Calling `browser_console_messages()` or `browser_network_requests()` WITHOUT `filename` → entire output floods context. **Always** use the `filename` parameter.
+- Passing ANY large data to `ctx_index(content: ...)` → data enters context as a parameter. **Always** use `ctx_index(path: ...)` to read server-side. The `content` parameter should only be used for small inline text you're composing yourself.
+- Calling an MCP tool (Context7 `query-docs`, GitHub API, etc.) then passing the response to `ctx_index(content: response)` → **doubles** context usage. The response is already in context — use it directly or save to file first.
+- Ignoring `browser_navigate` auto-snapshot → navigation response includes a full page snapshot. Don't rely on it for inspection — call `browser_snapshot(filename)` separately.
+
+## Reference Files
+
+- [JavaScript/TypeScript Patterns](./references/patterns-javascript.md)
+- [Python Patterns](./references/patterns-python.md)
+- [Shell Patterns](./references/patterns-shell.md)
+- [Anti-Patterns & Common Mistakes](./references/anti-patterns.md)
+
+---
+
+let's start the implementation on the milestone tasks for the  Edge Optimization tasks as also noted in docs created by superpower
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.5/skills/writing-plans
+
+# Writing Plans
+
+## Overview
+
+Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code, testing, docs they might need to check, how to test it. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD. Frequent commits.
+
+Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they don't know good test design very well.
+
+**Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
+
+**Context:** This should be run in a dedicated worktree (created by brainstorming skill).
+
+**Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`
+- (User preferences for plan location override this default)
+
+## Scope Check
+
+If the spec covers multiple independent subsystems, it should have been broken into sub-project specs during brainstorming. If it wasn't, suggest breaking this into separate plans — one per subsystem. Each plan should produce working, testable software on its own.
+
+## File Structure
+
+Before defining tasks, map out which files will be created or modified and what each one is responsible for. This is where decomposition decisions get locked in.
+
+- Design units with clear boundaries and well-defined interfaces. Each file should have one clear responsibility.
+- You reason best about code you can hold in context at once, and your edits are more reliable when files are focused. Prefer smaller, focused files over large ones that do too much.
+- Files that change together should live together. Split by responsibility, not by technical layer.
+- In existing codebases, follow established patterns. If the codebase uses large files, don't unilaterally restructure - but if a file you're modifying has grown unwieldy, including a split in the plan is reasonable.
+
+This structure informs the task decomposition. Each task should produce self-contained changes that make sense independently.
+
+## Bite-Sized Task Granularity
+
+**Each step is one action (2-5 minutes):**
+- "Write the failing test" - step
+- "Run it to make sure it fails" - step
+- "Implement the minimal code to make the test pass" - step
+- "Run the tests and make sure they pass" - step
+- "Commit" - step
+
+## Plan Document Header
+
+**Every plan MUST start with this header:**
+
+```markdown
+# [Feature Name] Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** [One sentence describing what this builds]
+
+**Architecture:** [2-3 sentences about approach]
+
+**Tech Stack:** [Key technologies/libraries]
+
+---
+```
+
+## Task Structure
+
+````markdown
+### Task N: [Component Name]
+
+**Files:**
+- Create: `exact/path/to/file.py`
+- Modify: `exact/path/to/existing.py:123-145`
+- Test: `tests/exact/path/to/test.py`
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+def test_specific_behavior():
+    result = function(input)
+    assert result == expected
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `pytest tests/path/test.py::test_name -v`
+Expected: FAIL with "function not defined"
+
+- [ ] **Step 3: Write minimal implementation**
+
+```python
+def function(input):
+    return expected
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `pytest tests/path/test.py::test_name -v`
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add tests/path/test.py src/path/file.py
+git commit -m "feat: add specific feature"
+```
+````
+
+## Remember
+- Exact file paths always
+- Complete code in plan (not "add validation")
+- Exact commands with expected output
+- Reference relevant skills with @ syntax
+- DRY, YAGNI, TDD, frequent commits
+
+## Plan Review Loop
+
+After writing the complete plan:
+
+1. Dispatch a single plan-document-reviewer subagent (see plan-document-reviewer-prompt.md) with precisely crafted review context — never your session history. This keeps the reviewer focused on the plan, not your thought process.
+   - Provide: path to the plan document, path to spec document
+2. If ❌ Issues Found: fix the issues, re-dispatch reviewer for the whole plan
+3. If ✅ Approved: proceed to execution handoff
+
+**Review loop guidance:**
+- Same agent that wrote the plan fixes it (preserves context)
+- If loop exceeds 3 iterations, surface to human for guidance
+- Reviewers are advisory — explain disagreements if you believe feedback is incorrect
+
+## Execution Handoff
+
+After saving the plan, offer execution choice:
+
+**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Two execution options:**
+
+**1. Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
+
+**2. Inline Execution** - Execute tasks in this session using executing-plans, batch execution with checkpoints
+
+**Which approach?"**
+
+**If Subagent-Driven chosen:**
+- **REQUIRED SUB-SKILL:** Use superpowers:subagent-driven-development
+- Fresh subagent per task + two-stage review
+
+**If Inline Execution chosen:**
+- **REQUIRED SUB-SKILL:** Use superpowers:executing-plans
+- Batch execution with checkpoints for review
+
+---
+
+continue
+
+---
+
+1
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.5/skills/subagent-driven-development
+
+# Subagent-Driven Development
+
+Execute plan by dispatching fresh subagent per task, with two-stage review after each: spec compliance review first, then code quality review.
+
+**Why subagents:** You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions and context, you ensure they stay focused and succeed at their task. They should never inherit your session's context or history — you construct exactly what they need. This also preserves your own context for coordination work.
+
+**Core principle:** Fresh subagent per task + two-stage review (spec then quality) = high quality, fast iteration
+
+## When to Use
+
+```dot
+digraph when_to_use {
+    "Have implementation plan?" [shape=diamond];
+    "Tasks mostly independent?" [shape=diamond];
+    "Stay in this session?" [shape=diamond];
+    "subagent-driven-development" [shape=box];
+    "executing-plans" [shape=box];
+    "Manual execution or brainstorm first" [shape=box];
+
+    "Have implementation plan?" -> "Tasks mostly independent?" [label="yes"];
+    "Have implementation plan?" -> "Manual execution or brainstorm first" [label="no"];
+    "Tasks mostly independent?" -> "Stay in this session?" [label="yes"];
+    "Tasks mostly independent?" -> "Manual execution or brainstorm first" [label="no - tightly coupled"];
+    "Stay in this session?" -> "subagent-driven-development" [label="yes"];
+    "Stay in this session?" -> "executing-plans" [label="no - parallel session"];
+}
+```
+
+**vs. Executing Plans (parallel session):**
+- Same session (no context switch)
+- Fresh subagent per task (no context pollution)
+- Two-stage review after each task: spec compliance first, then code quality
+- Faster iteration (no human-in-loop between tasks)
+
+## The Process
+
+```dot
+digraph process {
+    rankdir=TB;
+
+    subgraph cluster_per_task {
+        label="Per Task";
+        "Dispatch implementer subagent (./implementer-prompt.md)" [shape=box];
+        "Implementer subagent asks questions?" [shape=diamond];
+        "Answer questions, provide context" [shape=box];
+        "Implementer subagent implements, tests, commits, self-reviews" [shape=box];
+        "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [shape=box];
+        "Spec reviewer subagent confirms code matches spec?" [shape=diamond];
+        "Implementer subagent fixes spec gaps" [shape=box];
+        "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [shape=box];
+        "Code quality reviewer subagent approves?" [shape=diamond];
+        "Implementer subagent fixes quality issues" [shape=box];
+        "Mark task complete in TodoWrite" [shape=box];
+    }
+
+    "Read plan, extract all tasks with full text, note context, create TodoWrite" [shape=box];
+    "More tasks remain?" [shape=diamond];
+    "Dispatch final code reviewer subagent for entire implementation" [shape=box];
+    "Use superpowers:finishing-a-development-branch" [shape=box style=filled fillcolor=lightgreen];
+
+    "Read plan, extract all tasks with full text, note context, create TodoWrite" -> "Dispatch implementer subagent (./implementer-prompt.md)";
+    "Dispatch implementer subagent (./implementer-prompt.md)" -> "Implementer subagent asks questions?";
+    "Implementer subagent asks questions?" -> "Answer questions, provide context" [label="yes"];
+    "Answer questions, provide context" -> "Dispatch implementer subagent (./implementer-prompt.md)";
+    "Implementer subagent asks questions?" -> "Implementer subagent implements, tests, commits, self-reviews" [label="no"];
+    "Implementer subagent implements, tests, commits, self-reviews" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)";
+    "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" -> "Spec reviewer subagent confirms code matches spec?";
+    "Spec reviewer subagent confirms code matches spec?" -> "Implementer subagent fixes spec gaps" [label="no"];
+    "Implementer subagent fixes spec gaps" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [label="re-review"];
+    "Spec reviewer subagent confirms code matches spec?" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="yes"];
+    "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" -> "Code quality reviewer subagent approves?";
+    "Code quality reviewer subagent approves?" -> "Implementer subagent fixes quality issues" [label="no"];
+    "Implementer subagent fixes quality issues" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="re-review"];
+    "Code quality reviewer subagent approves?" -> "Mark task complete in TodoWrite" [label="yes"];
+    "Mark task complete in TodoWrite" -> "More tasks remain?";
+    "More tasks remain?" -> "Dispatch implementer subagent (./implementer-prompt.md)" [label="yes"];
+    "More tasks remain?" -> "Dispatch final code reviewer subagent for entire implementation" [label="no"];
+    "Dispatch final code reviewer subagent for entire implementation" -> "Use superpowers:finishing-a-development-branch";
+}
+```
+
+## Model Selection
+
+Use the least powerful model that can handle each role to conserve cost and increase speed.
+
+**Mechanical implementation tasks** (isolated functions, clear specs, 1-2 files): use a fast, cheap model. Most implementation tasks are mechanical when the plan is well-specified.
+
+**Integration and judgment tasks** (multi-file coordination, pattern matching, debugging): use a standard model.
+
+**Architecture, design, and review tasks**: use the most capable available model.
+
+**Task complexity signals:**
+- Touches 1-2 files with a complete spec → cheap model
+- Touches multiple files with integration concerns → standard model
+- Requires design judgment or broad codebase understanding → most capable model
+
+## Handling Implementer Status
+
+Implementer subagents report one of four statuses. Handle each appropriately:
+
+**DONE:** Proceed to spec compliance review.
+
+**DONE_WITH_CONCERNS:** The implementer completed the work but flagged doubts. Read the concerns before proceeding. If the concerns are about correctness or scope, address them before review. If they're observations (e.g., "this file is getting large"), note them and proceed to review.
+
+**NEEDS_CONTEXT:** The implementer needs information that wasn't provided. Provide the missing context and re-dispatch.
+
+**BLOCKED:** The implementer cannot complete the task. Assess the blocker:
+1. If it's a context problem, provide more context and re-dispatch with the same model
+2. If the task requires more reasoning, re-dispatch with a more capable model
+3. If the task is too large, break it into smaller pieces
+4. If the plan itself is wrong, escalate to the human
+
+**Never** ignore an escalation or force the same model to retry without changes. If the implementer said it's stuck, something needs to change.
+
+## Prompt Templates
+
+- `./implementer-prompt.md` - Dispatch implementer subagent
+- `./spec-reviewer-prompt.md` - Dispatch spec compliance reviewer subagent
+- `./code-quality-reviewer-prompt.md` - Dispatch code quality reviewer subagent
+
+## Example Workflow
+
+```
+You: I'm using Subagent-Driven Development to execute this plan.
+
+[Read plan file once: docs/superpowers/plans/feature-plan.md]
+[Extract all 5 tasks with full text and context]
+[Create TodoWrite with all tasks]
+
+Task 1: Hook installation script
+
+[Get Task 1 text and context (already extracted)]
+[Dispatch implementation subagent with full task text + context]
+
+Implementer: "Before I begin - should the hook be installed at user or system level?"
+
+You: "User level (~/.config/superpowers/hooks/)"
+
+Implementer: "Got it. Implementing now..."
+[Later] Implementer:
+  - Implemented install-hook command
+  - Added tests, 5/5 passing
+  - Self-review: Found I missed --force flag, added it
+  - Committed
+
+[Dispatch spec compliance reviewer]
+Spec reviewer: ✅ Spec compliant - all requirements met, nothing extra
+
+[Get git SHAs, dispatch code quality reviewer]
+Code reviewer: Strengths: Good test coverage, clean. Issues: None. Approved.
+
+[Mark Task 1 complete]
+
+Task 2: Recovery modes
+
+[Get Task 2 text and context (already extracted)]
+[Dispatch implementation subagent with full task text + context]
+
+Implementer: [No questions, proceeds]
+Implementer:
+  - Added verify/repair modes
+  - 8/8 tests passing
+  - Self-review: All good
+  - Committed
+
+[Dispatch spec compliance reviewer]
+Spec reviewer: ❌ Issues:
+  - Missing: Progress reporting (spec says "report every 100 items")
+  - Extra: Added --json flag (not requested)
+
+[Implementer fixes issues]
+Implementer: Removed --json flag, added progress reporting
+
+[Spec reviewer reviews again]
+Spec reviewer: ✅ Spec compliant now
+
+[Dispatch code quality reviewer]
+Code reviewer: Strengths: Solid. Issues (Important): Magic number (100)
+
+[Implementer fixes]
+Implementer: Extracted PROGRESS_INTERVAL constant
+
+[Code reviewer reviews again]
+Code reviewer: ✅ Approved
+
+[Mark Task 2 complete]
+
+...
+
+[After all tasks]
+[Dispatch final code-reviewer]
+Final reviewer: All requirements met, ready to merge
+
+Done!
+```
+
+## Advantages
+
+**vs. Manual execution:**
+- Subagents follow TDD naturally
+- Fresh context per task (no confusion)
+- Parallel-safe (subagents don't interfere)
+- Subagent can ask questions (before AND during work)
+
+**vs. Executing Plans:**
+- Same session (no handoff)
+- Continuous progress (no waiting)
+- Review checkpoints automatic
+
+**Efficiency gains:**
+- No file reading overhead (controller provides full text)
+- Controller curates exactly what context is needed
+- Subagent gets complete information upfront
+- Questions surfaced before work begins (not after)
+
+**Quality gates:**
+- Self-review catches issues before handoff
+- Two-stage review: spec compliance, then code quality
+- Review loops ensure fixes actually work
+- Spec compliance prevents over/under-building
+- Code quality ensures implementation is well-built
+
+**Cost:**
+- More subagent invocations (implementer + 2 reviewers per task)
+- Controller does more prep work (extracting all tasks upfront)
+- Review loops add iterations
+- But catches issues early (cheaper than debugging later)
+
+## Red Flags
+
+**Never:**
+- Start implementation on main/master branch without explicit user consent
+- Skip reviews (spec compliance OR code quality)
+- Proceed with unfixed issues
+- Dispatch multiple implementation subagents in parallel (conflicts)
+- Make subagent read plan file (provide full text instead)
+- Skip scene-setting context (subagent needs to understand where task fits)
+- Ignore subagent questions (answer before letting them proceed)
+- Accept "close enough" on spec compliance (spec reviewer found issues = not done)
+- Skip review loops (reviewer found issues = implementer fixes = review again)
+- Let implementer self-review replace actual review (both are needed)
+- **Start code quality review before spec compliance is ✅** (wrong order)
+- Move to next task while either review has open issues
+
+**If subagent asks questions:**
+- Answer clearly and completely
+- Provide additional context if needed
+- Don't rush them into implementation
+
+**If reviewer finds issues:**
+- Implementer (same subagent) fixes them
+- Reviewer reviews again
+- Repeat until approved
+- Don't skip the re-review
+
+**If subagent fails task:**
+- Dispatch fix subagent with specific instructions
+- Don't try to fix manually (context pollution)
+
+## Integration
+
+**Required workflow skills:**
+- **superpowers:using-git-worktrees** - REQUIRED: Set up isolated workspace before starting
+- **superpowers:writing-plans** - Creates the plan this skill executes
+- **superpowers:requesting-code-review** - Code review template for reviewer subagents
+- **superpowers:finishing-a-development-branch** - Complete development after all tasks
+
+**Subagents should use:**
+- **superpowers:test-driven-development** - Subagents follow TDD for each task
+
+**Alternative workflow:**
+- **superpowers:executing-plans** - Use for parallel session instead of same-session execution
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   - **Index the codebase** using context-mode MCP and Serena MCP for future sessions
+   - **Implement the eBPF Edge Optimization milestone (M10)** covering GitHub issues #120 (XDP Pre-filtering), #122 (Kernel Observability), #123 (Security Audit Trail) as specified in `docs/superpowers/specs/2026-04-07-ebpf-edge-optimization-design.md`
+   - **Use Subagent-Driven Development** (user selected option 1) — sequential subagent per task with spec + code review after each
+   - **Make eBPF entirely toggleable**: user explicitly requested a master toggle so the stack runs fine on non-Linux servers — "make sure that this edge optimization is toggleable via a command line argument such that if a user chooses to run our entire stack on a non-Linux server, this should be no issue"
+
+2. Key Technical Concepts:
+   - **cilium/ebpf** (v0.21.0): Go library for loading eBPF programs, `bpf2go` code generation, `link.AttachXDP`, `ringbuf.Reader`, `rlimit.RemoveMemlock`
+   - **Build tags**: `//go:build linux` for Linux-only eBPF code; `//go:build !linux` for no-op stubs ensuring macOS compilation
+   - **Graceful degradation**: All eBPF features self-disable with structured `slog` warning when kernel < 5.8, BTF missing, or capabilities absent
+   - **Master toggle**: `RAVEN_EBPF_ENABLED=true` env var (default: false) gates the entire subsystem; individual features also gated by `RAVEN_EBPF_OBSERVABILITY_ENABLED`, `RAVEN_EBPF_AUDIT_ENABLED`, `RAVEN_EBPF_XDP_ENABLED`
+   - **Viper config**: existing pattern with `SetDefault` + `BindEnv` for all config fields
+   - **OTel metrics**: 5 metrics for observability (`ebpf.process.cpu_time`, `ebpf.net.bytes_in/out`, `ebpf.syscall.errors`, `ebpf.fd.count`), 1 for audit (`ebpf.audit.dropped_events`), 1 for XDP (`ebpf.xdp.dropped_packets`)
+   - **BPF ring buffer**: used for audit events; `ringbuf.ErrClosed` and overflow handling
+   - **LPM trie** (`BPF_MAP_TYPE_LPM_TRIE`): for XDP blocked IP CIDR prefix matching
+   - **XDP modes**: `XDPDriverMode` with fallback to `XDPGenericMode`
+   - **GOOS/GOARCH cross-compile**: `GOOS=linux GOARCH=amd64 go get` needed to resolve linux-only packages on macOS
+   - **Subagent-driven development**: sequential (not parallel) — parallel would cause git conflicts on same branch
+
+3. Files and Code Sections:
+
+   - **`docs/superpowers/plans/2026-04-07-ebpf-edge-optimization.md`** — Full 12-task implementation plan with exact file paths, code snippets, test commands, and commit messages. Created after writing-plans skill and post-review fixes.
+
+   - **`internal/config/config.go`** — Modified to add:
+     ```go
+     // EBPFConfig holds eBPF feature flags. All features default to false — opt-in only.
+     // Master switch: set RAVEN_EBPF_ENABLED=true to activate the subsystem.
+     type EBPFConfig struct {
+         Enabled              bool     `mapstructure:"enabled"`
+         ObservabilityEnabled bool     `mapstructure:"observability_enabled"`
+         AuditEnabled         bool     `mapstructure:"audit_enabled"`
+         AuditIPAllowlist     []string `mapstructure:"audit_ip_allowlist"`
+         AuditExecAllowlist   []string `mapstructure:"audit_exec_allowlist"`
+         AuditRingBufferSize  int      `mapstructure:"audit_ring_buffer_size"`
+         XDPEnabled           bool     `mapstructure:"xdp_enabled"`
+         XDPInterface         string   `mapstructure:"xdp_interface"`
+     }
+     ```
+     Added `EBPF EBPFConfig` to `Config` struct. Added viper defaults (all false, ring buffer 1048576, interface "eth0") and BindEnv calls for all 8 fields. Validation gated on `cfg.EBPF.Enabled`:
+     ```go
+     if cfg.EBPF.Enabled {
+         size := cfg.EBPF.AuditRingBufferSize
+         if size <= 0 || bits.OnesCount(uint(size)) != 1 {
+             return nil, fmt.Errorf("ebpf.audit_ring_buffer_size must be a power of 2 > 0, got %d", size)
+         }
+     }
+     ```
+
+   - **`internal/config/config_ebpf_test.go`** — 5 tests:
+     - `TestEBPFConfig_Defaults` — verifies all defaults including `Enabled=false`
+     - `TestEBPFConfig_EnvOverride` — requires `RAVEN_EBPF_ENABLED=true` now
+     - `TestEBPFConfig_InvalidRingBufferSize` — requires `RAVEN_EBPF_ENABLED=true` to trigger validation
+     - `TestEBPFConfig_MasterToggle_DefaultOff` — individual features on but master off = no eBPF
+     - `TestEBPFConfig_MasterToggle_ExplicitEnable` — `RAVEN_EBPF_ENABLED=true` works
+
+   - **`internal/ebpf/capabilities.go`** (`//go:build linux`) — `ErrUnsupported`, `CheckCapabilities()` (kernel ≥5.8 check, rlimit on <5.11, BTF check), `kernelVersion()` from `/proc/version`
+
+   - **`internal/ebpf/manager.go`** (`//go:build linux`) — `Manager` with `Register(Closer)`, `Stop()` (LIFO, idempotent, mutex-protected)
+
+   - **`internal/ebpf/stub.go`** (`//go:build !linux`) — no-op `ErrUnsupported`, `CheckCapabilities`, `Closer`, `Manager`, `NewManager`, `Register`, `Stop`
+
+   - **`internal/ebpf/capabilities_test.go`** (no build tag) — `TestErrUnsupported_IsError`, `TestManager_StopIsIdempotent`
+
+   - **`internal/ebpf/programs/observability.c`** — BPF C: tp_btf/sched_switch, tracepoint/raw_syscalls/sys_exit, net tracepoints, kprobe/__fd_install; maps: cpu_time_map, net_bytes_in/out, syscall_errors, fd_count_map
+
+   - **`internal/ebpf/programs/audit.c`** — BPF C: tracepoint/syscalls/sys_enter_execve, tracepoint/sock/inet_sock_set_state, tracepoint/syscalls/sys_enter_connect; ring buffer output `audit_events`
+
+   - **`internal/ebpf/programs/xdp.c`** — BPF C: LPM trie `blocked_ips`, LRU hash `throttle_state`, array `drop_count`; `xdp_filter` SEC("xdp")
+
+   - **`internal/ebpf/observability/collector.go`** (`//go:build linux`) — `Collector` struct, `NewCollector(meter, maps)`, 5 OTel instruments, `Start(ctx)`, `collect()` stub, `Close()` (io.Closer)
+
+   - **`internal/ebpf/observability/stub.go`** (`//go:build !linux`) — no-op `Maps`, `Collector`, `NewCollector`, `Start(context.Context)`, `Close()`
+
+   - **`internal/ebpf/observability/collector_test.go`** (no build tag) — 3 tests using `noop.NewMeterProvider()`
+
+   - **`internal/ebpf/audit/consumer.go`** (`//go:build linux`) — `Consumer` with `RingBufReader` interface, `NewConsumer(reader, meter, cfg)`, `Start(ctx)`, ring buffer loop handling exec/tcp/connect events, IP allowlist check, `Close()` (io.Closer)
+
+   - **`internal/ebpf/audit/stub.go`** (`//go:build !linux`) — no-op with `context.Context` `Start` signature
+
+   - **`internal/ebpf/audit/cidr.go`** (no build tag) — `parseCIDRs()` helper
+
+   - **`internal/ebpf/audit/helpers.go`** (no build tag) — `nullTermStr()`, `sliceContains()`
+
+   - **`internal/ebpf/audit/consumer_test.go`** (no build tag) — 4 tests
+
+   - **`go.mod`/`go.sum`** — Added `github.com/cilium/ebpf v0.21.0` and `github.com/cilium/ebpf/rlimit` resolved for linux cross-compile
+
+4. Errors and Fixes:
+   - **LSP stale diagnostics on config.go** (`"math/bits" imported and not used`, `undefined: EBPFConfig`): `go build ./internal/config/` succeeded cleanly — LSP was showing pre-edit state. Confirmed by running tests (all pass).
+   - **`could not import github.com/cilium/ebpf/rlimit`** (linux,amd64 diagnostic): `go mod tidy` on macOS pruned linux-only packages. Fixed with `GOOS=linux GOARCH=amd64 go get github.com/cilium/ebpf/rlimit && go mod tidy`. Committed as separate `deps(go)` commit.
+   - **Plan review found 5 issues**: stub Start signatures, config validation logic, missing link.AttachXDP, missing clang in lint CI job, `$(shell uname -m)` in go:generate — all fixed before execution began.
+   - **Current active diagnostics in audit package** (ℹ/★ level, not ✘ errors):
+     - `cidr.go:10` — `parseCIDRs` unused (from !linux static analysis — function IS used in linux consumer.go)
+     - `helpers.go:4` — `nullTermStr` unused (same reason)
+     - `helpers.go:13` — `sliceContains` unused; also `slices.Contains` simplification suggested
+     - These are non-blocking warnings but need addressing
+
+5. Problem Solving:
+   - Solved linux-only package resolution on macOS via explicit GOOS/GOARCH go get
+   - Solved cross-platform test compilation by extracting shared helpers (`cidr.go`, `helpers.go`) without build tags, keeping linux-specific code in tagged files
+   - Design decision: master toggle `RAVEN_EBPF_ENABLED` (default false) means no eBPF code runs on any platform unless explicitly opted in — handles non-Linux server concern cleanly alongside `//go:build !linux` stubs
+
+6. All User Messages:
+   - "index everything using relevant mcps"
+   - "make sure to use context7 and serena to the best use" (during plan writing)
+   - "1" (selected subagent-driven development option)
+   - "Why aren't we aren't we using parallel agents?" — answered: skill prohibits parallel agents due to git conflicts
+   - "Also make sure that this edge optimization is toggleable via a command line argument such that if a user chooses to run our entire stack on a non-Linux server, this should be no issue." — led to adding `RAVEN_EBPF_ENABLED` master toggle
+
+7. Pending Tasks:
+   - **Task #8 (id: 8)**: Feature #120 XDP pre-filtering controller — `internal/ebpf/xdp/controller.go` + stub + test
+   - **Task #9 (id: 9)**: Wire link.AttachXDP into XDP controller — add `xdpLink link.Link` field, `link.AttachXDP` with XDPDriverMode→XDPGenericMode fallback
+   - **Task #10 (id: 10)**: Wire eBPF manager into `cmd/api/main.go` — `cmd/api/ebpf.go` (linux) + `cmd/api/ebpf_stub.go` (!linux), check `cfg.EBPF.Enabled` first
+   - **Task #11 (id: 11)**: Build pipeline — Dockerfile (CGO_ENABLED=1, clang install), Makefile.edge (ebpf targets), docker-compose.yml + docker-compose.edge.yml (cap_add)
+   - **Task #12 (id: 12)**: CI updates — `.github/workflows/go.yml` (clang in both build AND lint jobs, go generate check, ebpf-integration job)
+   - **Task #13 (id: 13)**: go:generate directives + final lint pass
+   - **Immediate fix needed**: Address diagnostic warnings in `internal/ebpf/audit/cidr.go` and `helpers.go` (unused function warnings from !linux perspective, slices.Contains simplification)
+
+8. Current Work:
+   Task 6 (audit consumer, task list id #7) was just completed by a subagent. The subagent created 5 files in `internal/ebpf/audit/`. The 4 tests pass and `go build ./...` is clean. However, new LSP diagnostics appeared immediately after:
+   
+   - `cidr.go:10:6` — `function "parseCIDRs" is unused` [unusedfunc] — because on !linux, consumer.go is not compiled so parseCIDRs appears unused
+   - `helpers.go:4:6` — `function "nullTermStr" is unused` [unusedfunc]  
+   - `helpers.go:13:6` — `function "sliceContains" is unused` [unusedfunc]
+   - `helpers.go:14:2` — `sliceContains` can be simplified using `slices.Contains` [slicescontains]
+
+   The commit was: `feat(ebpf/audit): add #123 security audit trail ring buffer consumer` (hash 7037a18).
+
+9. Optional Next Step:
+   Before dispatching Task 7 (XDP controller), fix the diagnostic warnings in the audit package:
+   1. Replace `sliceContains` in `helpers.go` with `slices.Contains` from Go stdlib (eliminates the loop + warning)
+   2. Add `//go:build linux` to `cidr.go` and `helpers.go` so functions are only compiled when consumer.go uses them — OR keep them untagged and suppress with `//nolint` if the linter allows it. Best approach: keep no build tag but use `slices.Contains` for sliceContains, and for the "unused" warnings, since these are ℹ level (not ✘ errors), the linter (golangci-lint) config `.golangci.yml` may already suppress them. Verify with `go build ./...` and `golangci-lint run ./internal/ebpf/audit/...`.
+
+   The next task in sequence is Task #7 (Feature #120 XDP controller, task list id #8): create `internal/ebpf/xdp/controller.go` (`//go:build linux`), `stub.go` (`//go:build !linux`), and `controller_test.go`.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/jobinlawrance/.REDACTED.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+adress All the critical issues raised by Code Rabbit.
+
+---
+
+<task-notification>
+<task-id>ae9c482b24515b8a1</task-id>
+<tool-use-id>toolu_01MCSFvbjydFJEDZ8dCobpkr</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix BPF C code issues from CodeRabbit" completed</summary>
+<result>Clean. All changes are committed.
+
+DONE. Here is a summary of what was applied:
+
+**Files modified:**
+
+1. `/Users/jobinlawrance/Project/raven/internal/ebpf/programs/audit.c` (already committed in `24ea15c`)
+   - Added `#define TCP_ESTABLISHED 1` constant, replaced magic number usage
+   - `handle_connect`: reads destination sockaddr via `bpf_probe_read_user` to extract dest IP/port
+   - Updated ring buffer comment to note userspace override semantics
+
+2. `/Users/jobinlawrance/Project/raven/internal/ebpf/programs/observability.c` (already committed in `24ea15c`)
+   - Added `last_runtime_map` for delta-based CPU time accounting (fixes overcounting from raw `sum_exec_runtime`)
+   - Changed `pid` to `tgid` in sched_switch handler
+   - Added TODO comment about PID unreliability in softirq context for net tracepoints
+   - Renamed `fd_count_map` to `fd_installs_map` with honest monotonic semantics
+
+3. `/Users/jobinlawrance/Project/raven/internal/ebpf/programs/xdp.c` (already committed in `24ea15c`)
+   - Added `struct bpf_spin_lock lock` to `throttle_val`
+   - Wrapped window reset logic with `bpf_spin_lock`/`bpf_spin_unlock` to prevent TOCTOU race
+   - Replaced `__sync_fetch_and_add` with plain `+=` inside the lock
+
+4. `/Users/jobinlawrance/Project/raven/internal/ebpf/observability/collector.go` (committed in `98fbd9f`)
+   - Updated comment reference from `fd_count_map` to `fd_installs_map` (was missed by the earlier C-only commit)
+
+`go build ./...` passes cleanly on macOS. The BPF C files are compiled by bpf2go/clang on Linux only.</result>
+<usage><total_tokens>38900</total_tokens><tool_uses>30</tool_uses><duration_ms>162599</duration_ms></usage>
+</task-notification>
+
+---
+
+https://github.com/ravencloak-org/Raven/pull/191#discussion_r3051988460
+
+---
+
+done, What's pending now from the milestones and issues?
+
+---
+
+https://github.com/ravencloak-org/Raven/pull/188 fux and merge
+
+---
+
+https://github.com/ravencloak-org/Raven/pull/189#discussion_r3046090868
+
+---
+
+[Request interrupted by user]
+
+---
+
+continue
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   - Continue eBPF M10 implementation (Tasks 7-12) using subagent-driven development
+   - Fix LSP diagnostic warnings from each task (unused functions, stale redeclaration warnings)
+   - Address all critical CodeRabbit review findings on PR #191 (eBPF edge optimization)
+   - Fix and merge PRs #188 (`feat/webrtc-session-management`) and #189 (`feat/meta-graph-webhooks`)
+   - Address CodeRabbit review comments from specific GitHub comment URLs for PRs #188 and #189
+
+2. Key Technical Concepts:
+   - **cilium/ebpf v0.21.0**: `link.AttachXDP`, `ringbuf.Reader`, `rlimit.RemoveMemlock`, `bpf2go` code generation
+   - **`//go:build linux` / `//go:build !linux`**: stubs for cross-platform compilation
+   - **Master toggle**: `RAVEN_EBPF_ENABLED=false` default, gates entire eBPF subsystem
+   - **BPF C struct alignment**: C struct padding (`u8`→`u32` gap, `u32`→`u64` gap) must be accounted for in Go byte-offset parsing
+   - **`bpf_spin_lock`**: required for TOCTOU-safe throttle window reset in XDP
+   - **vmlinux.h**: must be generated from kernel BTF using `bpftool btf dump` before `go generate` in CI
+   - **`readAndClose` helper**: proper error handling for `resp.Body.Close()` in HTTP clients
+   - **Manager.Register error**: returns error after Stop() to reject late registrations
+   - **`XDPObjects` → `Objects`**: renamed to avoid stutter (`xdp.Objects` vs `xdp.XDPObjects`)
+   - **docker-compose.ebpf.yml**: opt-in overlay for `cap_add: [CAP_BPF, CAP_NET_ADMIN]`
+   - **`go generate` syntax**: `$(shell uname -m)` is Make syntax and invalid; removed `-I` flag entirely
+
+3. Files and Code Sections:
+   - **`internal/ebpf/xdp/controller.go`** (`//go:build linux`)
+     - Renamed `XDPObjects` → `Objects`
+     - Added `xdpLink link.Link`, `parseLPMKey`, `LPMKey`
+     - `NewController(objects Objects, prog *ebpf.Program, meter metric.Meter, cfg Config)`
+     - `//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64,arm64 XDP ../programs/xdp.c`
+   - **`internal/ebpf/xdp/stub.go`** (`//go:build !linux`)
+     - `Objects` interface, `NewController(_ Objects, _ any, _ metric.Meter, _ Config)`
+   - **`internal/ebpf/xdp/controller_test.go`** (`//go:build linux`)
+     - 5 tests including `TestController_XDPOptions_NativeWithGenericFallback`
+   - **`internal/ebpf/audit/consumer.go`** (`//go:build linux`)
+     - `//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64,arm64 Audit ../programs/audit.c`
+     - Fixed byte offsets with named constants:
+       ```go
+       const (
+           offPID  = 4
+           offTS   = 16
+           offComm = 24
+           endComm = 40
+           offExec = 40
+           endExec = 168
+           offNet  = 40
+       )
+       ```
+     - `nullTermStr` moved into this file (was in deleted `helpers.go`)
+     - `sliceContains` replaced with `slices.Contains`
+   - **`internal/ebpf/manager.go`** (`//go:build linux`)
+     - `Register(c Closer) error` — returns error if already stopped
+     - `stopped bool` field with mutex protection
+   - **`internal/ebpf/stub.go`** (`//go:build !linux`)
+     - `Register(_ Closer) error { return nil }`
+   - **`internal/ebpf/observability/collector.go`** (`//go:build linux`)
+     - `//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64,arm64 Observability ../programs/observability.c`
+     - `ebpf.fd.count` gauge retains handle and registers callback via `meter.RegisterCallback`
+   - **`cmd/api/ebpf.go`** (`//go:build linux`)
+     - `func initEBPF(cfg *config.EBPFConfig) (*ebpf.Manager, error)` (removed unused `_ any`)
+     - Calls `manager.Register(col)` checking returned error
+   - **`cmd/api/ebpf_stub.go`** (`//go:build !linux`)
+     - Warns and returns error when eBPF features explicitly requested on non-Linux
+   - **`cmd/api/main.go`**
+     - `ebpfManager, err := initEBPF(&cfg.EBPF)` with proper error logging
+   - **`cmd/api/ebpf_wire_test.go`** (`//go:build linux`)
+     - Sets `Enabled: true`, asserts non-nil manager, logs degradation error
+   - **`internal/ebpf/programs/audit.c`**
+     - `#define TCP_ESTABLISHED 1` constant
+     - `handle_connect` reads sockaddr via `bpf_probe_read_user` for dest IP/port
+     - Updated ringbuf comment
+   - **`internal/ebpf/programs/observability.c`**
+     - Delta-based CPU time via `last_runtime_map` (keyed by tgid)
+     - Renamed `fd_count_map` → `fd_installs_map` (honest monotonic semantics)
+     - Added TODO for net tracepoint PID attribution limitation
+   - **`internal/ebpf/programs/xdp.c`**
+     - `struct bpf_spin_lock lock` added to `throttle_val`
+     - `bpf_spin_lock/unlock` wrapping window reset + count increment
+   - **`Dockerfile`**
+     - `clang llvm linux-headers libbpf-dev musl-dev` + `go install github.com/cilium/ebpf/cmd/bpf2go@v0.21.0`
+   - **`docker-compose.ebpf.yml`** (new file)
+     - Opt-in overlay: `cap_add: [CAP_BPF, CAP_NET_ADMIN]`, `RAVEN_EBPF_ENABLED=true`
+   - **`docker-compose.yml`** and **`docker-compose.edge.yml`**
+     - Removed `cap_add` (now in overlay only)
+   - **`Makefile.edge`**
+     - `build-arm64-ebpf` and `build-amd64-ebpf` with `mkdir -p $(BUILD_DIR)` and cross-compiler prereq checks
+   - **`.github/workflows/go.yml`**
+     - Clang in build+lint jobs; go generate check generates vmlinux.h first via bpftool; ebpf-integration job
+   - **`pkg/meta/client.go`** (PR #189 fix)
+     - Added `readAndClose(body io.ReadCloser) ([]byte, error)` helper
+     - All three methods use `readAndClose` instead of `defer resp.Body.Close()`
+   - **`internal/model/whatsapp.go`** (PR #189 fix)
+     - Added `SDPOffer *string`, `SDPAnswer *string`, `From string`, `To string` to `WhatsAppCall`
+     - Added `WhatsAppCallResponse` and `SendSDPAnswerRequest` types
+   - **`internal/service/whatsapp_webhook.go`** (PR #189 fix)
+     - Fixed `GetCallByCallID` interface to include `orgID` param
+     - `HandleCallStarted` now sets `call.SDPOffer = &sdpOffer`
+     - `lookupOrgByPhone` now returns error on `SET LOCAL ROLE` failure
+   - **`pkg/livekit/client.go`** (PR #188 fix)
+     - Added doc comment: Host accepts `wss://` or `https://`, SDK normalizes
+
+4. Errors and Fixes:
+   - **`parseLPMKey` unused** in `lpm.go` (no build tag): Moved into linux-only `controller.go`, added `//go:build linux` to test file, deleted `lpm.go`
+   - **`nullTermStr` redeclared** (LSP stale): Confirmed `go build ./...` clean; LSP caching deleted `helpers.go` reference
+   - **`go:generate` `$(shell uname -m)` fails in CI**: Removed the `-I` flag entirely; plain `bpf2go -target amd64,arm64 Observability ../programs/observability.c`
+   - **`vmlinux.h` not found in CI** (PR #188 Build & Test): Added bpftool btf dump step before go generate with graceful fallback
+   - **`interface{}` vs `any`** in stub: Changed to `any` per Go 1.18+ convention
+   - **Manager.Register signature change**: All callers updated to check returned error
+   - **LSP false positives** after subagent edits: Verified with `go build ./...` — always clean
+   - **Remote branch rejected** (PR #191 push after rebase): `git pull --rebase` then push; had to delete stale untracked file `docs/superpowers/specs/2026-04-02-browser-webrtc-voice-ui-design.md`
+
+5. Problem Solving:
+   - **Cross-platform compilation**: Consistent use of `//go:build linux` / `//go:build !linux` stubs ensures `go build ./...` passes on macOS
+   - **C struct alignment**: Named offset constants document the exact byte layout including compiler padding
+   - **BPF go:generate in CI**: vmlinux.h must be generated at CI time from kernel BTF; graceful skip when bpftool unavailable
+   - **cap_add security**: Moved elevated capabilities to opt-in overlay, keeping default stack least-privilege
+   - **Makefile cross-compiler**: Prereq check fails fast with clear install instructions
+
+6. All User Messages:
+   - (Session continued from prior context) — user selected subagent-driven development (option 1)
+   - "Why aren't we using parallel agents?" — answered: skill prohibits parallel due to git conflicts
+   - "Also make sure that this edge optimization is toggleable via a command line argument..."
+   - "have we tested these or does it work?" — answered: Go compiles clean on macOS, tests pass; BPF C not compiled on macOS
+   - "done, What's pending now from the milestones and issues?"
+   - `https://github.com/ravencloak-org/Raven/pull/188 fux and merge`
+   - `https://github.com/ravencloak-org/Raven/pull/189#discussion_r3052541788` (3 rapid-fire messages with different comment IDs)
+   - `https://github.com/ravencloak-org/Raven/pull/188#discussion_r3051929959`
+   - `https://github.com/ravencloak-org/Raven/pull/188#discussion_r3046098025`
+   - `https://github.com/ravencloak-org/Raven/pull/189#discussion_r3046090868`
+   - "continue" (after login interruption)
+
+7. Pending Tasks:
+   - **PR #188** (`feat/webrtc-session-management`): CI re-running after vmlinux.h fix; awaiting Build & Test pass for auto-squash-merge
+   - **PR #189** (`feat/meta-graph-webhooks`): All CodeRabbit fixes applied and pushed; auto-merge queued
+   - **PR #191** (`feat/ebpf-edge-optimization`): All CodeRabbit fixes applied; auto-merge queued
+   - **M8 remaining issues**: #66 (Meta Graph API Webhook) and #67 (LiveKit Room Bridging for WhatsApp) still open after #69 and PRs merge
+
+8. Current Work:
+   Working on PR #188 CodeRabbit issues. Just fixed `pkg/livekit/client.go:35` by adding a doc comment clarifying Host field semantics:
+   ```go
+   // Config holds LiveKit connection settings.
+   type Config struct {
+       // Host is the LiveKit server URL (e.g. "https://project.livekit.cloud" or "wss://...").
+       // The LiveKit SDK normalizes wss:// → https:// for API calls automatically.
+       Host      string
+       APIKey    string
+       APISecret string
+   }
+   ```
+   Committed `docs(livekit): clarify Host config accepts both ws/https schemes` and pushed to `feat/webrtc-session-management`.
+   
+   The `voice_test.go:77` issue was already resolved — mock already panics on unexpected calls.
+
+9. Optional Next Step:
+   Check if PR #188 CI passes after the vmlinux.h fix and livekit doc commit. The user's last explicit request was "fux and merge" for PR #188, so monitor CI and merge once green. Then check for any remaining open CodeRabbit comments on either PR.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/jobinlawrance/.REDACTED.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+https://github.com/ravencloak-org/Raven/pull/188#discussion_r3046098025
+
+---
+
+https://github.com/ravencloak-org/Raven/pull/188#discussion_r3052535727

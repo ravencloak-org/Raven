@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "db9e0725867b",
+  "strategy": "manual-commit",
+  "branch": "feat/webrtc-session-management",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "internal/handler/voice.go",
+    "internal/service/voice.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/db/9e0725867b/0/metadata.json",
+      "transcript": "/db/9e0725867b/0/full.jsonl",
+      "context": "/db/9e0725867b/0/context.md",
+      "content_hash": "/db/9e0725867b/0/content_hash.txt",
+      "prompt": "/db/9e0725867b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 26,
+    "cache_creation_tokens": 9274,
+    "cache_read_tokens": 2444115,
+    "output_tokens": 4121,
+    "api_call_count": 16
+  }
+}
