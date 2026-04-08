@@ -52,6 +52,7 @@ import (
 	"github.com/ravencloak-org/Raven/internal/telemetry"
 	"github.com/ravencloak-org/Raven/internal/tts"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
+	livekitpkg "github.com/ravencloak-org/Raven/pkg/livekit"
 )
 
 // securityEvaluatorAdapter bridges the SecurityService to the middleware.SecurityEvaluator
@@ -268,6 +269,16 @@ func main() {
 	voiceRepo := repository.NewVoiceRepository(pool)
 	voiceSvc := service.NewVoiceService(voiceRepo, pool)
 
+	// --- Wire WhatsApp-LiveKit bridge ---
+	lkClient := livekitpkg.NewClient(livekitpkg.Config{
+		Host:      cfg.LiveKit.Host,
+		APIKey:    cfg.LiveKit.APIKey,
+		APISecret: cfg.LiveKit.APISecret,
+	})
+	waBridgeRepo := repository.NewWhatsAppBridgeRepository(pool)
+	sdpRelay := service.NewLiveKitSDPRelay(lkClient)
+	waBridgeSvc := service.NewWhatsAppBridgeService(waBridgeRepo, voiceRepo, pool, lkClient, sdpRelay)
+
 	// --- Wire TTS provider ---
 	var ttsProvider tts.Provider
 	switch cfg.TTS.Provider {
@@ -345,6 +356,7 @@ func main() {
 	chatHandler := handler.NewChatHandler(chatSvc)
 	semCacheHandler := handler.NewSemanticCacheHandler(semCacheRepo)
 	voiceHandler := handler.NewVoiceHandler(voiceSvc)
+	waBridgeHandler := handler.NewWhatsAppBridgeHandler(waBridgeSvc)
 	var ttsHandler *handler.TTSHandler
 	if ttsSvc != nil {
 		ttsHandler = handler.NewTTSHandler(ttsSvc)
@@ -565,6 +577,15 @@ func main() {
 			voice.PATCH("/:session_id", middleware.RequireOrgRole("org_member"), voiceHandler.UpdateSessionState)
 			voice.POST("/:session_id/turns", middleware.RequireOrgRole("org_member"), voiceHandler.AppendTurn)
 			voice.GET("/:session_id/turns", middleware.RequireOrgRole("org_member"), voiceHandler.ListTurns)
+		}
+
+		// --- WhatsApp-LiveKit bridge routes (nested under org) ---
+		waCallBridge := api.Group("/orgs/:org_id/whatsapp")
+		{
+			waCallBridge.POST("/calls/:call_id/bridge", middleware.RequireOrgRole("org_member"), waBridgeHandler.CreateBridge)
+			waCallBridge.GET("/calls/:call_id/bridge", middleware.RequireOrgRole("org_member"), waBridgeHandler.GetBridge)
+			waCallBridge.DELETE("/calls/:call_id/bridge", middleware.RequireOrgRole("org_member"), waBridgeHandler.TeardownBridge)
+			waCallBridge.GET("/bridges", middleware.RequireOrgRole("org_member"), waBridgeHandler.ListActiveBridges)
 		}
 
 		// --- TTS synthesis route (nested under org) ---
