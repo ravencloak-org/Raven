@@ -69,7 +69,10 @@ type HyperswitchConfig struct {
 
 // LiveKitConfig holds LiveKit WebRTC server settings.
 type LiveKitConfig struct {
-	Host      string `mapstructure:"host"`
+	// APIURL is the LiveKit server HTTP(S) URL for RoomService API calls.
+	APIURL string `mapstructure:"api_url"`
+	// WSURL is the WebSocket URL returned to frontend clients for room connections.
+	WSURL     string `mapstructure:"ws_url"`
 	APIKey    string `mapstructure:"api_key"`
 	APISecret string `mapstructure:"api_secret"`
 }
@@ -225,7 +228,8 @@ func Load() (*Config, error) {
 	v.SetDefault("hyperswitch.base_url", "http://localhost:8090")
 	v.SetDefault("hyperswitch.api_key", "")
 	v.SetDefault("hyperswitch.webhook_secret", "")
-	v.SetDefault("livekit.host", "ws://localhost:7880")
+	v.SetDefault("livekit.api_url", "http://localhost:7880")
+	v.SetDefault("livekit.ws_url", "ws://localhost:7880")
 	v.SetDefault("livekit.api_key", "devkey")
 	v.SetDefault("livekit.api_secret", "devsecret")
 	v.SetDefault("clickhouse.host", "")
@@ -315,10 +319,10 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("stt.deepgram_base_url", "RAVEN_STT_DEEPGRAM_BASE_URL")
 	_ = v.BindEnv("stt.whisper_endpoint", "RAVEN_STT_WHISPER_ENDPOINT")
 	_ = v.BindEnv("stt.whisper_model", "RAVEN_STT_WHISPER_MODEL")
-	_ = v.BindEnv("meta.access_token", "META_ACCESS_TOKEN")
-	_ = v.BindEnv("meta.phone_number_id", "META_PHONE_NUMBER_ID")
-	_ = v.BindEnv("meta.app_secret", "META_APP_SECRET")
-	_ = v.BindEnv("meta.webhook_token", "META_WEBHOOK_TOKEN")
+	_ = v.BindEnv("livekit.api_url", "RAVEN_LIVEKIT_API_URL")
+	_ = v.BindEnv("livekit.ws_url", "RAVEN_LIVEKIT_WS_URL")
+	_ = v.BindEnv("livekit.api_key", "RAVEN_LIVEKIT_API_KEY")
+	_ = v.BindEnv("livekit.api_secret", "RAVEN_LIVEKIT_API_SECRET")
 	_ = v.BindEnv("encryption.aes_key", "RAVEN_ENCRYPTION_AES_KEY")
 	_ = v.BindEnv("otel.endpoint", "RAVEN_OTEL_ENDPOINT")
 	_ = v.BindEnv("otel.service_name", "RAVEN_OTEL_SERVICE_NAME")

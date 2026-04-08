@@ -36,7 +36,7 @@ jobs:
       - run: go mod download
 
       - name: Install eBPF build tools
-        run: sudo apt-get install -y clang llvm libbpf-dev
+        run: sudo apt-get install -y clang llvm libbpf-dev bpftool
 
       - run: CGO_ENABLED=1 go build ./cmd/api
 
@@ -53,8 +53,14 @@ jobs:
 
       - name: Verify generated eBPF files are up-to-date
         run: |
-          go generate ./internal/ebpf/...
-          git diff --exit-code || (echo "Generated eBPF files are out of date. Run 'go generate ./internal/ebpf/...'" && exit 1)
+          if [ -f /sys/kernel/btf/vmlinux ]; then
+            bpftool btf dump file /sys/kernel/btf/vmlinux format c > internal/ebpf/programs/vmlinux.h
+            go generate ./internal/ebpf/...
+            git diff --exit-code -- internal/ebpf ':(exclude)internal/ebpf/programs/vmlinux.h' || (echo "Generated eBPF artifacts are out of date. Run 'go generate ./internal/ebpf/...'" && exit 1)
+          else
+            echo "::error::BTF not available — cannot verify eBPF generated files"
+            exit 1
+          fi
 
   lint:
     name: Lint
@@ -68,7 +74,7 @@ jobs:
           cache: true
 
       - name: Install eBPF build tools
-        run: sudo apt-get install -y clang llvm libbpf-dev
+        run: sudo apt-get install -y clang llvm libbpf-dev bpftool
 
       - uses: golangci/golangci-lint-action@v9
         with:

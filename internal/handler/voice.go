@@ -2,11 +2,15 @@ package handler
 
 import (
 	"context"
+	"errors"
+	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/ravencloak-org/Raven/internal/middleware"
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
@@ -19,6 +23,7 @@ type VoiceServicer interface {
 	ListSessions(ctx context.Context, orgID string, limit, offset int) (*model.VoiceSessionListResponse, error)
 	AppendTurn(ctx context.Context, orgID, sessionID string, req *model.AppendVoiceTurnRequest) (*model.VoiceTurn, error)
 	ListTurns(ctx context.Context, orgID, sessionID string) (*model.VoiceTurnListResponse, error)
+	GenerateToken(ctx context.Context, orgID, sessionID, identity string) (*model.VoiceTokenResponse, error)
 }
 
 // VoiceHandler handles HTTP requests for voice session lifecycle and transcription.
@@ -43,6 +48,7 @@ func NewVoiceHandler(svc VoiceServicer) *VoiceHandler {
 // @Success     201 {object} model.VoiceSession
 // @Failure     400 {object} apierror.AppError
 // @Failure     401 {object} apierror.AppError
+// @Failure     429 {object} apierror.AppError
 // @Failure     500 {object} apierror.AppError
 // @Router      /orgs/{org_id}/voice-sessions [post]
 func (h *VoiceHandler) CreateSession(c *gin.Context) {
@@ -53,13 +59,16 @@ func (h *VoiceHandler) CreateSession(c *gin.Context) {
 
 	var req model.CreateVoiceSessionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		_ = c.Error(&apierror.AppError{
-			Code:    http.StatusBadRequest,
-			Message: "Bad Request",
-			Detail:  err.Error(),
-		})
-		c.Abort()
-		return
+		// Allow an empty body (LiveKitRoom is auto-generated), but reject malformed JSON.
+		if !errors.Is(err, io.EOF) {
+			_ = c.Error(&apierror.AppError{
+				Code:    http.StatusBadRequest,
+				Message: "Bad Request",
+				Detail:  err.Error(),
+			})
+			c.Abort()
+			return
+		}
 	}
 
 	session, err := h.svc.CreateSession(c.Request.Context(), orgID, &req)
@@ -165,6 +174,54 @@ func (h *VoiceHandler) ListSessions(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
 	resp, err := h.svc.ListSessions(c.Request.Context(), orgID, limit, offset)
+	if err != nil {
+		_ = c.Error(err)
+		c.Abort()
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+// GenerateToken handles POST /v1/orgs/:org_id/voice-sessions/:session_id/token.
+//
+// @Summary     Generate LiveKit token
+// @Description Generates a LiveKit access token for a voice session participant.
+// @Tags        voice
+// @Produce     json
+// @Param       org_id     path string true "Organisation ID"
+// @Param       session_id path string true "Session ID"
+// @Success     200 {object} model.VoiceTokenResponse
+// @Failure     400 {object} apierror.AppError
+// @Failure     401 {object} apierror.AppError
+// @Failure     404 {object} apierror.AppError
+// @Failure     500 {object} apierror.AppError
+// @Router      /orgs/{org_id}/voice-sessions/{session_id}/token [post]
+func (h *VoiceHandler) GenerateToken(c *gin.Context) {
+	orgID, ok := extractOrgID(c)
+	if !ok {
+		return
+	}
+
+	sessionID := c.Param("session_id")
+
+	// Use the authenticated user's ID as the LiveKit participant identity.
+	// Missing identity behind JWTMiddleware indicates broken auth context — fail closed.
+	userID, exists := c.Get(string(middleware.ContextKeyUserID))
+	if !exists {
+		slog.WarnContext(c.Request.Context(), "GenerateToken: missing user identity in auth context")
+		_ = c.Error(apierror.NewUnauthorized("missing user identity"))
+		c.Abort()
+		return
+	}
+	identity, ok := userID.(string)
+	if !ok || identity == "" {
+		slog.WarnContext(c.Request.Context(), "GenerateToken: empty or invalid user identity in auth context")
+		_ = c.Error(apierror.NewUnauthorized("invalid user identity"))
+		c.Abort()
+		return
+	}
+
+	resp, err := h.svc.GenerateToken(c.Request.Context(), orgID, sessionID, identity)
 	if err != nil {
 		_ = c.Error(err)
 		c.Abort()
