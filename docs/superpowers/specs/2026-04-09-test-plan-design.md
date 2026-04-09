@@ -54,10 +54,10 @@ raven/
 | `internal/repository` | SQL correctness against real PostgreSQL (testcontainers); CRUD for all entities, RLS cross-tenant isolation (attempt cross-org reads, verify zero rows), pagination, soft deletes |
 | `internal/middleware` | JWT validation (valid, expired, wrong audience), API key auth (valid scoped key, revoked key, wrong scope), rate limiter (under threshold pass, over threshold 429), WAF rule middleware evaluation |
 | `internal/queue` + `internal/jobs` | Task enqueue (correct payload serialisation), job handler execution (mock dependencies), scheduler cron registration, dead-letter on repeated failure |
-| `internal/grpc` | gRPC client with stubbed AI Worker: ParseAndEmbed happy path, QueryRAG streaming chunk assembly, GetEmbedding response mapping, timeout/cancellation handling |
+| `internal/grpc` | gRPC client with stubbed AI Worker: ParseAndEmbed happy path, QueryRAG streaming chunk assembly, GetEmbedding response mapping, timeout/cancellation handling, connection refused → caller receives wrapped error, TLS handshake failure → error surfaced, gRPC status codes propagated correctly (UNAVAILABLE → 503, RESOURCE_EXHAUSTED → 429) |
 | `internal/crypto` | Encrypt/decrypt round-trip, key rotation, hash comparison for API keys |
 | `internal/cache` | Get/Set/Delete with TTL, cache miss fallback, Valkey connection failure handling |
-| `internal/storage` | SeaweedFS upload, download, delete — mocked HTTP responses |
+| `internal/storage` | SeaweedFS upload, download, delete — mocked HTTP responses; cross-tenant file access attempt → mocked 403 response → caller receives permission error (multi-tenant isolation) |
 
 ### 3.2 Integration Tests
 
@@ -67,9 +67,9 @@ raven/
 | Document processing pipeline | Upload → async parse → chunk → embed (stub gRPC) → store chunks → verify retrieval |
 | Hybrid search | Insert chunks with known vectors + BM25 index; query with known embedding; verify RRF-fused ranked results |
 | SSE streaming | Hit `/api/v1/chat` with streaming enabled; verify chunked response arrives and assembles to coherent text |
-| Webhook delivery | Enqueue webhook task; verify HTTP delivery attempt; mock 500 response; verify retry with backoff; verify dead-letter after max attempts |
+| Webhook delivery | Enqueue webhook task; verify HTTP delivery attempt; mock 500 response; verify retry at canonical backoff intervals (1s, 5s, 30s — matching section 7.3); verify dead-letter after max attempts |
 | Asynq job scheduler | Verify scheduled jobs fire at correct intervals; verify `TypeRecrawl`, `TypeCleanup`, `TypeVoiceUsage` handlers execute |
-| Migration correctness | Run all 32 migrations up then down; assert clean state |
+| Migration correctness | Run all 32 migrations up; verify schema snapshot matches expected structure at each checkpoint; run down only if down migrations are maintained (skip otherwise) |
 
 ---
 
@@ -122,7 +122,7 @@ All tests use deterministic stub providers. One manual-trigger smoke test per re
 | Domain | Journeys |
 |--------|---------|
 | **Auth** | Login via Keycloak SSO, logout, session expiry redirect, invalid credentials error |
-| **Org/Workspace** | Create organisation, create workspace, invite member, remove member |
+| **Org/Workspace** | Create organisation, create workspace, invite member, remove member; member attempts workspace-admin action → denied (RBAC enforcement); viewer role cannot access KB settings |
 | **Knowledge Base** | Create KB, edit settings, delete KB, list KBs |
 | **Documents** | Upload file (PDF, DOCX, TXT), add URL source, view processing status (polling), view chunk list, delete document |
 | **Chat** | Send message, receive streaming response, citation links open source, view session history, start new session |
@@ -130,7 +130,7 @@ All tests use deterministic stub providers. One manual-trigger smoke test per re
 | **LLM Providers** | Add BYOK config (OpenAI), test connection (mocked), edit provider, delete provider |
 | **Voice** | Initiate LiveKit session (mocked SFU), view active sessions list, end session |
 | **WhatsApp** | View incoming webhook events, trigger test callback endpoint, view delivery status |
-| **Chat Widget** | Load sandbox page with embedded `<raven-chat>`, authenticate via API key, send message, receive response |
+| **Chat Widget** | Load sandbox page with embedded `<raven-chat>`, authenticate via API key, send message, receive response; invalid API key → widget displays error state (not blank/crash) |
 | **Analytics** | View usage dashboard, filter by date range, export data |
 | **Notifications** | Create notification rule, receive in-app notification |
 
@@ -175,7 +175,7 @@ Runs as a privileged Go test binary requiring `CAP_BPF` + `CAP_NET_ADMIN`.
 | Port scan detection | Rapid sequential port probes; verify audit log entry written with `threat_type: port_scan` |
 | Rate threshold event | Sustained high-rate traffic; verify audit entry with `threat_type: rate_exceeded` |
 | Audit entry schema | All required fields present: timestamp, src_ip, dst_port, threat_type, action_taken |
-| Audit persistence | Entries survive process restart (ClickHouse write verified) |
+| Audit persistence | Entries survive process restart; ClickHouse write verified via real ClickHouse sidecar container started alongside the privileged eBPF test container (not the unit-test in-memory sink) |
 
 ---
 
@@ -262,7 +262,7 @@ Runs as a privileged Go test binary requiring `CAP_BPF` + `CAP_NET_ADMIN`.
 |-----|---------|-----------|------|
 | `go.yml` | Every PR + push to main | Go unit + integration | 80% coverage |
 | `python.yml` | Every PR + push to main | pytest + mypy + ruff | 70% coverage |
-| `frontend.yml` | Every PR + push to main | Vitest unit + Playwright E2E (headless) | All journeys pass |
+| `frontend.yml` | Every PR + push to main | Step 1: Vitest unit (fast-fail gate); Step 2: Playwright E2E headless (only runs if Step 1 passes) | Vitest: all pass; Playwright: all journeys pass |
 | `ebpf` (new, in go.yml) | Push to main only | eBPF kernel harness (privileged container) | All cases pass |
 | `smoke` (new manual job) | Manual trigger only | Real LLM provider smoke tests | Pass/fail reported |
 
