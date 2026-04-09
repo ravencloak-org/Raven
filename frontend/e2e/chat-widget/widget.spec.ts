@@ -10,9 +10,8 @@ test.describe('Chat Widget', () => {
     await shadowInput.fill('Hello from widget test')
     await shadowInput.press('Enter')
     // Wait for response in shadow DOM
-    await page.waitForTimeout(3000)
-    const messages = await page.locator('raven-chat').locator('css=[data-role="assistant"]').all()
-    expect(messages.length).toBeGreaterThan(0)
+    const assistantMessage = page.locator('raven-chat').locator('css=[data-role="assistant"]')
+    await expect(assistantMessage.first()).toBeVisible({ timeout: 10000 })
   })
 
   test('invalid API key: widget shows error state, not blank or crash', async ({ page }) => {

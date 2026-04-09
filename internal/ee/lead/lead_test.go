@@ -1,12 +1,11 @@
-// Package lead_test verifies the enterprise lead intelligence package compiles and
-// is available for future feature additions.
 package lead_test
 
 import (
 	"testing"
+	_ "github.com/ravencloak-org/Raven/internal/ee/lead"
 )
 
-// TestPackageCompiles ensures the lead package is importable and correctly declared.
+// TestPackageCompiles verifies that the lead package compiles successfully.
 func TestPackageCompiles(t *testing.T) {
-	t.Log("internal/ee/lead package compiles successfully")
+	t.Log("lead package compiled successfully")
 }

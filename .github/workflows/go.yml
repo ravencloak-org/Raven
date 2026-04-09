@@ -36,7 +36,7 @@ jobs:
       - run: go mod download
 
       - name: Install eBPF build tools
-        run: sudo apt-get install -y clang llvm libbpf-dev
+        run: sudo apt-get install -y clang llvm libbpf-dev linux-tools-generic bpftool
 
       - run: CGO_ENABLED=1 go build ./cmd/api
 

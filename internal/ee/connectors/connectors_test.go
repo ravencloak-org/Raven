@@ -1,12 +1,11 @@
-// Package connectors_test verifies the enterprise connectors package compiles and
-// is available for future feature additions.
 package connectors_test
 
 import (
 	"testing"
+	_ "github.com/ravencloak-org/Raven/internal/ee/connectors"
 )
 
-// TestPackageCompiles ensures the connectors package is importable and correctly declared.
+// TestPackageCompiles verifies that the connectors package compiles successfully.
 func TestPackageCompiles(t *testing.T) {
-	t.Log("internal/ee/connectors package compiles successfully")
+	t.Log("connectors package compiled successfully")
 }

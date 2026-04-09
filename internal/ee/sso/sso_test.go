@@ -1,12 +1,11 @@
-// Package sso_test verifies the enterprise SSO package compiles and
-// is available for future feature additions.
 package sso_test
 
 import (
 	"testing"
+	_ "github.com/ravencloak-org/Raven/internal/ee/sso"
 )
 
-// TestPackageCompiles ensures the sso package is importable and correctly declared.
+// TestPackageCompiles verifies that the sso package compiles successfully.
 func TestPackageCompiles(t *testing.T) {
-	t.Log("internal/ee/sso package compiles successfully")
+	t.Log("sso package compiled successfully")
 }

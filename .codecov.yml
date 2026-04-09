@@ -4,17 +4,17 @@ coverage:
       default:
         target: 80%
         threshold: 2%
-        if_not_found: success
+        if_not_found: failure
     patch:
       default:
         target: 70%
         threshold: 5%
-        if_not_found: success
+        if_not_found: failure
 
 ignore:
   - "internal/grpc/pb/**"    # generated protobuf code
   - "**/*.pb.go"             # generated files
-  - "cmd/**"                 # main entrypoints
+  - "cmd/**/main.go"         # main entrypoints only
   - "docs/**"
   - "frontend/**"
   - "migrations/**"

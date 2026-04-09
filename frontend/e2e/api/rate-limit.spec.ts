@@ -18,11 +18,8 @@ test.describe('Rate Limiting', () => {
           .then((r) => responses.push(r)),
       ),
     )
-    const has429 = responses.some(r => r.status() === 429)
-    expect(has429).toBe(true)
     const limited = responses.find(r => r.status() === 429)
-    if (limited) {
-      expect(limited.headers()['retry-after']).toBeTruthy()
-    }
+    expect(limited).toBeDefined()
+    expect(limited!.headers()['retry-after']).toBeTruthy()
   })
 })

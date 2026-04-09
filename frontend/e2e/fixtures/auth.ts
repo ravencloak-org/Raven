@@ -19,8 +19,8 @@ export async function loginAs(page: Page, email: string, password: string) {
 
 export const test = base.extend<AuthFixtures>({
   authenticatedPage: async ({ page }, use, testInfo) => {
-    if (!process.env.E2E_USER) {
-      testInfo.skip(true, 'E2E_USER not configured — skipping auth-required test')
+    if (!process.env.E2E_USER || !process.env.E2E_PASS) {
+      testInfo.skip(true, 'E2E_USER/E2E_PASS not configured — skipping auth-required test')
       await use(page)
       return
     }
@@ -28,8 +28,8 @@ export const test = base.extend<AuthFixtures>({
     await use(page)
   },
   adminPage: async ({ page }, use, testInfo) => {
-    if (!process.env.E2E_ADMIN) {
-      testInfo.skip(true, 'E2E_ADMIN not configured — skipping admin test')
+    if (!process.env.E2E_ADMIN || !process.env.E2E_ADMIN_PASS) {
+      testInfo.skip(true, 'E2E_ADMIN/E2E_ADMIN_PASS not configured — skipping admin test')
       await use(page)
       return
     }

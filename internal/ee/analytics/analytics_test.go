@@ -1,12 +1,11 @@
-// Package analytics_test verifies the enterprise analytics package compiles and
-// is available for future feature additions.
 package analytics_test
 
 import (
 	"testing"
+	_ "github.com/ravencloak-org/Raven/internal/ee/analytics"
 )
 
-// TestPackageCompiles ensures the analytics package is importable and correctly declared.
+// TestPackageCompiles verifies that the analytics package compiles successfully.
 func TestPackageCompiles(t *testing.T) {
-	t.Log("internal/ee/analytics package compiles successfully")
+	t.Log("analytics package compiled successfully")
 }

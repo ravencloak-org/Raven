@@ -19,14 +19,16 @@ test.describe('Voice Sessions', () => {
   test('end voice session', async ({ adminPage: page }) => {
     await page.goto('/voice/sessions')
     const sessionCount = await page.getByTestId('session-row').count()
-    if (sessionCount > 0) {
-      await page
-        .getByTestId('session-row')
-        .first()
-        .getByRole('button', { name: 'End' })
-        .click()
-      await page.getByRole('button', { name: 'Confirm' }).click()
-      await expect(page.getByText(/ended|terminated/i)).toBeVisible()
+    if (sessionCount === 0) {
+      test.skip(true, 'No active sessions available to test ending')
+      return
     }
+    await page
+      .getByTestId('session-row')
+      .first()
+      .getByRole('button', { name: 'End' })
+      .click()
+    await page.getByRole('button', { name: 'Confirm' }).click()
+    await expect(page.getByText(/ended|terminated/i)).toBeVisible()
   })
 })
