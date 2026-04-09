@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "f3ba9a2ae873",
+  "session_id": "59ff5ba9-552f-401b-be49-26519ba7fd6b",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-09T09:23:23.410198Z",
+  "branch": "test/playwright-e2e-suite",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "frontend/e2e/tsconfig.json"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "e6360d8a-3331-4cb5-a079-3addb05967e1",
+  "checkpoint_transcript_start": 91,
+  "transcript_lines_at_start": 91,
+  "token_usage": {
+    "input_tokens": 10,
+    "cache_creation_tokens": 49829,
+    "cache_read_tokens": 286142,
+    "output_tokens": 5542,
+    "api_call_count": 8
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-09T09:23:23.332767Z",
+    "agent_lines": 0,
+    "human_added": 896,
+    "human_modified": 96,
+    "human_removed": 0,
+    "total_committed": 911,
+    "agent_percentage": 0
+  }
+}
