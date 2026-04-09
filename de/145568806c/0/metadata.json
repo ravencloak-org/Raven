@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "de145568806c",
+  "session_id": "a8e822f4-2ee5-46f6-9a0b-5106d07abfd2",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-09T08:56:55.189109Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/superpowers/plans/2026-04-09-ebpf-test-harness.md",
+    "docs/superpowers/plans/2026-04-09-go-backend-tests.md",
+    "docs/superpowers/plans/2026-04-09-playwright-e2e-tests.md",
+    "docs/superpowers/plans/2026-04-09-python-ai-worker-tests.md",
+    "docs/superpowers/specs/2026-04-09-test-plan-design.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "7fc74197-fa5b-4897-a04e-dbe97fb2636c",
+  "checkpoint_transcript_start": 193,
+  "transcript_lines_at_start": 193,
+  "token_usage": {
+    "input_tokens": 48,
+    "cache_creation_tokens": 83760,
+    "cache_read_tokens": 5382937,
+    "output_tokens": 66758,
+    "api_call_count": 43
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-09T08:56:55.090253Z",
+    "agent_lines": 3892,
+    "human_added": 222,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 4114,
+    "agent_percentage": 94.60379192999514
+  }
+}
