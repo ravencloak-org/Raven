@@ -89,8 +89,11 @@ func (m *mockBillingRepo) UpdatePaymentIntentStatus(ctx context.Context, hsPayme
 	return nil
 }
 
-// newTestBillingService builds a BillingService with the given repo and no HTTP client
-// (nil pool — only usable for tests that don't exercise DB paths).
+// newTestBillingService builds a BillingService with the given repo and no HTTP client.
+// The nil *pgxpool.Pool is intentional: unit tests in this file exercise only the
+// service-layer logic (webhook verification, plan listing, event dispatch) and never
+// call db.WithOrgID, which is the only code path that dereferences the pool.
+// Integration tests that need a real pool use testutil.NewTestDB instead.
 func newTestBillingService(repo service.BillingRepository, webhookSecret string) *service.BillingService {
 	return service.NewBillingService(repo, (*pgxpool.Pool)(nil), "http://localhost:8090", "", webhookSecret, "rzp_test_key")
 }
@@ -129,12 +132,20 @@ func TestVerifyWebhookSignature_InvalidSignature(t *testing.T) {
 	}
 }
 
-func TestVerifyWebhookSignature_EmptySecret_Skips(t *testing.T) {
-	// When no webhook secret is configured, validation is skipped (dev mode).
+func TestVerifyWebhookSignature_EmptySecret_FailsClosed(t *testing.T) {
+	// When no webhook secret is configured, verification must fail closed (not skip).
 	payload := []byte(`{"event_type":"payment_succeeded"}`)
 	svc := newTestBillingService(&mockBillingRepo{}, "")
-	if err := svc.VerifyWebhookSignature(payload, "any-value"); err != nil {
-		t.Errorf("expected validation to be skipped when secret is empty, got: %v", err)
+	err := svc.VerifyWebhookSignature(payload, "any-value")
+	if err == nil {
+		t.Fatal("expected error when webhook secret is empty, got nil")
+	}
+	var appErr *apierror.AppError
+	if !errors.As(err, &appErr) {
+		t.Fatalf("expected *apierror.AppError, got %T", err)
+	}
+	if appErr.Code != 500 {
+		t.Errorf("expected HTTP 500, got %d", appErr.Code)
 	}
 }
 

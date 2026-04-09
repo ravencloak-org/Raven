@@ -38,7 +38,7 @@ CREATE INDEX idx_payment_intents_org_id
 ALTER TABLE payment_intents ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY payment_intents_org_isolation ON payment_intents
-    USING (org_id = current_setting('app.current_org_id', true)::uuid);
+    USING (org_id = nullif(current_setting('app.current_org_id', true), '')::uuid);
 
 -- Backfill RLS on subscriptions (was missing from 00019).
 --

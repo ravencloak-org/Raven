@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 
 	pb "github.com/ravencloak-org/Raven/internal/grpc/pb"
 )
@@ -68,4 +69,24 @@ func (s *StubRAGStream) Recv() (*pb.RAGChunk, error) {
 	c := s.chunks[s.idx]
 	s.idx++
 	return c, nil
+}
+
+// Context returns a background context (safe override for nil embedded ClientStream).
+func (s *StubRAGStream) Context() context.Context {
+	return context.Background()
+}
+
+// CloseSend is a no-op (safe override for nil embedded ClientStream).
+func (s *StubRAGStream) CloseSend() error {
+	return nil
+}
+
+// Header returns empty metadata (safe override for nil embedded ClientStream).
+func (s *StubRAGStream) Header() (metadata.MD, error) {
+	return nil, nil
+}
+
+// Trailer returns empty metadata (safe override for nil embedded ClientStream).
+func (s *StubRAGStream) Trailer() metadata.MD {
+	return nil
 }

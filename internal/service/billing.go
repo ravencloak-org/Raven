@@ -174,7 +174,7 @@ func (s *BillingService) CreateSubscription(ctx context.Context, orgID string, r
 	)
 	// Return the subscription enriched with the client_secret so the frontend
 	// can open the Hyperswitch SDK / Razorpay checkout.
-	persisted.HyperswitchSubscriptionID = clientSecret
+	persisted.ClientSecret = clientSecret
 	return persisted, nil
 }
 
@@ -255,11 +255,11 @@ func (s *BillingService) CreatePaymentIntent(ctx context.Context, orgID string, 
 }
 
 // VerifyWebhookSignature verifies the Hyperswitch webhook HMAC-SHA256 signature.
-// Returns nil if the signature is valid or if no webhook secret is configured (dev mode).
+// Returns nil if the signature is valid; returns an error if the secret is not
+// configured (fail closed) or the signature does not match.
 func (s *BillingService) VerifyWebhookSignature(payload []byte, signature string) error {
 	if s.webhookSecret == "" {
-		slog.Warn("Hyperswitch webhook signature validation skipped: webhook_secret not configured")
-		return nil
+		return apierror.NewInternal("webhook secret not configured")
 	}
 
 	mac := hmac.New(sha256.New, []byte(s.webhookSecret))
@@ -317,6 +317,12 @@ func (s *BillingService) handlePaymentSucceeded(ctx context.Context, content map
 			return nil
 		}
 		return fmt.Errorf("handlePaymentSucceeded: lookup subscription: %w", err)
+	}
+
+	// Idempotency: if the subscription is already active, skip reprocessing.
+	if sub.Status == model.SubscriptionStatusActive {
+		slog.InfoContext(ctx, "payment_succeeded: subscription already active, skipping", "subscription_id", sub.ID, "hs_payment_id", paymentID)
+		return nil
 	}
 
 	// Transition to active and extend the billing period by one month.

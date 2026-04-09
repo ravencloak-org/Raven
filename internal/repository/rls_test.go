@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/ravencloak-org/Raven/internal/repository"
 	"github.com/ravencloak-org/Raven/internal/testutil"
 	"github.com/stretchr/testify/assert"
@@ -12,10 +13,10 @@ import (
 )
 
 // setOrgID is a helper that sets the RLS org context for a transaction.
-func setOrgID(ctx context.Context, t *testing.T, tx interface {
-	Exec(ctx context.Context, sql string, args ...any) (interface{ RowsAffected() int64 }, error)
-}, orgID string) {
+func setOrgID(t *testing.T, ctx context.Context, tx pgx.Tx, orgID string) {
 	t.Helper()
+	_, err := tx.Exec(ctx, "SELECT set_config('app.current_org_id', $1, true)", orgID)
+	require.NoError(t, err)
 }
 
 // TestRLS_CrossOrgKB_ReturnsZeroRows verifies that org-B cannot read
