@@ -1,12 +1,79 @@
 """Shared pytest fixtures for the Raven AI Worker test suite."""
 
+import sys
 from contextlib import asynccontextmanager
+from types import ModuleType
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from raven_worker.config import Settings
 from raven_worker.generated import ai_worker_pb2
+
+
+# ---------------------------------------------------------------------------
+# Inject lightweight stub modules when heavy deps (asyncpg, anthropic, openai,
+# cohere, redis) are not installed in the current Python environment.
+# This allows all tests to be collected and run locally (e.g. Python 3.14)
+# even when those packages are only available in CI (Python 3.12).
+# ---------------------------------------------------------------------------
+
+def _make_stub(name: str, **attrs) -> ModuleType:
+    mod = ModuleType(name)
+    for k, v in attrs.items():
+        setattr(mod, k, v)
+    return mod
+
+
+def _inject_missing_stubs() -> None:
+    """Inject stub modules into sys.modules for packages not yet installed."""
+    stubs: dict[str, ModuleType] = {}
+
+    if "asyncpg" not in sys.modules:
+        pg = _make_stub(
+            "asyncpg",
+            connect=AsyncMock(),
+            Connection=object,
+            Pool=object,
+            exceptions=_make_stub("asyncpg.exceptions"),
+        )
+        stubs["asyncpg"] = pg
+
+    if "anthropic" not in sys.modules:
+        ant = _make_stub(
+            "anthropic",
+            AsyncAnthropic=MagicMock(),
+            APIError=Exception,
+        )
+        stubs["anthropic"] = ant
+
+    if "openai" not in sys.modules:
+        oai = _make_stub(
+            "openai",
+            AsyncOpenAI=MagicMock(),
+            RateLimitError=Exception,
+            APIError=Exception,
+        )
+        stubs["openai"] = oai
+
+    if "cohere" not in sys.modules:
+        coh = _make_stub(
+            "cohere",
+            AsyncClientV2=MagicMock(),
+        )
+        stubs["cohere"] = coh
+
+    if "redis" not in sys.modules:
+        redis_asyncio = _make_stub("redis.asyncio", Redis=MagicMock(), from_url=MagicMock())
+        redis_mod = _make_stub("redis", asyncio=redis_asyncio)
+        stubs["redis"] = redis_mod
+        stubs["redis.asyncio"] = redis_asyncio
+
+    for name, mod in stubs.items():
+        sys.modules[name] = mod
+
+
+_inject_missing_stubs()
 
 
 @pytest.fixture
