@@ -5,7 +5,7 @@ test.describe('LLM Providers', () => {
     await page.goto('/llm-providers')
     await page.getByRole('button', { name: 'Add Provider' }).click()
     await page.getByLabel('Provider').selectOption('openai')
-    await page.getByLabel('API Key').fill('sk-test-fake-key-for-e2e')
+    await page.getByLabel('API Key').fill(process.env.E2E_OPENAI_API_KEY ?? 'sk-test-fake-key-for-e2e')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByText('openai')).toBeVisible()
   })

@@ -5,12 +5,6 @@ export type AuthFixtures = {
   adminPage: Page
 }
 
-// Keycloak test credentials — set in .env.test or CI secrets
-const TEST_USER = process.env.E2E_USER ?? 'testuser@example.com'
-const TEST_PASS = process.env.E2E_PASS ?? 'testpassword'
-const TEST_ADMIN = process.env.E2E_ADMIN ?? 'admin@example.com'
-const TEST_ADMIN_PASS = process.env.E2E_ADMIN_PASS ?? 'adminpassword'
-
 export async function loginAs(page: Page, email: string, password: string) {
   await page.goto('/')
   // Wait for Keycloak redirect
@@ -19,17 +13,27 @@ export async function loginAs(page: Page, email: string, password: string) {
   await page.getByLabel('Password').fill(password)
   await page.getByRole('button', { name: 'Sign In' }).click()
   // Wait for redirect back to app
-  await page.waitForURL('/')
+  await page.waitForURL('/dashboard')
   await page.waitForSelector('[data-testid="dashboard"]', { timeout: 10000 })
 }
 
 export const test = base.extend<AuthFixtures>({
-  authenticatedPage: async ({ page }, use) => {
-    await loginAs(page, TEST_USER, TEST_PASS)
+  authenticatedPage: async ({ page }, use, testInfo) => {
+    if (!process.env.E2E_USER) {
+      testInfo.skip(true, 'E2E_USER not configured — skipping auth-required test')
+      await use(page)
+      return
+    }
+    await loginAs(page, process.env.E2E_USER!, process.env.E2E_PASS!)
     await use(page)
   },
-  adminPage: async ({ page }, use) => {
-    await loginAs(page, TEST_ADMIN, TEST_ADMIN_PASS)
+  adminPage: async ({ page }, use, testInfo) => {
+    if (!process.env.E2E_ADMIN) {
+      testInfo.skip(true, 'E2E_ADMIN not configured — skipping admin test')
+      await use(page)
+      return
+    }
+    await loginAs(page, process.env.E2E_ADMIN!, process.env.E2E_ADMIN_PASS!)
     await use(page)
   },
 })

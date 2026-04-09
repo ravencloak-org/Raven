@@ -10,7 +10,6 @@ import pytest
 from raven_worker.config import Settings
 from raven_worker.generated import ai_worker_pb2
 
-
 # ---------------------------------------------------------------------------
 # Inject lightweight stub modules when heavy deps (asyncpg, anthropic, openai,
 # cohere, redis) are not installed in the current Python environment.

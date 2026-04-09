@@ -23,7 +23,7 @@ test.describe('API Keys', () => {
     const keyCount = await page.getByTestId('api-key-row').count()
     if (keyCount > 0) {
       await page.getByTestId('api-key-row').first().getByRole('button', { name: 'Revoke' }).click()
-      await page.getByRole('button', { name: 'Confirm' }).click()
+      await page.getByRole('button', { name: 'Revoke Key' }).click()
       await expect(page.getByTestId('api-key-row')).toHaveCount(keyCount - 1)
     }
   })
