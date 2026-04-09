@@ -62,9 +62,10 @@ type PostHogConfig struct {
 
 // HyperswitchConfig holds Hyperswitch payment orchestration settings.
 type HyperswitchConfig struct {
-	BaseURL       string `mapstructure:"base_url"`
-	APIKey        string `mapstructure:"api_key"`
-	WebhookSecret string `mapstructure:"webhook_secret"`
+	BaseURL        string `mapstructure:"base_url"`
+	APIKey         string `mapstructure:"api_key"`
+	WebhookSecret  string `mapstructure:"webhook_secret"`
+	RazorpayKeyID  string `mapstructure:"razorpay_key_id"`
 }
 
 // LiveKitConfig holds LiveKit WebRTC server settings.
@@ -228,6 +229,7 @@ func Load() (*Config, error) {
 	v.SetDefault("hyperswitch.base_url", "http://localhost:8090")
 	v.SetDefault("hyperswitch.api_key", "")
 	v.SetDefault("hyperswitch.webhook_secret", "")
+	v.SetDefault("hyperswitch.razorpay_key_id", "")
 	v.SetDefault("livekit.api_url", "http://localhost:7880")
 	v.SetDefault("livekit.ws_url", "ws://localhost:7880")
 	v.SetDefault("livekit.api_key", "devkey")
@@ -327,6 +329,10 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("otel.endpoint", "RAVEN_OTEL_ENDPOINT")
 	_ = v.BindEnv("otel.service_name", "RAVEN_OTEL_SERVICE_NAME")
 	_ = v.BindEnv("otel.enabled", "RAVEN_OTEL_ENABLED")
+	_ = v.BindEnv("hyperswitch.base_url", "RAVEN_HYPERSWITCH_BASE_URL")
+	_ = v.BindEnv("hyperswitch.api_key", "RAVEN_HYPERSWITCH_API_KEY")
+	_ = v.BindEnv("hyperswitch.webhook_secret", "RAVEN_HYPERSWITCH_WEBHOOK_SECRET")
+	_ = v.BindEnv("hyperswitch.razorpay_key_id", "RAVEN_HYPERSWITCH_RAZORPAY_KEY_ID")
 	_ = v.BindEnv("ebpf.enabled", "RAVEN_EBPF_ENABLED")
 	_ = v.BindEnv("ebpf.observability_enabled", "RAVEN_EBPF_OBSERVABILITY_ENABLED")
 	_ = v.BindEnv("ebpf.audit_enabled", "RAVEN_EBPF_AUDIT_ENABLED")

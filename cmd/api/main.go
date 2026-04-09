@@ -217,6 +217,7 @@ func main() {
 	webhookRepo := repository.NewWebhookRepository(pool)
 	leadRepo := repository.NewLeadRepository(pool)
 	whatsappRepo := repository.NewWhatsAppRepository(pool)
+	billingRepo := repository.NewBillingRepository(pool)
 
 	// --- ClickHouse embedding repository (enterprise, optional) ---
 	var chEmbeddingRepo *repository.ClickHouseEmbeddingRepository
@@ -273,6 +274,13 @@ func main() {
 	webhookSvc := service.NewWebhookService(webhookRepo, pool, queueClient)
 	leadSvc := service.NewLeadService(leadRepo)
 	whatsappSvc := service.NewWhatsAppService(whatsappRepo, pool)
+	billingSvc := service.NewBillingService(
+		billingRepo, pool,
+		cfg.Hyperswitch.BaseURL,
+		cfg.Hyperswitch.APIKey,
+		cfg.Hyperswitch.WebhookSecret,
+		cfg.Hyperswitch.RazorpayKeyID,
+	)
 	chatRepo := repository.NewChatRepository(pool)
 	chatSvc := service.NewChatService(chatRepo, grpcClient, pool)
 	voiceRepo := repository.NewVoiceRepository(pool)
@@ -381,6 +389,7 @@ func main() {
 	}
 	leadHandler := handler.NewLeadHandler(leadSvc)
 	whatsappHandler := handler.NewWhatsAppHandler(whatsappSvc)
+	billingHandler := handler.NewBillingHandler(billingSvc)
 
 	// Create router
 	router := gin.Default()
@@ -648,6 +657,15 @@ func main() {
 		api.PUT("/me", userHandler.UpdateMe)
 		api.DELETE("/me", userHandler.DeleteMe)
 		api.GET("/users/:user_id", middleware.RequireOrgRole("org_admin"), userHandler.GetUser)
+
+		// --- Billing routes ---
+		billing := api.Group("/billing")
+		{
+			billing.GET("/plans", billingHandler.GetPlans)
+			billing.POST("/subscribe", middleware.RequireOrgRole("org_admin"), billingHandler.Subscribe)
+			billing.DELETE("/subscribe", middleware.RequireOrgRole("org_admin"), billingHandler.Unsubscribe)
+			billing.POST("/payment-intents", middleware.RequireOrgRole("org_admin"), billingHandler.CreatePaymentIntent)
+		}
 	}
 
 	// Public chat routes — API key authentication (for embeddable chat widget).
@@ -661,6 +679,10 @@ func main() {
 		chatAPI.GET("/:kb_id/sessions/:session_id/history", chatHandler.GetHistory)
 		chatAPI.DELETE("/:kb_id/sessions/:session_id", chatHandler.DeleteSession)
 	}
+
+	// --- Hyperswitch webhook (public, no JWT — Hyperswitch sends to a single URL) ---
+	// Signature verification is performed inside the handler using HMAC-SHA256.
+	router.POST("/webhooks/hyperswitch", billingHandler.Webhook)
 
 	// --- Meta Graph API Webhook (public, no JWT — Meta sends to a single URL) ---
 	metaWebhookHandler := handler.NewMetaWebhookHandler(cfg.Meta.AppSecret, cfg.Meta.WebhookToken, nil)

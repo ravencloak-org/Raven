@@ -129,6 +129,49 @@ func (h *BillingHandler) Unsubscribe(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// CreatePaymentIntent handles POST /api/v1/billing/payment-intents.
+//
+// @Summary     Create payment intent
+// @Tags        billing
+// @Accept      json
+// @Produce     json
+// @Security    BearerAuth
+// @Param       request body model.CreatePaymentIntentRequest true "Payment intent payload"
+// @Success     201 {object} model.PaymentIntent
+// @Failure     422 {object} apierror.AppError
+// @Failure     401 {object} apierror.AppError
+// @Failure     500 {object} apierror.AppError
+// @Router      /billing/payment-intents [post]
+func (h *BillingHandler) CreatePaymentIntent(c *gin.Context) {
+	orgID, exists := c.Get(string(middleware.ContextKeyOrgID))
+	if !exists {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, apierror.AppError{
+			Code:    http.StatusUnauthorized,
+			Message: "Unauthorized",
+			Detail:  "missing organisation context",
+		})
+		return
+	}
+
+	var req model.CreatePaymentIntentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, apierror.AppError{
+			Code:    http.StatusUnprocessableEntity,
+			Message: "Unprocessable Entity",
+			Detail:  err.Error(),
+		})
+		return
+	}
+
+	pi, err := h.svc.CreatePaymentIntent(c.Request.Context(), orgID.(string), req)
+	if err != nil {
+		_ = c.Error(err)
+		c.Abort()
+		return
+	}
+	c.JSON(http.StatusCreated, pi)
+}
+
 // Webhook handles POST /api/v1/billing/webhook.
 // This endpoint is called by Hyperswitch to notify about payment events.
 // It does NOT require JWT authentication; it uses webhook signature verification.
