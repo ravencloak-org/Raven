@@ -62,5 +62,5 @@ jobs:
         run: go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
 
       - name: Run govulncheck
-        run: govulncheck -test=false ./...
+        run: govulncheck -test=false -scan package ./...
 
