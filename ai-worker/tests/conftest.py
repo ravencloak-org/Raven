@@ -8,8 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from raven_worker.config import Settings
-from raven_worker.generated import ai_worker_pb2
-
+from raven_worker.generated import ai_worker_pb2  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Inject lightweight stub modules when heavy deps (asyncpg, anthropic, openai,
