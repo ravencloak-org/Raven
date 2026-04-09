@@ -1,0 +1,809 @@
+index everything
+
+---
+
+That's right. Plan your test cases to test all the features, including the enterprise features and the ebbf.
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.5/skills/brainstorming
+
+# Brainstorming Ideas Into Designs
+
+Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
+
+Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design and get user approval.
+
+<HARD-GATE>
+Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
+</HARD-GATE>
+
+## Anti-Pattern: "This Is Too Simple To Need A Design"
+
+Every project goes through this process. A todo list, a single-function utility, a config change — all of them. "Simple" projects are where unexamined assumptions cause the most wasted work. The design can be short (a few sentences for truly simple projects), but you MUST present it and get approval.
+
+## Checklist
+
+You MUST create a task for each of these items and complete them in order:
+
+1. **Explore project context** — check files, docs, recent commits
+2. **Offer visual companion** (if topic will involve visual questions) — this is its own message, not combined with a clarifying question. See the Visual Companion section below.
+3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
+4. **Propose 2-3 approaches** — with trade-offs and your recommendation
+5. **Present design** — in sections scaled to their complexity, get user approval after each section
+6. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit
+7. **Spec review loop** — dispatch spec-document-reviewer subagent with precisely crafted review context (never your session history); fix issues and re-dispatch until approved (max 3 iterations, then surface to human)
+8. **User reviews written spec** — ask user to review the spec file before proceeding
+9. **Transition to implementation** — invoke writing-plans skill to create implementation plan
+
+## Process Flow
+
+```dot
+digraph brainstorming {
+    "Explore project context" [shape=box];
+    "Visual questions ahead?" [shape=diamond];
+    "Offer Visual Companion\n(own message, no other content)" [shape=box];
+    "Ask clarifying questions" [shape=box];
+    "Propose 2-3 approaches" [shape=box];
+    "Present design sections" [shape=box];
+    "User approves design?" [shape=diamond];
+    "Write design doc" [shape=box];
+    "Spec review loop" [shape=box];
+    "Spec review passed?" [shape=diamond];
+    "User reviews spec?" [shape=diamond];
+    "Invoke writing-plans skill" [shape=doublecircle];
+
+    "Explore project context" -> "Visual questions ahead?";
+    "Visual questions ahead?" -> "Offer Visual Companion\n(own message, no other content)" [label="yes"];
+    "Visual questions ahead?" -> "Ask clarifying questions" [label="no"];
+    "Offer Visual Companion\n(own message, no other content)" -> "Ask clarifying questions";
+    "Ask clarifying questions" -> "Propose 2-3 approaches";
+    "Propose 2-3 approaches" -> "Present design sections";
+    "Present design sections" -> "User approves design?";
+    "User approves design?" -> "Present design sections" [label="no, revise"];
+    "User approves design?" -> "Write design doc" [label="yes"];
+    "Write design doc" -> "Spec review loop";
+    "Spec review loop" -> "Spec review passed?";
+    "Spec review passed?" -> "Spec review loop" [label="issues found,\nfix and re-dispatch"];
+    "Spec review passed?" -> "User reviews spec?" [label="approved"];
+    "User reviews spec?" -> "Write design doc" [label="changes requested"];
+    "User reviews spec?" -> "Invoke writing-plans skill" [label="approved"];
+}
+```
+
+**The terminal state is invoking writing-plans.** Do NOT invoke frontend-design, mcp-builder, or any other implementation skill. The ONLY skill you invoke after brainstorming is writing-plans.
+
+## The Process
+
+**Understanding the idea:**
+
+- Check out the current project state first (files, docs, recent commits)
+- Before asking detailed questions, assess scope: if the request describes multiple independent subsystems (e.g., "build a platform with chat, file storage, billing, and analytics"), flag this immediately. Don't spend questions refining details of a project that needs to be decomposed first.
+- If the project is too large for a single spec, help the user decompose into sub-projects: what are the independent pieces, how do they relate, what order should they be built? Then brainstorm the first sub-project through the normal design flow. Each sub-project gets its own spec → plan → implementation cycle.
+- For appropriately-scoped projects, ask questions one at a time to refine the idea
+- Prefer multiple choice questions when possible, but open-ended is fine too
+- Only one question per message - if a topic needs more exploration, break it into multiple questions
+- Focus on understanding: purpose, constraints, success criteria
+
+**Exploring approaches:**
+
+- Propose 2-3 different approaches with trade-offs
+- Present options conversationally with your recommendation and reasoning
+- Lead with your recommended option and explain why
+
+**Presenting the design:**
+
+- Once you believe you understand what you're building, present the design
+- Scale each section to its complexity: a few sentences if straightforward, up to 200-300 words if nuanced
+- Ask after each section whether it looks right so far
+- Cover: architecture, components, data flow, error handling, testing
+- Be ready to go back and clarify if something doesn't make sense
+
+**Design for isolation and clarity:**
+
+- Break the system into smaller units that each have one clear purpose, communicate through well-defined interfaces, and can be understood and tested independently
+- For each unit, you should be able to answer: what does it do, how do you use it, and what does it depend on?
+- Can someone understand what a unit does without reading its internals? Can you change the internals without breaking consumers? If not, the boundaries need work.
+- Smaller, well-bounded units are also easier for you to work with - you reason better about code you can hold in context at once, and your edits are more reliable when files are focused. When a file grows large, that's often a signal that it's doing too much.
+
+**Working in existing codebases:**
+
+- Explore the current structure before proposing changes. Follow existing patterns.
+- Where existing code has problems that affect the work (e.g., a file that's grown too large, unclear boundaries, tangled responsibilities), include targeted improvements as part of the design - the way a good developer improves code they're working in.
+- Don't propose unrelated refactoring. Stay focused on what serves the current goal.
+
+## After the Design
+
+**Documentation:**
+
+- Write the validated design (spec) to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
+  - (User preferences for spec location override this default)
+- Use elements-of-style:writing-clearly-and-concisely skill if available
+- Commit the design document to git
+
+**Spec Review Loop:**
+After writing the spec document:
+
+1. Dispatch spec-document-reviewer subagent (see spec-document-reviewer-prompt.md)
+2. If Issues Found: fix, re-dispatch, repeat until Approved
+3. If loop exceeds 3 iterations, surface to human for guidance
+
+**User Review Gate:**
+After the spec review loop passes, ask the user to review the written spec before proceeding:
+
+> "Spec written and committed to `<path>`. Please review it and let me know if you want to make any changes before we start writing out the implementation plan."
+
+Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
+
+**Implementation:**
+
+- Invoke the writing-plans skill to create a detailed implementation plan
+- Do NOT invoke any other skill. writing-plans is the next step.
+
+## Key Principles
+
+- **One question at a time** - Don't overwhelm with multiple questions
+- **Multiple choice preferred** - Easier to answer than open-ended when possible
+- **YAGNI ruthlessly** - Remove unnecessary features from all designs
+- **Explore alternatives** - Always propose 2-3 approaches before settling
+- **Incremental validation** - Present design, get approval before moving on
+- **Be flexible** - Go back and clarify when something doesn't make sense
+
+## Visual Companion
+
+A browser-based companion for showing mockups, diagrams, and visual options during brainstorming. Available as a tool — not a mode. Accepting the companion means it's available for questions that benefit from visual treatment; it does NOT mean every question goes through the browser.
+
+**Offering the companion:** When you anticipate that upcoming questions will involve visual content (mockups, layouts, diagrams), offer it once for consent:
+> "Some of what we're working on might be easier to explain if I can show it to you in a web browser. I can put together mockups, diagrams, comparisons, and other visuals as we go. This feature is still new and can be token-intensive. Want to try it? (Requires opening a local URL)"
+
+**This offer MUST be its own message.** Do not combine it with clarifying questions, context summaries, or any other content. The message should contain ONLY the offer above and nothing else. Wait for the user's response before continuing. If they decline, proceed with text-only brainstorming.
+
+**Per-question decision:** Even after the user accepts, decide FOR EACH QUESTION whether to use the browser or the terminal. The test: **would the user understand this better by seeing it than reading it?**
+
+- **Use the browser** for content that IS visual — mockups, wireframes, layout comparisons, architecture diagrams, side-by-side visual designs
+- **Use the terminal** for content that is text — requirements questions, conceptual choices, tradeoff lists, A/B/C/D text options, scope decisions
+
+A question about a UI topic is not automatically a visual question. "What does personality mean in this context?" is a conceptual question — use the terminal. "Which wizard layout works better?" is a visual question — use the browser.
+
+If they agree to the companion, read the detailed guide before proceeding:
+`skills/brainstorming/visual-companion.md`
+
+---
+
+what is recommended?
+
+---
+
+yes
+
+---
+
+What's recommended along with the questions that you have? Also, tell me the recommended solution that you would go with.
+
+---
+
+Let's go for all the recommended ones.
+
+---
+
+yes lets go with c
+
+---
+
+yes, lets use parallel agents to start these
+
+---
+
+yes
+
+---
+
+go
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.5/skills/writing-plans
+
+# Writing Plans
+
+## Overview
+
+Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code, testing, docs they might need to check, how to test it. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD. Frequent commits.
+
+Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they don't know good test design very well.
+
+**Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
+
+**Context:** This should be run in a dedicated worktree (created by brainstorming skill).
+
+**Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`
+- (User preferences for plan location override this default)
+
+## Scope Check
+
+If the spec covers multiple independent subsystems, it should have been broken into sub-project specs during brainstorming. If it wasn't, suggest breaking this into separate plans — one per subsystem. Each plan should produce working, testable software on its own.
+
+## File Structure
+
+Before defining tasks, map out which files will be created or modified and what each one is responsible for. This is where decomposition decisions get locked in.
+
+- Design units with clear boundaries and well-defined interfaces. Each file should have one clear responsibility.
+- You reason best about code you can hold in context at once, and your edits are more reliable when files are focused. Prefer smaller, focused files over large ones that do too much.
+- Files that change together should live together. Split by responsibility, not by technical layer.
+- In existing codebases, follow established patterns. If the codebase uses large files, don't unilaterally restructure - but if a file you're modifying has grown unwieldy, including a split in the plan is reasonable.
+
+This structure informs the task decomposition. Each task should produce self-contained changes that make sense independently.
+
+## Bite-Sized Task Granularity
+
+**Each step is one action (2-5 minutes):**
+- "Write the failing test" - step
+- "Run it to make sure it fails" - step
+- "Implement the minimal code to make the test pass" - step
+- "Run the tests and make sure they pass" - step
+- "Commit" - step
+
+## Plan Document Header
+
+**Every plan MUST start with this header:**
+
+```markdown
+# [Feature Name] Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** [One sentence describing what this builds]
+
+**Architecture:** [2-3 sentences about approach]
+
+**Tech Stack:** [Key technologies/libraries]
+
+---
+```
+
+## Task Structure
+
+````markdown
+### Task N: [Component Name]
+
+**Files:**
+- Create: `exact/path/to/file.py`
+- Modify: `exact/path/to/existing.py:123-145`
+- Test: `tests/exact/path/to/test.py`
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+def test_specific_behavior():
+    result = function(input)
+    assert result == expected
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `pytest tests/path/test.py::test_name -v`
+Expected: FAIL with "function not defined"
+
+- [ ] **Step 3: Write minimal implementation**
+
+```python
+def function(input):
+    return expected
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `pytest tests/path/test.py::test_name -v`
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add tests/path/test.py src/path/file.py
+git commit -m "feat: add specific feature"
+```
+````
+
+## Remember
+- Exact file paths always
+- Complete code in plan (not "add validation")
+- Exact commands with expected output
+- Reference relevant skills with @ syntax
+- DRY, YAGNI, TDD, frequent commits
+
+## Plan Review Loop
+
+After writing the complete plan:
+
+1. Dispatch a single plan-document-reviewer subagent (see plan-document-reviewer-prompt.md) with precisely crafted review context — never your session history. This keeps the reviewer focused on the plan, not your thought process.
+   - Provide: path to the plan document, path to spec document
+2. If ❌ Issues Found: fix the issues, re-dispatch reviewer for the whole plan
+3. If ✅ Approved: proceed to execution handoff
+
+**Review loop guidance:**
+- Same agent that wrote the plan fixes it (preserves context)
+- If loop exceeds 3 iterations, surface to human for guidance
+- Reviewers are advisory — explain disagreements if you believe feedback is incorrect
+
+## Execution Handoff
+
+After saving the plan, offer execution choice:
+
+**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Two execution options:**
+
+**1. Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
+
+**2. Inline Execution** - Execute tasks in this session using executing-plans, batch execution with checkpoints
+
+**Which approach?"**
+
+**If Subagent-Driven chosen:**
+- **REQUIRED SUB-SKILL:** Use superpowers:subagent-driven-development
+- Fresh subagent per task + two-stage review
+
+**If Inline Execution chosen:**
+- **REQUIRED SUB-SKILL:** Use superpowers:executing-plans
+- Batch execution with checkpoints for review
+
+---
+
+1
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.5/skills/dispatching-parallel-agents
+
+# Dispatching Parallel Agents
+
+## Overview
+
+You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions and context, you ensure they stay focused and succeed at their task. They should never inherit your session's context or history — you construct exactly what they need. This also preserves your own context for coordination work.
+
+When you have multiple unrelated failures (different test files, different subsystems, different bugs), investigating them sequentially wastes time. Each investigation is independent and can happen in parallel.
+
+**Core principle:** Dispatch one agent per independent problem domain. Let them work concurrently.
+
+## When to Use
+
+```dot
+digraph when_to_use {
+    "Multiple failures?" [shape=diamond];
+    "Are they independent?" [shape=diamond];
+    "Single agent investigates all" [shape=box];
+    "One agent per problem domain" [shape=box];
+    "Can they work in parallel?" [shape=diamond];
+    "Sequential agents" [shape=box];
+    "Parallel dispatch" [shape=box];
+
+    "Multiple failures?" -> "Are they independent?" [label="yes"];
+    "Are they independent?" -> "Single agent investigates all" [label="no - related"];
+    "Are they independent?" -> "Can they work in parallel?" [label="yes"];
+    "Can they work in parallel?" -> "Parallel dispatch" [label="yes"];
+    "Can they work in parallel?" -> "Sequential agents" [label="no - shared state"];
+}
+```
+
+**Use when:**
+- 3+ test files failing with different root causes
+- Multiple subsystems broken independently
+- Each problem can be understood without context from others
+- No shared state between investigations
+
+**Don't use when:**
+- Failures are related (fix one might fix others)
+- Need to understand full system state
+- Agents would interfere with each other
+
+## The Pattern
+
+### 1. Identify Independent Domains
+
+Group failures by what's broken:
+- File A tests: Tool approval flow
+- File B tests: Batch completion behavior
+- File C tests: Abort functionality
+
+Each domain is independent - fixing tool approval doesn't affect abort tests.
+
+### 2. Create Focused Agent Tasks
+
+Each agent gets:
+- **Specific scope:** One test file or subsystem
+- **Clear goal:** Make these tests pass
+- **Constraints:** Don't change other code
+- **Expected output:** Summary of what you found and fixed
+
+### 3. Dispatch in Parallel
+
+```typescript
+// In Claude Code / AI environment
+Task("Fix agent-tool-abort.test.ts failures")
+Task("Fix batch-completion-behavior.test.ts failures")
+Task("Fix tool-approval-race-conditions.test.ts failures")
+// All three run concurrently
+```
+
+### 4. Review and Integrate
+
+When agents return:
+- Read each summary
+- Verify fixes don't conflict
+- Run full test suite
+- Integrate all changes
+
+## Agent Prompt Structure
+
+Good agent prompts are:
+1. **Focused** - One clear problem domain
+2. **Self-contained** - All context needed to understand the problem
+3. **Specific about output** - What should the agent return?
+
+```markdown
+Fix the 3 failing tests in src/agents/agent-tool-abort.test.ts:
+
+1. "should abort tool with partial output capture" - expects 'interrupted at' in message
+2. "should handle mixed completed and aborted tools" - fast tool aborted instead of completed
+3. "should properly track pendingToolCount" - expects 3 results but gets 0
+
+These are timing/race condition issues. Your task:
+
+1. Read the test file and understand what each test verifies
+2. Identify root cause - timing issues or actual bugs?
+3. Fix by:
+   - Replacing arbitrary timeouts with event-based waiting
+   - Fixing bugs in abort implementation if found
+   - Adjusting test expectations if testing changed behavior
+
+Do NOT just increase timeouts - find the real issue.
+
+Return: Summary of what you found and what you fixed.
+```
+
+## Common Mistakes
+
+**❌ Too broad:** "Fix all the tests" - agent gets lost
+**✅ Specific:** "Fix agent-tool-abort.test.ts" - focused scope
+
+**❌ No context:** "Fix the race condition" - agent doesn't know where
+**✅ Context:** Paste the error messages and test names
+
+**❌ No constraints:** Agent might refactor everything
+**✅ Constraints:** "Do NOT change production code" or "Fix tests only"
+
+**❌ Vague output:** "Fix it" - you don't know what changed
+**✅ Specific:** "Return summary of root cause and changes"
+
+## When NOT to Use
+
+**Related failures:** Fixing one might fix others - investigate together first
+**Need full context:** Understanding requires seeing entire system
+**Exploratory debugging:** You don't know what's broken yet
+**Shared state:** Agents would interfere (editing same files, using same resources)
+
+## Real Example from Session
+
+**Scenario:** 6 test failures across 3 files after major refactoring
+
+**Failures:**
+- agent-tool-abort.test.ts: 3 failures (timing issues)
+- batch-completion-behavior.test.ts: 2 failures (tools not executing)
+- tool-approval-race-conditions.test.ts: 1 failure (execution count = 0)
+
+**Decision:** Independent domains - abort logic separate from batch completion separate from race conditions
+
+**Dispatch:**
+```
+Agent 1 → Fix agent-tool-abort.test.ts
+Agent 2 → Fix batch-completion-behavior.test.ts
+Agent 3 → Fix tool-approval-race-conditions.test.ts
+```
+
+**Results:**
+- Agent 1: Replaced timeouts with event-based waiting
+- Agent 2: Fixed event structure bug (threadId in wrong place)
+- Agent 3: Added wait for async tool execution to complete
+
+**Integration:** All fixes independent, no conflicts, full suite green
+
+**Time saved:** 3 problems solved in parallel vs sequentially
+
+## Key Benefits
+
+1. **Parallelization** - Multiple investigations happen simultaneously
+2. **Focus** - Each agent has narrow scope, less context to track
+3. **Independence** - Agents don't interfere with each other
+4. **Speed** - 3 problems solved in time of 1
+
+## Verification
+
+After agents return:
+1. **Review each summary** - Understand what changed
+2. **Check for conflicts** - Did agents edit same code?
+3. **Run full suite** - Verify all fixes work together
+4. **Spot check** - Agents can make systematic errors
+
+## Real-World Impact
+
+From debugging session (2025-10-03):
+- 6 failures across 3 files
+- 3 agents dispatched in parallel
+- All investigations completed concurrently
+- All fixes integrated successfully
+- Zero conflicts between agent changes
+
+---
+
+<task-notification>
+<task-id>ae5b4991ddcabed7f</task-id>
+<tool-use-id>toolu_01Bu8RxH4oL7q5pxHutVVbDu</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "eBPF test harness implementation" completed</summary>
+<result>You're out of extra usage · resets 5:30pm (Asia/Calcutta)</result>
+<usage><total_tokens>59</total_tokens><tool_uses>1</tool_uses><duration_ms>4584</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ab4574d0edd23327d</task-id>
+<tool-use-id>toolu_01VaopsEzk1iUt4VxLLuzt4z</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Playwright E2E tests implementation" completed</summary>
+<result>You're out of extra usage · resets 5:30pm (Asia/Calcutta)</result>
+<usage><total_tokens>300</total_tokens><tool_uses>7</tool_uses><duration_ms>26545</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a033fffdd30ae82c7</task-id>
+<tool-use-id>toolu_01NDEsW9JU4oRhEVHqtphZ9X</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Python AI worker tests implementation" completed</summary>
+<result>You're out of extra usage · resets 5:30pm (Asia/Calcutta)</result>
+<usage><total_tokens>610</total_tokens><tool_uses>18</tool_uses><duration_ms>48180</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a17cbebc7fda71bb0</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Go backend tests implementation" completed</summary>
+<result>You're out of extra usage · resets 5:30pm (Asia/Calcutta)</result>
+<usage><total_tokens>864</total_tokens><tool_uses>20</tool_uses><duration_ms>74811</duration_ms></usage>
+</task-notification>
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   The user made two primary requests:
+   - **"index everything"**: Comprehensively explore and memorize the Raven codebase structure
+   - **"Plan your test cases to test all the features, including the enterprise features and the ebbf. using playwright"**: Create a complete test plan and implementation plans for all Raven features using a layered approach (Go testify, Python pytest, Playwright E2E, Go kernel harness for eBPF), then execute via parallel agents
+
+2. Key Technical Concepts:
+   - **Raven platform**: Self-hostable multi-tenant knowledge base with AI chat/voice/WhatsApp — Go REST API + Python gRPC AI Worker (two-process architecture)
+   - **Go module**: `github.com/ravencloak-org/Raven`, Go 1.25/toolchain 1.26.1, Gin web framework
+   - **Test layers**: testify + testcontainers (Go), pytest-asyncio + AsyncMock (Python), Playwright chromium (frontend E2E + API mode), privileged Go kernel harness (eBPF)
+   - **Coverage targets**: 80% Go, 70% Python, 100% named Playwright journeys, all 3 eBPF program types
+   - **Test structure (Approach C)**: Co-located `*_test.go` in `internal/`, `ai-worker/tests/`, `frontend/e2e/` (existing Playwright config location), `tests/ebpf/` at root
+   - **eBPF**: cilium/ebpf library, `(*ebpf.Program).Test()` API, XDP_PASS=2/XDP_DROP=1, `//go:build ebpf` tag, requires CAP_BPF + CAP_NET_ADMIN
+   - **RLS (Row-Level Security)**: PostgreSQL policies for tenant isolation — cross-tenant isolation is a critical test case
+   - **Asynq webhook retry**: canonical backoff 1s, 5s, 30s intervals
+   - **ClickHouse sidecar**: real testcontainers ClickHouse for eBPF audit persistence tests (not in-memory mock)
+   - **Keycloak SSO**: OIDC/OAuth2 multi-tenant realms, used in Playwright auth fixture
+   - **gRPC fault injection**: connection refused, TLS handshake failure, UNAVAILABLE→503, RESOURCE_EXHAUSTED→429
+   - **BM25 + pgvector hybrid search**: Reciprocal Rank Fusion combining both
+   - **Enterprise Edition (EE)**: WAF/security rules, SSO, webhooks, Airbyte connectors, licensing guards, analytics (ClickHouse + PostHog), lead profiles, audit logs
+   - **superpowers skills used**: brainstorming, writing-plans, dispatching-parallel-agents
+
+3. Files and Code Sections:
+   - **`docs/superpowers/specs/2026-04-09-test-plan-design.md`** (created)
+     - Approved test plan spec covering all 10 sections: goals, structure, Go tests, Python tests, Playwright E2E, eBPF harness, EE features, CI integration, mocking strategy, out of scope
+     - Went through 2 review rounds; 8 issues fixed in round 1, approved in round 2
+
+   - **`docs/superpowers/plans/2026-04-09-go-backend-tests.md`** (created)
+     - 11 tasks: testutil helpers, handler tests, service tests, repository integration, RLS isolation, middleware, gRPC, queue/jobs, crypto/storage, EE, integration tests, coverage gate
+     - Key code: `RunMigrations` using `goose.Up(db, "../../migrations")`, `StubAIWorker` with `stubRAGStream` implementing `Recv()`, `TestWebhookDeliveryHandler_Retry_BackoffIntervals` using httptest server + `assert.InDelta` for 1s/5s/30s gaps, SSE test using `bufio.NewScanner`, TLS handshake failure test, `TestMigrationCorrectness_AllMigrationsApply` checking `MAX(version_id)=32`
+
+   - **`docs/superpowers/plans/2026-04-09-python-ai-worker-tests.md`** (created)
+     - 7 tasks: conftest fixtures, gRPC service tests, document processing, retrieval pipeline (including BM25), voice agent, EE connectors/analytics, coverage gate + smoke CI job
+     - Key code: `make_parse_request` as plain importable function (not `@pytest.fixture`), `TestBM25Scoring` class with TF/IDF tests, chunk metadata tests with actual assertions (not `pass`), Anthropic NOTE about no embed endpoint
+
+   - **`docs/superpowers/plans/2026-04-09-playwright-e2e-tests.md`** (created)
+     - 11 tasks: fixtures, page objects, auth, org/workspace+RBAC, KB/docs, chat, API keys/voice/WhatsApp, chat widget, analytics+notifications, API mode tests, EE journeys, CI update
+     - Key code: `loginAs()` auth helper, `KBPage`/`ChatPage`/`DocumentPage` POMs, remove member journey, WhatsApp trigger callback test, analytics export with `page.waitForEvent('download')`, in-app notification with file upload trigger, voice session initiation test, chat widget invalid key error state test, CI split (Vitest step 1 fast-fail → Playwright step 2)
+
+   - **`docs/superpowers/plans/2026-04-09-ebpf-test-harness.md`** (created)
+     - 6 tasks: directory skeleton + build tag, XDP tests, observability tests, audit tests with ClickHouse sidecar, CI config, local dev guide
+     - Key code: `RequirePrivileged` using `unix.Syscall(unix.SYS_BPF, 0, 0, 0)` + `t.Skip` on EPERM, XDP tests using `prog.XDPProg.Test(pkt)` returning `(uint32, duration, error)` with XDP_PASS=2/XDP_DROP=1, `TestObservability_MetadataAccuracy` using `monitor.ObsProg.Test(pkt)` + `t.Fatal` (not `t.Skip`), ClickHouse sidecar via testcontainers, CI services: alternative documented
+
+   - **Memory files updated**:
+     - `project_architecture.md` (created): comprehensive codebase map
+     - `project_tech_decisions.md` (updated): removed Strapi/LiteParse, added Valkey/Asynq/SeaweedFS/LiveKit/eBPF/Hyperswitch
+     - `MEMORY.md` (updated): added pointers to new memory files
+
+4. Errors and Fixes:
+   - **context-mode MCP broken**: Node.js version mismatch (compiled for v137, requires v141) → used Explore agent instead for codebase indexing
+   - **Plan Review Round 1 — Go plan**: (a) Webhook retry test was empty stub → added httptest server recording timestamps + assert.InDelta; (b) RunMigrations was commented out → implemented with goose.Up; (c) TLS fault injection missing → added test dialing plain TCP with TLS credentials; (d) Migration count assertion missing → added MAX(version_id)=32 check; (e) QueryRAG stub missing → added stubRAGStream with Recv(); (f) SSE test was comment → implemented with bufio.Scanner
+   - **Plan Review Round 1 — Python plan**: (a) Chunk metadata tests were `pass` stubs → filled with real assertions; (b) BM25 test absent → added `tests/retrieval/test_bm25.py`; (c) Anthropic note missing → added NOTE comment; (d) conftest import would cause collection errors → confirmed functions are plain importable (not fixtures)
+   - **Plan Review Round 1 — Playwright plan**: (a) Directory conflict `frontend/e2e/` vs `tests/e2e/` → clarified `frontend/e2e/` is correct per existing config; (b) Remove member missing → added; (c) WhatsApp trigger callback missing → added; (d) Analytics export missing → added with `waitForEvent('download')`; (e) In-app notification receive missing → added with file upload trigger; (f) Voice initiate session missing → added clicking "Start Voice Session"
+   - **Plan Review Round 1 — eBPF plan**: (a) `prog.TestRun()` fictional API → replaced with `prog.XDPProg.Test(pkt)` returning `(uint32, duration, error)`; (b) `TestObservability_MetadataAccuracy` silently skipped → replaced `t.Skip` with `t.Fatal`, used `monitor.ObsProg.Test(pkt)` for injection; (c) CI Docker socket undocumented → added services: block alternative; (d) `RequirePrivileged` stub → implemented with actual BPF syscall EPERM check
+   - **First parallel agent dispatch failed**: All 4 agents hit usage limit ("You're out of extra usage · resets 5:30pm Asia/Calcutta") without doing any work → user said "continue" → re-dispatched agents
+
+5. Problem Solving:
+   - Resolved spec ambiguities through systematic reviewer feedback (2 spec review rounds, 2 plan review rounds)
+   - Determined `frontend/e2e/` (not `tests/e2e/`) is the correct Playwright test location by reading existing `playwright.config.ts`
+   - Resolved eBPF API mismatch: planned tests used fictional `prog.TestRun()` API → corrected to real cilium/ebpf `(*ebpf.Program).Test()` with correct XDP return code constants
+   - Resolved ClickHouse mock ambiguity for eBPF audit tests: specified real testcontainers sidecar (distinct from unit-test in-memory sink)
+
+6. All User Messages:
+   - "index everything"
+   - "That's right. Plan your test cases to test all the features, including the enterprise features and the ebbf."
+   - "using playwright" (follow-up to above)
+   - "what is recommended?" (asking for recommendation on Playwright scope)
+   - "yes" (confirming layered approach recommendation)
+   - "What's recommended along with the questions that you have? Also, tell me the recommended solution that you would go with." (asking for all remaining clarifying questions + recommendations at once)
+   - "Let's go for all the recommended ones." (confirming all recommendations)
+   - "yes lets use parallel agents to start these" (during design presentation, wanting to jump to implementation)
+   - "yes" (approving Section 1 of design)
+   - "go" (approving full design, triggering writing-plans)
+   - "yes" (approving Approach C for plan structure)
+   - "go" (approving all 4 plans to proceed to execution)
+   - "1" (choosing Subagent-Driven execution option)
+   - "continue" (after agents failed due to usage limit)
+
+7. Pending Tasks:
+   - **Go backend tests agent** (a661118e7c5b2fd82): running in background worktree, implementing `docs/superpowers/plans/2026-04-09-go-backend-tests.md`
+   - **Python tests agent** (ab434533152c09a1c): running in background worktree, implementing `docs/superpowers/plans/2026-04-09-python-ai-worker-tests.md`
+   - **Playwright tests agent**: NOT yet re-dispatched after usage limit failure
+   - **eBPF tests agent**: NOT yet re-dispatched after usage limit failure
+   - After all agents complete: review PRs for conflicts, confirm auto-merge is queued for all 4 PRs
+
+8. Current Work:
+   Re-dispatching the 4 parallel implementation agents after they all failed due to hitting the usage limit ("You're out of extra usage · resets 5:30pm Asia/Calcutta"). Two agents were re-dispatched (go-backend-tests, python-tests) before this summary was requested. The Playwright and eBPF agents still need to be re-dispatched.
+
+   The agents are running in isolated git worktrees, each implementing one of the 4 approved plans:
+   - Go backend: `docs/superpowers/plans/2026-04-09-go-backend-tests.md`
+   - Python: `docs/superpowers/plans/2026-04-09-python-ai-worker-tests.md`
+   - Playwright: `docs/superpowers/plans/2026-04-09-playwright-e2e-tests.md`
+   - eBPF: `docs/superpowers/plans/2026-04-09-ebpf-test-harness.md`
+
+9. Optional Next Step:
+   The immediate next step is to re-dispatch the two remaining agents that were not yet re-launched after the usage limit failure:
+
+   From the most recent work: "Re-dispatching all 4 now" — the go-backend-tests and python-tests agents were re-dispatched, but the playwright-tests and ebpf-tests agents still need to be re-dispatched with the same prompts used in the original dispatch:
+
+   - Playwright agent scope: `frontend/e2e/` only, implement `docs/superpowers/plans/2026-04-09-playwright-e2e-tests.md`, create PR + auto-merge
+   - eBPF agent scope: `tests/ebpf/` + `.github/workflows/go.yml`, implement `docs/superpowers/plans/2026-04-09-ebpf-test-harness.md`, compile check only (not execution), create PR + auto-merge
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/jobinlawrance/.REDACTED.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+<task-notification>
+<task-id>aa391714a54e53670</task-id>
+<tool-use-id>toolu_01DqWaHnncDhbPbyCbY2J7sP</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "eBPF test harness implementation" completed</summary>
+<result>I need Bash access to create the branch, run commands, and complete this task. This is essential because the task requires:
+- Creating a git branch (`git checkout -b test/ebpf-harness`)
+- Creating directory structure (`mkdir -p`)
+- Running `go build -tags ebpf ./tests/ebpf/...` to verify compilation
+- Creating the PR with `gh pr create` and enabling auto-merge
+
+Could you please grant Bash permission so I can proceed with the implementation?</result>
+<usage><total_tokens>47667</total_tokens><tool_uses>20</tool_uses><duration_ms>47280</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ae413e1162ad62384</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Playwright E2E tests implementation" completed</summary>
+<result>I need Bash permission to proceed with this task. The implementation requires:
+
+1. Running `git checkout -b test/playwright-e2e-suite` to create the branch
+2. Creating all the test files
+3. Running `npx playwright test` to verify compilation
+4. Running git commits after each task
+5. Running `gh pr create` and `gh pr merge` to open and queue the PR
+
+The Bash tool is being blocked. Could you please grant Bash permission so I can proceed? This is a code implementation task that requires running git commands, creating files in specific directories, running TypeScript checks, and creating a PR — all of which require shell access.
+
+Alternatively, if you'd like me to proceed with just writing the files using the Write/Edit tools (without being able to run git or tests), I can do that and then you can commit and push. Let me know how you'd like to proceed.</result>
+<usage><total_tokens>37080</total_tokens><tool_uses>22</tool_uses><duration_ms>89405</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>afef845a57cf6991a</task-id>
+<tool-use-id>toolu_017gSftYcyFh2hRc69HQSEt6</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "eBPF test harness implementation" completed</summary>
+<result>You're out of extra usage · resets 7:30pm (Asia/Calcutta)</result>
+<usage><total_tokens>12</total_tokens><tool_uses>4</tool_uses><duration_ms>9195</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a661118e7c5b2fd82</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Go backend tests implementation" completed</summary>
+<result>You're out of extra usage · resets 7:30pm (Asia/Calcutta)</result>
+<usage><total_tokens>1833</total_tokens><tool_uses>62</tool_uses><duration_ms>297135</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ab434533152c09a1c</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Python AI worker tests implementation" completed</summary>
+<result>You're out of extra usage · resets 7:30pm (Asia/Calcutta)</result>
+<usage><total_tokens>1953</total_tokens><tool_uses>63</tool_uses><duration_ms>293010</duration_ms></usage>
+</task-notification>
+
+---
+
+try again
+
+---
+
+<task-notification>
+<task-id>ae1f8021c3856e3f4</task-id>
+<tool-use-id>toolu_01E17gaGjozqPhq1LgT4PnXR</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "eBPF test harness implementation" completed</summary>
+<result>I need Bash access to complete this task. The implementation requires:
+1. Creating a git branch (`git checkout -b test/ebpf-harness`)
+2. Creating directories (`mkdir -p tests/ebpf/...`)
+3. Running `go build -tags ebpf ./tests/ebpf/...` to verify compilation
+4. Committing files
+5. Creating and auto-merging the PR
+
+Without Bash, I cannot perform git operations, run build verification, or create a PR. I've completed the research phase (read all eBPF source files, understood the actual loader APIs, and planned the implementation). 
+
+**Please approve Bash tool access** so I can:
+- Create the `test/ebpf-harness` branch
+- Write files and verify they compile
+- Commit and open the PR
+
+Here's a summary of what I found and will implement once access is granted:
+
+**Actual eBPF loader APIs (not what the plan assumed):**
+- `xdp.NewController(objects Objects, prog *ebpf.Program, meter metric.Meter, cfg Config)` — no `Load()` function, no `BlockCIDRs`/`RateLimit` in Config
+- `observability.NewCollector(meter metric.Meter, maps *Maps)` — polls OTel metrics, no ring buffer events/`Event` struct  
+- `audit.NewConsumer(reader RingBufReader, meter metric.Meter, cfg Config)` — reads ring buffer, no ClickHouse integration
+- No bpf2go-generated Go files exist yet (`.o` ELF objects also not compiled)
+
+**My implementation plan:**
+- Tests will use `cilium/ebpf` directly to load ELF objects from `internal/ebpf/programs/*.c` (compiled at test time)
+- `helpers.go` will have `RequirePrivileged` using `unix.Syscall(unix.SYS_BPF, 0, 0, 0)` as specified
+- XDP tests: load `xdp.c` ELF, call `(*ebpf.Program).Test(pkt)` directly
+- Observability tests: test `NewCollector` with nil maps (no-op), plus OTel metric verification 
+- Audit tests: test `NewConsumer` with a mock ring buffer reader + ClickHouse testcontainer for persistence
+- CI job: added to `.github/workflows/go.yml` as `ebpf-tests` job, `push` to main only</result>
+<usage><total_tokens>50524</total_tokens><tool_uses>24</tool_uses><duration_ms>84251</duration_ms></usage>
+</task-notification>
