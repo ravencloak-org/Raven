@@ -5,7 +5,7 @@ test.describe('EE Webhooks', () => {
     await page.goto('/settings/webhooks')
     await page.getByRole('button', { name: 'Add Webhook' }).click()
     await page.getByLabel('URL').fill('https://webhook.site/test')
-    await page.getByLabel('Events').check('document.processed')
+    await page.getByLabel('Events').selectOption('document.processed')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByText('webhook.site')).toBeVisible()
   })
