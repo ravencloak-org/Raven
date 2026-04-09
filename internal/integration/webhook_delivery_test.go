@@ -130,7 +130,7 @@ func TestWebhookDelivery_ContentType_IsJSON(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Contains(t, receivedCT, "application/json",
 		"webhook delivery must use application/json content type")

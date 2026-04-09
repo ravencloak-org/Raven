@@ -12,7 +12,7 @@ import (
 )
 
 // setOrgID is a helper that sets the RLS org context for a transaction.
-func setOrgID(t *testing.T, ctx context.Context, tx interface {
+func setOrgID(ctx context.Context, t *testing.T, tx interface {
 	Exec(ctx context.Context, sql string, args ...any) (interface{ RowsAffected() int64 }, error)
 }, orgID string) {
 	t.Helper()
