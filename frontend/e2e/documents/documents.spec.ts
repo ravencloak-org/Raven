@@ -9,6 +9,7 @@ test.describe('Documents', () => {
     await docs.uploadFile(path.join(__dirname, '../fixtures/sample.txt'))
     await expect(page.getByText('sample.txt')).toBeVisible()
     await expect(page.getByTestId('status-badge').first()).toBeVisible()
+    await docs.waitForProcessingComplete('sample.txt')
   })
 
   test('add URL source', async ({ authenticatedPage: page }) => {
@@ -19,8 +20,16 @@ test.describe('Documents', () => {
   })
 
   test('view chunk list after processing', async ({ authenticatedPage: page }) => {
-    // Navigate to a pre-processed document
-    await page.goto('/knowledge-bases/test-kb/documents/processed-doc-id/chunks')
+    // Upload a document, wait for processing, then navigate to its chunk list.
+    await page.goto('/knowledge-bases/test-kb/documents')
+    const docs = new DocumentPage(page)
+    await docs.uploadFile(path.join(__dirname, '../fixtures/sample.txt'))
+    await expect(page.getByText('sample.txt')).toBeVisible()
+    await docs.waitForProcessingComplete('sample.txt')
+    // Retrieve the real document ID from the link rather than using a hardcoded stub.
+    const docLink = page.getByTestId('doc-item').filter({ hasText: 'sample.txt' }).getByRole('link')
+    const href = await docLink.getAttribute('href')
+    await page.goto(`${href}/chunks`)
     await expect(page.getByTestId('chunk-item').first()).toBeVisible()
   })
 

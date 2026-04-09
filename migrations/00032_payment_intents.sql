@@ -41,10 +41,19 @@ CREATE POLICY payment_intents_org_isolation ON payment_intents
     USING (org_id = current_setting('app.current_org_id', true)::uuid);
 
 -- Backfill RLS on subscriptions (was missing from 00019).
+--
+-- Webhook handlers (handlePaymentSucceeded, handlePaymentFailed, etc.) look up
+-- subscriptions by Hyperswitch ID without knowing the org, so they run directly
+-- on the pool as the raven superuser. Superusers bypass ENABLE ROW LEVEL SECURITY
+-- by default (only FORCE ROW LEVEL SECURITY would require an explicit bypass policy).
+-- If the app role is ever changed to a non-superuser, add a BYPASSRLS grant or a
+-- separate permissive policy for the service role.
 ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
 
+-- nullif guards against the empty-string case when app.current_org_id is not set,
+-- which would otherwise cause an invalid UUID cast error for non-superuser roles.
 CREATE POLICY subscriptions_org_isolation ON subscriptions
-    USING (org_id = current_setting('app.current_org_id', true)::uuid);
+    USING (nullif(current_setting('app.current_org_id', true), '')::uuid = org_id);
 
 -- +goose Down
 DROP POLICY IF EXISTS subscriptions_org_isolation ON subscriptions;
