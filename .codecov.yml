@@ -14,6 +14,10 @@ coverage:
 ignore:
   - "internal/grpc/pb/**"    # generated protobuf code
   - "**/*.pb.go"             # generated files
+  - "ai-worker/raven_worker/generated/**"  # generated protobuf code (Python)
+  - "**/*_pb2.py"
+  - "**/*_pb2_grpc.py"
+  - "**/*_pb2.pyi"
   - "cmd/**/main.go"         # main entrypoints only
   - "docs/**"
   - "frontend/**"

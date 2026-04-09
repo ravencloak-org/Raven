@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	_ "github.com/ravencloak-org/Raven/internal/ee/security"
 )
 
 // TestPackageCompiles ensures the security package is importable and correctly declared.

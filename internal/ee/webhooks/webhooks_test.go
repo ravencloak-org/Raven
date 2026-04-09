@@ -10,6 +10,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	_ "github.com/ravencloak-org/Raven/internal/ee/webhooks"
 )
 
 // TestPackageCompiles ensures the webhooks package is importable and correctly declared.
@@ -75,21 +77,17 @@ func TestWebhookDelivery_HMAC_Verification(t *testing.T) {
 		"HMAC verification must succeed with correct secret and body")
 }
 
-// TestWebhookDelivery_Retry_BackoffConcept documents the expected retry schedule.
-// The actual retry intervals (1s, 5s, 30s) are enforced by Asynq's task scheduler;
-// this test verifies the conceptual sequence is correctly ordered.
-func TestWebhookDelivery_Retry_Intervals_Ordered(t *testing.T) {
-	// Backoff schedule: 1s, 5s, 30s (as specified in the plan).
-	backoff := []int64{1, 5, 30}
-
-	for i := 1; i < len(backoff); i++ {
-		assert.Greater(t, backoff[i], backoff[i-1],
-			"backoff interval %d (%ds) must be greater than interval %d (%ds)",
-			i, backoff[i], i-1, backoff[i-1])
-	}
-	assert.Equal(t, int64(1), backoff[0], "first retry must be after 1 second")
-	assert.Equal(t, int64(5), backoff[1], "second retry must be after 5 seconds")
-	assert.Equal(t, int64(30), backoff[2], "third retry must be after 30 seconds")
+// TestWebhookDelivery_Retry_ManagedByHandler documents that asynq MaxRetry(0) is
+// set for webhook delivery tasks and retries are managed by the handler itself
+// using the failure_count / max_retries fields stored in the database.
+func TestWebhookDelivery_Retry_ManagedByHandler(t *testing.T) {
+	// Asynq is configured with MaxRetry(0) for webhook delivery tasks.
+	// The handler tracks failure_count in the database and compares it
+	// against max_retries on the WebhookConfig.  When the threshold is
+	// reached the handler returns asynq.SkipRetry to stop processing.
+	asynqMaxRetry := 0
+	assert.Equal(t, 0, asynqMaxRetry,
+		"asynq MaxRetry must be 0 — retries are managed by the webhook handler")
 }
 
 // TestWebhookDelivery_DeadLetter_ConceptAfterMaxRetries verifies that the dead

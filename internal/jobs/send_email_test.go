@@ -77,6 +77,9 @@ func TestHandleSendEmail_CorruptPayload_ReturnsSkipRetry(t *testing.T) {
 	// The error must wrap asynq.SkipRetry.
 	assert.ErrorIs(t, err, asynq.SkipRetry,
 		"corrupt payload must not be retried")
+	// No side-effects: the notification repo must not have recorded any log entries.
+	assert.Empty(t, repo.logs,
+		"corrupt payload must not produce any notification log entries")
 }
 
 func TestHandleSendEmail_NoRecipients_Succeeds(t *testing.T) {

@@ -1,8 +1,12 @@
 package integration_test
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -22,11 +26,16 @@ func TestWebhookDelivery_HMAC_Signature(t *testing.T) {
 	defer server.Close()
 
 	// We simulate what the webhook delivery handler would do by making
-	// a direct HTTP POST with the expected headers.
+	// a direct HTTP POST with the expected headers and a real HMAC-SHA256 signature.
+	body := `{"event_type":"lead.generated","org_id":"org-1"}`
+	mac := hmac.New(sha256.New, []byte("test-webhook-secret"))
+	mac.Write([]byte(body))
+	signature := "sha256=" + hex.EncodeToString(mac.Sum(nil))
+
 	client := &http.Client{Timeout: 5 * time.Second}
-	req, err := http.NewRequest(http.MethodPost, server.URL, nil)
+	req, err := http.NewRequest(http.MethodPost, server.URL, strings.NewReader(body))
 	require.NoError(t, err)
-	req.Header.Set("X-Raven-Signature", "sha256=abc123def456")
+	req.Header.Set("X-Raven-Signature", signature)
 	req.Header.Set("X-Raven-Event", "lead.generated")
 
 	resp, err := client.Do(req)
@@ -35,7 +44,8 @@ func TestWebhookDelivery_HMAC_Signature(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.True(t, len(receivedSig) > 0, "X-Raven-Signature header must be present")
-	assert.True(t, len(receivedSig) >= 7, "signature must have sha256= prefix + hash")
+	assert.Len(t, receivedSig, 71, "signature must be sha256= prefix + 64 hex chars")
+	assert.True(t, strings.HasPrefix(receivedSig, "sha256="), "signature must have sha256= prefix")
 }
 
 // TestWebhookDelivery_RetryTimestamps_RecordsCallTimes verifies that
