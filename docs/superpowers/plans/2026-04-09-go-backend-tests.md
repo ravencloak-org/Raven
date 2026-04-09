@@ -77,12 +77,17 @@ func NewTestDB(t *testing.T) *pgxpool.Pool {
 // RunMigrations applies all goose migrations from the repo migrations/ dir.
 func RunMigrations(t *testing.T, connStr string) {
 	t.Helper()
-	// Use goose programmatic API
-	// import "github.com/pressly/goose/v3"
-	// goose.SetBaseFS(os.DirFS("../../migrations"))
-	// db, _ := sql.Open("pgx", connStr)
-	// require.NoError(t, goose.Up(db, "."))
-	// Adjust relative path from internal/testutil/ to migrations/
+	db, err := sql.Open("pgx", connStr)
+	require.NoError(t, err)
+	defer db.Close()
+
+	// migrations/ is at repo root; internal/testutil/ is 2 levels deep
+	migrationsDir := filepath.Join("..", "..", "migrations")
+	goose.SetBaseFS(nil) // use OS filesystem
+	err = goose.SetDialect("postgres")
+	require.NoError(t, err)
+	err = goose.Up(db, migrationsDir)
+	require.NoError(t, err, "all migrations must apply cleanly")
 }
 ```
 
@@ -163,6 +168,28 @@ func (s *StubAIWorker) GetEmbedding(ctx context.Context, req *pb.EmbeddingReques
 	if s.GetEmbeddingFn != nil { return s.GetEmbeddingFn(ctx, req) }
 	vec := make([]float32, 1536)
 	return &pb.EmbeddingResponse{Embedding: vec, Dimensions: 1536}, nil
+}
+
+// QueryRAGStream is a minimal streaming stub. Returns 2 deterministic text chunks.
+func (s *StubAIWorker) QueryRAG(ctx context.Context, req *pb.RAGRequest, opts ...grpc.CallOption) (pb.AIWorker_QueryRAGClient, error) {
+	chunks := []*pb.RAGChunk{
+		{Text: "First chunk of the answer"},
+		{Text: " second chunk"},
+	}
+	return &stubRAGStream{chunks: chunks}, nil
+}
+
+type stubRAGStream struct {
+	chunks []*pb.RAGChunk
+	idx    int
+	grpc.ClientStream
+}
+
+func (s *stubRAGStream) Recv() (*pb.RAGChunk, error) {
+	if s.idx >= len(s.chunks) { return nil, io.EOF }
+	c := s.chunks[s.idx]
+	s.idx++
+	return c, nil
 }
 ```
 
@@ -754,6 +781,22 @@ func TestGRPCClient_ResourceExhausted_PropagatesAs429(t *testing.T) {
 	assert.Contains(t, err.Error(), "429")
 }
 
+func TestGRPCClient_TLSHandshakeFailure_ReturnsWrappedError(t *testing.T) {
+	// Start a plain TCP server (not TLS) then dial it with TLS credentials
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	go func() {
+		conn, _ := lis.Accept()
+		if conn != nil { conn.Close() }
+	}()
+	// Dial with TLS — handshake will fail because server is not TLS
+	tlsClient := grpc.NewRavenGRPCClientTLS(lis.Addr().String()) // adjust to actual TLS constructor
+	_, err = tlsClient.ParseAndEmbed(context.Background(), &pb.ParseRequest{Content: "test"})
+	assert.Error(t, err)
+	// Must be wrapped, not a raw TLS error
+	assert.NotContains(t, err.Error(), "tls:")
+}
+
 func TestGRPCClient_QueryRAG_StreamAssembly(t *testing.T) {
 	// Fake server yields 3 chunks
 	// Assert assembled response has all chunks concatenated
@@ -824,10 +867,37 @@ func TestEnqueueDocumentProcessing_SerializesPayload(t *testing.T) {
 
 ```go
 func TestWebhookDeliveryHandler_Retry_BackoffIntervals(t *testing.T) {
-	attempts := []time.Duration{}
-	// Mock HTTP client that always returns 500
-	// Run handler 4 times, record delay between calls
-	// Assert delays approximate [1s, 5s, 30s]
+	callTimes := make([]time.Time, 0, 4)
+	var mu sync.Mutex
+
+	// HTTP mock that always returns 500 and records call timestamps
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		callTimes = append(callTimes, time.Now())
+		mu.Unlock()
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	handler := jobs.NewWebhookDeliveryHandler(jobs.WebhookDeliveryConfig{
+		Backoff: []time.Duration{1 * time.Second, 5 * time.Second, 30 * time.Second},
+	})
+
+	// Run handler 4 times (initial + 3 retries) sequentially
+	payload := &jobs.WebhookDeliveryPayload{URL: server.URL, Body: `{"event":"test"}`}
+	for i := 0; i < 4; i++ {
+		handler.Process(context.Background(), payload)
+	}
+
+	require.Len(t, callTimes, 4)
+	// Verify delays between attempts approximate the backoff schedule
+	gap1 := callTimes[1].Sub(callTimes[0])
+	gap2 := callTimes[2].Sub(callTimes[1])
+	gap3 := callTimes[3].Sub(callTimes[2])
+
+	assert.InDelta(t, 1.0, gap1.Seconds(), 0.5, "first retry should be ~1s")
+	assert.InDelta(t, 5.0, gap2.Seconds(), 1.0, "second retry should be ~5s")
+	assert.InDelta(t, 30.0, gap3.Seconds(), 3.0, "third retry should be ~30s")
 }
 ```
 
@@ -960,7 +1030,7 @@ func TestDocumentPipeline_UploadToRetrievable(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Write hybrid search integration test**
+- [ ] **Step 2: Write hybrid search + migration correctness integration tests**
 
 ```go
 func TestHybridSearch_ReturnsRankedResults(t *testing.T) {
@@ -970,16 +1040,68 @@ func TestHybridSearch_ReturnsRankedResults(t *testing.T) {
 	// Call SearchService.Search with a query
 	// Assert top result matches expected chunk
 }
+
+func TestMigrationCorrectness_AllMigrationsApply(t *testing.T) {
+	pool := testutil.NewTestDB(t) // RunMigrations is called inside NewTestDB
+	ctx := context.Background()
+
+	// Verify all 32 migrations applied
+	var version int64
+	err := pool.QueryRow(ctx,
+		"SELECT MAX(version_id) FROM goose_db_version WHERE is_applied = true",
+	).Scan(&version)
+	require.NoError(t, err)
+	assert.EqualValues(t, 32, version, "all 32 migrations must be applied")
+
+	// Spot-check key tables exist
+	for _, table := range []string{"organizations", "workspaces", "knowledge_bases", "documents", "chunks", "chat_sessions", "messages", "api_keys"} {
+		var count int
+		_ = pool.QueryRow(ctx,
+			"SELECT count(*) FROM information_schema.tables WHERE table_name = $1", table,
+		).Scan(&count)
+		assert.Equal(t, 1, count, "table %s must exist", table)
+	}
+}
 ```
 
 - [ ] **Step 3: Write SSE streaming test**
 
 ```go
 func TestSSEChat_StreamingResponseArrives(t *testing.T) {
-	// Start test HTTP server with the chat route
-	// Send request with Accept: text/event-stream
-	// Read response body as event stream
-	// Assert data: events arrive and assemble to non-empty text
+	// Wire up a minimal chat handler with stub AI worker that streams 3 chunks
+	stub := &testutil.StubAIWorker{} // QueryRAG returns 2-chunk stream by default
+	chatSvc := service.NewChatService(
+		&mockChatRepo{
+			SaveMessageFn: func(_ context.Context, _ *model.Message) error { return nil },
+			GetHistoryFn:  func(_ context.Context, _ string) ([]*model.Message, error) { return nil, nil },
+		},
+		stub,
+	)
+	router := newChatTestRouter(chatSvc)
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	req, _ := http.NewRequest(http.MethodGet,
+		server.URL+"/api/v1/chat/stream?kb_id=kb-1&message=hello", nil)
+	req.Header.Set("Accept", "text/event-stream")
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, "text/event-stream", resp.Header.Get("Content-Type"))
+
+	// Read SSE events with bufio.Scanner
+	var assembled strings.Builder
+	scanner := bufio.NewScanner(resp.Body)
+	deadline := time.Now().Add(5 * time.Second)
+	for scanner.Scan() && time.Now().Before(deadline) {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "data: ") {
+			assembled.WriteString(strings.TrimPrefix(line, "data: "))
+		}
+	}
+	assert.NotEmpty(t, assembled.String(), "assembled SSE data must not be empty")
 }
 ```
 
