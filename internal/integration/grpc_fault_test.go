@@ -175,7 +175,7 @@ func TestGRPCClient_TLSHandshake_InsecureClient_PlainServer(t *testing.T) {
 	go func() {
 		conn, _ := lis.Accept()
 		if conn != nil {
-			conn.Close()
+			_ = conn.Close()
 		}
 	}()
 

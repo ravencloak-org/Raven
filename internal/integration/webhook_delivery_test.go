@@ -31,7 +31,7 @@ func TestWebhookDelivery_HMAC_Signature(t *testing.T) {
 
 	resp, err := client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.True(t, len(receivedSig) > 0, "X-Raven-Signature header must be present")
@@ -61,7 +61,7 @@ func TestWebhookDelivery_RetryTimestamps_RecordsCallTimes(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodPost, server.URL, nil)
 		resp, err := client.Do(req)
 		if err == nil {
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 		}
 	}
 
@@ -109,7 +109,7 @@ func TestWebhookDelivery_ServerReturns200_Success(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodPost, server.URL, nil)
 	resp, err := client.Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, 1, callCount, "only one call should be made on success")
