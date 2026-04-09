@@ -55,12 +55,11 @@ jobs:
 
       - name: Verify generated eBPF files are up-to-date
         run: |
-          if [ -f /sys/kernel/btf/vmlinux ]; then
-            bpftool btf dump file /sys/kernel/btf/vmlinux format c > internal/ebpf/programs/vmlinux.h
+          if [ -f /sys/kernel/btf/vmlinux ] && bpftool btf dump file /sys/kernel/btf/vmlinux format c > internal/ebpf/programs/vmlinux.h 2>/dev/null; then
             go generate ./internal/ebpf/...
             git diff --exit-code -- internal/ebpf ':(exclude)internal/ebpf/programs/vmlinux.h' || (echo "Generated eBPF artifacts are out of date. Run 'go generate ./internal/ebpf/...'" && exit 1)
           else
-            echo "::warning::BTF not available on this runner — skipping eBPF artifact verification"
+            echo "::warning::BTF or bpftool not available on this runner — skipping eBPF artifact verification"
           fi
 
   lint:
