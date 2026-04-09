@@ -89,6 +89,19 @@ const router = createRouter({
           component: () => import('../pages/sandbox/TestSandboxPage.vue'),
           meta: { requiresAuth: true },
         },
+        {
+          path: 'orgs/:orgId/voice',
+          name: 'voice-session-list',
+          component: () => import('../pages/voice/VoiceSessionListPage.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
+          path: 'orgs/:orgId/voice/:sessionId',
+          name: 'voice-session-detail',
+          component: () =>
+            import('../pages/voice/VoiceSessionDetailPage.vue'),
+          meta: { requiresAuth: true },
+        },
       ],
     },
     {
