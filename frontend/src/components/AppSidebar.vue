@@ -67,6 +67,63 @@
           </svg>
           <span v-if="mobile" class="text-sm font-medium">Dashboard</span>
         </RouterLink>
+
+        <!-- WhatsApp section label (mobile only) -->
+        <span v-if="mobile" class="mt-4 px-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
+          WhatsApp
+        </span>
+
+        <!-- Phone Numbers -->
+        <RouterLink
+          to="/orgs/_/whatsapp/phone-numbers"
+          :class="[
+            'flex items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white',
+            mobile
+              ? 'h-10 w-full gap-3 px-3'
+              : 'h-10 w-10 justify-center',
+          ]"
+          active-class="bg-slate-800 text-white"
+          title="Phone Numbers"
+          @click="mobile && $emit('close')"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5 shrink-0"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"
+            />
+          </svg>
+          <span v-if="mobile" class="text-sm font-medium">Phone Numbers</span>
+        </RouterLink>
+
+        <!-- Calls -->
+        <RouterLink
+          to="/orgs/_/whatsapp/calls"
+          :class="[
+            'flex items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white',
+            mobile
+              ? 'h-10 w-full gap-3 px-3'
+              : 'h-10 w-10 justify-center',
+          ]"
+          active-class="bg-slate-800 text-white"
+          title="Calls"
+          @click="mobile && $emit('close')"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5 shrink-0"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              d="M17.924 2.617a.997.997 0 00-.215-.322l-.004-.004A.997.997 0 0017 2h-4a1 1 0 100 2h1.586l-3.293 3.293a1 1 0 001.414 1.414L16 5.414V7a1 1 0 102 0V3a.997.997 0 00-.076-.383zM2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"
+            />
+          </svg>
+          <span v-if="mobile" class="text-sm font-medium">Calls</span>
+        </RouterLink>
       </nav>
     </aside>
   </Transition>
