@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -9,13 +10,16 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/ravencloak-org/Raven/internal/telemetry"
 )
 
 const instrumentationName = "github.com/ravencloak-org/Raven/internal/middleware"
 
 // OTelMiddleware returns a Gin middleware that creates a span per HTTP request,
-// records request duration as a histogram metric, and sets the X-Trace-ID
-// response header.
+// records request duration as a histogram metric, sets the X-Trace-ID
+// response header, and emits a structured slog entry with trace_id, org_id
+// and latency_ms fields for log aggregation.
 //
 // When the global TracerProvider is a no-op (i.e. OTel is not configured) the
 // middleware still runs but produces zero overhead because the SDK short-
@@ -23,6 +27,7 @@ const instrumentationName = "github.com/ravencloak-org/Raven/internal/middleware
 func OTelMiddleware() gin.HandlerFunc {
 	tracer := otel.Tracer(instrumentationName)
 	meter := otel.Meter(instrumentationName)
+	bm := telemetry.NewMetrics()
 
 	// Best-effort histogram; if creation fails we continue without metrics.
 	duration, _ := meter.Float64Histogram(
@@ -54,8 +59,10 @@ func OTelMiddleware() gin.HandlerFunc {
 		c.Request = c.Request.WithContext(ctx)
 
 		// Expose the trace ID as a response header for easy debugging.
+		traceID := ""
 		if span.SpanContext().HasTraceID() {
-			c.Header("X-Trace-ID", span.SpanContext().TraceID().String())
+			traceID = span.SpanContext().TraceID().String()
+			c.Header("X-Trace-ID", traceID)
 		}
 
 		// Process request.
@@ -68,17 +75,42 @@ func OTelMiddleware() gin.HandlerFunc {
 			semconv.HTTPRoute(c.FullPath()),
 		)
 
+		elapsed := time.Since(start)
+		elapsedSec := elapsed.Seconds()
+		latencyMs := float64(elapsed.Milliseconds())
+		route := c.FullPath()
+
 		// Record duration metric.
-		elapsed := time.Since(start).Seconds()
 		if duration != nil {
 			duration.Record(ctx,
-				elapsed,
+				elapsedSec,
 				metric.WithAttributes(
 					semconv.HTTPRequestMethodKey.String(c.Request.Method),
-					semconv.HTTPRoute(c.FullPath()),
+					semconv.HTTPRoute(route),
 					semconv.HTTPResponseStatusCode(status),
 				),
 			)
 		}
+
+		// Record business-level HTTP request counter.
+		bm.RecordHTTPRequest(ctx, c.Request.Method, route, status)
+
+		// Emit a structured log line with trace context for log aggregation.
+		// The otelslog bridge automatically correlates trace_id/span_id when
+		// the context carries a span.
+		orgID, _ := c.Get(string(ContextKeyOrgID))
+		orgStr, _ := orgID.(string)
+
+		slog.InfoContext(ctx, "http request",
+			slog.String("method", c.Request.Method),
+			slog.String("path", c.Request.URL.Path),
+			slog.String("route", route),
+			slog.Int("status", status),
+			slog.Float64("latency_ms", latencyMs),
+			slog.String("trace_id", traceID),
+			slog.String("org_id", orgStr),
+			slog.String("user_agent", c.Request.UserAgent()),
+			slog.String("client_ip", c.ClientIP()),
+		)
 	}
 }

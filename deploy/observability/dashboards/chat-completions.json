@@ -1,0 +1,44 @@
+{
+  "title": "Raven Chat Completions",
+  "description": "Chat completion volume, token usage, and latency metrics.",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Completions Rate",
+      "type": "line",
+      "query": "rate(raven_chat_completions_total[5m])",
+      "description": "Chat completion requests per second."
+    },
+    {
+      "id": 2,
+      "title": "Completions by Model",
+      "type": "bar",
+      "query": "sum by (model) (increase(raven_chat_completions_total[1h]))",
+      "description": "Completion volume grouped by LLM model."
+    },
+    {
+      "id": 3,
+      "title": "Token Throughput",
+      "type": "line",
+      "query": "rate(raven_chat_tokens_total[5m])",
+      "description": "Tokens generated per second."
+    },
+    {
+      "id": 4,
+      "title": "Completion Latency (P50 / P95)",
+      "type": "line",
+      "query": "histogram_quantile(0.50, rate(raven_chat_completion_latency_bucket[5m]))",
+      "additional_queries": [
+        "histogram_quantile(0.95, rate(raven_chat_completion_latency_bucket[5m]))"
+      ],
+      "description": "Chat completion latency percentiles in milliseconds."
+    },
+    {
+      "id": 5,
+      "title": "Completions by Org",
+      "type": "table",
+      "query": "topk(10, sum by (org_id) (increase(raven_chat_completions_total[1h])))",
+      "description": "Top organisations by chat completion volume."
+    }
+  ]
+}
