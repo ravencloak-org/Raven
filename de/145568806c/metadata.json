@@ -13,6 +13,24 @@
     "docs/superpowers/specs/2026-04-09-test-plan-design.md",
     "frontend/src/api/voice.ts",
     "frontend/src/api/whatsapp.ts",
+    "frontend/src/components/voice/CreateSessionModal.vue",
+    "frontend/src/components/whatsapp/ActiveCallPanel.vue",
+    "frontend/src/components/whatsapp/InitiateCallModal.vue",
+    "frontend/src/components/whatsapp/WebhookEventLog.vue",
+    "frontend/src/pages/voice/VoiceSessionDetailPage.vue",
+    "frontend/src/pages/voice/VoiceSessionsPage.vue",
+    "frontend/src/pages/whatsapp/PhoneNumbersPage.vue",
+    "frontend/src/stores/voice.ts",
+    "frontend/src/stores/whatsapp.ts",
+    "internal/ee/analytics/analytics_test.go",
+    "internal/ee/audit/audit_test.go",
+    "internal/ee/connectors/connectors_test.go",
+    "internal/ee/lead/lead_test.go",
+    "internal/ee/licensing/license_test.go",
+    "internal/ee/security/security_test.go",
+    "internal/ee/sso/sso_test.go",
+    "internal/ee/webhooks/webhooks_test.go",
+    "internal/repository/billing.go",
     "migrations/00032_payment_intents.sql"
   ],
   "sessions": [
@@ -32,10 +50,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 68,
-    "cache_creation_tokens": 123414,
-    "cache_read_tokens": 5626128,
-    "output_tokens": 79635,
-    "api_call_count": 51
+    "input_tokens": 41,
+    "cache_creation_tokens": 84568,
+    "cache_read_tokens": 1766781,
+    "output_tokens": 23621,
+    "api_call_count": 21
   }
 }

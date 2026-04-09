@@ -344,3 +344,346 @@ After saving the plan, offer execution choice:
 **If Inline Execution chosen:**
 - **REQUIRED SUB-SKILL:** Use superpowers:executing-plans
 - Batch execution with checkpoints for review
+
+---
+
+1
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.5/skills/dispatching-parallel-agents
+
+# Dispatching Parallel Agents
+
+## Overview
+
+You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions and context, you ensure they stay focused and succeed at their task. They should never inherit your session's context or history — you construct exactly what they need. This also preserves your own context for coordination work.
+
+When you have multiple unrelated failures (different test files, different subsystems, different bugs), investigating them sequentially wastes time. Each investigation is independent and can happen in parallel.
+
+**Core principle:** Dispatch one agent per independent problem domain. Let them work concurrently.
+
+## When to Use
+
+```dot
+digraph when_to_use {
+    "Multiple failures?" [shape=diamond];
+    "Are they independent?" [shape=diamond];
+    "Single agent investigates all" [shape=box];
+    "One agent per problem domain" [shape=box];
+    "Can they work in parallel?" [shape=diamond];
+    "Sequential agents" [shape=box];
+    "Parallel dispatch" [shape=box];
+
+    "Multiple failures?" -> "Are they independent?" [label="yes"];
+    "Are they independent?" -> "Single agent investigates all" [label="no - related"];
+    "Are they independent?" -> "Can they work in parallel?" [label="yes"];
+    "Can they work in parallel?" -> "Parallel dispatch" [label="yes"];
+    "Can they work in parallel?" -> "Sequential agents" [label="no - shared state"];
+}
+```
+
+**Use when:**
+- 3+ test files failing with different root causes
+- Multiple subsystems broken independently
+- Each problem can be understood without context from others
+- No shared state between investigations
+
+**Don't use when:**
+- Failures are related (fix one might fix others)
+- Need to understand full system state
+- Agents would interfere with each other
+
+## The Pattern
+
+### 1. Identify Independent Domains
+
+Group failures by what's broken:
+- File A tests: Tool approval flow
+- File B tests: Batch completion behavior
+- File C tests: Abort functionality
+
+Each domain is independent - fixing tool approval doesn't affect abort tests.
+
+### 2. Create Focused Agent Tasks
+
+Each agent gets:
+- **Specific scope:** One test file or subsystem
+- **Clear goal:** Make these tests pass
+- **Constraints:** Don't change other code
+- **Expected output:** Summary of what you found and fixed
+
+### 3. Dispatch in Parallel
+
+```typescript
+// In Claude Code / AI environment
+Task("Fix agent-tool-abort.test.ts failures")
+Task("Fix batch-completion-behavior.test.ts failures")
+Task("Fix tool-approval-race-conditions.test.ts failures")
+// All three run concurrently
+```
+
+### 4. Review and Integrate
+
+When agents return:
+- Read each summary
+- Verify fixes don't conflict
+- Run full test suite
+- Integrate all changes
+
+## Agent Prompt Structure
+
+Good agent prompts are:
+1. **Focused** - One clear problem domain
+2. **Self-contained** - All context needed to understand the problem
+3. **Specific about output** - What should the agent return?
+
+```markdown
+Fix the 3 failing tests in src/agents/agent-tool-abort.test.ts:
+
+1. "should abort tool with partial output capture" - expects 'interrupted at' in message
+2. "should handle mixed completed and aborted tools" - fast tool aborted instead of completed
+3. "should properly track pendingToolCount" - expects 3 results but gets 0
+
+These are timing/race condition issues. Your task:
+
+1. Read the test file and understand what each test verifies
+2. Identify root cause - timing issues or actual bugs?
+3. Fix by:
+   - Replacing arbitrary timeouts with event-based waiting
+   - Fixing bugs in abort implementation if found
+   - Adjusting test expectations if testing changed behavior
+
+Do NOT just increase timeouts - find the real issue.
+
+Return: Summary of what you found and what you fixed.
+```
+
+## Common Mistakes
+
+**❌ Too broad:** "Fix all the tests" - agent gets lost
+**✅ Specific:** "Fix agent-tool-abort.test.ts" - focused scope
+
+**❌ No context:** "Fix the race condition" - agent doesn't know where
+**✅ Context:** Paste the error messages and test names
+
+**❌ No constraints:** Agent might refactor everything
+**✅ Constraints:** "Do NOT change production code" or "Fix tests only"
+
+**❌ Vague output:** "Fix it" - you don't know what changed
+**✅ Specific:** "Return summary of root cause and changes"
+
+## When NOT to Use
+
+**Related failures:** Fixing one might fix others - investigate together first
+**Need full context:** Understanding requires seeing entire system
+**Exploratory debugging:** You don't know what's broken yet
+**Shared state:** Agents would interfere (editing same files, using same resources)
+
+## Real Example from Session
+
+**Scenario:** 6 test failures across 3 files after major refactoring
+
+**Failures:**
+- agent-tool-abort.test.ts: 3 failures (timing issues)
+- batch-completion-behavior.test.ts: 2 failures (tools not executing)
+- tool-approval-race-conditions.test.ts: 1 failure (execution count = 0)
+
+**Decision:** Independent domains - abort logic separate from batch completion separate from race conditions
+
+**Dispatch:**
+```
+Agent 1 → Fix agent-tool-abort.test.ts
+Agent 2 → Fix batch-completion-behavior.test.ts
+Agent 3 → Fix tool-approval-race-conditions.test.ts
+```
+
+**Results:**
+- Agent 1: Replaced timeouts with event-based waiting
+- Agent 2: Fixed event structure bug (threadId in wrong place)
+- Agent 3: Added wait for async tool execution to complete
+
+**Integration:** All fixes independent, no conflicts, full suite green
+
+**Time saved:** 3 problems solved in parallel vs sequentially
+
+## Key Benefits
+
+1. **Parallelization** - Multiple investigations happen simultaneously
+2. **Focus** - Each agent has narrow scope, less context to track
+3. **Independence** - Agents don't interfere with each other
+4. **Speed** - 3 problems solved in time of 1
+
+## Verification
+
+After agents return:
+1. **Review each summary** - Understand what changed
+2. **Check for conflicts** - Did agents edit same code?
+3. **Run full suite** - Verify all fixes work together
+4. **Spot check** - Agents can make systematic errors
+
+## Real-World Impact
+
+From debugging session (2025-10-03):
+- 6 failures across 3 files
+- 3 agents dispatched in parallel
+- All investigations completed concurrently
+- All fixes integrated successfully
+- Zero conflicts between agent changes
+
+---
+
+<task-notification>
+<task-id>ae5b4991ddcabed7f</task-id>
+<tool-use-id>toolu_01Bu8RxH4oL7q5pxHutVVbDu</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "eBPF test harness implementation" completed</summary>
+<result>You're out of extra usage · resets 5:30pm (Asia/Calcutta)</result>
+<usage><total_tokens>59</total_tokens><tool_uses>1</tool_uses><duration_ms>4584</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ab4574d0edd23327d</task-id>
+<tool-use-id>toolu_01VaopsEzk1iUt4VxLLuzt4z</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Playwright E2E tests implementation" completed</summary>
+<result>You're out of extra usage · resets 5:30pm (Asia/Calcutta)</result>
+<usage><total_tokens>300</total_tokens><tool_uses>7</tool_uses><duration_ms>26545</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a033fffdd30ae82c7</task-id>
+<tool-use-id>toolu_01NDEsW9JU4oRhEVHqtphZ9X</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Python AI worker tests implementation" completed</summary>
+<result>You're out of extra usage · resets 5:30pm (Asia/Calcutta)</result>
+<usage><total_tokens>610</total_tokens><tool_uses>18</tool_uses><duration_ms>48180</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a17cbebc7fda71bb0</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Go backend tests implementation" completed</summary>
+<result>You're out of extra usage · resets 5:30pm (Asia/Calcutta)</result>
+<usage><total_tokens>864</total_tokens><tool_uses>20</tool_uses><duration_ms>74811</duration_ms></usage>
+</task-notification>
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   The user made two primary requests:
+   - **"index everything"**: Comprehensively explore and memorize the Raven codebase structure
+   - **"Plan your test cases to test all the features, including the enterprise features and the ebbf. using playwright"**: Create a complete test plan and implementation plans for all Raven features using a layered approach (Go testify, Python pytest, Playwright E2E, Go kernel harness for eBPF), then execute via parallel agents
+
+2. Key Technical Concepts:
+   - **Raven platform**: Self-hostable multi-tenant knowledge base with AI chat/voice/WhatsApp — Go REST API + Python gRPC AI Worker (two-process architecture)
+   - **Go module**: `github.com/ravencloak-org/Raven`, Go 1.25/toolchain 1.26.1, Gin web framework
+   - **Test layers**: testify + testcontainers (Go), pytest-asyncio + AsyncMock (Python), Playwright chromium (frontend E2E + API mode), privileged Go kernel harness (eBPF)
+   - **Coverage targets**: 80% Go, 70% Python, 100% named Playwright journeys, all 3 eBPF program types
+   - **Test structure (Approach C)**: Co-located `*_test.go` in `internal/`, `ai-worker/tests/`, `frontend/e2e/` (existing Playwright config location), `tests/ebpf/` at root
+   - **eBPF**: cilium/ebpf library, `(*ebpf.Program).Test()` API, XDP_PASS=2/XDP_DROP=1, `//go:build ebpf` tag, requires CAP_BPF + CAP_NET_ADMIN
+   - **RLS (Row-Level Security)**: PostgreSQL policies for tenant isolation — cross-tenant isolation is a critical test case
+   - **Asynq webhook retry**: canonical backoff 1s, 5s, 30s intervals
+   - **ClickHouse sidecar**: real testcontainers ClickHouse for eBPF audit persistence tests (not in-memory mock)
+   - **Keycloak SSO**: OIDC/OAuth2 multi-tenant realms, used in Playwright auth fixture
+   - **gRPC fault injection**: connection refused, TLS handshake failure, UNAVAILABLE→503, RESOURCE_EXHAUSTED→429
+   - **BM25 + pgvector hybrid search**: Reciprocal Rank Fusion combining both
+   - **Enterprise Edition (EE)**: WAF/security rules, SSO, webhooks, Airbyte connectors, licensing guards, analytics (ClickHouse + PostHog), lead profiles, audit logs
+   - **superpowers skills used**: brainstorming, writing-plans, dispatching-parallel-agents
+
+3. Files and Code Sections:
+   - **`docs/superpowers/specs/2026-04-09-test-plan-design.md`** (created)
+     - Approved test plan spec covering all 10 sections: goals, structure, Go tests, Python tests, Playwright E2E, eBPF harness, EE features, CI integration, mocking strategy, out of scope
+     - Went through 2 review rounds; 8 issues fixed in round 1, approved in round 2
+
+   - **`docs/superpowers/plans/2026-04-09-go-backend-tests.md`** (created)
+     - 11 tasks: testutil helpers, handler tests, service tests, repository integration, RLS isolation, middleware, gRPC, queue/jobs, crypto/storage, EE, integration tests, coverage gate
+     - Key code: `RunMigrations` using `goose.Up(db, "../../migrations")`, `StubAIWorker` with `stubRAGStream` implementing `Recv()`, `TestWebhookDeliveryHandler_Retry_BackoffIntervals` using httptest server + `assert.InDelta` for 1s/5s/30s gaps, SSE test using `bufio.NewScanner`, TLS handshake failure test, `TestMigrationCorrectness_AllMigrationsApply` checking `MAX(version_id)=32`
+
+   - **`docs/superpowers/plans/2026-04-09-python-ai-worker-tests.md`** (created)
+     - 7 tasks: conftest fixtures, gRPC service tests, document processing, retrieval pipeline (including BM25), voice agent, EE connectors/analytics, coverage gate + smoke CI job
+     - Key code: `make_parse_request` as plain importable function (not `@pytest.fixture`), `TestBM25Scoring` class with TF/IDF tests, chunk metadata tests with actual assertions (not `pass`), Anthropic NOTE about no embed endpoint
+
+   - **`docs/superpowers/plans/2026-04-09-playwright-e2e-tests.md`** (created)
+     - 11 tasks: fixtures, page objects, auth, org/workspace+RBAC, KB/docs, chat, API keys/voice/WhatsApp, chat widget, analytics+notifications, API mode tests, EE journeys, CI update
+     - Key code: `loginAs()` auth helper, `KBPage`/`ChatPage`/`DocumentPage` POMs, remove member journey, WhatsApp trigger callback test, analytics export with `page.waitForEvent('download')`, in-app notification with file upload trigger, voice session initiation test, chat widget invalid key error state test, CI split (Vitest step 1 fast-fail → Playwright step 2)
+
+   - **`docs/superpowers/plans/2026-04-09-ebpf-test-harness.md`** (created)
+     - 6 tasks: directory skeleton + build tag, XDP tests, observability tests, audit tests with ClickHouse sidecar, CI config, local dev guide
+     - Key code: `RequirePrivileged` using `unix.Syscall(unix.SYS_BPF, 0, 0, 0)` + `t.Skip` on EPERM, XDP tests using `prog.XDPProg.Test(pkt)` returning `(uint32, duration, error)` with XDP_PASS=2/XDP_DROP=1, `TestObservability_MetadataAccuracy` using `monitor.ObsProg.Test(pkt)` + `t.Fatal` (not `t.Skip`), ClickHouse sidecar via testcontainers, CI services: alternative documented
+
+   - **Memory files updated**:
+     - `project_architecture.md` (created): comprehensive codebase map
+     - `project_tech_decisions.md` (updated): removed Strapi/LiteParse, added Valkey/Asynq/SeaweedFS/LiveKit/eBPF/Hyperswitch
+     - `MEMORY.md` (updated): added pointers to new memory files
+
+4. Errors and Fixes:
+   - **context-mode MCP broken**: Node.js version mismatch (compiled for v137, requires v141) → used Explore agent instead for codebase indexing
+   - **Plan Review Round 1 — Go plan**: (a) Webhook retry test was empty stub → added httptest server recording timestamps + assert.InDelta; (b) RunMigrations was commented out → implemented with goose.Up; (c) TLS fault injection missing → added test dialing plain TCP with TLS credentials; (d) Migration count assertion missing → added MAX(version_id)=32 check; (e) QueryRAG stub missing → added stubRAGStream with Recv(); (f) SSE test was comment → implemented with bufio.Scanner
+   - **Plan Review Round 1 — Python plan**: (a) Chunk metadata tests were `pass` stubs → filled with real assertions; (b) BM25 test absent → added `tests/retrieval/test_bm25.py`; (c) Anthropic note missing → added NOTE comment; (d) conftest import would cause collection errors → confirmed functions are plain importable (not fixtures)
+   - **Plan Review Round 1 — Playwright plan**: (a) Directory conflict `frontend/e2e/` vs `tests/e2e/` → clarified `frontend/e2e/` is correct per existing config; (b) Remove member missing → added; (c) WhatsApp trigger callback missing → added; (d) Analytics export missing → added with `waitForEvent('download')`; (e) In-app notification receive missing → added with file upload trigger; (f) Voice initiate session missing → added clicking "Start Voice Session"
+   - **Plan Review Round 1 — eBPF plan**: (a) `prog.TestRun()` fictional API → replaced with `prog.XDPProg.Test(pkt)` returning `(uint32, duration, error)`; (b) `TestObservability_MetadataAccuracy` silently skipped → replaced `t.Skip` with `t.Fatal`, used `monitor.ObsProg.Test(pkt)` for injection; (c) CI Docker socket undocumented → added services: block alternative; (d) `RequirePrivileged` stub → implemented with actual BPF syscall EPERM check
+   - **First parallel agent dispatch failed**: All 4 agents hit usage limit ("You're out of extra usage · resets 5:30pm Asia/Calcutta") without doing any work → user said "continue" → re-dispatched agents
+
+5. Problem Solving:
+   - Resolved spec ambiguities through systematic reviewer feedback (2 spec review rounds, 2 plan review rounds)
+   - Determined `frontend/e2e/` (not `tests/e2e/`) is the correct Playwright test location by reading existing `playwright.config.ts`
+   - Resolved eBPF API mismatch: planned tests used fictional `prog.TestRun()` API → corrected to real cilium/ebpf `(*ebpf.Program).Test()` with correct XDP return code constants
+   - Resolved ClickHouse mock ambiguity for eBPF audit tests: specified real testcontainers sidecar (distinct from unit-test in-memory sink)
+
+6. All User Messages:
+   - "index everything"
+   - "That's right. Plan your test cases to test all the features, including the enterprise features and the ebbf."
+   - "using playwright" (follow-up to above)
+   - "what is recommended?" (asking for recommendation on Playwright scope)
+   - "yes" (confirming layered approach recommendation)
+   - "What's recommended along with the questions that you have? Also, tell me the recommended solution that you would go with." (asking for all remaining clarifying questions + recommendations at once)
+   - "Let's go for all the recommended ones." (confirming all recommendations)
+   - "yes lets use parallel agents to start these" (during design presentation, wanting to jump to implementation)
+   - "yes" (approving Section 1 of design)
+   - "go" (approving full design, triggering writing-plans)
+   - "yes" (approving Approach C for plan structure)
+   - "go" (approving all 4 plans to proceed to execution)
+   - "1" (choosing Subagent-Driven execution option)
+   - "continue" (after agents failed due to usage limit)
+
+7. Pending Tasks:
+   - **Go backend tests agent** (a661118e7c5b2fd82): running in background worktree, implementing `docs/superpowers/plans/2026-04-09-go-backend-tests.md`
+   - **Python tests agent** (ab434533152c09a1c): running in background worktree, implementing `docs/superpowers/plans/2026-04-09-python-ai-worker-tests.md`
+   - **Playwright tests agent**: NOT yet re-dispatched after usage limit failure
+   - **eBPF tests agent**: NOT yet re-dispatched after usage limit failure
+   - After all agents complete: review PRs for conflicts, confirm auto-merge is queued for all 4 PRs
+
+8. Current Work:
+   Re-dispatching the 4 parallel implementation agents after they all failed due to hitting the usage limit ("You're out of extra usage · resets 5:30pm Asia/Calcutta"). Two agents were re-dispatched (go-backend-tests, python-tests) before this summary was requested. The Playwright and eBPF agents still need to be re-dispatched.
+
+   The agents are running in isolated git worktrees, each implementing one of the 4 approved plans:
+   - Go backend: `docs/superpowers/plans/2026-04-09-go-backend-tests.md`
+   - Python: `docs/superpowers/plans/2026-04-09-python-ai-worker-tests.md`
+   - Playwright: `docs/superpowers/plans/2026-04-09-playwright-e2e-tests.md`
+   - eBPF: `docs/superpowers/plans/2026-04-09-ebpf-test-harness.md`
+
+9. Optional Next Step:
+   The immediate next step is to re-dispatch the two remaining agents that were not yet re-launched after the usage limit failure:
+
+   From the most recent work: "Re-dispatching all 4 now" — the go-backend-tests and python-tests agents were re-dispatched, but the playwright-tests and ebpf-tests agents still need to be re-dispatched with the same prompts used in the original dispatch:
+
+   - Playwright agent scope: `frontend/e2e/` only, implement `docs/superpowers/plans/2026-04-09-playwright-e2e-tests.md`, create PR + auto-merge
+   - eBPF agent scope: `tests/ebpf/` + `.github/workflows/go.yml`, implement `docs/superpowers/plans/2026-04-09-ebpf-test-harness.md`, compile check only (not execution), create PR + auto-merge
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/jobinlawrance/.REDACTED.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
