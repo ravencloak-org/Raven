@@ -3,6 +3,13 @@ import { test, expect } from '@playwright/test'
 const API_BASE = process.env.API_BASE_URL ?? 'http://localhost:8080'
 
 test.describe('API Auth', () => {
+  test.beforeEach(async ({ request }) => {
+    const alive = await request.get(`${API_BASE}/healthz`, { timeout: 3000 }).catch(() => null)
+    if (!alive?.ok()) {
+      test.skip(true, 'API not reachable — start the server to run API integration tests')
+    }
+  })
+
   test('valid JWT returns 200', async ({ request }) => {
     if (!process.env.E2E_USER || !process.env.E2E_PASS) {
       test.skip(true, 'E2E_USER/E2E_PASS not configured')

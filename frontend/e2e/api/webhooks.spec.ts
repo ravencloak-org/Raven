@@ -4,6 +4,13 @@ import crypto from 'crypto'
 const API_BASE = process.env.API_BASE_URL ?? 'http://localhost:8080'
 
 test.describe('Webhook HMAC Validation', () => {
+  test.beforeEach(async ({ request }) => {
+    const alive = await request.get(`${API_BASE}/healthz`, { timeout: 3000 }).catch(() => null)
+    if (!alive?.ok()) {
+      test.skip(true, 'API not reachable — start the server to run webhook integration tests')
+    }
+  })
+
   test('Meta webhook with valid HMAC returns 200', async ({ request }) => {
     const secret = process.env.META_WEBHOOK_SECRET!
     const body = JSON.stringify({ object: 'whatsapp_business_account', entry: [] })

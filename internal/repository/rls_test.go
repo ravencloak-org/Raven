@@ -5,19 +5,11 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/ravencloak-org/Raven/internal/repository"
 	"github.com/ravencloak-org/Raven/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// setOrgID is a helper that sets the RLS org context for a transaction.
-func setOrgID(t *testing.T, ctx context.Context, tx pgx.Tx, orgID string) {
-	t.Helper()
-	_, err := tx.Exec(ctx, "SELECT set_config('app.current_org_id', $1, true)", orgID)
-	require.NoError(t, err)
-}
 
 // TestRLS_CrossOrgKB_ReturnsZeroRows verifies that org-B cannot read
 // knowledge bases that belong to org-A, even when using the same workspace ID.
