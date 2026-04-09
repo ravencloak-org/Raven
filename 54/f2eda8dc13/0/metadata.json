@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "54f2eda8dc13",
+  "session_id": "a4aae4ac-99a3-40dc-9381-e9296b555c84",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-09T11:06:33.027292Z",
+  "branch": "test/go-backend-suite",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/go.yml",
+    "frontend/e2e/api-keys/apikeys.spec.ts",
+    "frontend/e2e/documents/documents.spec.ts",
+    "frontend/e2e/pages/DocumentPage.ts"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "b065903d-82d2-4361-b918-0caf7e7e584c",
+  "checkpoint_transcript_start": 384,
+  "transcript_lines_at_start": 384,
+  "token_usage": {
+    "input_tokens": 996,
+    "cache_creation_tokens": 157712,
+    "cache_read_tokens": 2932743,
+    "output_tokens": 14993,
+    "api_call_count": 25
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-09T11:06:32.939446Z",
+    "agent_lines": 0,
+    "human_added": 8272,
+    "human_modified": 157,
+    "human_removed": 0,
+    "total_committed": 8275,
+    "agent_percentage": 0
+  }
+}
