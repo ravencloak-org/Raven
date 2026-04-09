@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "7694b9907c5a",
+  "strategy": "manual-commit",
+  "branch": "test/go-backend-suite",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "frontend/e2e/api/auth.spec.ts",
+    "frontend/e2e/api/rate-limit.spec.ts",
+    "frontend/e2e/api/webhooks.spec.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/76/94b9907c5a/0/metadata.json",
+      "transcript": "/76/94b9907c5a/0/full.jsonl",
+      "context": "/76/94b9907c5a/0/context.md",
+      "content_hash": "/76/94b9907c5a/0/content_hash.txt",
+      "prompt": "/76/94b9907c5a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4,
+    "cache_creation_tokens": 14045,
+    "cache_read_tokens": 110184,
+    "output_tokens": 784,
+    "api_call_count": 2
+  }
+}
