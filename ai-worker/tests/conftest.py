@@ -17,6 +17,7 @@ from raven_worker.generated import ai_worker_pb2
 # even when those packages are only available in CI (Python 3.12).
 # ---------------------------------------------------------------------------
 
+
 def _make_stub(name: str, **attrs) -> ModuleType:
     mod = ModuleType(name)
     for k, v in attrs.items():
