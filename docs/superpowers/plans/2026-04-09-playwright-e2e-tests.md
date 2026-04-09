@@ -4,7 +4,7 @@
 
 **Goal:** Write comprehensive Playwright E2E tests covering all frontend user journeys and REST API flows, including auth, KB management, documents, chat, voice, WhatsApp, API keys, analytics, the embeddable chat widget, and all EE journeys (SSO, WAF, webhooks, licensing).
 
-**Architecture:** Tests live in `frontend/e2e/` (existing Playwright config points to `./e2e` relative to `frontend/`). Page Object Models for reusable interactions. Shared auth fixture for Keycloak login. API mode tests alongside UI tests. Playwright `chromium` only (per existing config).
+**Architecture:** Tests live in `frontend/e2e/` — the existing `frontend/playwright.config.ts` has `testDir: './e2e'` which resolves to `frontend/e2e/`. **Note:** The spec's directory diagram shows `tests/e2e/` at repo root, but this plan follows the existing Playwright config. Do NOT move or create a second config at repo root — use `frontend/e2e/` throughout. Page Object Models for reusable interactions. Shared auth fixture for Keycloak login. API mode tests alongside UI tests. Playwright `chromium` only (per existing config).
 
 **Tech Stack:** `@playwright/test ^1.59.1`, TypeScript, `baseURL: http://localhost:5173` (dev) / `http://localhost:4173` (CI preview). Run via `npm run test:e2e` from `frontend/`.
 
@@ -305,6 +305,16 @@ test.describe('Org & Workspace', () => {
     await expect(page.getByText('newmember@example.com')).toBeVisible()
   })
 
+  test('remove member from workspace', async ({ adminPage: page }) => {
+    await page.goto('/workspaces/test-ws/members')
+    const memberCount = await page.getByTestId('member-row').count()
+    if (memberCount > 1) {
+      await page.getByTestId('member-row').last().getByRole('button', { name: 'Remove' }).click()
+      await page.getByRole('button', { name: 'Confirm' }).click()
+      await expect(page.getByTestId('member-row')).toHaveCount(memberCount - 1)
+    }
+  })
+
   test('member denied workspace-admin action (RBAC)', async ({ authenticatedPage: page }) => {
     // authenticatedPage is a regular member, not admin
     await page.goto('/workspaces/test-ws/settings')
@@ -550,9 +560,27 @@ test('add OpenAI BYOK config', async ({ adminPage: page }) => {
 
 ```typescript
 // frontend/e2e/voice/voice.spec.ts
+test('initiate LiveKit session via UI (mocked SFU)', async ({ adminPage: page }) => {
+  await page.goto('/knowledge-bases/test-kb/voice')
+  // Click "Start Voice Session" — the SFU is mocked in E2E env via env var
+  await page.getByRole('button', { name: 'Start Voice Session' }).click()
+  // Session should transition to "connecting" or "active" state
+  await expect(page.getByTestId('voice-session-status')).toContainText(/connecting|active/i, { timeout: 10000 })
+})
+
 test('view active voice sessions list', async ({ adminPage: page }) => {
   await page.goto('/voice/sessions')
   await expect(page.getByTestId('sessions-list')).toBeVisible()
+})
+
+test('end voice session', async ({ adminPage: page }) => {
+  await page.goto('/voice/sessions')
+  const sessionCount = await page.getByTestId('session-row').count()
+  if (sessionCount > 0) {
+    await page.getByTestId('session-row').first().getByRole('button', { name: 'End' }).click()
+    await page.getByRole('button', { name: 'Confirm' }).click()
+    await expect(page.getByText(/ended|terminated/i)).toBeVisible()
+  }
 })
 ```
 
@@ -563,6 +591,22 @@ test('view active voice sessions list', async ({ adminPage: page }) => {
 test('view incoming webhook events', async ({ adminPage: page }) => {
   await page.goto('/whatsapp/events')
   await expect(page.getByTestId('events-list')).toBeVisible()
+})
+
+test('trigger test callback endpoint', async ({ adminPage: page }) => {
+  await page.goto('/whatsapp/settings')
+  await page.getByRole('button', { name: 'Test Callback' }).click()
+  await expect(page.getByTestId('callback-result')).toBeVisible({ timeout: 10000 })
+  const result = await page.getByTestId('callback-result').innerText()
+  expect(result).toMatch(/success|200|ok/i)
+})
+
+test('view webhook delivery status', async ({ adminPage: page }) => {
+  await page.goto('/whatsapp/events')
+  const events = await page.getByTestId('event-row').all()
+  if (events.length > 0) {
+    await expect(page.getByTestId('delivery-status').first()).toBeVisible()
+  }
 })
 ```
 
@@ -659,6 +703,15 @@ test('view usage dashboard with date filter', async ({ adminPage: page }) => {
   await expect(page.getByTestId('usage-chart')).toBeVisible()
 })
 
+test('export analytics data', async ({ adminPage: page }) => {
+  await page.goto('/analytics')
+  // Intercept the download
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Export' }).click()
+  const download = await downloadPromise
+  expect(download.suggestedFilename()).toMatch(/analytics.*\.(csv|json|xlsx)/)
+})
+
 // notifications.spec.ts
 test('create notification rule', async ({ adminPage: page }) => {
   await page.goto('/notifications')
@@ -667,6 +720,19 @@ test('create notification rule', async ({ adminPage: page }) => {
   await page.getByLabel('Email').fill('notify@example.com')
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByText('notify@example.com')).toBeVisible()
+})
+
+test('receive in-app notification after triggering event', async ({ adminPage: page }) => {
+  // Upload a document to trigger 'document_processed' notification
+  await page.goto('/knowledge-bases/test-kb/documents')
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'notify-test.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('notification trigger content'),
+  })
+  await page.getByRole('button', { name: 'Start Upload' }).click()
+  // Wait for in-app notification badge or toast
+  await expect(page.getByTestId('notification-badge')).toBeVisible({ timeout: 30000 })
 })
 ```
 

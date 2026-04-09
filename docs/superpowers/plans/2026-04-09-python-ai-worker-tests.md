@@ -384,14 +384,36 @@ class TestTextSplitter:
 
 ```python
 # tests/processors/test_chunk_metadata.py
+# make_parse_request is a plain importable function in conftest.py, not a fixture.
+from tests.conftest import make_parse_request
+from raven_worker.processors.pipeline import process_document  # adjust to actual module path
+
+
 async def test_chunk_metadata_includes_source_info():
-    # Parse a document with known doc_id, kb_id, source_url
-    # Assert every chunk has: doc_id, kb_id, chunk_index, source_url
-    pass
+    """Every chunk must carry doc_id, kb_id, chunk_index, and source_url."""
+    req = make_parse_request(
+        content="First sentence. Second sentence. Third sentence. Fourth sentence.",
+        doc_id="doc-meta-test",
+        org_id="org-1",
+        kb_id="kb-meta-test",
+    )
+    chunks = await process_document(req, source_url="https://example.com/page")
+
+    assert len(chunks) > 0, "at least one chunk must be produced"
+    for i, chunk in enumerate(chunks):
+        assert chunk.document_id == "doc-meta-test", f"chunk[{i}].document_id missing"
+        assert chunk.kb_id == "kb-meta-test", f"chunk[{i}].kb_id missing"
+        assert chunk.source_url == "https://example.com/page", f"chunk[{i}].source_url missing"
+        assert chunk.chunk_index == i, f"chunk[{i}].chunk_index must equal {i}"
+
 
 async def test_chunk_indices_sequential():
-    # Assert chunk_index goes 0, 1, 2, 3...
-    pass
+    """Indices must be 0, 1, 2, 3... with no gaps or duplicates."""
+    req = make_parse_request(content="word " * 300, chunk_size=100, chunk_overlap=10)
+    chunks = await process_document(req, source_url="https://example.com")
+
+    indices = [c.chunk_index for c in chunks]
+    assert indices == list(range(len(chunks))), f"indices not sequential: {indices}"
 ```
 
 - [ ] **Step 4: Run processor tests**
@@ -466,7 +488,46 @@ class TestCosineSimilarityRanking:
         assert len(ranked) == 2  # both present, no crash
 ```
 
-- [ ] **Step 3: Reciprocal Rank Fusion tests**
+- [ ] **Step 3: BM25 scoring tests** (`tests/retrieval/test_bm25.py`)
+
+```python
+# tests/retrieval/test_bm25.py
+from raven_worker.retrieval.bm25 import BM25Scorer  # adjust import
+
+
+class TestBM25Scoring:
+    def test_term_frequency_increases_score(self):
+        """Documents with more occurrences of the query term score higher."""
+        scorer = BM25Scorer()
+        corpus = [
+            "the cat sat on the mat",          # 0 occurrences of "dog"
+            "the dog barked at the dog fence",  # 2 occurrences of "dog"
+            "a dog walked by",                  # 1 occurrence of "dog"
+        ]
+        scorer.fit(corpus)
+        scores = scorer.score("dog", corpus)
+        # doc[1] (2 occurrences) should beat doc[2] (1 occurrence) should beat doc[0] (0)
+        assert scores[1] > scores[2] > scores[0]
+
+    def test_idf_downweights_common_terms(self):
+        """Very common terms (appear in all docs) get low IDF and low overall score."""
+        scorer = BM25Scorer()
+        corpus = ["the quick fox", "the lazy dog", "the brown bear"]
+        scorer.fit(corpus)
+        scores = scorer.score("the", corpus)
+        # All docs have "the" — IDF is near 0, all scores should be very low
+        for score in scores:
+            assert score < 0.5, f"IDF should downweight 'the'; got score {score}"
+
+    def test_zero_occurrences_score_is_zero(self):
+        scorer = BM25Scorer()
+        corpus = ["apple banana cherry"]
+        scorer.fit(corpus)
+        scores = scorer.score("mango", corpus)
+        assert scores[0] == 0.0
+```
+
+- [ ] **Step 4: Reciprocal Rank Fusion tests**
 
 ```python
 # tests/retrieval/test_rrf.py
@@ -747,6 +808,8 @@ async def test_cohere_embedding_real():
 
 @pytest.mark.skipif(not os.getenv("ANTHROPIC_API_KEY"), reason="ANTHROPIC_API_KEY not set")
 async def test_anthropic_completion_real():
+    # NOTE: Anthropic does not expose a public embedding endpoint.
+    # This smoke test verifies the completion API only, which is intentional.
     from raven_worker.providers.anthropic import AnthropicProvider
     provider = AnthropicProvider(api_key=os.environ["ANTHROPIC_API_KEY"])
     result = await provider.complete("Say 'pong'")
