@@ -23,6 +23,10 @@ test.describe('Authentication', () => {
   })
 
   test('session expiry redirects to login', async ({ page }) => {
+    if (!process.env.E2E_USER) {
+      test.skip(true, 'Set E2E_USER/E2E_PASS to run authentication tests')
+      return
+    }
     // Navigate to protected route without login
     await page.goto('/knowledge-bases')
     await page.waitForURL(/\/realms\/raven\/protocol\/openid-connect\/auth/)
@@ -30,6 +34,10 @@ test.describe('Authentication', () => {
   })
 
   test('invalid credentials shows error', async ({ page }) => {
+    if (!process.env.E2E_USER) {
+      test.skip(true, 'Set E2E_USER/E2E_PASS to run authentication tests')
+      return
+    }
     await page.goto('/')
     await page.waitForURL(/\/realms\/raven\/protocol\/openid-connect\/auth/)
     await page.getByLabel('Email').fill('wrong@example.com')

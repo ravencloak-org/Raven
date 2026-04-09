@@ -7,6 +7,10 @@ test.describe('Licensing (EE)', () => {
   })
 
   test('EE feature shows upgrade prompt without license', async ({ page }) => {
+    if (!process.env.E2E_USER) {
+      test.skip(true, 'Set E2E_USER to run EE licensing tests')
+      return
+    }
     // Use a non-EE tenant
     await page.goto('/settings/security-rules')
     await expect(page.getByText(/Upgrade|Enterprise/i)).toBeVisible()

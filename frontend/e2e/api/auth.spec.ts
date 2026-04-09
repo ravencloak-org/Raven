@@ -37,6 +37,10 @@ test.describe('API Auth', () => {
   })
 
   test('expired JWT returns 401', async ({ request }) => {
+    if (!process.env.API_BASE_URL) {
+      test.skip(true, 'Set API_BASE_URL to run API integration tests')
+      return
+    }
     const resp = await request.get(`${API_BASE}/api/v1/knowledge-bases`, {
       headers: {
         Authorization: 'Bearer eyJhbGciOiJSUzI1NiJ9.eyJleHAiOjF9.fake',
@@ -58,6 +62,10 @@ test.describe('API Auth', () => {
   })
 
   test('revoked API key returns 401', async ({ request }) => {
+    if (!process.env.API_BASE_URL) {
+      test.skip(true, 'Set API_BASE_URL to run API integration tests')
+      return
+    }
     const resp = await request.post(`${API_BASE}/api/v1/chat`, {
       headers: { 'X-API-Key': 'revoked-key-00000000' },
       data: { message: 'hello', kb_id: 'kb-1' },

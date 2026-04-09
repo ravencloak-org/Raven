@@ -16,7 +16,10 @@ import (
 
 // TestPackageCompiles ensures the webhooks package is importable and correctly declared.
 func TestPackageCompiles(t *testing.T) {
-	t.Log("internal/ee/webhooks package compiles successfully")
+	// The blank import above (line 14) verifies that internal/ee/webhooks
+	// compiles cleanly. If the package has syntax errors or missing deps,
+	// this file will fail to compile.
+	t.Log("internal/ee/webhooks package compiles successfully (verified via blank import)")
 }
 
 // computeHMAC is a helper that computes sha256 HMAC for webhook signature tests.

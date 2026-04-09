@@ -13,11 +13,12 @@ test.describe('Knowledge Base', () => {
     await kb.delete(kbName)
   })
 
-  test('edit KB settings', async ({ authenticatedPage: page }) => {
+  test('edit KB settings', async ({ authenticatedPage: page }, testInfo) => {
     const kb = new KBPage(page)
+    const kbName = `Settings Test KB ${testInfo.workerIndex}-${Date.now()}`
     await kb.navigate()
-    await kb.create('Settings Test KB')
-    await kb.open('Settings Test KB')
+    await kb.create(kbName)
+    await kb.open(kbName)
     await page.getByRole('tab', { name: 'Settings' }).click()
     await page.getByLabel('Description').fill('Updated description')
     await page.getByRole('button', { name: 'Save' }).click()

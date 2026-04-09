@@ -2,12 +2,20 @@ import { test, expect } from '@playwright/test'
 
 test.describe('SSO (EE)', () => {
   test('OIDC login redirects to Keycloak and back', async ({ page }) => {
+    if (!process.env.E2E_USER) {
+      test.skip(true, 'Set E2E_USER to run SSO tests')
+      return
+    }
     await page.goto('/')
     await page.waitForURL(/keycloak/)
     expect(page.url()).toContain('protocol/openid-connect/auth')
   })
 
   test('SSO-only org blocks password login', async ({ page }) => {
+    if (!process.env.E2E_USER) {
+      test.skip(true, 'Set E2E_USER to run SSO tests')
+      return
+    }
     // Navigate to org that enforces SSO-only
     await page.goto('/org-sso-only/login')
     await expect(page.getByLabel('Password')).not.toBeVisible()

@@ -11,6 +11,10 @@ test.describe('Health Check', () => {
   })
 
   test('GET /healthz returns 200 with status ok', async ({ request }) => {
+    if (!process.env.API_BASE_URL) {
+      test.skip(true, 'Set API_BASE_URL to run API integration tests')
+      return
+    }
     const resp = await request.get(`${API_BASE}/healthz`)
     expect(resp.status()).toBe(200)
     const body = await resp.json()

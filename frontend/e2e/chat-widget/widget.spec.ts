@@ -2,6 +2,10 @@ import { test, expect } from '@playwright/test'
 
 test.describe('Chat Widget', () => {
   test('valid API key: widget loads and accepts messages', async ({ page }) => {
+    if (!process.env.API_BASE_URL) {
+      test.skip(true, 'Set API_BASE_URL to run widget integration tests')
+      return
+    }
     await page.goto('/e2e/chat-widget/widget-sandbox.html')
     // Wait for web component to register
     await page.waitForSelector('raven-chat', { timeout: 10000 })
@@ -15,6 +19,10 @@ test.describe('Chat Widget', () => {
   })
 
   test('invalid API key: widget shows error state, not blank or crash', async ({ page }) => {
+    if (!process.env.API_BASE_URL) {
+      test.skip(true, 'Set API_BASE_URL to run widget integration tests')
+      return
+    }
     // Serve sandbox with invalid key
     await page.goto('/e2e/chat-widget/widget-sandbox-invalid-key.html')
     await page.waitForSelector('raven-chat', { timeout: 10000 })

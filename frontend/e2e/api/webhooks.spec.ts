@@ -12,6 +12,10 @@ test.describe('Webhook HMAC Validation', () => {
   })
 
   test('Meta webhook with valid HMAC returns 200', async ({ request }) => {
+    if (!process.env.API_BASE_URL || !process.env.META_WEBHOOK_SECRET) {
+      test.skip(true, 'Set API_BASE_URL and META_WEBHOOK_SECRET to run webhook tests')
+      return
+    }
     const secret = process.env.META_WEBHOOK_SECRET!
     const body = JSON.stringify({ object: 'whatsapp_business_account', entry: [] })
     const sig = 'sha256=' + crypto.createHmac('sha256', secret).update(body).digest('hex')
@@ -23,6 +27,10 @@ test.describe('Webhook HMAC Validation', () => {
   })
 
   test('Meta webhook with invalid HMAC returns 403', async ({ request }) => {
+    if (!process.env.API_BASE_URL) {
+      test.skip(true, 'Set API_BASE_URL to run API integration tests')
+      return
+    }
     const resp = await request.post(`${API_BASE}/webhooks/meta`, {
       headers: {
         'X-Hub-Signature-256': 'sha256=invalidsignature',

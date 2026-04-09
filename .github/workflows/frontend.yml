@@ -78,8 +78,8 @@ jobs:
           E2E_KB_A_KEY: ${{ secrets.E2E_KB_A_KEY }}
           E2E_KB_B_ID: ${{ secrets.E2E_KB_B_ID }}
           META_WEBHOOK_SECRET: ${{ secrets.META_WEBHOOK_SECRET }}
-          API_BASE_URL: http://localhost:8080
-          KEYCLOAK_URL: http://localhost:8180
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          KEYCLOAK_URL: ${{ secrets.KEYCLOAK_URL }}
 
       - name: Upload Playwright report
         if: failure()

@@ -38,13 +38,16 @@ jobs:
       - name: Install eBPF build tools
         run: sudo apt-get install -y clang llvm libbpf-dev linux-tools-$(uname -r)
 
+      - name: Pre-pull testcontainers image
+        run: docker pull pgvector/pgvector:pg17
+
       - run: CGO_ENABLED=1 go build ./cmd/api
 
-      - run: go test -race -timeout 30m -coverprofile=coverage.txt ./...
+      - run: go test -race -timeout 20m -coverprofile=coverage.txt ./...
         env:
           TESTCONTAINERS_RYUK_DISABLED: "true"
 
-      - run: go test -race -run '^TestMigrationsUpAndDown$' ./migrations/...
+      - run: go test -race -timeout 20m -run '^TestMigrationsUpAndDown$' ./migrations/...
         env:
           TESTCONTAINERS_RYUK_DISABLED: "true"
 

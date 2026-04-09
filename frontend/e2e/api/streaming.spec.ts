@@ -8,20 +8,24 @@ test.describe('SSE Streaming', () => {
       test.skip(true, 'E2E_KB_ID not configured')
       return
     }
-    // Use page.evaluate to test SSE in browser context
+    // Use page.evaluate to test streaming in browser context
     const chunks = await page.evaluate(
       async ({ apiBase, kbId }) => {
-        return new Promise<string[]>((resolve) => {
-          const received: string[] = []
-          const source = new EventSource(
-            `${apiBase}/api/v1/chat/stream?kb_id=${kbId}&message=hello`,
-          )
-          source.onmessage = (e: MessageEvent) => received.push(e.data as string)
-          setTimeout(() => {
-            source.close()
-            resolve(received)
-          }, 5000)
+        const resp = await fetch(`${apiBase}/api/v1/chat/${kbId}/completions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: 'hello' }),
         })
+        if (!resp.ok || !resp.body) return []
+        const reader = resp.body.getReader()
+        const decoder = new TextDecoder()
+        const received: string[] = []
+        for (let i = 0; i < 20; i++) {
+          const { done, value } = await reader.read()
+          if (done) break
+          received.push(decoder.decode(value))
+        }
+        return received
       },
       { apiBase: API_BASE, kbId: process.env.E2E_KB_ID },
     )
