@@ -1,0 +1,25 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 80%
+        threshold: 2%
+        if_not_found: success
+    patch:
+      default:
+        target: 70%
+        threshold: 5%
+        if_not_found: success
+
+ignore:
+  - "internal/grpc/pb/**"    # generated protobuf code
+  - "**/*.pb.go"             # generated files
+  - "cmd/**"                 # main entrypoints
+  - "docs/**"
+  - "frontend/**"
+  - "migrations/**"
+
+comment:
+  layout: "reach,diff,flags,files"
+  behavior: default
+  require_changes: false
