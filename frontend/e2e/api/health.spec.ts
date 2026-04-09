@@ -3,7 +3,9 @@ import { test, expect } from '@playwright/test'
 const API_BASE = process.env.API_BASE_URL ?? 'http://localhost:8080'
 
 test.describe('Health Check', () => {
-  test.skip(!process.env.API_BASE_URL, 'Set API_BASE_URL to run API integration tests')
+  test.beforeEach(async ({}, testInfo) => {
+    testInfo.skip(!process.env.API_BASE_URL, 'Set API_BASE_URL to run API integration tests')
+  })
 
   test('GET /healthz returns 200 with status ok', async ({ request }) => {
     const resp = await request.get(`${API_BASE}/healthz`)

@@ -1,7 +1,9 @@
 import { test, expect } from '../fixtures'
 
 test.describe('Licensing (EE)', () => {
-  test.skip(!process.env.E2E_USER, 'Set E2E_USER to run EE licensing tests')
+  test.beforeEach(async ({}, testInfo) => {
+    testInfo.skip(!process.env.E2E_USER, 'Set E2E_USER to run EE licensing tests')
+  })
 
   test('EE feature is accessible with valid license', async ({ adminPage: page }) => {
     await page.goto('/settings/security-rules')
