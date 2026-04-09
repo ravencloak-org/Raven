@@ -25,6 +25,6 @@ export class APIKeyPage {
       .first()
       .getByRole('button', { name: 'Revoke' })
       .click()
-    await this.page.getByRole('button', { name: 'Confirm' }).click()
+    await this.page.getByRole('button', { name: 'Revoke Key' }).click()
   }
 }
