@@ -3,6 +3,8 @@ import { test, expect } from '@playwright/test'
 const API_BASE = process.env.API_BASE_URL ?? 'http://localhost:8080'
 
 test.describe('SSE Streaming', () => {
+  test.skip(!process.env.API_BASE_URL, 'Set API_BASE_URL to run API integration tests')
+
   test('chat SSE endpoint delivers chunked events', async ({ page }) => {
     // Use page.evaluate to test SSE in browser context
     const chunks = await page.evaluate(

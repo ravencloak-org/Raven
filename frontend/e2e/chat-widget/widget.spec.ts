@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test'
 
 test.describe('Chat Widget', () => {
+  test.skip(!process.env.API_BASE_URL, 'Set API_BASE_URL to run widget integration tests')
+
   test('valid API key: widget loads and accepts messages', async ({ page }) => {
     await page.goto('/e2e/chat-widget/widget-sandbox.html')
     // Wait for web component to register
