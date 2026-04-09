@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "bc96c89e366d",
+  "session_id": "a8e822f4-2ee5-46f6-9a0b-5106d07abfd2",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-09T08:25:03.955347Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/superpowers/specs/2026-04-09-test-plan-design.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "cbe039c6-fd66-4a54-ba51-6ecb39903808",
+  "token_usage": {
+    "input_tokens": 78,
+    "cache_creation_tokens": 60321,
+    "cache_read_tokens": 2699726,
+    "output_tokens": 22373,
+    "api_call_count": 53
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-09T08:25:03.883093Z",
+    "agent_lines": 308,
+    "human_added": 222,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 530,
+    "agent_percentage": 58.11320754716981
+  }
+}
