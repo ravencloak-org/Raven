@@ -26,8 +26,9 @@ func TestIsPrivateIP_Loopback(t *testing.T) {
 	}
 }
 
-// TestIsPrivateIP_RFC1918 verifies RFC 1918 private ranges are blocked.
-func TestIsPrivateIP_RFC1918(t *testing.T) {
+// TestIsPrivateIP_PrivateRanges verifies RFC 1918 (IPv4), RFC 4193 (IPv6 ULA),
+// and RFC 4291 (IPv6 link-local) private ranges are blocked.
+func TestIsPrivateIP_PrivateRanges(t *testing.T) {
 	privateIPs := []string{
 		"10.0.0.1",
 		"10.255.255.255",
@@ -35,13 +36,16 @@ func TestIsPrivateIP_RFC1918(t *testing.T) {
 		"172.31.255.255",
 		"192.168.0.1",
 		"192.168.255.255",
-		"169.254.0.1", // link-local
+		"169.254.0.1", // link-local (RFC 3927)
+		"fc00::1",     // IPv6 ULA (RFC 4193)
+		"fd00::1",     // IPv6 ULA (RFC 4193)
+		"fe80::1",     // IPv6 link-local (RFC 4291)
 	}
 	for _, ip := range privateIPs {
 		t.Run(ip, func(t *testing.T) {
 			parsed := net.ParseIP(ip)
 			assert.True(t, isPrivateIP(parsed),
-				"RFC 1918 address %s must be blocked", ip)
+				"private address %s must be blocked", ip)
 		})
 	}
 }
@@ -64,24 +68,23 @@ func TestIsPrivateIP_PublicIP(t *testing.T) {
 }
 
 // TestReservedHeaders verifies that reserved header names are correctly identified.
-func TestReservedHeaders_ContentType(t *testing.T) {
-	_, isReserved := reservedHeaders["content-type"]
-	assert.True(t, isReserved, "content-type must be a reserved header")
-}
-
-func TestReservedHeaders_XRavenSignature(t *testing.T) {
-	_, isReserved := reservedHeaders["x-raven-signature"]
-	assert.True(t, isReserved, "x-raven-signature must be a reserved header")
-}
-
-func TestReservedHeaders_XRavenEvent(t *testing.T) {
-	_, isReserved := reservedHeaders["x-raven-event"]
-	assert.True(t, isReserved, "x-raven-event must be a reserved header")
-}
-
-func TestReservedHeaders_CustomHeader_NotReserved(t *testing.T) {
-	_, isReserved := reservedHeaders["x-custom-header"]
-	assert.False(t, isReserved, "custom headers must not be in reserved set")
+func TestReservedHeaders(t *testing.T) {
+	tests := []struct {
+		header   string
+		reserved bool
+	}{
+		{"content-type", true},
+		{"x-raven-signature", true},
+		{"x-raven-event", true},
+		{"x-custom-header", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.header, func(t *testing.T) {
+			_, isReserved := reservedHeaders[tt.header]
+			assert.Equal(t, tt.reserved, isReserved,
+				"expected reservedHeaders[%q] = %v", tt.header, tt.reserved)
+		})
+	}
 }
 
 // TestPrivateIPNets_InitialisedCorrectly verifies the init() function populated

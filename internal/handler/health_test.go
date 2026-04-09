@@ -23,7 +23,8 @@ func newHealthRouter() *gin.Engine {
 func TestHealthCheck_Returns200(t *testing.T) {
 	r := newHealthRouter()
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/health", nil)
+	req, err := http.NewRequest(http.MethodGet, "/health", nil)
+	require.NoError(t, err)
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -35,7 +36,8 @@ func TestHealthCheck_Returns200(t *testing.T) {
 func TestPing_Returns200(t *testing.T) {
 	r := newHealthRouter()
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/ping", nil)
+	req, err := http.NewRequest(http.MethodGet, "/ping", nil)
+	require.NoError(t, err)
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)

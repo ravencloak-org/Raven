@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestMigrationCorrectness_AllMigrationsApply verifies that all 32 SQL migrations
+// TestMigrationCorrectness_AllMigrationsApply verifies that all SQL migrations
 // apply cleanly and create the expected schema.
 func TestMigrationCorrectness_AllMigrationsApply(t *testing.T) {
 	if testing.Short() {
@@ -21,13 +21,15 @@ func TestMigrationCorrectness_AllMigrationsApply(t *testing.T) {
 	pool := testutil.NewTestDB(t)
 	ctx := context.Background()
 
-	// Verify all 32 migrations are applied.
+	// Verify at least the baseline number of migrations are applied.
+	const minExpectedMigrations = 32
 	var maxVersion int64
 	err := pool.QueryRow(ctx,
 		"SELECT MAX(version_id) FROM goose_db_version WHERE is_applied = true",
 	).Scan(&maxVersion)
 	require.NoError(t, err)
-	assert.EqualValues(t, 32, maxVersion, "all 32 migrations must be applied")
+	assert.GreaterOrEqual(t, int(maxVersion), minExpectedMigrations,
+		"expected at least %d migrations to be applied, got %d", minExpectedMigrations, maxVersion)
 
 	// Spot-check key tables exist.
 	for _, table := range []string{
@@ -36,6 +38,7 @@ func TestMigrationCorrectness_AllMigrationsApply(t *testing.T) {
 		"knowledge_bases",
 		"documents",
 		"chunks",
+		"embeddings",
 		"chat_sessions",
 		"chat_messages",
 		"api_keys",

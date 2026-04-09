@@ -87,7 +87,10 @@ func RunMigrations(t *testing.T, db *sql.DB) {
 	t.Helper()
 
 	// Resolve migrations dir relative to this file: internal/testutil/ -> repo root/migrations/
-	_, filename, _, _ := runtime.Caller(0)
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed to retrieve file path")
+	}
 	migrationsDir := filepath.Join(filepath.Dir(filename), "..", "..", "migrations")
 
 	if err := goose.SetDialect("postgres"); err != nil {

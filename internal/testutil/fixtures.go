@@ -34,19 +34,23 @@ func NewWorkspace(orgID string, overrides ...func(*model.Workspace)) *model.Work
 }
 
 // NewKnowledgeBase creates a test KnowledgeBase belonging to workspaceID.
-func NewKnowledgeBase(workspaceID string) *model.KnowledgeBase {
-	return &model.KnowledgeBase{
+func NewKnowledgeBase(workspaceID string, overrides ...func(*model.KnowledgeBase)) *model.KnowledgeBase {
+	kb := &model.KnowledgeBase{
 		ID:          uuid.NewString(),
 		WorkspaceID: workspaceID,
 		Name:        "Test KB",
 		Slug:        "test-kb",
 		Status:      model.KBStatusActive,
 	}
+	for _, o := range overrides {
+		o(kb)
+	}
+	return kb
 }
 
 // NewAPIKey creates a test APIKey scoped to a workspace and knowledge base.
-func NewAPIKey(workspaceID, kbID string) *model.APIKey {
-	return &model.APIKey{
+func NewAPIKey(workspaceID, kbID string, overrides ...func(*model.APIKey)) *model.APIKey {
+	key := &model.APIKey{
 		ID:              uuid.NewString(),
 		WorkspaceID:     workspaceID,
 		KnowledgeBaseID: kbID,
@@ -55,4 +59,8 @@ func NewAPIKey(workspaceID, kbID string) *model.APIKey {
 		KeyPrefix:       "rv_test",
 		Status:          model.APIKeyStatusActive,
 	}
+	for _, o := range overrides {
+		o(key)
+	}
+	return key
 }
