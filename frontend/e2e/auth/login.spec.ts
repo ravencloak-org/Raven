@@ -1,7 +1,7 @@
 import { test, expect } from '../fixtures'
 
 test.describe('Authentication', () => {
-  test.beforeEach(async ({}, testInfo) => {
+  test.beforeEach(async (_ctx, testInfo) => {
     testInfo.skip(!process.env.E2E_USER, 'Set E2E_USER/E2E_PASS to run authentication tests')
   })
 

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 
 test.describe('Chat Widget', () => {
-  test.beforeEach(async ({}, testInfo) => {
+  test.beforeEach(async (_ctx, testInfo) => {
     testInfo.skip(!process.env.API_BASE_URL, 'Set API_BASE_URL to run widget integration tests')
   })
 

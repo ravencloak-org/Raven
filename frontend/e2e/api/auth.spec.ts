@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test'
 const API_BASE = process.env.API_BASE_URL ?? 'http://localhost:8080'
 
 test.describe('API Auth', () => {
-  test.beforeEach(async ({}, testInfo) => {
+  test.beforeEach(async (_ctx, testInfo) => {
     testInfo.skip(!process.env.API_BASE_URL, 'Set API_BASE_URL to run API integration tests')
   })
 
