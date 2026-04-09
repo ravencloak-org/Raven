@@ -85,9 +85,7 @@ class TestVectorSearchRanking:
     async def test_score_cast_to_float(self):
         """Scores from DB must be cast to float."""
         mock_conn = AsyncMock()
-        mock_conn.fetch = AsyncMock(
-            return_value=[{"id": "chunk-1", "score": 0.99}]
-        )
+        mock_conn.fetch = AsyncMock(return_value=[{"id": "chunk-1", "score": 0.99}])
         results = await vector_search(mock_conn, [1.0], "org-1", ["kb-1"])
         assert isinstance(results[0][1], float)
 

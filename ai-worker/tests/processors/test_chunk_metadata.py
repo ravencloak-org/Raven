@@ -39,14 +39,10 @@ def test_chunk_metadata_includes_source_info():
 
     assert len(chunks) > 0, "at least one chunk must be produced"
     for i, chunk in enumerate(chunks):
-        assert chunk.metadata["document_id"] == "doc-meta-test", (
-            f"chunk[{i}].document_id missing"
-        )
+        assert chunk.metadata["document_id"] == "doc-meta-test", f"chunk[{i}].document_id missing"
         assert chunk.metadata["kb_id"] == "kb-meta-test", f"chunk[{i}].kb_id missing"
         assert chunk.metadata["source_url"] == source_url, f"chunk[{i}].source_url missing"
-        assert chunk.metadata["chunk_index"] == i, (
-            f"chunk[{i}].chunk_index must equal {i}"
-        )
+        assert chunk.metadata["chunk_index"] == i, f"chunk[{i}].chunk_index must equal {i}"
 
 
 def test_chunk_indices_sequential():

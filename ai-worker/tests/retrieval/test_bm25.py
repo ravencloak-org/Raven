@@ -79,9 +79,7 @@ class TestBM25Search:
         """Scores returned from DB must be cast to float."""
         mock_conn = AsyncMock()
         # Simulate DB returning Decimal or other numeric type
-        mock_conn.fetch = AsyncMock(
-            return_value=[{"id": "chunk-1", "score": 0.99}]
-        )
+        mock_conn.fetch = AsyncMock(return_value=[{"id": "chunk-1", "score": 0.99}])
         results = await bm25_search(mock_conn, "query", "org-1", ["kb-1"])
         assert isinstance(results[0][1], float)
 
