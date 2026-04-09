@@ -2,10 +2,14 @@ import { test, expect } from '../fixtures'
 
 test.describe('Authentication', () => {
   test('login via Keycloak SSO succeeds', async ({ page }) => {
+    if (!process.env.E2E_USER || !process.env.E2E_PASS) {
+      test.skip(true, 'E2E_USER/E2E_PASS not configured')
+      return
+    }
     await page.goto('/')
     await page.waitForURL(/\/realms\/raven\/protocol\/openid-connect\/auth/)
-    await page.getByLabel('Email').fill(process.env.E2E_USER!)
-    await page.getByLabel('Password').fill(process.env.E2E_PASS!)
+    await page.getByLabel('Email').fill(process.env.E2E_USER)
+    await page.getByLabel('Password').fill(process.env.E2E_PASS)
     await page.getByRole('button', { name: 'Sign In' }).click()
     await page.waitForURL('/')
     await expect(page.getByTestId('dashboard')).toBeVisible()

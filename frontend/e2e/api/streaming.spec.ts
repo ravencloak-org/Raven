@@ -4,6 +4,10 @@ const API_BASE = process.env.API_BASE_URL ?? 'http://localhost:8080'
 
 test.describe('SSE Streaming', () => {
   test('chat SSE endpoint delivers chunked events', async ({ page }) => {
+    if (!process.env.E2E_KB_ID) {
+      test.skip(true, 'E2E_KB_ID not configured')
+      return
+    }
     // Use page.evaluate to test SSE in browser context
     const chunks = await page.evaluate(
       async ({ apiBase, kbId }) => {
