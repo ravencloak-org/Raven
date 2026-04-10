@@ -16,7 +16,7 @@ import (
 // seedRLSFixtures inserts the org-A, org-B, and workspace records required by
 // FK constraints on knowledge_bases. Runs as superuser (no RLS applies).
 // It also grants raven_app the minimum privileges needed to exercise RLS.
-func seedRLSFixtures(t *testing.T, pool *pgxpool.Pool, ctx context.Context, orgA, orgB, wsID string) {
+func seedRLSFixtures(ctx context.Context, t *testing.T, pool *pgxpool.Pool, orgA, orgB, wsID string) {
 	t.Helper()
 
 	_, err := pool.Exec(ctx,
@@ -59,7 +59,7 @@ func TestRLS_CrossOrgKB_ReturnsZeroRows(t *testing.T) {
 	wsID := uuid.NewString()
 	slug := uuid.NewString()[:8]
 
-	seedRLSFixtures(t, pool, ctx, orgA, orgB, wsID)
+	seedRLSFixtures(ctx, t, pool, orgA, orgB, wsID)
 
 	kbRepo := repository.NewKBRepository(pool)
 
@@ -120,7 +120,7 @@ func TestRLS_CrossOrgKB_GetByID_ReturnsError(t *testing.T) {
 	wsID := uuid.NewString()
 	slug := uuid.NewString()[:8]
 
-	seedRLSFixtures(t, pool, ctx, orgA, orgB, wsID)
+	seedRLSFixtures(ctx, t, pool, orgA, orgB, wsID)
 
 	kbRepo := repository.NewKBRepository(pool)
 
