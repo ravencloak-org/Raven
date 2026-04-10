@@ -38,6 +38,7 @@ import (
 	"github.com/ravencloak-org/Raven/internal/cache"
 	"github.com/ravencloak-org/Raven/internal/config"
 	"github.com/ravencloak-org/Raven/internal/db"
+	"github.com/ravencloak-org/Raven/internal/hyperswitch"
 	_ "github.com/ravencloak-org/Raven/docs/swagger" // swagger docs
 	rpcClient "github.com/ravencloak-org/Raven/internal/grpc"
 	"github.com/ravencloak-org/Raven/internal/handler"
@@ -289,6 +290,9 @@ func main() {
 	webhookSvc := service.NewWebhookService(webhookRepo, pool, queueClient)
 	leadSvc := service.NewLeadService(leadRepo)
 	whatsappSvc := service.NewWhatsAppService(whatsappRepo, pool)
+	billingRepo := repository.NewBillingRepository(pool)
+	hsClient := hyperswitch.NewClient(cfg.Hyperswitch.BaseURL, cfg.Hyperswitch.APIKey)
+	billingSvc := service.NewBillingService(billingRepo, pool, hsClient, cfg.Hyperswitch.WebhookSecret)
 	chatRepo := repository.NewChatRepository(pool)
 	chatSvc := service.NewChatService(chatRepo, grpcClient, pool)
 	voiceRepo := repository.NewVoiceRepository(pool)
@@ -397,6 +401,7 @@ func main() {
 	}
 	leadHandler := handler.NewLeadHandler(leadSvc)
 	whatsappHandler := handler.NewWhatsAppHandler(whatsappSvc)
+	billingHandler := handler.NewBillingHandler(billingSvc)
 
 	// Create router
 	router := gin.Default()
@@ -661,6 +666,15 @@ func main() {
 			}
 		}
 
+		// --- Billing / subscription routes ---
+		billing := api.Group("/billing")
+		{
+			billing.GET("/plans", billingHandler.GetPlans)
+			billing.POST("/subscriptions", billingHandler.Subscribe)
+			billing.DELETE("/subscriptions/:id", billingHandler.Unsubscribe)
+			billing.POST("/payment-intents", billingHandler.CreatePaymentIntent)
+		}
+
 		// --- User / me routes ---
 		api.GET("/me", userHandler.GetMe)
 		api.PUT("/me", userHandler.UpdateMe)
@@ -684,6 +698,9 @@ func main() {
 		chatAPI.GET("/:kb_id/sessions/:session_id/history", chatHandler.GetHistory)
 		chatAPI.DELETE("/:kb_id/sessions/:session_id", chatHandler.DeleteSession)
 	}
+
+	// --- Hyperswitch Billing Webhook (public, no JWT — uses HMAC signature verification) ---
+	router.POST("/api/v1/billing/webhook", billingHandler.Webhook)
 
 	// --- Meta Graph API Webhook (public, no JWT — Meta sends to a single URL) ---
 	metaWebhookHandler := handler.NewMetaWebhookHandler(cfg.Meta.AppSecret, cfg.Meta.WebhookToken, nil)
