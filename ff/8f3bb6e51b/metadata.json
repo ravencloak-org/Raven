@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "ff8f3bb6e51b",
+  "strategy": "manual-commit",
+  "branch": "test/go-backend-suite",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".claude/worktrees/agent-a7eb4040/.github/workflows/go.yml",
+    ".claude/worktrees/agent-a91781bd/.github/workflows/go.yml",
+    ".github/workflows/claude.yml",
+    ".github/workflows/go.yml",
+    ".github/workflows/security.yml",
+    "docs/superpowers/plans/2026-04-09-ebpf-test-harness.md",
+    "docs/superpowers/plans/2026-04-09-go-backend-tests.md",
+    "docs/superpowers/plans/2026-04-09-playwright-e2e-tests.md",
+    "docs/superpowers/plans/2026-04-09-python-ai-worker-tests.md",
+    "docs/superpowers/specs/2026-04-09-test-plan-design.md",
+    "internal/integration/webhook_delivery_test.go",
+    "internal/repository/rls_test.go",
+    "internal/testutil/db.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ff/8f3bb6e51b/0/metadata.json",
+      "transcript": "/ff/8f3bb6e51b/0/full.jsonl",
+      "context": "/ff/8f3bb6e51b/0/context.md",
+      "content_hash": "/ff/8f3bb6e51b/0/content_hash.txt",
+      "prompt": "/ff/8f3bb6e51b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 257,
+    "cache_creation_tokens": 576474,
+    "cache_read_tokens": 15545221,
+    "output_tokens": 74644,
+    "api_call_count": 147
+  }
+}
