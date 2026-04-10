@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "ff8f3bb6e51b",
+  "session_id": "a4aae4ac-99a3-40dc-9381-e9296b555c84",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-10T13:01:09.379918Z",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/go.yml",
+    ".github/workflows/security.yml",
+    "cmd/api/main.go",
+    "frontend/e2e/api/auth.spec.ts",
+    "frontend/e2e/api/health.spec.ts",
+    "frontend/e2e/api/webhooks.spec.ts",
+    "frontend/src/components/AppSidebar.vue",
+    "frontend/src/router/index.ts",
+    "internal/repository/rls_test.go"
+  ],
+  "agent": "Claude Code",
+  "checkpoint_transcript_start": 585,
+  "transcript_lines_at_start": 585,
+  "token_usage": {
+    "input_tokens": 305,
+    "cache_creation_tokens": 604300,
+    "cache_read_tokens": 27362738,
+    "output_tokens": 118788,
+    "api_call_count": 297
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-10T13:01:09.146772Z",
+    "agent_lines": 198,
+    "human_added": 16904,
+    "human_modified": 81,
+    "human_removed": 0,
+    "total_committed": 17183,
+    "agent_percentage": 1.1523016935343071
+  }
+}
