@@ -8,6 +8,7 @@
       </main>
     </div>
     <MobileTabBar v-if="isMobile" />
+    <OnboardingWizard v-if="!onboardingStore.completed" />
   </div>
 </template>
 
@@ -16,7 +17,10 @@ import { RouterView } from 'vue-router'
 import AppSidebar from '../components/AppSidebar.vue'
 import AppHeader from '../components/AppHeader.vue'
 import MobileTabBar from '../components/MobileTabBar.vue'
+import OnboardingWizard from '../pages/onboarding/OnboardingWizard.vue'
 import { useMobile } from '../composables/useMediaQuery'
+import { useOnboardingStore } from '../stores/onboarding'
 
 const { isMobile } = useMobile()
+const onboardingStore = useOnboardingStore()
 </script>

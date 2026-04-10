@@ -156,6 +156,13 @@ type KeycloakConfig struct {
 	// Disabled by default; set RAVEN_KEYCLOAK_APIKEYENABLED=true only in
 	// development environments until the real DB-backed lookup is implemented.
 	APIKeyEnabled bool `mapstructure:"api_key_enabled"`
+
+	// Admin REST API credentials for realm auto-provisioning.
+	// AdminURL is the base URL of the Keycloak admin REST API,
+	// e.g. http://keycloak:8080.
+	AdminURL           string `mapstructure:"admin_url"`
+	AdminClientID      string `mapstructure:"admin_client_id"`
+	AdminClientSecret  string `mapstructure:"admin_client_secret"`
 }
 
 // CORSConfig holds Cross-Origin Resource Sharing settings.
@@ -221,6 +228,9 @@ func Load() (*Config, error) {
 	v.SetDefault("otel.enabled", false)
 	v.SetDefault("keycloak.issuer_url", "http://localhost:8080/auth/realms/raven")
 	v.SetDefault("keycloak.audience", "raven")
+	v.SetDefault("keycloak.admin_url", "http://localhost:8080")
+	v.SetDefault("keycloak.admin_client_id", "admin-cli")
+	v.SetDefault("keycloak.admin_client_secret", "")
 	// CORS allowed origins can be overridden via the RAVEN_CORS_ALLOWED_ORIGINS
 	// environment variable as a comma-separated list.
 	// Example: RAVEN_CORS_ALLOWED_ORIGINS=https://app1.com,https://app2.com
@@ -318,6 +328,9 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("grpc.worker_addr", "RAVEN_GRPC_WORKER_ADDR")
 	_ = v.BindEnv("keycloak.issuer_url", "RAVEN_KEYCLOAK_ISSUER_URL")
 	_ = v.BindEnv("keycloak.audience", "RAVEN_KEYCLOAK_AUDIENCE")
+	_ = v.BindEnv("keycloak.admin_url", "RAVEN_KEYCLOAK_ADMIN_URL")
+	_ = v.BindEnv("keycloak.admin_client_id", "RAVEN_KEYCLOAK_ADMIN_CLIENT_ID")
+	_ = v.BindEnv("keycloak.admin_client_secret", "RAVEN_KEYCLOAK_ADMIN_CLIENT_SECRET")
 	_ = v.BindEnv("server.port", "RAVEN_SERVER_PORT")
 	_ = v.BindEnv("server.mode", "RAVEN_SERVER_MODE")
 	_ = v.BindEnv("clickhouse.host", "RAVEN_CLICKHOUSE_HOST")
