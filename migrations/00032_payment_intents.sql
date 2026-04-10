@@ -34,6 +34,11 @@ CREATE UNIQUE INDEX idx_payment_intents_hs_payment_id
 CREATE INDEX idx_payment_intents_org_id
     ON payment_intents (org_id);
 
+-- Auto-maintain updated_at on row changes.
+CREATE TRIGGER trg_payment_intents_updated_at
+    BEFORE UPDATE ON payment_intents
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
 -- RLS: row-level security mirrors other tables — only the owning org can see its records.
 ALTER TABLE payment_intents ENABLE ROW LEVEL SECURITY;
 
@@ -59,6 +64,7 @@ CREATE POLICY subscriptions_org_isolation ON subscriptions
 DROP POLICY IF EXISTS subscriptions_org_isolation ON subscriptions;
 ALTER TABLE subscriptions DISABLE ROW LEVEL SECURITY;
 
+DROP TRIGGER IF EXISTS trg_payment_intents_updated_at ON payment_intents;
 DROP POLICY IF EXISTS payment_intents_org_isolation ON payment_intents;
 DROP INDEX IF EXISTS idx_payment_intents_hs_payment_id;
 DROP INDEX IF EXISTS idx_payment_intents_org_id;

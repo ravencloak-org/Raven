@@ -1,6 +1,7 @@
 # Raven — Suggested Commands
 
 ## Go (API Server)
+
 ```bash
 # Build
 go build ./cmd/api
@@ -22,6 +23,7 @@ air  # uses .air.toml
 ```
 
 ## Python (AI Worker)
+
 ```bash
 cd ai-worker
 
@@ -33,6 +35,7 @@ pytest
 ```
 
 ## Frontend (Vue.js)
+
 ```bash
 cd frontend
 
@@ -57,6 +60,7 @@ npm run test:e2e
 ```
 
 ## Docker / Deployment
+
 ```bash
 # Main stack (dev)
 docker compose up -d
@@ -76,6 +80,7 @@ docker compose -f deploy/hyperswitch/docker-compose.hyperswitch.yml up -d
 ```
 
 ## Git / PR Workflow
+
 ```bash
 # Create PR then immediately queue auto-merge
 gh pr create ...

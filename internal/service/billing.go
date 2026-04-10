@@ -93,7 +93,8 @@ func (s *BillingService) CreateSubscription(ctx context.Context, orgID string, r
 		return e
 	})
 	if err != nil {
-		return nil, apierror.NewInternal("failed to check existing subscription: " + err.Error())
+		slog.ErrorContext(ctx, "failed to check existing subscription", "error", err)
+		return nil, apierror.NewInternal("failed to check existing subscription")
 	}
 	if existing != nil {
 		return nil, apierror.NewConflict("organisation already has an active subscription: " + existing.ID)
@@ -116,7 +117,8 @@ func (s *BillingService) CreateSubscription(ctx context.Context, orgID string, r
 			return e
 		})
 		if err != nil {
-			return nil, apierror.NewInternal("failed to persist free subscription: " + err.Error())
+			slog.ErrorContext(ctx, "failed to persist free subscription", "error", err)
+			return nil, apierror.NewInternal("failed to persist free subscription")
 		}
 		return result, nil
 	}
@@ -133,7 +135,8 @@ func (s *BillingService) CreateSubscription(ctx context.Context, orgID string, r
 		},
 	})
 	if err != nil {
-		return nil, apierror.NewInternal("failed to create Hyperswitch payment: " + err.Error())
+		slog.ErrorContext(ctx, "failed to create Hyperswitch payment", "error", err)
+		return nil, apierror.NewInternal("failed to create Hyperswitch payment")
 	}
 
 	sub := &model.Subscription{
@@ -152,7 +155,8 @@ func (s *BillingService) CreateSubscription(ctx context.Context, orgID string, r
 		return e
 	})
 	if err != nil {
-		return nil, apierror.NewInternal("failed to persist subscription: " + err.Error())
+		slog.ErrorContext(ctx, "failed to persist subscription", "error", err)
+		return nil, apierror.NewInternal("failed to persist subscription")
 	}
 	return result, nil
 }
@@ -166,7 +170,8 @@ func (s *BillingService) CancelSubscription(ctx context.Context, orgID string, s
 		return e
 	})
 	if err != nil {
-		return apierror.NewInternal("failed to look up subscription: " + err.Error())
+		slog.ErrorContext(ctx, "failed to look up subscription", "error", err)
+		return apierror.NewInternal("failed to look up subscription")
 	}
 	if sub == nil {
 		return apierror.NewNotFound("subscription not found")
@@ -175,7 +180,8 @@ func (s *BillingService) CancelSubscription(ctx context.Context, orgID string, s
 	// Cancel on Hyperswitch if there is a linked payment.
 	if sub.HyperswitchSubscriptionID != "" {
 		if err := s.hsClient.CancelPayment(ctx, sub.HyperswitchSubscriptionID); err != nil {
-			return apierror.NewInternal("failed to cancel Hyperswitch payment: " + err.Error())
+			slog.ErrorContext(ctx, "failed to cancel Hyperswitch payment", "error", err)
+			return apierror.NewInternal("failed to cancel Hyperswitch payment")
 		}
 	}
 
@@ -194,7 +200,8 @@ func (s *BillingService) CreatePaymentIntent(ctx context.Context, orgID string, 
 		CustomerID: orgID,
 	})
 	if err != nil {
-		return nil, apierror.NewInternal("failed to create Hyperswitch payment: " + err.Error())
+		slog.ErrorContext(ctx, "failed to create Hyperswitch payment", "error", err)
+		return nil, apierror.NewInternal("failed to create Hyperswitch payment")
 	}
 
 	now := time.Now().UTC()

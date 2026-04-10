@@ -10,16 +10,15 @@ test.describe('EE Webhooks', () => {
     await expect(page.getByText('webhook.site')).toBeVisible()
   })
 
-  test('dead-lettered webhook can be replayed', async ({ adminPage: page }) => {
+  test('dead-lettered webhook can be replayed', async ({ adminPage: page }, testInfo) => {
     await page.goto('/settings/webhooks/failed')
     const failedCount = await page.getByTestId('failed-delivery').count()
-    if (failedCount > 0) {
-      await page
-        .getByTestId('failed-delivery')
-        .first()
-        .getByRole('button', { name: 'Replay' })
-        .click()
-      await expect(page.getByText('Replayed')).toBeVisible()
-    }
+    testInfo.skip(failedCount === 0, 'No failed deliveries available to replay')
+    await page
+      .getByTestId('failed-delivery')
+      .first()
+      .getByRole('button', { name: 'Replay' })
+      .click()
+    await expect(page.getByText('Replayed')).toBeVisible()
   })
 })

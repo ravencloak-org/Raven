@@ -48,11 +48,12 @@ def _inject_missing_stubs() -> None:
         stubs["anthropic"] = ant
 
     if "openai" not in sys.modules:
+        _OAIAPIError = type("APIError", (Exception,), {})
         oai = _make_stub(
             "openai",
             AsyncOpenAI=MagicMock(),
-            RateLimitError=type("RateLimitError", (Exception,), {}),
-            APIError=type("APIError", (Exception,), {}),
+            RateLimitError=type("RateLimitError", (_OAIAPIError,), {}),
+            APIError=_OAIAPIError,
         )
         stubs["openai"] = oai
 

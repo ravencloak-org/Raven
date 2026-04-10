@@ -47,7 +47,7 @@ export const useWhatsAppStore = defineStore('whatsapp', () => {
       phoneNumbers.value = res.phone_numbers
       phoneTotal.value = res.total
     } catch (e) {
-      error.value = (e as Error).message
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }
@@ -79,7 +79,7 @@ export const useWhatsAppStore = defineStore('whatsapp', () => {
       calls.value = res.calls
       callTotal.value = res.total
     } catch (e) {
-      error.value = (e as Error).message
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }
@@ -91,7 +91,7 @@ export const useWhatsAppStore = defineStore('whatsapp', () => {
     try {
       activeCall.value = await getCall(orgId, callId)
     } catch (e) {
-      error.value = (e as Error).message
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }
@@ -131,7 +131,7 @@ export const useWhatsAppStore = defineStore('whatsapp', () => {
     try {
       bridges.value = await listActiveBridges(orgId)
     } catch (e) {
-      error.value = (e as Error).message
+      error.value = e instanceof Error ? e.message : String(e)
     }
   }
 

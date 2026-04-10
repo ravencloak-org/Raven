@@ -17,11 +17,10 @@ test.describe('Chat', () => {
     await chat.sendMessage('Tell me about the main topics')
     await chat.waitForResponse()
     const citations = await chat.getCitations()
-    if (citations.length > 0) {
-      // Click first citation and verify it opens source
-      await citations[0]!.click()
-      await expect(page.getByTestId('source-preview')).toBeVisible()
-    }
+    expect(citations.length).toBeGreaterThan(0)
+    // Click first citation and verify it opens source
+    await citations[0]!.click()
+    await expect(page.getByTestId('source-preview')).toBeVisible()
   })
 
   test('view session history', async ({ authenticatedPage: page }) => {

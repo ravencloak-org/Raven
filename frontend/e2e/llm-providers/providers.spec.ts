@@ -15,13 +15,12 @@ test.describe('LLM Providers', () => {
     await expect(page.getByTestId('providers-list')).toBeVisible()
   })
 
-  test('remove a provider', async ({ adminPage: page }) => {
+  test('remove a provider', async ({ adminPage: page }, testInfo) => {
     await page.goto('/llm-providers')
     const providerCount = await page.getByTestId('provider-row').count()
-    if (providerCount > 0) {
-      await page.getByTestId('provider-row').first().getByRole('button', { name: 'Remove' }).click()
-      await page.getByRole('button', { name: 'Confirm' }).click()
-      await expect(page.getByTestId('provider-row')).toHaveCount(providerCount - 1)
-    }
+    testInfo.skip(providerCount === 0, 'No providers configured to remove — run the add provider test first')
+    await page.getByTestId('provider-row').first().getByRole('button', { name: 'Remove' }).click()
+    await page.getByRole('button', { name: 'Confirm' }).click()
+    await expect(page.getByTestId('provider-row')).toHaveCount(providerCount - 1)
   })
 })

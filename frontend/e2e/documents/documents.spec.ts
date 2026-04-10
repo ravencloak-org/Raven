@@ -18,14 +18,19 @@ test.describe('Documents', () => {
     await expect(page.getByText('wikipedia.org')).toBeVisible()
   })
 
-  test('view chunk list after processing', async ({ authenticatedPage: page }) => {
-    // Navigate to a pre-processed document
-    await page.goto('/knowledge-bases/test-kb/documents/processed-doc-id/chunks')
+  test('view chunk list after processing', async ({ authenticatedPage: page }, testInfo) => {
+    const docId = process.env.E2E_PROCESSED_DOC_ID
+    testInfo.skip(!docId, 'Set E2E_PROCESSED_DOC_ID to a known processed document ID')
+    await page.goto(`/knowledge-bases/test-kb/documents/${docId}/chunks`)
     await expect(page.getByTestId('chunk-item').first()).toBeVisible()
   })
 
   test('delete document', async ({ authenticatedPage: page }) => {
     await page.goto('/knowledge-bases/test-kb/documents')
+    const docs = new DocumentPage(page)
+    // Upload a dedicated file so we delete a known target
+    await docs.uploadFile(path.join(__dirname, '../fixtures/sample.txt'))
+    await expect(page.getByText('sample.txt')).toBeVisible()
     await page.getByTestId('doc-item').first().hover()
     await page.getByRole('button', { name: 'Delete' }).click()
     await page.getByRole('button', { name: 'Confirm' }).click()

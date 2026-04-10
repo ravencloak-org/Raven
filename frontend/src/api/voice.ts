@@ -28,6 +28,23 @@ export interface VoiceTurn {
   created_at: string
 }
 
+export interface CreateVoiceSessionRequest {
+  livekit_room?: string
+  user_id?: string
+  stranger_id?: string
+}
+
+export interface UpdateVoiceSessionStateRequest {
+  state: VoiceSessionState
+}
+
+export interface AppendVoiceTurnRequest {
+  speaker: VoiceSpeaker
+  transcript: string
+  started_at: string
+  ended_at?: string
+}
+
 export interface VoiceSessionListResponse {
   sessions: VoiceSession[]
   total: number
@@ -45,51 +62,36 @@ export interface VoiceTokenResponse {
   url: string
 }
 
-export interface CreateVoiceSessionRequest {
-  livekit_room?: string
-  user_id?: string
-  stranger_id?: string
-}
-
-export interface AppendVoiceTurnRequest {
-  speaker: VoiceSpeaker
-  transcript: string
-  started_at: string
-  ended_at?: string
-}
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
 async function authFetch(path: string, init?: RequestInit): Promise<Response> {
   const auth = useAuthStore()
   if (!auth.accessToken) {
     throw new Error('Not authenticated')
   }
-  const base = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
-  return fetch(base + path, {
+  return fetch(API_BASE + path, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
-      ...init?.headers,
       Authorization: `Bearer ${auth.accessToken}`,
+      ...init?.headers,
     },
   })
 }
 
 export async function listVoiceSessions(
   orgId: string,
-  offset = 0,
   limit = 20,
+  offset = 0,
 ): Promise<VoiceSessionListResponse> {
   const res = await authFetch(
-    `/orgs/${encodeURIComponent(orgId)}/voice-sessions?offset=${offset}&limit=${limit}`,
+    `/orgs/${encodeURIComponent(orgId)}/voice-sessions?limit=${limit}&offset=${offset}`,
   )
   if (!res.ok) throw new Error(`listVoiceSessions failed: ${res.status}`)
   return res.json()
 }
 
-export async function getVoiceSession(
-  orgId: string,
-  sessionId: string,
-): Promise<VoiceSession> {
+export async function getVoiceSession(orgId: string, sessionId: string): Promise<VoiceSession> {
   const res = await authFetch(`/orgs/${encodeURIComponent(orgId)}/voice-sessions/${encodeURIComponent(sessionId)}`)
   if (!res.ok) throw new Error(`getVoiceSession failed: ${res.status}`)
   return res.json()
@@ -114,7 +116,7 @@ export async function updateVoiceSessionState(
 ): Promise<VoiceSession> {
   const res = await authFetch(`/orgs/${encodeURIComponent(orgId)}/voice-sessions/${encodeURIComponent(sessionId)}`, {
     method: 'PATCH',
-    body: JSON.stringify({ state }),
+    body: JSON.stringify({ state } satisfies UpdateVoiceSessionStateRequest),
   })
   if (!res.ok) throw new Error(`updateVoiceSessionState failed: ${res.status}`)
   return res.json()
@@ -124,10 +126,9 @@ export async function generateVoiceToken(
   orgId: string,
   sessionId: string,
 ): Promise<VoiceTokenResponse> {
-  const res = await authFetch(
-    `/orgs/${encodeURIComponent(orgId)}/voice-sessions/${encodeURIComponent(sessionId)}/token`,
-    { method: 'POST' },
-  )
+  const res = await authFetch(`/orgs/${encodeURIComponent(orgId)}/voice-sessions/${encodeURIComponent(sessionId)}/token`, {
+    method: 'POST',
+  })
   if (!res.ok) throw new Error(`generateVoiceToken failed: ${res.status}`)
   return res.json()
 }
@@ -136,9 +137,7 @@ export async function listVoiceTurns(
   orgId: string,
   sessionId: string,
 ): Promise<VoiceTurnListResponse> {
-  const res = await authFetch(
-    `/orgs/${encodeURIComponent(orgId)}/voice-sessions/${encodeURIComponent(sessionId)}/turns`,
-  )
+  const res = await authFetch(`/orgs/${encodeURIComponent(orgId)}/voice-sessions/${encodeURIComponent(sessionId)}/turns`)
   if (!res.ok) throw new Error(`listVoiceTurns failed: ${res.status}`)
   return res.json()
 }
@@ -148,13 +147,10 @@ export async function appendVoiceTurn(
   sessionId: string,
   req: AppendVoiceTurnRequest,
 ): Promise<VoiceTurn> {
-  const res = await authFetch(
-    `/orgs/${encodeURIComponent(orgId)}/voice-sessions/${encodeURIComponent(sessionId)}/turns`,
-    {
-      method: 'POST',
-      body: JSON.stringify(req),
-    },
-  )
+  const res = await authFetch(`/orgs/${encodeURIComponent(orgId)}/voice-sessions/${encodeURIComponent(sessionId)}/turns`, {
+    method: 'POST',
+    body: JSON.stringify(req),
+  })
   if (!res.ok) throw new Error(`appendVoiceTurn failed: ${res.status}`)
   return res.json()
 }

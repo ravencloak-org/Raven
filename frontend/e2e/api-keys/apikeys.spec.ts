@@ -18,13 +18,12 @@ test.describe('API Keys', () => {
     await expect(page.getByTestId('api-key-value')).toBeVisible()
   })
 
-  test('revoke key removes it from list', async ({ authenticatedPage: page }) => {
+  test('revoke key removes it from list', async ({ authenticatedPage: page }, testInfo) => {
     await page.goto('/api-keys')
     const keyCount = await page.getByTestId('api-key-row').count()
-    if (keyCount > 0) {
-      await page.getByTestId('api-key-row').first().getByRole('button', { name: 'Revoke' }).click()
-      await page.getByRole('button', { name: 'Revoke Key' }).click()
-      await expect(page.getByTestId('api-key-row')).toHaveCount(keyCount - 1)
-    }
+    testInfo.skip(keyCount === 0, 'No API keys exist to revoke — run the create key tests first')
+    await page.getByTestId('api-key-row').first().getByRole('button', { name: 'Revoke' }).click()
+    await page.getByRole('button', { name: 'Revoke Key' }).click()
+    await expect(page.getByTestId('api-key-row')).toHaveCount(keyCount - 1)
   })
 })

@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -92,6 +93,10 @@ func RunMigrations(t *testing.T, db *sql.DB) {
 		t.Fatal("runtime.Caller failed to retrieve file path")
 	}
 	migrationsDir := filepath.Join(filepath.Dir(filename), "..", "..", "migrations")
+
+	if _, err := os.Stat(migrationsDir); err != nil {
+		t.Fatalf("migrations directory not found at %s (resolved from testutil/db.go location): %v", migrationsDir, err)
+	}
 
 	if err := goose.SetDialect("postgres"); err != nil {
 		t.Fatalf("goose.SetDialect: %v", err)

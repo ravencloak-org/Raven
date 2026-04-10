@@ -1140,6 +1140,7 @@ find internal/ee -type f -name '*.go' | grep -v _test | sort
 Then write tests following the same mock + testify pattern. Key cases per package:
 
 **`internal/ee/licensing/`**
+
 ```go
 func TestLicenseGuard_NoLicense_Returns402(t *testing.T) {}
 func TestLicenseGuard_ValidLicense_Passes(t *testing.T) {}
@@ -1148,6 +1149,7 @@ func TestLicenseGuard_FeatureADoesNotUnlockFeatureB(t *testing.T) {}
 ```
 
 **`internal/ee/security/`**
+
 ```go
 func TestWAFEngine_BlockRule_MatchingRequest_Blocked(t *testing.T) {}
 func TestWAFEngine_AllowRule_OverridesBlock(t *testing.T) {}
@@ -1157,6 +1159,7 @@ func TestWAFEngine_RegexRule_MatchingAndNonMatching(t *testing.T) {}
 ```
 
 **`internal/ee/webhooks/`**
+
 ```go
 func TestWebhookDelivery_HMACSignature_Correct(t *testing.T) {}
 func TestWebhookDelivery_Retry_Intervals_1s_5s_30s(t *testing.T) {}
@@ -1165,6 +1168,7 @@ func TestWebhookDelivery_Replay_DeadLettered(t *testing.T) {}
 ```
 
 **`internal/ee/audit/`**
+
 ```go
 func TestAuditLog_Create_CapturesCorrectFields(t *testing.T) {}
 func TestAuditLog_Delete_EntryRetained(t *testing.T) {}
