@@ -90,6 +90,19 @@ const router = createRouter({
           meta: { requiresAuth: true },
         },
         {
+          path: 'orgs/:orgId/voice',
+          name: 'voice-session-list',
+          component: () => import('../pages/voice/VoiceSessionListPage.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
+          path: 'orgs/:orgId/voice/:sessionId',
+          name: 'voice-session-detail',
+          component: () =>
+            import('../pages/voice/VoiceSessionDetailPage.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
           path: 'orgs/:orgId/whatsapp/phone-numbers',
           name: 'whatsapp-phone-numbers',
           component: () => import('../pages/whatsapp/PhoneNumbersPage.vue'),
