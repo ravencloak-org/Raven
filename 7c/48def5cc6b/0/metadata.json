@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "7c48def5cc6b",
+  "session_id": "34272b39-a087-4915-a239-bf166444203b",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-10T12:32:11.561181Z",
+  "branch": "test/go-backend-suite",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "internal/repository/rls_test.go"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "480aab70-b16f-409d-8bbb-6267f8cdf37d",
+  "token_usage": {
+    "input_tokens": 308,
+    "cache_creation_tokens": 968245,
+    "cache_read_tokens": 20871831,
+    "output_tokens": 114509,
+    "api_call_count": 222
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-10T12:32:11.330661Z",
+    "agent_lines": 54,
+    "human_added": 5702,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 5756,
+    "agent_percentage": 0.9381514940931202
+  }
+}
