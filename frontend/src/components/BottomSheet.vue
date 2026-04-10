@@ -11,8 +11,12 @@
     <Transition name="sheet">
       <div
         v-if="open"
+        role="dialog"
+        aria-modal="true"
+        :aria-labelledby="title ? 'bottom-sheet-title' : undefined"
         class="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl bg-slate-800"
         :style="{ paddingBottom: 'env(safe-area-inset-bottom)' }"
+        @keydown.escape="$emit('close')"
       >
         <!-- Drag handle -->
         <div class="flex justify-center pt-2 pb-1">
@@ -20,7 +24,7 @@
         </div>
 
         <div v-if="title" class="px-4 pb-3">
-          <h3 class="text-center text-sm font-semibold text-slate-300">{{ title }}</h3>
+          <h3 id="bottom-sheet-title" class="text-center text-sm font-semibold text-slate-300">{{ title }}</h3>
         </div>
 
         <slot />

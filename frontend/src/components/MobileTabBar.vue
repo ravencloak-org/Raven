@@ -1,5 +1,6 @@
 <template>
   <nav
+    aria-label="Primary navigation"
     class="fixed bottom-0 inset-x-0 z-40 flex justify-around items-center bg-slate-800 border-t border-slate-700"
     style="min-height: 56px; padding-bottom: env(safe-area-inset-bottom);"
   >
@@ -15,8 +16,9 @@
       <span class="text-[10px] font-medium">Home</span>
     </RouterLink>
 
-    <!-- Voice -->
+    <!-- Voice — only active when orgId is known -->
     <RouterLink
+      v-if="currentOrgId"
       :to="`/orgs/${currentOrgId}/voice`"
       class="flex flex-col items-center justify-center gap-0.5 min-w-[56px] min-h-[44px] px-2 transition-colors"
       :class="route.name === 'voice-session-list' ? 'text-indigo-400' : 'text-slate-400'"
@@ -26,9 +28,20 @@
       </svg>
       <span class="text-[10px] font-medium">Voice</span>
     </RouterLink>
+    <span
+      v-else
+      class="flex flex-col items-center justify-center gap-0.5 min-w-[56px] min-h-[44px] px-2 text-slate-600"
+      aria-disabled="true"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd" />
+      </svg>
+      <span class="text-[10px] font-medium">Voice</span>
+    </span>
 
     <!-- Calls -->
     <RouterLink
+      v-if="currentOrgId"
       :to="`/orgs/${currentOrgId}/whatsapp/calls`"
       class="flex flex-col items-center justify-center gap-0.5 min-w-[56px] min-h-[44px] px-2 transition-colors"
       :class="route.name === 'whatsapp-calls' ? 'text-indigo-400' : 'text-slate-400'"
@@ -38,9 +51,20 @@
       </svg>
       <span class="text-[10px] font-medium">Calls</span>
     </RouterLink>
+    <span
+      v-else
+      class="flex flex-col items-center justify-center gap-0.5 min-w-[56px] min-h-[44px] px-2 text-slate-600"
+      aria-disabled="true"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+      </svg>
+      <span class="text-[10px] font-medium">Calls</span>
+    </span>
 
     <!-- Numbers -->
     <RouterLink
+      v-if="currentOrgId"
       :to="`/orgs/${currentOrgId}/whatsapp/phone-numbers`"
       class="flex flex-col items-center justify-center gap-0.5 min-w-[56px] min-h-[44px] px-2 transition-colors"
       :class="route.name === 'whatsapp-phone-numbers' ? 'text-indigo-400' : 'text-slate-400'"
@@ -50,11 +74,22 @@
       </svg>
       <span class="text-[10px] font-medium">Numbers</span>
     </RouterLink>
+    <span
+      v-else
+      class="flex flex-col items-center justify-center gap-0.5 min-w-[56px] min-h-[44px] px-2 text-slate-600"
+      aria-disabled="true"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M17.924 2.617a.997.997 0 00-.215-.322l-.004-.004A.997.997 0 0017 2h-4a1 1 0 100 2h1.586l-3.293 3.293a1 1 0 001.414 1.414L16 5.414V7a1 1 0 102 0V3a.997.997 0 00-.076-.383zM2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+      </svg>
+      <span class="text-[10px] font-medium">Numbers</span>
+    </span>
 
     <!-- More -->
     <button
       class="flex flex-col items-center justify-center gap-0.5 min-w-[56px] min-h-[44px] px-2 transition-colors"
       :class="moreSheetOpen ? 'text-indigo-400' : 'text-slate-400'"
+      aria-label="More navigation options"
       @click="moreSheetOpen = true"
     >
       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
@@ -90,13 +125,13 @@ import BottomSheet from './BottomSheet.vue'
 const route = useRoute()
 const moreSheetOpen = ref(false)
 
-const currentOrgId = computed(() => (route.params.orgId as string) || '_')
+const currentOrgId = computed(() => route.params.orgId as string | undefined)
 
 const moreItems = computed(() => [
   {
     name: 'knowledge-bases',
     label: 'Knowledge Bases',
-    to: `/orgs/${currentOrgId.value}/workspaces`,
+    to: currentOrgId.value ? `/orgs/${currentOrgId.value}/workspaces` : '/dashboard',
     iconPath: 'M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z',
   },
   {

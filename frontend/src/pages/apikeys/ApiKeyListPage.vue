@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useApiKeysStore } from '../../stores/apikeys'
 import { useMobile } from '../../composables/useMediaQuery'
 import { pipe, split, map, filter, isTruthy } from 'remeda'
+import BottomSheet from '../../components/BottomSheet.vue'
 
 const store = useApiKeysStore()
 const { isMobile } = useMobile()
@@ -379,14 +380,19 @@ function mobileStatusClass(status: string): string {
       </div>
     </div>
 
-    <!-- Revoke Confirmation Dialog -->
+    <!-- Revoke Confirmation Dialog: Desktop -->
     <div
-      v-if="showRevokeDialog"
+      v-if="!isMobile && showRevokeDialog"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       @click.self="showRevokeDialog = false"
     >
-      <div class="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
-        <h2 class="text-lg font-semibold text-gray-900">Revoke API Key</h2>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="revoke-dialog-title"
+        class="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl"
+      >
+        <h2 id="revoke-dialog-title" class="text-lg font-semibold text-gray-900">Revoke API Key</h2>
         <p class="mt-2 text-sm text-gray-600">
           Are you sure you want to revoke <strong>{{ keyToRevokeName }}</strong>? This action cannot
           be undone. Any integrations using this key will stop working immediately.
@@ -415,5 +421,41 @@ function mobileStatusClass(status: string): string {
         </div>
       </div>
     </div>
+
+    <!-- Revoke Confirmation: Mobile bottom sheet -->
+    <BottomSheet
+      v-if="isMobile"
+      :open="showRevokeDialog"
+      @close="showRevokeDialog = false"
+    >
+      <div class="px-4 pb-6 flex flex-col gap-3">
+        <div class="flex flex-col items-center gap-2 py-2">
+          <div class="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+            <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+          </div>
+          <h2 class="text-base font-semibold text-white">Revoke API Key</h2>
+          <p class="text-center text-sm text-slate-400">
+            Are you sure you want to revoke <strong class="text-slate-200">{{ keyToRevokeName }}</strong>? This action cannot be undone.
+          </p>
+        </div>
+        <button
+          type="button"
+          :disabled="revoking"
+          class="w-full min-h-[48px] rounded-xl bg-red-600 text-sm font-semibold text-white disabled:opacity-50"
+          @click="confirmRevoke"
+        >
+          {{ revoking ? 'Revoking...' : 'Revoke Key' }}
+        </button>
+        <button
+          type="button"
+          class="w-full min-h-[48px] rounded-xl bg-slate-700 text-sm text-slate-200"
+          @click="showRevokeDialog = false"
+        >
+          Cancel
+        </button>
+      </div>
+    </BottomSheet>
   </div>
 </template>

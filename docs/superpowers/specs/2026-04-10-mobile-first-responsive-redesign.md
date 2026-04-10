@@ -56,7 +56,7 @@ Single breakpoint at `md:` (768px) — matches the existing `useMobile()` compos
 
 New component: `MobileTabBar.vue`
 
-```
+```vue
 <template>
   <!-- Only rendered when isMobile -->
   <nav class="fixed bottom-0 inset-x-0 z-50 bg-slate-800 border-t border-slate-700
@@ -83,7 +83,7 @@ New component: `MobileTabBar.vue`
 
 New component: `BottomSheet.vue` — reusable slide-up panel.
 
-```
+```ts
 Props: { open: boolean, title?: string }
 Emits: ['close']
 ```
@@ -102,7 +102,7 @@ All list pages conditionally render a `<table>` (desktop) or stacked cards (mobi
 
 Every card follows this consistent structure:
 
-```
+```text
 ┌─────────────────────────────────┐
 │ Title                   [Badge] │
 │ subtitle • metadata             │
