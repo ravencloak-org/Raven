@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "d4d91669ce44",
+  "strategy": "manual-commit",
+  "branch": "test/go-backend-suite",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".github/workflows/go.yml",
+    ".github/workflows/security.yml",
+    "cmd/api/main.go",
+    "frontend/e2e/api/auth.spec.ts",
+    "frontend/e2e/api/health.spec.ts",
+    "frontend/e2e/api/webhooks.spec.ts",
+    "internal/repository/rls_test.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/d4/d91669ce44/0/metadata.json",
+      "transcript": "/d4/d91669ce44/0/full.jsonl",
+      "context": "/d4/d91669ce44/0/context.md",
+      "content_hash": "/d4/d91669ce44/0/content_hash.txt",
+      "prompt": "/d4/d91669ce44/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 63,
+    "cache_creation_tokens": 171666,
+    "cache_read_tokens": 6526672,
+    "output_tokens": 26203,
+    "api_call_count": 44
+  }
+}
