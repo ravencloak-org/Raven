@@ -13,6 +13,7 @@
       :feature="billingStore.upgradeFeature"
       @close="billingStore.hideUpgradePrompt()"
     />
+    <OnboardingWizard v-if="!onboardingStore.completed" />
   </div>
 </template>
 
@@ -27,4 +28,9 @@ import { useBillingStore } from '../stores/billing'
 
 const { isMobile } = useMobile()
 const billingStore = useBillingStore()
+import OnboardingWizard from '../pages/onboarding/OnboardingWizard.vue'
+import { useOnboardingStore } from '../stores/onboarding'
+
+const { isMobile } = useMobile()
+const onboardingStore = useOnboardingStore()
 </script>

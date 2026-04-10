@@ -265,8 +265,8 @@ func main() {
 	quotaChecker := service.NewQuotaChecker(billingRepo, subCache, pool)
 
 	// --- Wire services ---
-	orgSvc := service.NewOrgService(orgRepo)
 	wsSvc := service.NewWorkspaceService(wsRepo, pool, quotaChecker)
+	orgSvc := service.NewOrgService(orgRepo, wsSvc)
 	userSvc := service.NewUserService(userRepo)
 	kbSvc := service.NewKBService(kbRepo, pool, quotaChecker)
 	sourceSvc := service.NewSourceService(sourceRepo, pool)
@@ -720,6 +720,14 @@ func main() {
 	{
 		internal.POST("/keycloak-webhook", userHandler.KeycloakWebhook)
 	}
+
+	// Realm auto-provisioning — internal only, no auth middleware.
+	provisionHandler := handler.NewProvisionHandler(
+		cfg.Keycloak.AdminURL,
+		cfg.Keycloak.AdminClientID,
+		cfg.Keycloak.AdminClientSecret,
+	)
+	router.POST("/internal/provision-realm", provisionHandler.ProvisionRealm)
 
 	// Create HTTP server
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
