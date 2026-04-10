@@ -16,7 +16,9 @@ export class DocumentPage {
   }
 
   async waitForProcessingComplete(docName: string) {
-    // Poll for status badge to change from "processing" to "ready"
+    // Poll for status badge to change from "processing" to "ready".
+    // NOTE: locator('..') traverses to the parent element — this is fragile
+    // and will break if the DOM structure around doc names changes.
     await expect(
       this.page.getByText(docName).locator('..').getByTestId('status-badge'),
     ).toHaveText('Ready', { timeout: 60000 })

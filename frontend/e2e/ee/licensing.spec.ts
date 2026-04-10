@@ -10,8 +10,10 @@ test.describe('Licensing (EE)', () => {
     await expect(page.getByTestId('security-rules-panel')).toBeVisible()
   })
 
+  // This test assumes an authenticated non-EE session (no enterprise license).
+  // The page fixture provides an unauthenticated browser context, relying on
+  // the default tenant being non-EE.
   test('EE feature shows upgrade prompt without license', async ({ page }) => {
-    // Use a non-EE tenant
     await page.goto('/settings/security-rules')
     await expect(page.getByText(/Upgrade|Enterprise/i)).toBeVisible()
   })

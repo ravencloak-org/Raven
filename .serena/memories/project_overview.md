@@ -27,7 +27,7 @@ Two-process architecture:
 | Payments | Hyperswitch (Razorpay/UPI compatible) |
 
 ## Repository Structure
-```
+```text
 cmd/api/        — Go API entrypoint
 cmd/worker/     — Go worker entrypoint
 internal/       — Go internal packages

@@ -1,6 +1,7 @@
 # Raven — CI/CD Workflows
 
 ## GitHub Actions Workflows
+
 | File | Trigger | Purpose |
 |------|---------|---------|
 | `go.yml` | push/PR to main (cmd/, internal/, pkg/, go.mod) | Build, test (race), vet, golangci-lint |
@@ -14,12 +15,15 @@
 | `opencode.yml` | issue_comment, PR review | opencode AI assistant |
 
 ## Docker Images (ghcr.io)
+
 - `go-api:latest` / `go-api:<sha>` — multi-arch (amd64 + arm64)
 - `python-worker:latest` / `python-worker:<sha>` — multi-arch
 
 ## Mergify
+
 - Gates on `#check-failure = 0` across all workflows
 - Config: `.mergify.yml`
 
 ## Dependabot
+
 - Weekly updates: gomod, pip (ai-worker/), npm (frontend/), docker (root + ai-worker/), github-actions
