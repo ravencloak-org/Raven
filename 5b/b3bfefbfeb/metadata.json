@@ -2,15 +2,12 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "5bb3bfefbfeb",
   "strategy": "manual-commit",
-  "branch": "fix/frontend-docker-and-dns",
+  "branch": "ci/docker-versioned-tags",
   "checkpoints_count": 1,
   "files_touched": [
     ".github/workflows/docker.yml",
-    "deploy/ec2/docker-compose.server.yml",
     "docs/superpowers/plans/2026-04-10-wave1-quick-fixes.md",
-    "docs/superpowers/specs/2026-04-10-mvp-launch-execution-order.md",
-    "frontend/Dockerfile",
-    "frontend/nginx.conf"
+    "docs/superpowers/specs/2026-04-10-mvp-launch-execution-order.md"
   ],
   "sessions": [
     {
@@ -29,10 +26,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 663,
-    "cache_creation_tokens": 564413,
-    "cache_read_tokens": 12440538,
-    "output_tokens": 75177,
-    "api_call_count": 128
+    "input_tokens": 607,
+    "cache_creation_tokens": 261850,
+    "cache_read_tokens": 9518600,
+    "output_tokens": 53377,
+    "api_call_count": 90
   }
 }

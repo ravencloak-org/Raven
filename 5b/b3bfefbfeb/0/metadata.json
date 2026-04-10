@@ -3,33 +3,30 @@
   "checkpoint_id": "5bb3bfefbfeb",
   "session_id": "cfa487ee-ce1a-4dd2-b6b8-4701f22a1272",
   "strategy": "manual-commit",
-  "created_at": "2026-04-10T21:53:41.830637Z",
-  "branch": "fix/frontend-docker-and-dns",
+  "created_at": "2026-04-10T21:57:38.59998Z",
+  "branch": "ci/docker-versioned-tags",
   "checkpoints_count": 1,
   "files_touched": [
-    ".github/workflows/docker.yml",
-    "deploy/ec2/docker-compose.server.yml",
-    "frontend/Dockerfile",
-    "frontend/nginx.conf"
+    ".github/workflows/docker.yml"
   ],
   "agent": "Claude Code",
-  "transcript_identifier_at_start": "de522e46-d1cb-4c14-b68c-95dd9210658f",
-  "checkpoint_transcript_start": 1241,
-  "transcript_lines_at_start": 1241,
+  "transcript_identifier_at_start": "91798f8a-d781-4f95-91a2-6d9688cc86ec",
+  "checkpoint_transcript_start": 1431,
+  "transcript_lines_at_start": 1431,
   "token_usage": {
-    "input_tokens": 67,
-    "cache_creation_tokens": 310224,
-    "cache_read_tokens": 3952818,
-    "output_tokens": 26267,
-    "api_call_count": 47
+    "input_tokens": 11,
+    "cache_creation_tokens": 7661,
+    "cache_read_tokens": 1030880,
+    "output_tokens": 4467,
+    "api_call_count": 9
   },
   "initial_attribution": {
-    "calculated_at": "2026-04-10T21:53:41.534836Z",
+    "calculated_at": "2026-04-10T21:57:38.265315Z",
     "agent_lines": 0,
-    "human_added": 1301,
-    "human_modified": 0,
+    "human_added": 367,
+    "human_modified": 9,
     "human_removed": 0,
-    "total_committed": 1301,
+    "total_committed": 367,
     "agent_percentage": 0
   }
 }

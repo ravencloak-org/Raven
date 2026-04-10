@@ -260,3 +260,7 @@ yes
 
 error in above url
 
+### Prompt 35
+
+which new image? create a release for it first
+
