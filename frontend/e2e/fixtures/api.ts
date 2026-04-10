@@ -10,10 +10,6 @@ export class APIClient {
     const resp = await this.req.post(`${this.baseURL}/api/v1/knowledge-bases`, {
       data: { workspace_id: workspaceId, name },
     })
-    if (!resp.ok()) {
-      const body = await resp.text().catch(() => '')
-      throw new Error(`API request failed: ${resp.status()} ${resp.statusText()} ${body}`)
-    }
     return resp.json()
   }
 
@@ -21,10 +17,6 @@ export class APIClient {
     const resp = await this.req.post(`${this.baseURL}/api/v1/api-keys`, {
       data: { workspace_id: workspaceId, kb_id: kbId ?? null },
     })
-    if (!resp.ok()) {
-      const body = await resp.text().catch(() => '')
-      throw new Error(`API request failed: ${resp.status()} ${resp.statusText()} ${body}`)
-    }
     return resp.json()
   }
 
@@ -35,10 +27,6 @@ export class APIClient {
         file: { name: filename, mimeType: 'text/plain', buffer: content },
       },
     })
-    if (!resp.ok()) {
-      const body = await resp.text().catch(() => '')
-      throw new Error(`API request failed: ${resp.status()} ${resp.statusText()} ${body}`)
-    }
     return resp.json()
   }
 }

@@ -4,11 +4,8 @@ import crypto from 'crypto'
 const API_BASE = process.env.API_BASE_URL ?? 'http://localhost:8080'
 
 test.describe('Webhook HMAC Validation', () => {
-  test.beforeEach(async ({ request }) => {
-    const alive = await request.get(`${API_BASE}/healthz`, { timeout: 3000 }).catch(() => null)
-    if (!alive?.ok()) {
-      test.skip(true, 'API not reachable — start the server to run webhook integration tests')
-    }
+  test.beforeEach(async ({}, testInfo) => {
+    testInfo.skip(!process.env.API_BASE_URL, 'Set API_BASE_URL to run API integration tests')
   })
 
   test('Meta webhook with valid HMAC returns 200', async ({ request }) => {

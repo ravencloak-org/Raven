@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/test'
 
 test.describe('Chat Widget', () => {
+  test.beforeEach(async ({}, testInfo) => {
+    testInfo.skip(!process.env.API_BASE_URL, 'Set API_BASE_URL to run widget integration tests')
+  })
+
   test('valid API key: widget loads and accepts messages', async ({ page }) => {
     await page.goto('/e2e/chat-widget/widget-sandbox.html')
     // Wait for web component to register
@@ -10,8 +14,9 @@ test.describe('Chat Widget', () => {
     await shadowInput.fill('Hello from widget test')
     await shadowInput.press('Enter')
     // Wait for response in shadow DOM
-    const assistantMessage = page.locator('raven-chat').locator('css=[data-role="assistant"]')
-    await expect(assistantMessage.first()).toBeVisible({ timeout: 10000 })
+    await page.waitForTimeout(3000)
+    const messages = await page.locator('raven-chat').locator('css=[data-role="assistant"]').all()
+    expect(messages.length).toBeGreaterThan(0)
   })
 
   test('invalid API key: widget shows error state, not blank or crash', async ({ page }) => {

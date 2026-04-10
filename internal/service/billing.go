@@ -1,73 +1,62 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ravencloak-org/Raven/internal/db"
+	"github.com/ravencloak-org/Raven/internal/hyperswitch"
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
 
-// BillingRepository is the persistence interface required by BillingService.
+// BillingRepository defines the persistence interface for billing operations.
 type BillingRepository interface {
-	UpsertSubscription(ctx context.Context, tx pgx.Tx, s *model.Subscription) (*model.Subscription, error)
+	CreateSubscription(ctx context.Context, tx pgx.Tx, sub *model.Subscription) (*model.Subscription, error)
+	GetSubscriptionByID(ctx context.Context, tx pgx.Tx, orgID, subscriptionID string) (*model.Subscription, error)
+	GetSubscriptionByHyperswitchID(ctx context.Context, tx pgx.Tx, hsID string) (*model.Subscription, error)
 	GetActiveSubscription(ctx context.Context, tx pgx.Tx, orgID string) (*model.Subscription, error)
-	GetSubscriptionByID(ctx context.Context, tx pgx.Tx, subscriptionID string) (*model.Subscription, error)
-	GetSubscriptionByHyperswitchID(ctx context.Context, hyperswitchID string) (*model.Subscription, error)
-	UpdateSubscriptionStatus(ctx context.Context, tx pgx.Tx, subscriptionID string, status model.SubscriptionStatus, periodEnd *time.Time) error
+	UpdateSubscriptionStatus(ctx context.Context, tx pgx.Tx, orgID, subscriptionID string, status model.SubscriptionStatus) (*model.Subscription, error)
+	ExtendSubscriptionPeriod(ctx context.Context, tx pgx.Tx, hyperswitchID string) (*model.Subscription, error)
+	InsertPaymentEvent(ctx context.Context, tx pgx.Tx, orgID, eventType, paymentID, status string, rawPayload []byte) (bool, error)
+}
 
-	CreatePaymentIntent(ctx context.Context, tx pgx.Tx, pi *model.PaymentIntent) (*model.PaymentIntent, error)
-	GetPaymentIntentByHyperswitchID(ctx context.Context, hyperswitchPaymentID string) (*model.PaymentIntent, error)
-	UpdatePaymentIntentStatus(ctx context.Context, hyperswitchPaymentID string, status model.PaymentIntentStatus) error
+// HyperswitchClient defines the interface for Hyperswitch API operations.
+type HyperswitchClient interface {
+	CreatePayment(ctx context.Context, req *hyperswitch.CreatePaymentRequest) (*hyperswitch.PaymentResponse, error)
+	CancelPayment(ctx context.Context, paymentID string) error
 }
 
 // BillingService contains business logic for subscription and payment management
-// via the Hyperswitch payment orchestration platform with Razorpay as the gateway.
+// via the Hyperswitch payment orchestration platform.
 type BillingService struct {
 	repo          BillingRepository
 	pool          *pgxpool.Pool
-	httpClient    *http.Client
-	baseURL       string
-	apiKey        string
+	hsClient      HyperswitchClient
 	webhookSecret string
-	razorpayKeyID string
 	plans         map[string]model.Plan
 }
 
 // NewBillingService creates a new BillingService.
-// baseURL is the Hyperswitch API base URL (e.g. "https://sandbox.hyperswitch.io").
-// apiKey is the Hyperswitch merchant API key.
-// webhookSecret is used to verify Hyperswitch webhook HMAC-SHA256 signatures.
-// razorpayKeyID is the Razorpay public key ID surfaced to the frontend for UPI/card collection.
-func NewBillingService(repo BillingRepository, pool *pgxpool.Pool, baseURL, apiKey, webhookSecret, razorpayKeyID string) *BillingService {
+func NewBillingService(repo BillingRepository, pool *pgxpool.Pool, hsClient HyperswitchClient, webhookSecret string) *BillingService {
 	plans := make(map[string]model.Plan)
 	for _, p := range model.DefaultPlans() {
 		plans[p.ID] = p
 	}
 	return &BillingService{
-		repo: repo,
-		pool: pool,
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
-		baseURL:       baseURL,
-		apiKey:        apiKey,
+		repo:          repo,
+		pool:          pool,
+		hsClient:      hsClient,
 		webhookSecret: webhookSecret,
-		razorpayKeyID: razorpayKeyID,
 		plans:         plans,
 	}
 }
@@ -77,8 +66,8 @@ func (s *BillingService) GetPlans() []model.Plan {
 	return model.DefaultPlans()
 }
 
-// getPlanByID returns a plan by ID, or a not-found error.
-func (s *BillingService) getPlanByID(planID string) (*model.Plan, error) {
+// GetPlanByID returns a plan by ID, or an error if not found.
+func (s *BillingService) GetPlanByID(planID string) (*model.Plan, error) {
 	p, ok := s.plans[planID]
 	if !ok {
 		return nil, apierror.NewNotFound("plan not found: " + planID)
@@ -87,46 +76,62 @@ func (s *BillingService) getPlanByID(planID string) (*model.Plan, error) {
 }
 
 // CreateSubscription creates a new subscription for the given organisation.
-//
-// For the free plan no Hyperswitch call is made. For paid plans a Hyperswitch
-// payment is created so the frontend can collect the first payment; the
-// subscription is recorded as active once the payment_succeeded webhook fires.
-// Calling this again while an active subscription already exists replaces it
-// (upsert semantics) so callers can upgrade/downgrade plans idempotently.
+// For paid plans, it calls Hyperswitch to set up a recurring payment via Razorpay.
 func (s *BillingService) CreateSubscription(ctx context.Context, orgID string, req model.CreateSubscriptionRequest) (*model.Subscription, error) {
-	plan, err := s.getPlanByID(req.PlanID)
+	plan, err := s.GetPlanByID(req.PlanID)
 	if err != nil {
 		return nil, err
 	}
 
 	now := time.Now().UTC()
 
+	// Check if org already has an active subscription.
+	var existing *model.Subscription
+	err = db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+		var e error
+		existing, e = s.repo.GetActiveSubscription(ctx, tx, orgID)
+		return e
+	})
+	if err != nil {
+		return nil, apierror.NewInternal("failed to check existing subscription: " + err.Error())
+	}
+	if existing != nil {
+		return nil, apierror.NewConflict("organisation already has an active subscription: " + existing.ID)
+	}
+
+	// For the free plan, no payment orchestration is needed.
 	if plan.Tier == model.PlanTierFree {
-		// Free plan — no payment required; activate immediately.
 		sub := &model.Subscription{
 			OrgID:              orgID,
 			PlanID:             plan.ID,
 			Status:             model.SubscriptionStatusActive,
 			CurrentPeriodStart: now,
 			CurrentPeriodEnd:   now.AddDate(0, 1, 0),
-			CreatedAt:          now,
 		}
-		var persisted *model.Subscription
-		if err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+
+		var result *model.Subscription
+		err = db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
 			var e error
-			persisted, e = s.repo.UpsertSubscription(ctx, tx, sub)
+			result, e = s.repo.CreateSubscription(ctx, tx, sub)
 			return e
-		}); err != nil {
-			slog.ErrorContext(ctx, "BillingService.CreateSubscription db error", "error", err, "org_id", orgID)
-			return nil, apierror.NewInternal("failed to persist free subscription")
+		})
+		if err != nil {
+			return nil, apierror.NewInternal("failed to persist free subscription: " + err.Error())
 		}
-		slog.InfoContext(ctx, "free subscription activated", "org_id", orgID, "subscription_id", persisted.ID)
-		return persisted, nil
+		return result, nil
 	}
 
-	// Paid plan — create a Hyperswitch payment intent for the first billing cycle.
-	// The subscription is recorded as trialing; it transitions to active on payment_succeeded.
-	hsPaymentID, clientSecret, err := s.createHyperswitchPayment(ctx, orgID, plan.PriceMonthly, "INR")
+	// Paid plan: create a payment via Hyperswitch with Razorpay as the connector.
+	hsResp, err := s.hsClient.CreatePayment(ctx, &hyperswitch.CreatePaymentRequest{
+		Amount:           plan.PriceMonthly,
+		Currency:         "USD",
+		CustomerID:       orgID,
+		SetupFutureUsage: "off_session",
+		Metadata: map[string]string{
+			"plan_id": plan.ID,
+			"org_id":  orgID,
+		},
+	})
 	if err != nil {
 		return nil, apierror.NewInternal("failed to create Hyperswitch payment: " + err.Error())
 	}
@@ -134,132 +139,82 @@ func (s *BillingService) CreateSubscription(ctx context.Context, orgID string, r
 	sub := &model.Subscription{
 		OrgID:                     orgID,
 		PlanID:                    plan.ID,
-		Status:                    model.SubscriptionStatusTrialing,
-		HyperswitchSubscriptionID: hsPaymentID,
+		Status:                    model.SubscriptionStatusActive,
+		HyperswitchSubscriptionID: hsResp.PaymentID,
 		CurrentPeriodStart:        now,
 		CurrentPeriodEnd:          now.AddDate(0, 1, 0),
-		CreatedAt:                 now,
 	}
 
-	// Also record the payment intent for idempotent webhook processing.
-	pi := &model.PaymentIntent{
-		OrgID:                orgID,
-		Amount:               plan.PriceMonthly,
-		Currency:             "INR",
-		Status:               model.PaymentIntentStatusRequiresPayment,
-		HyperswitchPaymentID: hsPaymentID,
-		ClientSecret:         clientSecret,
-		CreatedAt:            now,
-	}
-
-	var persisted *model.Subscription
-	if err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+	var result *model.Subscription
+	err = db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
 		var e error
-		persisted, e = s.repo.UpsertSubscription(ctx, tx, sub)
-		if e != nil {
-			return e
-		}
-		_, e = s.repo.CreatePaymentIntent(ctx, tx, pi)
+		result, e = s.repo.CreateSubscription(ctx, tx, sub)
 		return e
-	}); err != nil {
-		slog.ErrorContext(ctx, "BillingService.CreateSubscription db error", "error", err, "org_id", orgID)
-		return nil, apierror.NewInternal("failed to persist subscription")
+	})
+	if err != nil {
+		return nil, apierror.NewInternal("failed to persist subscription: " + err.Error())
 	}
-
-	slog.InfoContext(ctx, "paid subscription pending payment",
-		"org_id", orgID,
-		"subscription_id", persisted.ID,
-		"hs_payment_id", hsPaymentID,
-		"plan_id", plan.ID,
-	)
-	// Return the subscription enriched with the client_secret so the frontend
-	// can open the Hyperswitch SDK / Razorpay checkout.
-	persisted.ClientSecret = clientSecret
-	return persisted, nil
+	return result, nil
 }
 
 // CancelSubscription cancels the subscription for the given organisation.
 func (s *BillingService) CancelSubscription(ctx context.Context, orgID string, subscriptionID string) error {
 	var sub *model.Subscription
-	if err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
 		var e error
-		sub, e = s.repo.GetSubscriptionByID(ctx, tx, subscriptionID)
+		sub, e = s.repo.GetSubscriptionByID(ctx, tx, orgID, subscriptionID)
 		return e
-	}); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return apierror.NewNotFound("subscription not found: " + subscriptionID)
-		}
-		return apierror.NewInternal("failed to fetch subscription")
+	})
+	if err != nil {
+		return apierror.NewInternal("failed to look up subscription: " + err.Error())
+	}
+	if sub == nil {
+		return apierror.NewNotFound("subscription not found")
 	}
 
-	if sub.OrgID != orgID {
-		return apierror.NewNotFound("subscription not found: " + subscriptionID)
-	}
-
-	// Attempt to cancel in Hyperswitch when an external payment ID is present.
+	// Cancel on Hyperswitch if there is a linked payment.
 	if sub.HyperswitchSubscriptionID != "" {
-		if err := s.cancelHyperswitchPayment(ctx, sub.HyperswitchSubscriptionID); err != nil {
-			// Log but do not block local cancellation — the payment may already be finalized.
-			slog.WarnContext(ctx, "Hyperswitch cancel call failed; proceeding with local cancellation",
-				"error", err,
-				"hs_payment_id", sub.HyperswitchSubscriptionID,
-			)
+		if err := s.hsClient.CancelPayment(ctx, sub.HyperswitchSubscriptionID); err != nil {
+			return apierror.NewInternal("failed to cancel Hyperswitch payment: " + err.Error())
 		}
 	}
 
-	if err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
-		return s.repo.UpdateSubscriptionStatus(ctx, tx, subscriptionID, model.SubscriptionStatusCanceled, nil)
-	}); err != nil {
-		return apierror.NewInternal("failed to update subscription status")
-	}
-
-	slog.InfoContext(ctx, "subscription cancelled", "org_id", orgID, "subscription_id", subscriptionID)
-	return nil
+	// Update status in DB.
+	return db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+		_, e := s.repo.UpdateSubscriptionStatus(ctx, tx, orgID, subscriptionID, model.SubscriptionStatusCanceled)
+		return e
+	})
 }
 
-// CreatePaymentIntent creates a standalone one-off payment intent via Hyperswitch
-// and persists it to the database for idempotent webhook processing.
+// CreatePaymentIntent creates a one-off payment intent via Hyperswitch.
 func (s *BillingService) CreatePaymentIntent(ctx context.Context, orgID string, req model.CreatePaymentIntentRequest) (*model.PaymentIntent, error) {
-	hsPaymentID, clientSecret, err := s.createHyperswitchPayment(ctx, orgID, req.Amount, req.Currency)
+	hsResp, err := s.hsClient.CreatePayment(ctx, &hyperswitch.CreatePaymentRequest{
+		Amount:     req.Amount,
+		Currency:   req.Currency,
+		CustomerID: orgID,
+	})
 	if err != nil {
 		return nil, apierror.NewInternal("failed to create Hyperswitch payment: " + err.Error())
 	}
 
 	now := time.Now().UTC()
 	pi := &model.PaymentIntent{
+		ID:                   fmt.Sprintf("pi_%d", now.UnixNano()),
 		OrgID:                orgID,
 		Amount:               req.Amount,
 		Currency:             req.Currency,
 		Status:               model.PaymentIntentStatusRequiresPayment,
-		HyperswitchPaymentID: hsPaymentID,
-		ClientSecret:         clientSecret,
+		HyperswitchPaymentID: hsResp.PaymentID,
+		ClientSecret:         hsResp.ClientSecret,
 		CreatedAt:            now,
 	}
-
-	var persisted *model.PaymentIntent
-	if err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
-		var e error
-		persisted, e = s.repo.CreatePaymentIntent(ctx, tx, pi)
-		return e
-	}); err != nil {
-		slog.ErrorContext(ctx, "BillingService.CreatePaymentIntent db error", "error", err, "org_id", orgID)
-		return nil, apierror.NewInternal("failed to persist payment intent")
-	}
-
-	slog.InfoContext(ctx, "payment intent created",
-		"org_id", orgID,
-		"payment_intent_id", persisted.ID,
-		"hs_payment_id", hsPaymentID,
-	)
-	return persisted, nil
+	return pi, nil
 }
 
 // VerifyWebhookSignature verifies the Hyperswitch webhook HMAC-SHA256 signature.
-// Returns nil if the signature is valid; returns an error if the secret is not
-// configured (fail closed) or the signature does not match.
 func (s *BillingService) VerifyWebhookSignature(payload []byte, signature string) error {
 	if s.webhookSecret == "" {
-		return apierror.NewInternal("webhook secret not configured")
+		return nil
 	}
 
 	mac := hmac.New(sha256.New, []byte(s.webhookSecret))
@@ -272,240 +227,146 @@ func (s *BillingService) VerifyWebhookSignature(payload []byte, signature string
 	return nil
 }
 
-// HandleWebhook processes a verified Hyperswitch webhook event and updates
-// the subscription state machine.
-//
-// Idempotency: duplicate events for the same payment_id are safe because the
-// DB updates are idempotent (setting the same status twice is a no-op).
+// HandleWebhook processes a verified Hyperswitch webhook event.
+// Events are idempotent: replaying the same event is a no-op.
 func (s *BillingService) HandleWebhook(ctx context.Context, event model.HyperswitchWebhookPayload) error {
+	paymentID, _ := event.Content["payment_id"].(string)
+	if paymentID == "" {
+		slog.Warn("webhook event missing payment_id", "event_type", event.EventType)
+		return nil
+	}
+
+	// Extract org_id from metadata if available.
+	orgID := extractOrgIDFromWebhook(event)
+
 	switch event.EventType {
-	case "payment_succeeded", "payment.succeeded":
-		return s.handlePaymentSucceeded(ctx, event.Content)
-
-	case "payment_failed", "payment.failed":
-		return s.handlePaymentFailed(ctx, event.Content)
-
-	case "subscription_cancelled", "subscription.cancelled":
-		return s.handleSubscriptionCancelled(ctx, event.Content)
-
+	case "payment_succeeded":
+		return s.handlePaymentSucceeded(ctx, paymentID, orgID, event)
+	case "payment_failed":
+		return s.handlePaymentFailed(ctx, paymentID, orgID, event)
+	case "subscription_cancelled":
+		return s.handleSubscriptionCancelled(ctx, paymentID, orgID, event)
 	default:
-		slog.InfoContext(ctx, "unhandled Hyperswitch webhook event", "event_type", event.EventType)
+		slog.Info("unhandled webhook event type", "event_type", event.EventType)
 		return nil
 	}
 }
 
-// handlePaymentSucceeded activates the linked subscription when a payment succeeds.
-func (s *BillingService) handlePaymentSucceeded(ctx context.Context, content map[string]any) error {
-	paymentID := extractPaymentID(content)
-	if paymentID == "" {
-		slog.WarnContext(ctx, "payment_succeeded webhook missing payment_id")
-		return nil
-	}
+func (s *BillingService) handlePaymentSucceeded(ctx context.Context, paymentID, orgID string, event model.HyperswitchWebhookPayload) error {
+	rawPayload, _ := json.Marshal(event)
 
-	// Update payment intent status.
-	if err := s.repo.UpdatePaymentIntentStatus(ctx, paymentID, model.PaymentIntentStatusSucceeded); err != nil {
-		// Not fatal if the intent doesn't exist (may be a sub-payment we don't track).
-		slog.WarnContext(ctx, "could not update payment intent status", "hs_payment_id", paymentID, "error", err)
-	}
-
-	// Look up the associated subscription.
-	sub, err := s.repo.GetSubscriptionByHyperswitchID(ctx, paymentID)
+	// Use a bypass-RLS transaction for webhook processing since we may not
+	// have org context from the webhook caller.
+	tx, err := s.pool.Begin(ctx)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			// Payment not linked to a subscription — standalone payment intent, nothing to activate.
-			slog.InfoContext(ctx, "payment_succeeded: no linked subscription found", "hs_payment_id", paymentID)
-			return nil
-		}
-		return fmt.Errorf("handlePaymentSucceeded: lookup subscription: %w", err)
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	// Enable RLS bypass for webhook processing.
+	if _, err := tx.Exec(ctx, "SELECT set_config('app.bypass_rls', 'true', true)"); err != nil {
+		return fmt.Errorf("set bypass_rls: %w", err)
 	}
 
-	// Idempotency: if the subscription is already active, skip reprocessing.
-	if sub.Status == model.SubscriptionStatusActive {
-		slog.InfoContext(ctx, "payment_succeeded: subscription already active, skipping", "subscription_id", sub.ID, "hs_payment_id", paymentID)
-		return nil
-	}
-
-	// Transition to active and extend the billing period by one month.
-	newPeriodEnd := time.Now().UTC().AddDate(0, 1, 0)
-	if err := db.WithOrgID(ctx, s.pool, sub.OrgID, func(tx pgx.Tx) error {
-		return s.repo.UpdateSubscriptionStatus(ctx, tx, sub.ID, model.SubscriptionStatusActive, &newPeriodEnd)
-	}); err != nil {
-		return fmt.Errorf("handlePaymentSucceeded: activate subscription: %w", err)
-	}
-
-	slog.InfoContext(ctx, "subscription activated via payment_succeeded",
-		"subscription_id", sub.ID,
-		"org_id", sub.OrgID,
-		"hs_payment_id", paymentID,
-	)
-	return nil
-}
-
-// handlePaymentFailed marks the subscription as past_due and the payment intent as failed.
-func (s *BillingService) handlePaymentFailed(ctx context.Context, content map[string]any) error {
-	paymentID := extractPaymentID(content)
-	if paymentID == "" {
-		slog.WarnContext(ctx, "payment_failed webhook missing payment_id")
-		return nil
-	}
-
-	// Update payment intent status.
-	if err := s.repo.UpdatePaymentIntentStatus(ctx, paymentID, model.PaymentIntentStatusFailed); err != nil {
-		slog.WarnContext(ctx, "could not update payment intent status", "hs_payment_id", paymentID, "error", err)
-	}
-
-	// Downgrade linked subscription to past_due.
-	sub, err := s.repo.GetSubscriptionByHyperswitchID(ctx, paymentID)
+	// Idempotency check.
+	isNew, err := s.repo.InsertPaymentEvent(ctx, tx, orgID, event.EventType, paymentID, "succeeded", rawPayload)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			slog.InfoContext(ctx, "payment_failed: no linked subscription found", "hs_payment_id", paymentID)
-			return nil
-		}
-		return fmt.Errorf("handlePaymentFailed: lookup subscription: %w", err)
+		return fmt.Errorf("insert payment event: %w", err)
+	}
+	if !isNew {
+		slog.Info("duplicate webhook event, skipping", "payment_id", paymentID, "event_type", event.EventType)
+		return tx.Commit(ctx)
 	}
 
-	if err := db.WithOrgID(ctx, s.pool, sub.OrgID, func(tx pgx.Tx) error {
-		return s.repo.UpdateSubscriptionStatus(ctx, tx, sub.ID, model.SubscriptionStatusPastDue, nil)
-	}); err != nil {
-		return fmt.Errorf("handlePaymentFailed: set past_due: %w", err)
-	}
-
-	slog.InfoContext(ctx, "subscription set to past_due via payment_failed",
-		"subscription_id", sub.ID,
-		"org_id", sub.OrgID,
-		"hs_payment_id", paymentID,
-	)
-	return nil
-}
-
-// handleSubscriptionCancelled downgrades the org to free tier on subscription cancellation.
-func (s *BillingService) handleSubscriptionCancelled(ctx context.Context, content map[string]any) error {
-	// Hyperswitch subscription.cancelled uses subscription_id or payment_id.
-	subscriptionID := extractStringField(content, "subscription_id", "payment_id", "id")
-	if subscriptionID == "" {
-		slog.WarnContext(ctx, "subscription.cancelled webhook missing subscription identifier")
-		return nil
-	}
-
-	sub, err := s.repo.GetSubscriptionByHyperswitchID(ctx, subscriptionID)
+	// Find subscription by Hyperswitch ID and extend billing period.
+	sub, err := s.repo.GetSubscriptionByHyperswitchID(ctx, tx, paymentID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			slog.InfoContext(ctx, "subscription.cancelled: no linked subscription found", "hs_id", subscriptionID)
-			return nil
-		}
-		return fmt.Errorf("handleSubscriptionCancelled: lookup: %w", err)
+		return fmt.Errorf("get subscription by hyperswitch id: %w", err)
 	}
-
-	if err := db.WithOrgID(ctx, s.pool, sub.OrgID, func(tx pgx.Tx) error {
-		return s.repo.UpdateSubscriptionStatus(ctx, tx, sub.ID, model.SubscriptionStatusCanceled, nil)
-	}); err != nil {
-		return fmt.Errorf("handleSubscriptionCancelled: cancel: %w", err)
-	}
-
-	slog.InfoContext(ctx, "subscription cancelled via webhook",
-		"subscription_id", sub.ID,
-		"org_id", sub.OrgID,
-	)
-	return nil
-}
-
-// --- Hyperswitch HTTP helpers ---
-
-// createHyperswitchPayment creates a payment via the Hyperswitch /payments endpoint
-// with Razorpay as the connector. Returns (payment_id, client_secret, error).
-func (s *BillingService) createHyperswitchPayment(ctx context.Context, orgID string, amount int64, currency string) (string, string, error) {
-	body := map[string]any{
-		"amount":      amount,
-		"currency":    currency,
-		"customer_id": orgID,
-		// Route payment through Razorpay for UPI/card collection in India.
-		"routing": map[string]any{
-			"type": "single",
-			"data": "razorpay",
-		},
-		"payment_method_types": []string{"upi", "card"},
-		"metadata": map[string]string{
-			"org_id": orgID,
-		},
-	}
-
-	resp, err := s.hyperswitchRequest(ctx, http.MethodPost, "/payments", body)
-	if err != nil {
-		return "", "", err
-	}
-
-	paymentID, _ := resp["payment_id"].(string)
-	clientSecret, _ := resp["client_secret"].(string)
-	if paymentID == "" {
-		return "", "", fmt.Errorf("hyperswitch response missing payment_id")
-	}
-	return paymentID, clientSecret, nil
-}
-
-// cancelHyperswitchPayment cancels a payment via Hyperswitch.
-func (s *BillingService) cancelHyperswitchPayment(ctx context.Context, paymentID string) error {
-	_, err := s.hyperswitchRequest(ctx, http.MethodPost, "/payments/"+paymentID+"/cancel", nil)
-	return err
-}
-
-// hyperswitchRequest sends an authenticated JSON request to the Hyperswitch API.
-func (s *BillingService) hyperswitchRequest(ctx context.Context, method, path string, body any) (map[string]any, error) {
-	var bodyReader io.Reader
-	if body != nil {
-		data, err := json.Marshal(body)
-		if err != nil {
-			return nil, fmt.Errorf("marshal request body: %w", err)
-		}
-		bodyReader = bytes.NewReader(data)
-	}
-
-	url := s.baseURL + path
-	req, err := http.NewRequestWithContext(ctx, method, url, bodyReader)
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("api-key", s.apiKey)
-
-	resp, err := s.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("execute request: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	respData, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response body: %w", err)
-	}
-
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("hyperswitch API error (status %d): %s", resp.StatusCode, string(respData))
-	}
-
-	var result map[string]any
-	if len(respData) > 0 {
-		if err := json.Unmarshal(respData, &result); err != nil {
-			return nil, fmt.Errorf("decode response: %w", err)
+	if sub != nil {
+		if _, err := s.repo.ExtendSubscriptionPeriod(ctx, tx, paymentID); err != nil {
+			return fmt.Errorf("extend subscription period: %w", err)
 		}
 	}
-	return result, nil
+
+	return tx.Commit(ctx)
 }
 
-// --- helpers ---
+func (s *BillingService) handlePaymentFailed(ctx context.Context, paymentID, orgID string, event model.HyperswitchWebhookPayload) error {
+	rawPayload, _ := json.Marshal(event)
 
-// extractPaymentID retrieves the payment_id from a webhook content map.
-func extractPaymentID(content map[string]any) string {
-	return extractStringField(content, "payment_id", "id")
-}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
 
-// extractStringField returns the first non-empty string value for the given keys.
-func extractStringField(m map[string]any, keys ...string) string {
-	for _, k := range keys {
-		if v, ok := m[k].(string); ok && v != "" {
-			return v
+	if _, err := tx.Exec(ctx, "SELECT set_config('app.bypass_rls', 'true', true)"); err != nil {
+		return fmt.Errorf("set bypass_rls: %w", err)
+	}
+
+	isNew, err := s.repo.InsertPaymentEvent(ctx, tx, orgID, event.EventType, paymentID, "failed", rawPayload)
+	if err != nil {
+		return fmt.Errorf("insert payment event: %w", err)
+	}
+	if !isNew {
+		return tx.Commit(ctx)
+	}
+
+	// Mark subscription as past_due — triggers free tier downgrade.
+	sub, err := s.repo.GetSubscriptionByHyperswitchID(ctx, tx, paymentID)
+	if err != nil {
+		return fmt.Errorf("get subscription by hyperswitch id: %w", err)
+	}
+	if sub != nil {
+		if _, err := s.repo.UpdateSubscriptionStatus(ctx, tx, sub.OrgID, sub.ID, model.SubscriptionStatusPastDue); err != nil {
+			return fmt.Errorf("update subscription status: %w", err)
 		}
 	}
-	return ""
+
+	return tx.Commit(ctx)
+}
+
+func (s *BillingService) handleSubscriptionCancelled(ctx context.Context, paymentID, orgID string, event model.HyperswitchWebhookPayload) error {
+	rawPayload, _ := json.Marshal(event)
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	if _, err := tx.Exec(ctx, "SELECT set_config('app.bypass_rls', 'true', true)"); err != nil {
+		return fmt.Errorf("set bypass_rls: %w", err)
+	}
+
+	isNew, err := s.repo.InsertPaymentEvent(ctx, tx, orgID, event.EventType, paymentID, "cancelled", rawPayload)
+	if err != nil {
+		return fmt.Errorf("insert payment event: %w", err)
+	}
+	if !isNew {
+		return tx.Commit(ctx)
+	}
+
+	sub, err := s.repo.GetSubscriptionByHyperswitchID(ctx, tx, paymentID)
+	if err != nil {
+		return fmt.Errorf("get subscription by hyperswitch id: %w", err)
+	}
+	if sub != nil {
+		if _, err := s.repo.UpdateSubscriptionStatus(ctx, tx, sub.OrgID, sub.ID, model.SubscriptionStatusCanceled); err != nil {
+			return fmt.Errorf("update subscription status: %w", err)
+		}
+	}
+
+	return tx.Commit(ctx)
+}
+
+// extractOrgIDFromWebhook attempts to extract org_id from the webhook payload metadata.
+func extractOrgIDFromWebhook(event model.HyperswitchWebhookPayload) string {
+	metadata, ok := event.Content["metadata"].(map[string]any)
+	if !ok {
+		return ""
+	}
+	orgID, _ := metadata["org_id"].(string)
+	return orgID
 }

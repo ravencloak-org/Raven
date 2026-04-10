@@ -3,11 +3,11 @@ import { test, expect } from '@playwright/test'
 const API_BASE = process.env.API_BASE_URL ?? 'http://localhost:8080'
 
 test.describe('SSE Streaming', () => {
+  test.beforeEach(async ({}, testInfo) => {
+    testInfo.skip(!process.env.API_BASE_URL, 'Set API_BASE_URL to run API integration tests')
+  })
+
   test('chat SSE endpoint delivers chunked events', async ({ page }) => {
-    if (!process.env.E2E_KB_ID) {
-      test.skip(true, 'E2E_KB_ID not configured')
-      return
-    }
     // Use page.evaluate to test SSE in browser context
     const chunks = await page.evaluate(
       async ({ apiBase, kbId }) => {

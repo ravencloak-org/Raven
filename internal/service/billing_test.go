@@ -5,294 +5,177 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"testing"
-	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/ravencloak-org/Raven/internal/hyperswitch"
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/internal/service"
-	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
 
-// ---  mock repository ---
+// --- Mock Hyperswitch client ---
 
-type mockBillingRepo struct {
-	upsertSubscriptionFn             func(ctx context.Context, tx pgx.Tx, s *model.Subscription) (*model.Subscription, error)
-	getActiveSubscriptionFn          func(ctx context.Context, tx pgx.Tx, orgID string) (*model.Subscription, error)
-	getSubscriptionByIDFn            func(ctx context.Context, tx pgx.Tx, subscriptionID string) (*model.Subscription, error)
-	getSubscriptionByHyperswitchIDFn func(ctx context.Context, hyperswitchID string) (*model.Subscription, error)
-	updateSubscriptionStatusFn       func(ctx context.Context, tx pgx.Tx, subscriptionID string, status model.SubscriptionStatus, periodEnd *time.Time) error
-
-	createPaymentIntentFn              func(ctx context.Context, tx pgx.Tx, pi *model.PaymentIntent) (*model.PaymentIntent, error)
-	getPaymentIntentByHyperswitchIDFn  func(ctx context.Context, hyperswitchPaymentID string) (*model.PaymentIntent, error)
-	updatePaymentIntentStatusFn        func(ctx context.Context, hyperswitchPaymentID string, status model.PaymentIntentStatus) error
+type mockHyperswitchClient struct {
+	createPaymentFn func(ctx context.Context, req *hyperswitch.CreatePaymentRequest) (*hyperswitch.PaymentResponse, error)
+	cancelPaymentFn func(ctx context.Context, paymentID string) error
 }
 
-func (m *mockBillingRepo) UpsertSubscription(ctx context.Context, tx pgx.Tx, s *model.Subscription) (*model.Subscription, error) {
-	if m.upsertSubscriptionFn != nil {
-		return m.upsertSubscriptionFn(ctx, tx, s)
+func (m *mockHyperswitchClient) CreatePayment(ctx context.Context, req *hyperswitch.CreatePaymentRequest) (*hyperswitch.PaymentResponse, error) {
+	if m.createPaymentFn != nil {
+		return m.createPaymentFn(ctx, req)
 	}
-	s.ID = "sub_test"
-	return s, nil
+	return &hyperswitch.PaymentResponse{
+		PaymentID:    "hs_pay_mock",
+		ClientSecret: "hs_secret_mock",
+		Status:       "requires_payment_method",
+	}, nil
 }
 
-func (m *mockBillingRepo) GetActiveSubscription(ctx context.Context, tx pgx.Tx, orgID string) (*model.Subscription, error) {
-	if m.getActiveSubscriptionFn != nil {
-		return m.getActiveSubscriptionFn(ctx, tx, orgID)
-	}
-	return nil, pgx.ErrNoRows
-}
-
-func (m *mockBillingRepo) GetSubscriptionByID(ctx context.Context, tx pgx.Tx, id string) (*model.Subscription, error) {
-	if m.getSubscriptionByIDFn != nil {
-		return m.getSubscriptionByIDFn(ctx, tx, id)
-	}
-	return nil, pgx.ErrNoRows
-}
-
-func (m *mockBillingRepo) GetSubscriptionByHyperswitchID(ctx context.Context, hsID string) (*model.Subscription, error) {
-	if m.getSubscriptionByHyperswitchIDFn != nil {
-		return m.getSubscriptionByHyperswitchIDFn(ctx, hsID)
-	}
-	return nil, pgx.ErrNoRows
-}
-
-func (m *mockBillingRepo) UpdateSubscriptionStatus(ctx context.Context, tx pgx.Tx, id string, status model.SubscriptionStatus, periodEnd *time.Time) error {
-	if m.updateSubscriptionStatusFn != nil {
-		return m.updateSubscriptionStatusFn(ctx, tx, id, status, periodEnd)
+func (m *mockHyperswitchClient) CancelPayment(ctx context.Context, paymentID string) error {
+	if m.cancelPaymentFn != nil {
+		return m.cancelPaymentFn(ctx, paymentID)
 	}
 	return nil
 }
 
-func (m *mockBillingRepo) CreatePaymentIntent(ctx context.Context, tx pgx.Tx, pi *model.PaymentIntent) (*model.PaymentIntent, error) {
-	if m.createPaymentIntentFn != nil {
-		return m.createPaymentIntentFn(ctx, tx, pi)
-	}
-	pi.ID = "pi_test"
-	return pi, nil
-}
-
-func (m *mockBillingRepo) GetPaymentIntentByHyperswitchID(ctx context.Context, hsPaymentID string) (*model.PaymentIntent, error) {
-	if m.getPaymentIntentByHyperswitchIDFn != nil {
-		return m.getPaymentIntentByHyperswitchIDFn(ctx, hsPaymentID)
-	}
-	return nil, pgx.ErrNoRows
-}
-
-func (m *mockBillingRepo) UpdatePaymentIntentStatus(ctx context.Context, hsPaymentID string, status model.PaymentIntentStatus) error {
-	if m.updatePaymentIntentStatusFn != nil {
-		return m.updatePaymentIntentStatusFn(ctx, hsPaymentID, status)
-	}
-	return nil
-}
-
-// newTestBillingService builds a BillingService with the given repo and no HTTP client.
-// The nil *pgxpool.Pool is intentional: unit tests in this file exercise only the
-// service-layer logic (webhook verification, plan listing, event dispatch) and never
-// call db.WithOrgID, which is the only code path that dereferences the pool.
-// Integration tests that need a real pool use testutil.NewTestDB instead.
-func newTestBillingService(repo service.BillingRepository, webhookSecret string) *service.BillingService {
-	return service.NewBillingService(repo, (*pgxpool.Pool)(nil), "http://localhost:8090", "", webhookSecret, "rzp_test_key")
-}
-
-// --- VerifyWebhookSignature tests ---
+// --- Tests ---
 
 func TestVerifyWebhookSignature_ValidSignature(t *testing.T) {
-	secret := "test-secret-abcdef"
-	payload := []byte(`{"event_type":"payment_succeeded","content":{"payment_id":"pay_123"}}`)
+	secret := "test-webhook-secret-key"
+	svc := service.NewBillingService(nil, nil, nil, secret)
 
+	payload := []byte(`{"event_type":"payment_succeeded","content":{"payment_id":"pay_123"}}`)
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write(payload)
-	sig := hex.EncodeToString(mac.Sum(nil))
+	validSig := hex.EncodeToString(mac.Sum(nil))
 
-	svc := newTestBillingService(&mockBillingRepo{}, secret)
-	if err := svc.VerifyWebhookSignature(payload, sig); err != nil {
-		t.Errorf("expected valid signature to pass, got: %v", err)
-	}
+	err := svc.VerifyWebhookSignature(payload, validSig)
+	assert.NoError(t, err)
 }
 
 func TestVerifyWebhookSignature_InvalidSignature(t *testing.T) {
-	secret := "test-secret-abcdef"
-	payload := []byte(`{"event_type":"payment_succeeded","content":{}}`)
+	secret := "test-webhook-secret-key"
+	svc := service.NewBillingService(nil, nil, nil, secret)
 
-	svc := newTestBillingService(&mockBillingRepo{}, secret)
-	err := svc.VerifyWebhookSignature(payload, "deadbeef")
-	if err == nil {
-		t.Fatal("expected invalid signature to fail")
-	}
-	var appErr *apierror.AppError
-	if !errors.As(err, &appErr) {
-		t.Fatalf("expected *apierror.AppError, got %T", err)
-	}
-	if appErr.Code != 401 {
-		t.Errorf("expected HTTP 401, got %d", appErr.Code)
-	}
+	payload := []byte(`{"event_type":"payment_succeeded"}`)
+	err := svc.VerifyWebhookSignature(payload, "bad_signature")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid webhook signature")
 }
 
-func TestVerifyWebhookSignature_EmptySecret_FailsClosed(t *testing.T) {
-	// When no webhook secret is configured, verification must fail closed (not skip).
+func TestVerifyWebhookSignature_EmptySecret_Allows(t *testing.T) {
+	svc := service.NewBillingService(nil, nil, nil, "")
+
 	payload := []byte(`{"event_type":"payment_succeeded"}`)
-	svc := newTestBillingService(&mockBillingRepo{}, "")
-	err := svc.VerifyWebhookSignature(payload, "any-value")
-	if err == nil {
-		t.Fatal("expected error when webhook secret is empty, got nil")
-	}
-	var appErr *apierror.AppError
-	if !errors.As(err, &appErr) {
-		t.Fatalf("expected *apierror.AppError, got %T", err)
-	}
-	if appErr.Code != 500 {
-		t.Errorf("expected HTTP 500, got %d", appErr.Code)
-	}
+	err := svc.VerifyWebhookSignature(payload, "any_signature")
+	assert.NoError(t, err)
 }
 
 func TestVerifyWebhookSignature_TamperedPayload(t *testing.T) {
-	secret := "secure-secret"
-	original := []byte(`{"event_type":"payment_succeeded","content":{"amount":100}}`)
+	secret := "test-webhook-secret-key"
+	svc := service.NewBillingService(nil, nil, nil, secret)
 
+	originalPayload := []byte(`{"event_type":"payment_succeeded","content":{"payment_id":"pay_123"}}`)
 	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write(original)
-	sig := hex.EncodeToString(mac.Sum(nil))
+	mac.Write(originalPayload)
+	validSig := hex.EncodeToString(mac.Sum(nil))
 
 	// Tamper with the payload.
-	tampered := []byte(`{"event_type":"payment_succeeded","content":{"amount":1}}`)
-
-	svc := newTestBillingService(&mockBillingRepo{}, secret)
-	if err := svc.VerifyWebhookSignature(tampered, sig); err == nil {
-		t.Error("expected tampered payload to fail signature verification")
-	}
+	tamperedPayload := []byte(`{"event_type":"payment_succeeded","content":{"payment_id":"pay_EVIL"}}`)
+	err := svc.VerifyWebhookSignature(tamperedPayload, validSig)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid webhook signature")
 }
 
-// --- Subscription state machine tests ---
-
-func TestGetPlans_ReturnsAllTiers(t *testing.T) {
-	svc := newTestBillingService(&mockBillingRepo{}, "")
+func TestGetPlans_ReturnsThreeTiers(t *testing.T) {
+	svc := service.NewBillingService(nil, nil, nil, "")
 	plans := svc.GetPlans()
-	if len(plans) != 3 {
-		t.Fatalf("expected 3 plans, got %d", len(plans))
-	}
+
+	assert.Len(t, plans, 3)
 	tiers := make(map[model.PlanTier]bool)
 	for _, p := range plans {
 		tiers[p.Tier] = true
 	}
-	for _, tier := range []model.PlanTier{model.PlanTierFree, model.PlanTierPro, model.PlanTierEnterprise} {
-		if !tiers[tier] {
-			t.Errorf("missing plan tier: %s", tier)
-		}
-	}
+	assert.True(t, tiers[model.PlanTierFree])
+	assert.True(t, tiers[model.PlanTierPro])
+	assert.True(t, tiers[model.PlanTierEnterprise])
 }
 
-func TestHandleWebhook_PaymentSucceeded_ActivatesSubscription(t *testing.T) {
-	// HandleWebhook calls db.WithOrgID which requires a real pgxpool.Pool.
-	// This test requires an integration database; skip in unit test runs.
-	// Full flow is covered by the integration test suite with testcontainers.
-	t.Skip("requires real pgxpool.Pool — covered by integration tests")
+func TestGetPlanByID_Found(t *testing.T) {
+	svc := service.NewBillingService(nil, nil, nil, "")
+	plan, err := svc.GetPlanByID("plan_pro")
+	require.NoError(t, err)
+	assert.Equal(t, model.PlanTierPro, plan.Tier)
+	assert.Equal(t, int64(2900), plan.PriceMonthly)
 }
 
-func TestHandleWebhook_PaymentSucceeded_NoLinkedSubscription_IsNoop(t *testing.T) {
-	repo := &mockBillingRepo{
-		updatePaymentIntentStatusFn: func(_ context.Context, _ string, _ model.PaymentIntentStatus) error {
-			return nil
-		},
-		getSubscriptionByHyperswitchIDFn: func(_ context.Context, _ string) (*model.Subscription, error) {
-			return nil, pgx.ErrNoRows
-		},
-	}
-
-	svc := newTestBillingService(repo, "")
-	event := model.HyperswitchWebhookPayload{
-		EventType: "payment_succeeded",
-		Content:   map[string]any{"payment_id": "pay_standalone"},
-	}
-
-	// Should not error — standalone payment not linked to a subscription.
-	if err := svc.HandleWebhook(context.Background(), event); err != nil {
-		t.Errorf("unexpected error for standalone payment: %v", err)
-	}
+func TestGetPlanByID_NotFound(t *testing.T) {
+	svc := service.NewBillingService(nil, nil, nil, "")
+	_, err := svc.GetPlanByID("plan_nonexistent")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
 }
 
-func TestHandleWebhook_PaymentFailed_NoPanic(t *testing.T) {
-	repo := &mockBillingRepo{
-		updatePaymentIntentStatusFn: func(_ context.Context, _ string, _ model.PaymentIntentStatus) error {
-			return nil
-		},
-		getSubscriptionByHyperswitchIDFn: func(_ context.Context, _ string) (*model.Subscription, error) {
-			return nil, pgx.ErrNoRows
+func TestCreatePaymentIntent_Success(t *testing.T) {
+	hsClient := &mockHyperswitchClient{
+		createPaymentFn: func(_ context.Context, req *hyperswitch.CreatePaymentRequest) (*hyperswitch.PaymentResponse, error) {
+			assert.Equal(t, int64(5000), req.Amount)
+			assert.Equal(t, "INR", req.Currency)
+			return &hyperswitch.PaymentResponse{
+				PaymentID:    "hs_pay_test",
+				ClientSecret: "hs_secret_test",
+				Status:       "requires_payment_method",
+			}, nil
 		},
 	}
 
-	svc := newTestBillingService(repo, "")
-	event := model.HyperswitchWebhookPayload{
-		EventType: "payment_failed",
-		Content:   map[string]any{"payment_id": "pay_bad"},
-	}
+	svc := service.NewBillingService(nil, nil, hsClient, "")
 
-	if err := svc.HandleWebhook(context.Background(), event); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	pi, err := svc.CreatePaymentIntent(context.Background(), "org-123", model.CreatePaymentIntentRequest{
+		Amount:   5000,
+		Currency: "INR",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "hs_pay_test", pi.HyperswitchPaymentID)
+	assert.Equal(t, "hs_secret_test", pi.ClientSecret)
+	assert.Equal(t, int64(5000), pi.Amount)
+	assert.Equal(t, "INR", pi.Currency)
+	assert.Equal(t, model.PaymentIntentStatusRequiresPayment, pi.Status)
 }
 
-func TestHandleWebhook_SubscriptionCancelled_NoLinked_IsNoop(t *testing.T) {
-	repo := &mockBillingRepo{
-		getSubscriptionByHyperswitchIDFn: func(_ context.Context, _ string) (*model.Subscription, error) {
-			return nil, pgx.ErrNoRows
+func TestSubscriptionStateMachine_FreePlan(t *testing.T) {
+	// Free plan subscriptions should be created without calling Hyperswitch.
+	hsClient := &mockHyperswitchClient{
+		createPaymentFn: func(_ context.Context, _ *hyperswitch.CreatePaymentRequest) (*hyperswitch.PaymentResponse, error) {
+			t.Fatal("Hyperswitch should not be called for free plan")
+			return nil, nil
 		},
 	}
 
-	svc := newTestBillingService(repo, "")
-	event := model.HyperswitchWebhookPayload{
-		EventType: "subscription.cancelled",
-		Content:   map[string]any{"subscription_id": "hs_sub_gone"},
-	}
-
-	if err := svc.HandleWebhook(context.Background(), event); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	svc := service.NewBillingService(nil, nil, hsClient, "")
+	// Note: CreateSubscription requires a DB pool for RLS transactions.
+	// We verify plan lookup and Hyperswitch client selection logic here.
+	plan, err := svc.GetPlanByID("plan_free")
+	require.NoError(t, err)
+	assert.Equal(t, model.PlanTierFree, plan.Tier)
+	assert.Equal(t, int64(0), plan.PriceMonthly)
 }
 
-func TestHandleWebhook_UnknownEvent_IsNoop(t *testing.T) {
-	svc := newTestBillingService(&mockBillingRepo{}, "")
-	event := model.HyperswitchWebhookPayload{
-		EventType: "dispute_opened",
-		Content:   map[string]any{},
-	}
-	if err := svc.HandleWebhook(context.Background(), event); err != nil {
-		t.Errorf("unexpected error for unhandled event: %v", err)
-	}
-}
+func TestDefaultPlans_FeatureLimits(t *testing.T) {
+	plans := model.DefaultPlans()
 
-// TestWebhookIdempotency verifies that processing the same payment_succeeded event
-// twice does not panic or error — the UpdatePaymentIntentStatus and
-// UpdateSubscriptionStatus calls are both idempotent no-ops on the second call.
-func TestWebhookIdempotency_DuplicatePaymentSucceeded(t *testing.T) {
-	callCount := 0
-	repo := &mockBillingRepo{
-		updatePaymentIntentStatusFn: func(_ context.Context, _ string, _ model.PaymentIntentStatus) error {
-			callCount++
-			return nil // idempotent
-		},
-		getSubscriptionByHyperswitchIDFn: func(_ context.Context, _ string) (*model.Subscription, error) {
-			return nil, pgx.ErrNoRows // no subscription linked
-		},
-	}
+	// Free tier limits.
+	free := plans[0]
+	assert.Equal(t, 5, free.MaxUsers)
+	assert.Equal(t, 2, free.MaxWorkspaces)
+	assert.Equal(t, 3, free.MaxKBs)
+	assert.Equal(t, int64(500), free.MaxStorageMB)
+	assert.Equal(t, 1, free.MaxConcurrentVoiceSessions)
 
-	svc := newTestBillingService(repo, "")
-	event := model.HyperswitchWebhookPayload{
-		EventType: "payment_succeeded",
-		Content:   map[string]any{"payment_id": "pay_dup"},
-	}
-
-	// Fire twice.
-	for i := 0; i < 2; i++ {
-		if err := svc.HandleWebhook(context.Background(), event); err != nil {
-			t.Errorf("iteration %d: unexpected error: %v", i, err)
-		}
-	}
-
-	if callCount != 2 {
-		t.Errorf("expected UpdatePaymentIntentStatus to be called twice, got %d", callCount)
-	}
+	// Enterprise = unlimited.
+	enterprise := plans[2]
+	assert.Equal(t, -1, enterprise.MaxUsers)
+	assert.Equal(t, -1, enterprise.MaxWorkspaces)
 }

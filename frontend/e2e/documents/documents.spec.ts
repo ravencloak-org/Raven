@@ -19,15 +19,8 @@ test.describe('Documents', () => {
   })
 
   test('view chunk list after processing', async ({ authenticatedPage: page }) => {
-    // Navigate to the documents list and find a processed document dynamically
-    await page.goto('/knowledge-bases/test-kb/documents')
-    const docLink = page.getByTestId('doc-item').first().locator('a')
-    const href = await docLink.getAttribute('href')
-    if (!href) {
-      test.skip(true, 'No documents available to inspect chunks')
-      return
-    }
-    await page.goto(`${href}/chunks`)
+    // Navigate to a pre-processed document
+    await page.goto('/knowledge-bases/test-kb/documents/processed-doc-id/chunks')
     await expect(page.getByTestId('chunk-item').first()).toBeVisible()
   })
 

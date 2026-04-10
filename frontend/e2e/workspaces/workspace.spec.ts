@@ -2,12 +2,11 @@ import { test, expect } from '../fixtures'
 
 test.describe('Org & Workspace', () => {
   test('create workspace', async ({ adminPage: page }) => {
-    const wsName = `Test Workspace E2E ${Date.now()}`
     await page.goto('/workspaces')
     await page.getByRole('button', { name: 'New Workspace' }).click()
-    await page.getByLabel('Name').fill(wsName)
+    await page.getByLabel('Name').fill('Test Workspace E2E')
     await page.getByRole('button', { name: 'Create' }).click()
-    await expect(page.getByText(wsName)).toBeVisible()
+    await expect(page.getByText('Test Workspace E2E')).toBeVisible()
   })
 
   test('invite member to workspace', async ({ adminPage: page }) => {

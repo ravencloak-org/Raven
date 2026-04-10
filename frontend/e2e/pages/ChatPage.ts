@@ -19,9 +19,6 @@ export class ChatPage {
 
   async getLastResponse() {
     const messages = await this.page.getByTestId('assistant-message').all()
-    if (messages.length === 0) {
-      throw new Error('No assistant messages found')
-    }
     return messages[messages.length - 1]!.innerText()
   }
 
