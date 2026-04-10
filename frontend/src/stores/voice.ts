@@ -13,7 +13,6 @@ import {
   type VoiceTurn,
   type CreateVoiceSessionRequest,
   type AppendVoiceTurnRequest,
-  type VoiceSessionState,
   type VoiceTokenResponse,
 } from '../api/voice'
 
