@@ -162,10 +162,21 @@ type CORSConfig struct {
 	AllowedOrigins []string `mapstructure:"allowed_origins"`
 }
 
-// RateLimitConfig holds rate limiting defaults.
+// RateLimitConfig holds rate limiting defaults and per-tier overrides.
 type RateLimitConfig struct {
 	DefaultUserLimit int `mapstructure:"default_user_limit"`
 	DefaultOrgLimit  int `mapstructure:"default_org_limit"`
+
+	// Per-tier org-level limits (requests per minute).
+	FreeGeneralRPM       int `mapstructure:"free_general_rpm"`
+	FreeCompletionRPM    int `mapstructure:"free_completion_rpm"`
+	ProGeneralRPM        int `mapstructure:"pro_general_rpm"`
+	ProCompletionRPM     int `mapstructure:"pro_completion_rpm"`
+	EnterpriseGeneralRPM int `mapstructure:"enterprise_general_rpm"`
+	EnterpriseCompletionRPM int `mapstructure:"enterprise_completion_rpm"` // -1 = unlimited
+
+	// Widget limits — stricter for public chatbot widget endpoints.
+	WidgetRPM int `mapstructure:"widget_rpm"`
 }
 
 // ServerConfig holds HTTP server settings.
@@ -220,6 +231,14 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("cors.allowed_origins", "RAVEN_CORS_ALLOWED_ORIGINS")
 	v.SetDefault("ratelimit.default_user_limit", 1000)
 	v.SetDefault("ratelimit.default_org_limit", 10000)
+	// Per-tier rate limits (requests per minute).
+	v.SetDefault("ratelimit.free_general_rpm", 60)
+	v.SetDefault("ratelimit.free_completion_rpm", 10)
+	v.SetDefault("ratelimit.pro_general_rpm", 600)
+	v.SetDefault("ratelimit.pro_completion_rpm", 120)
+	v.SetDefault("ratelimit.enterprise_general_rpm", 6000)
+	v.SetDefault("ratelimit.enterprise_completion_rpm", -1) // unlimited
+	v.SetDefault("ratelimit.widget_rpm", 30)
 	v.SetDefault("queue.concurrency", 10)
 	v.SetDefault("queue.max_retry", 5)
 	v.SetDefault("seaweedfs.master_url", "http://seaweedfs-master:9333")
@@ -324,6 +343,13 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("livekit.api_key", "RAVEN_LIVEKIT_API_KEY")
 	_ = v.BindEnv("livekit.api_secret", "RAVEN_LIVEKIT_API_SECRET")
 	_ = v.BindEnv("encryption.aes_key", "RAVEN_ENCRYPTION_AES_KEY")
+	_ = v.BindEnv("ratelimit.free_general_rpm", "RAVEN_RATELIMIT_FREE_GENERAL_RPM")
+	_ = v.BindEnv("ratelimit.free_completion_rpm", "RAVEN_RATELIMIT_FREE_COMPLETION_RPM")
+	_ = v.BindEnv("ratelimit.pro_general_rpm", "RAVEN_RATELIMIT_PRO_GENERAL_RPM")
+	_ = v.BindEnv("ratelimit.pro_completion_rpm", "RAVEN_RATELIMIT_PRO_COMPLETION_RPM")
+	_ = v.BindEnv("ratelimit.enterprise_general_rpm", "RAVEN_RATELIMIT_ENTERPRISE_GENERAL_RPM")
+	_ = v.BindEnv("ratelimit.enterprise_completion_rpm", "RAVEN_RATELIMIT_ENTERPRISE_COMPLETION_RPM")
+	_ = v.BindEnv("ratelimit.widget_rpm", "RAVEN_RATELIMIT_WIDGET_RPM")
 	_ = v.BindEnv("otel.endpoint", "RAVEN_OTEL_ENDPOINT")
 	_ = v.BindEnv("otel.service_name", "RAVEN_OTEL_SERVICE_NAME")
 	_ = v.BindEnv("otel.enabled", "RAVEN_OTEL_ENABLED")
@@ -335,6 +361,9 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("ebpf.audit_ring_buffer_size", "RAVEN_EBPF_AUDIT_RING_BUFFER_SIZE")
 	_ = v.BindEnv("ebpf.xdp_enabled", "RAVEN_EBPF_XDP_ENABLED")
 	_ = v.BindEnv("ebpf.xdp_interface", "RAVEN_EBPF_XDP_INTERFACE")
+	_ = v.BindEnv("hyperswitch.base_url", "RAVEN_HYPERSWITCH_BASE_URL")
+	_ = v.BindEnv("hyperswitch.api_key", "RAVEN_HYPERSWITCH_API_KEY")
+	_ = v.BindEnv("hyperswitch.webhook_secret", "RAVEN_HYPERSWITCH_WEBHOOK_SECRET")
 
 	// Try to read config file but don't fail if not found
 	_ = v.ReadInConfig()

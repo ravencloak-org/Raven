@@ -21,12 +21,12 @@ import (
 
 // mockBillingService implements handler.BillingServicer for unit tests.
 type mockBillingService struct {
-	getPlansFn          func() []model.Plan
-	createSubscriptionFn func(ctx context.Context, orgID string, req model.CreateSubscriptionRequest) (*model.Subscription, error)
-	cancelSubscriptionFn func(ctx context.Context, orgID string, subscriptionID string) error
+	getPlansFn            func() []model.Plan
+	createSubscriptionFn  func(ctx context.Context, orgID string, req model.CreateSubscriptionRequest) (*model.Subscription, error)
+	cancelSubscriptionFn  func(ctx context.Context, orgID string, subscriptionID string) error
 	createPaymentIntentFn func(ctx context.Context, orgID string, req model.CreatePaymentIntentRequest) (*model.PaymentIntent, error)
-	verifyWebhookSigFn  func(payload []byte, signature string) error
-	handleWebhookFn     func(ctx context.Context, event model.HyperswitchWebhookPayload) error
+	verifyWebhookSigFn    func(payload []byte, signature string) error
+	handleWebhookFn       func(ctx context.Context, event model.HyperswitchWebhookPayload) error
 }
 
 func (m *mockBillingService) GetPlans() []model.Plan {
@@ -80,8 +80,9 @@ func newBillingRouter(svc handler.BillingServicer, withAuth bool) *gin.Engine {
 			c.Next()
 		})
 		authed.GET("/plans", h.GetPlans)
-		authed.POST("/subscribe", h.Subscribe)
-		authed.DELETE("/subscribe", h.Unsubscribe)
+		authed.POST("/subscriptions", h.Subscribe)
+		authed.DELETE("/subscriptions/:id", h.Unsubscribe)
+		authed.POST("/payment-intents", h.CreatePaymentIntent)
 	}
 
 	// Webhook endpoint does NOT use auth middleware.
@@ -130,7 +131,7 @@ func TestSubscribe_Success(t *testing.T) {
 
 	body, _ := json.Marshal(model.CreateSubscriptionRequest{PlanID: "plan_pro"})
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodPost, "/api/v1/billing/subscribe", bytes.NewBuffer(body))
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/billing/subscriptions", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
 
@@ -155,7 +156,7 @@ func TestSubscribe_InvalidPayload_Returns422(t *testing.T) {
 	r := newBillingRouter(svc, true)
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodPost, "/api/v1/billing/subscribe", bytes.NewBufferString(`{}`))
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/billing/subscriptions", bytes.NewBufferString(`{}`))
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
 
@@ -171,11 +172,11 @@ func TestSubscribe_NoAuth_Returns401(t *testing.T) {
 	r := gin.New()
 	r.Use(apierror.ErrorHandler())
 	h := handler.NewBillingHandler(svc)
-	r.POST("/api/v1/billing/subscribe", h.Subscribe)
+	r.POST("/api/v1/billing/subscriptions", h.Subscribe)
 
 	body, _ := json.Marshal(model.CreateSubscriptionRequest{PlanID: "plan_pro"})
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodPost, "/api/v1/billing/subscribe", bytes.NewBuffer(body))
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/billing/subscriptions", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
 
@@ -194,7 +195,7 @@ func TestSubscribe_ServiceError_Returns500(t *testing.T) {
 
 	body, _ := json.Marshal(model.CreateSubscriptionRequest{PlanID: "plan_pro"})
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodPost, "/api/v1/billing/subscribe", bytes.NewBuffer(body))
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/billing/subscriptions", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
 
@@ -212,7 +213,7 @@ func TestUnsubscribe_Success(t *testing.T) {
 	r := newBillingRouter(svc, true)
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodDelete, "/api/v1/billing/subscribe?subscription_id=sub_123", nil)
+	req, _ := http.NewRequest(http.MethodDelete, "/api/v1/billing/subscriptions/sub_123", nil)
 	r.ServeHTTP(w, req)
 
 	if w.Code != http.StatusNoContent {
@@ -220,16 +221,76 @@ func TestUnsubscribe_Success(t *testing.T) {
 	}
 }
 
-func TestUnsubscribe_MissingSubscriptionID_Returns422(t *testing.T) {
+func TestCreatePaymentIntent_Success(t *testing.T) {
+	now := time.Now().UTC()
+	svc := &mockBillingService{
+		createPaymentIntentFn: func(_ context.Context, orgID string, req model.CreatePaymentIntentRequest) (*model.PaymentIntent, error) {
+			return &model.PaymentIntent{
+				ID:                   "pi_test",
+				OrgID:                orgID,
+				Amount:               req.Amount,
+				Currency:             req.Currency,
+				Status:               model.PaymentIntentStatusRequiresPayment,
+				HyperswitchPaymentID: "hs_pay_123",
+				ClientSecret:         "hs_secret_abc",
+				CreatedAt:            now,
+			}, nil
+		},
+	}
+	r := newBillingRouter(svc, true)
+
+	body, _ := json.Marshal(model.CreatePaymentIntentRequest{Amount: 2900, Currency: "USD"})
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/billing/payment-intents", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var pi model.PaymentIntent
+	if err := json.Unmarshal(w.Body.Bytes(), &pi); err != nil {
+		t.Fatalf("invalid JSON response: %v", err)
+	}
+	if pi.ClientSecret != "hs_secret_abc" {
+		t.Errorf("expected client_secret 'hs_secret_abc', got %q", pi.ClientSecret)
+	}
+	if pi.Amount != 2900 {
+		t.Errorf("expected amount 2900, got %d", pi.Amount)
+	}
+}
+
+func TestCreatePaymentIntent_InvalidPayload_Returns422(t *testing.T) {
 	svc := &mockBillingService{}
 	r := newBillingRouter(svc, true)
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodDelete, "/api/v1/billing/subscribe", nil)
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/billing/payment-intents", bytes.NewBufferString(`{}`))
+	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
 
 	if w.Code != http.StatusUnprocessableEntity {
 		t.Errorf("expected 422, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCreatePaymentIntent_NoAuth_Returns401(t *testing.T) {
+	svc := &mockBillingService{}
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(apierror.ErrorHandler())
+	h := handler.NewBillingHandler(svc)
+	r.POST("/api/v1/billing/payment-intents", h.CreatePaymentIntent)
+
+	body, _ := json.Marshal(model.CreatePaymentIntentRequest{Amount: 100, Currency: "USD"})
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/billing/payment-intents", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d: %s", w.Code, w.Body.String())
 	}
 }
 

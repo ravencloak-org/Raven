@@ -1,0 +1,22 @@
+# ChartDB overlay — add to the main stack:
+#   docker compose -f docker-compose.yml -f docker-compose.chartdb.yml up -d chartdb
+#
+# Then open http://localhost:3000, pick PostgreSQL, paste the output of:
+#   scripts/chartdb-query.sh
+services:
+  chartdb:
+    image: ghcr.io/chartdb/chartdb:latest
+    ports:
+      - "127.0.0.1:3000:80"
+    environment:
+      # Optional — enables AI-powered DDL export.
+      # Leave empty to use ChartDB without AI features.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    networks:
+      - raven-internal
+    restart: unless-stopped
+
+networks:
+  raven-internal:
+    external: true
+    name: raven_raven-internal
