@@ -59,17 +59,18 @@ PostgreSQL serves as the single source of truth -- storing relational data, vect
 | **Voice** | LiveKit Server + Agents | WebRTC SFU, STT/LLM/TTS voice pipeline |
 | **Reverse Proxy** | Traefik | Auto-TLS, routing, security headers |
 
-## Quick Start / Deployment
-
-> **Coming Soon** -- The Docker Compose deployment guide is currently in progress. Check back for updates or watch this repository for releases.
+## Quick Start
 
 ```bash
-# Planned usage (not yet available):
-git clone https://github.com/user/raven.git
-cd raven
-cp .env.example .env
-docker compose up -d
+git clone https://github.com/ravencloak-org/Raven.git
+cd Raven
+cp .env.example .env        # fill in required values (see comments inside)
+docker compose up -d        # starts all services
 ```
+
+The admin dashboard is available at `http://localhost:3000` once all containers are healthy. See [docs/quickstart.md](docs/quickstart.md) for a full walkthrough including first-user setup and Keycloak configuration.
+
+For local development without Docker, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Roadmap
 
@@ -87,8 +88,10 @@ Development is organized into five phases. See the full [design specification](d
 
 Contributions are welcome. Please open an issue to discuss proposed changes before submitting a pull request.
 
+- Read [CONTRIBUTING.md](CONTRIBUTING.md) for branch naming, commit style, and PR workflow
+- Read [DEVELOPMENT.md](DEVELOPMENT.md) to get your local environment running
 - Browse [open issues](../../issues) for tasks and bug reports
-- See the [design specification](docs/superpowers/specs/2026-03-27-raven-platform-design-final.md) for architectural context
+- See the [architecture overview](docs/wiki/Architecture-Overview.md) and [data model](docs/wiki/Data-Model.md) for context
 
 ## License
 
