@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useOnboarding } from '../composables/useOnboarding'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -114,6 +115,12 @@ const router = createRouter({
           component: () => import('../pages/whatsapp/CallsPage.vue'),
           meta: { requiresAuth: true },
         },
+        {
+          path: 'onboarding',
+          name: 'onboarding',
+          component: () => import('../pages/onboarding/OnboardingWizardPage.vue'),
+          meta: { requiresAuth: true },
+        },
       ],
     },
     {
@@ -146,6 +153,14 @@ router.beforeEach(async (to) => {
     if (!auth.isAuthenticated) {
       auth.login()
       return false
+    }
+
+    // Redirect to onboarding wizard for new users who haven't completed it yet.
+    if (to.name !== 'onboarding') {
+      const { isCompleted } = useOnboarding()
+      if (!isCompleted.value) {
+        return { name: 'onboarding' }
+      }
     }
   }
 

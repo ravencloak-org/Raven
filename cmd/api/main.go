@@ -42,6 +42,7 @@ import (
 	_ "github.com/ravencloak-org/Raven/docs/swagger" // swagger docs
 	rpcClient "github.com/ravencloak-org/Raven/internal/grpc"
 	"github.com/ravencloak-org/Raven/internal/handler"
+	kcadmin "github.com/ravencloak-org/Raven/internal/integration/keycloak"
 	"github.com/ravencloak-org/Raven/internal/middleware"
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/internal/posthog"
@@ -371,6 +372,17 @@ func main() {
 		slog.Info("stt provider initialised", "provider", sttProvider.Name())
 	}
 	_ = sttProvider // available for future wiring into voice turn transcription
+
+	// --- Keycloak realm provisioner ---
+	kcAdminClient := kcadmin.NewAdminClient(
+		cfg.Keycloak.AdminURL,
+		cfg.Keycloak.AdminRealm,
+		cfg.Keycloak.AdminClientID,
+		cfg.Keycloak.AdminClientSecret,
+		nil,
+	)
+	provisionerSvc := service.NewProvisionerService(kcAdminClient)
+	provisionerHandler := handler.NewProvisionerHandler(provisionerSvc, cfg.Keycloak.InternalAPIKey)
 
 	// --- Wire handlers ---
 	orgHandler := handler.NewOrgHandler(orgSvc)
@@ -713,6 +725,7 @@ func main() {
 	internal := router.Group("/api/v1/internal")
 	{
 		internal.POST("/keycloak-webhook", userHandler.KeycloakWebhook)
+		internal.POST("/provision-realm", provisionerHandler.ProvisionRealm)
 	}
 
 	// Create HTTP server
