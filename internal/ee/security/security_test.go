@@ -10,13 +10,6 @@ import (
 	_ "github.com/ravencloak-org/Raven/internal/ee/security"
 )
 
-// TestPackageCompiles ensures the security package is importable and correctly declared.
-func TestPackageCompiles(t *testing.T) {
-	// The EE security package is a stub pending implementation.
-	// This test ensures the package declaration is correct and it builds cleanly.
-	t.Log("internal/ee/security package compiles successfully")
-}
-
 // TestWAFRuleEval_BlockPattern verifies that a WAF block rule matched against
 // a request body containing the pattern returns the "block" action.
 // This tests the rule evaluation logic that will live in this package.

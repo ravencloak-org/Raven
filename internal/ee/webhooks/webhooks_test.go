@@ -14,11 +14,6 @@ import (
 	_ "github.com/ravencloak-org/Raven/internal/ee/webhooks"
 )
 
-// TestPackageCompiles ensures the webhooks package is importable and correctly declared.
-func TestPackageCompiles(t *testing.T) {
-	t.Log("internal/ee/webhooks package compiles successfully")
-}
-
 // computeHMAC is a helper that computes sha256 HMAC for webhook signature tests.
 func computeHMAC(secret, body string) string {
 	mac := hmac.New(sha256.New, []byte(secret))
