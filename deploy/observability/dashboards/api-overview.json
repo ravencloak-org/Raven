@@ -23,10 +23,10 @@
       "id": 3,
       "title": "P50 / P95 / P99 Latency",
       "type": "line",
-      "query": "histogram_quantile(0.50, rate(http_server_request_duration_bucket[5m]))",
+      "query": "histogram_quantile(0.50, sum by (le) (rate(http_server_request_duration_bucket[5m])))",
       "additional_queries": [
-        "histogram_quantile(0.95, rate(http_server_request_duration_bucket[5m]))",
-        "histogram_quantile(0.99, rate(http_server_request_duration_bucket[5m]))"
+        "histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_bucket[5m])))",
+        "histogram_quantile(0.99, sum by (le) (rate(http_server_request_duration_bucket[5m])))"
       ],
       "description": "Request latency percentiles."
     },
@@ -41,7 +41,7 @@
       "id": 5,
       "title": "Top 10 Slowest Routes",
       "type": "table",
-      "query": "topk(10, histogram_quantile(0.95, rate(http_server_request_duration_bucket[5m])) by (http_route))",
+      "query": "topk(10, histogram_quantile(0.95, sum by (http_route, le) (rate(http_server_request_duration_bucket[5m]))))",
       "description": "Routes with the highest P95 latency."
     }
   ]

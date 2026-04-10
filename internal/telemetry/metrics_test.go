@@ -11,10 +11,14 @@ import (
 
 func setupMetricReader(t *testing.T) *sdkmetric.ManualReader {
 	t.Helper()
+	prev := otel.GetMeterProvider()
 	reader := sdkmetric.NewManualReader()
 	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
 	otel.SetMeterProvider(mp)
-	t.Cleanup(func() { _ = mp.Shutdown(context.Background()) })
+	t.Cleanup(func() {
+		_ = mp.Shutdown(context.Background())
+		otel.SetMeterProvider(prev)
+	})
 	return reader
 }
 

@@ -51,9 +51,12 @@ func InitProvider(ctx context.Context, serviceName, serviceVersion, endpoint, en
 		return nil, err
 	}
 
-	// When there is no endpoint we leave the global providers at their
-	// defaults (no-op).  Return a no-op shutdown.
+	// When there is no endpoint we leave the global OTel providers at their
+	// defaults (no-op), but still configure a JSON stderr slog handler so that
+	// structured logs are consistent regardless of whether OTLP is enabled.
 	if endpoint == "" {
+		stderrHandler := slog.NewJSONHandler(writerStderr{}, &slog.HandlerOptions{Level: slog.LevelInfo})
+		slog.SetDefault(slog.New(stderrHandler))
 		return func(context.Context) error { return nil }, nil
 	}
 

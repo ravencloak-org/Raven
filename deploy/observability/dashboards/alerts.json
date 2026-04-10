@@ -19,7 +19,7 @@
     {
       "name": "high_p95_latency",
       "description": "Fires when P95 request latency exceeds 2 seconds over a 5-minute window.",
-      "condition": "histogram_quantile(0.95, rate(http_server_request_duration_bucket[5m])) > 2",
+      "condition": "histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_bucket[5m]))) > 2",
       "for": "5m",
       "severity": "warning",
       "action": {
@@ -33,7 +33,7 @@
     {
       "name": "chat_completion_failures",
       "description": "Fires when chat completion error rate is high.",
-      "condition": "rate(raven_http_requests_total{http_route=~\"/api/v1/chat/.*/completions\",http_status_code=~\"5..\"}[5m]) > 0.1",
+      "condition": "sum(rate(raven_http_requests_total{http_route=~\"/api/v1/chat/.*/completions\",http_status_code=~\"5..\"}[5m])) / sum(rate(raven_http_requests_total{http_route=~\"/api/v1/chat/.*/completions\"}[5m])) > 0.05",
       "for": "5m",
       "severity": "critical",
       "action": {

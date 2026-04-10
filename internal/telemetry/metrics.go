@@ -142,8 +142,9 @@ func (m *Metrics) RecordChatCompletion(ctx context.Context, orgID, kbID, model s
 }
 
 // RecordChatTokens records token usage for a completion.
+// Negative token counts are ignored.
 func (m *Metrics) RecordChatTokens(ctx context.Context, orgID string, tokens int64) {
-	if m.chatTokensTotal == nil {
+	if m.chatTokensTotal == nil || tokens < 0 {
 		return
 	}
 	m.chatTokensTotal.Add(ctx, tokens,
@@ -152,8 +153,9 @@ func (m *Metrics) RecordChatTokens(ctx context.Context, orgID string, tokens int
 }
 
 // RecordChatLatency records the latency of a chat completion in milliseconds.
+// Negative latency values are ignored.
 func (m *Metrics) RecordChatLatency(ctx context.Context, orgID string, latencyMs float64) {
-	if m.chatCompletionLatency == nil {
+	if m.chatCompletionLatency == nil || latencyMs < 0 {
 		return
 	}
 	m.chatCompletionLatency.Record(ctx, latencyMs,

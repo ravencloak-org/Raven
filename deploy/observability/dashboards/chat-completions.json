@@ -27,9 +27,9 @@
       "id": 4,
       "title": "Completion Latency (P50 / P95)",
       "type": "line",
-      "query": "histogram_quantile(0.50, rate(raven_chat_completion_latency_bucket[5m]))",
+      "query": "histogram_quantile(0.50, sum by (le) (rate(raven_chat_completion_latency_bucket[5m])))",
       "additional_queries": [
-        "histogram_quantile(0.95, rate(raven_chat_completion_latency_bucket[5m]))"
+        "histogram_quantile(0.95, sum by (le) (rate(raven_chat_completion_latency_bucket[5m])))"
       ],
       "description": "Chat completion latency percentiles in milliseconds."
     },

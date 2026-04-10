@@ -101,6 +101,14 @@ func OTelMiddleware() gin.HandlerFunc {
 		orgID, _ := c.Get(string(ContextKeyOrgID))
 		orgStr, _ := orgID.(string)
 
+		// Prefer the X-Real-IP header set by a trusted reverse proxy; fall back
+		// to Gin's ClientIP only when the header is absent.  This avoids
+		// X-Forwarded-For spoofing from untrusted clients.
+		clientIP := c.GetHeader("X-Real-IP")
+		if clientIP == "" {
+			clientIP = c.ClientIP()
+		}
+
 		slog.InfoContext(ctx, "http request",
 			slog.String("method", c.Request.Method),
 			slog.String("path", c.Request.URL.Path),
@@ -110,7 +118,7 @@ func OTelMiddleware() gin.HandlerFunc {
 			slog.String("trace_id", traceID),
 			slog.String("org_id", orgStr),
 			slog.String("user_agent", c.Request.UserAgent()),
-			slog.String("client_ip", c.ClientIP()),
+			slog.String("client_ip", clientIP),
 		)
 	}
 }

@@ -38,6 +38,18 @@ func TestMultiHandler_Enabled_AnyEnabled(t *testing.T) {
 	}
 }
 
+func TestMultiHandler_Enabled_NoneEnabled(t *testing.T) {
+	// Both handlers only accept Warn and above; Debug should be disabled.
+	warn1 := slog.NewJSONHandler(&bytes.Buffer{}, &slog.HandlerOptions{Level: slog.LevelWarn})
+	warn2 := slog.NewJSONHandler(&bytes.Buffer{}, &slog.HandlerOptions{Level: slog.LevelWarn})
+
+	mh := newMultiHandler(warn1, warn2)
+
+	if mh.Enabled(context.Background(), slog.LevelDebug) {
+		t.Error("expected Enabled to return false when no handler accepts the level")
+	}
+}
+
 func TestMultiHandler_WithAttrs(t *testing.T) {
 	var buf bytes.Buffer
 	h := slog.NewJSONHandler(&buf, nil)
