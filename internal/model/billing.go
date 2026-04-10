@@ -36,6 +36,7 @@ type Plan struct {
 	MaxKBs                      int      `json:"max_kbs"`
 	MaxStorageMB                int64    `json:"max_storage_mb"`
 	MaxConcurrentVoiceSessions  int      `json:"max_concurrent_voice_sessions"` // -1 = unlimited
+	MaxVoiceMinutesMonthly      int      `json:"max_voice_minutes_monthly"`     // -1 = unlimited
 }
 
 // DefaultPlans returns the pre-defined plans with their feature limits.
@@ -51,6 +52,7 @@ func DefaultPlans() []Plan {
 			MaxKBs:                     3,
 			MaxStorageMB:               500,
 			MaxConcurrentVoiceSessions: 1,
+			MaxVoiceMinutesMonthly:     60,
 		},
 		{
 			ID:                         "plan_pro",
@@ -62,6 +64,7 @@ func DefaultPlans() []Plan {
 			MaxKBs:                     50,
 			MaxStorageMB:               10240,
 			MaxConcurrentVoiceSessions: 5,
+			MaxVoiceMinutesMonthly:     1200,
 		},
 		{
 			ID:                         "plan_enterprise",
@@ -73,6 +76,7 @@ func DefaultPlans() []Plan {
 			MaxKBs:                     -1,
 			MaxStorageMB:               -1,
 			MaxConcurrentVoiceSessions: -1, // unlimited
+			MaxVoiceMinutesMonthly:     -1,
 		},
 	}
 }
@@ -131,4 +135,36 @@ type CreatePaymentIntentRequest struct {
 type HyperswitchWebhookPayload struct {
 	EventType string                 `json:"event_type"`
 	Content   map[string]any         `json:"content"`
+}
+
+// OrgSubscription holds the resolved subscription + plan for an org,
+// used by the quota checker to enforce limits.
+type OrgSubscription struct {
+	Subscription *Subscription `json:"subscription,omitempty"`
+	Plan         Plan          `json:"plan"`
+}
+
+// IsUnlimited returns true if the org is on the Enterprise tier (all limits are -1).
+func (o *OrgSubscription) IsUnlimited() bool {
+	return o.Plan.Tier == PlanTierEnterprise
+}
+
+// DefaultFreeSubscription returns the implicit subscription for orgs without
+// an explicit subscription record (defaults to Free tier).
+func DefaultFreeSubscription() OrgSubscription {
+	plans := DefaultPlans()
+	return OrgSubscription{Plan: plans[0]}
+}
+
+// UsageResponse is the response body for GET /billing/usage.
+type UsageResponse struct {
+	Plan                 Plan `json:"plan"`
+	KBsUsed              int  `json:"kbs_used"`
+	KBsLimit             int  `json:"kbs_limit"`
+	SeatsUsed            int  `json:"seats_used"`
+	SeatsLimit           int  `json:"seats_limit"`
+	VoiceMinutesUsed     int  `json:"voice_minutes_used"`
+	VoiceMinutesLimit    int  `json:"voice_minutes_limit"`
+	ConcurrentVoiceUsed  int  `json:"concurrent_voice_used"`
+	ConcurrentVoiceLimit int  `json:"concurrent_voice_limit"`
 }
