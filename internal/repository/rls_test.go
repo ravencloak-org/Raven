@@ -42,6 +42,16 @@ func seedRLSFixtures(ctx context.Context, t *testing.T, pool *pgxpool.Pool, orgA
 		_, err = pool.Exec(ctx, stmt)
 		require.NoError(t, err, "grant: %s", stmt)
 	}
+
+	// Revoke grants on cleanup so parallel tests don't leak privileges.
+	t.Cleanup(func() {
+		for _, stmt := range []string{
+			`REVOKE SELECT, INSERT ON knowledge_bases FROM raven_app`,
+			`REVOKE USAGE ON SCHEMA public FROM raven_app`,
+		} {
+			_, _ = pool.Exec(ctx, stmt)
+		}
+	})
 }
 
 // TestRLS_CrossOrgKB_ReturnsZeroRows verifies that org-B cannot read
