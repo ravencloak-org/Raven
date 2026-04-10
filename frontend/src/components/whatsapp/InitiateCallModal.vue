@@ -123,9 +123,10 @@ async function handleSubmit() {
     <template #actions>
       <div class="flex flex-col gap-2 sm:hidden">
         <button
-          type="submit"
+          type="button"
           class="w-full min-h-[48px] rounded-xl bg-indigo-600 text-sm font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed"
           :disabled="submitting || !selectedPhoneId || !callee.trim()"
+          @click="handleSubmit"
         >
           {{ submitting ? 'Calling...' : 'Call' }}
         </button>

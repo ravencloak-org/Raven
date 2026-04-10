@@ -386,8 +386,13 @@ function mobileStatusClass(status: string): string {
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       @click.self="showRevokeDialog = false"
     >
-      <div class="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
-        <h2 class="text-lg font-semibold text-gray-900">Revoke API Key</h2>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="revoke-dialog-title"
+        class="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl"
+      >
+        <h2 id="revoke-dialog-title" class="text-lg font-semibold text-gray-900">Revoke API Key</h2>
         <p class="mt-2 text-sm text-gray-600">
           Are you sure you want to revoke <strong>{{ keyToRevokeName }}</strong>? This action cannot
           be undone. Any integrations using this key will stop working immediately.
@@ -419,8 +424,8 @@ function mobileStatusClass(status: string): string {
 
     <!-- Revoke Confirmation: Mobile bottom sheet -->
     <BottomSheet
-      v-if="isMobile && showRevokeDialog"
-      :open="true"
+      v-if="isMobile"
+      :open="showRevokeDialog"
       @close="showRevokeDialog = false"
     >
       <div class="px-4 pb-6 flex flex-col gap-3">
