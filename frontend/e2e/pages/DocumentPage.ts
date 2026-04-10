@@ -16,10 +16,9 @@ export class DocumentPage {
   }
 
   async waitForProcessingComplete(docName: string) {
-    // Poll for status badge to change from "processing" to "ready".
-    // Scope via data-testid on the row rather than brittle parent traversal.
+    // Poll for status badge to change from "processing" to "ready"
     await expect(
-      this.page.getByTestId('doc-item').filter({ hasText: docName }).getByTestId('status-badge'),
+      this.page.getByText(docName).locator('..').getByTestId('status-badge'),
     ).toHaveText('Ready', { timeout: 60000 })
   }
 }

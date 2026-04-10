@@ -23,5 +23,8 @@ test.describe('Knowledge Base', () => {
     await page.getByLabel('Description').fill('Updated description')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByText('Saved')).toBeVisible()
+    // Cleanup
+    await kb.navigate()
+    await kb.delete(kbName)
   })
 })

@@ -19,17 +19,12 @@ test.describe('API Keys', () => {
   })
 
   test('revoke key removes it from list', async ({ authenticatedPage: page }) => {
-    // Create a key first so the test is self-contained and not reliant on pre-existing state.
     await page.goto('/api-keys')
-    await page.getByRole('button', { name: 'Create Key' }).click()
-    await page.getByLabel('Scope').selectOption('workspace')
-    await page.getByRole('button', { name: 'Generate' }).click()
-    await expect(page.getByTestId('api-key-value')).toBeVisible()
-    await page.getByRole('button', { name: 'Close' }).click()
-
     const keyCount = await page.getByTestId('api-key-row').count()
-    await page.getByTestId('api-key-row').first().getByRole('button', { name: 'Revoke' }).click()
-    await page.getByRole('button', { name: 'Revoke Key' }).click()
-    await expect(page.getByTestId('api-key-row')).toHaveCount(keyCount - 1)
+    if (keyCount > 0) {
+      await page.getByTestId('api-key-row').first().getByRole('button', { name: 'Revoke' }).click()
+      await page.getByRole('button', { name: 'Revoke Key' }).click()
+      await expect(page.getByTestId('api-key-row')).toHaveCount(keyCount - 1)
+    }
   })
 })

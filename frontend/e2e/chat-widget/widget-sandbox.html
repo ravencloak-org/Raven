@@ -1,15 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Widget Sandbox</title>
-</head>
+<head><title>Widget Sandbox</title></head>
 <body>
   <h1>Widget Test Page</h1>
-  <!-- E2E test sandbox: api-key is a static test fixture, not a production key -->
   <raven-chat
-    api-key="rv_test_e2e_sandbox_key"
+    api-key="test-api-key-from-env"
     api-url="http://localhost:8080"
   ></raven-chat>
   <script src="http://localhost:5173/chat-widget.js"></script>

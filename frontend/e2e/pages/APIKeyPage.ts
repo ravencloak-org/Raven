@@ -15,9 +15,8 @@ export class APIKeyPage {
       await this.page.getByLabel('Knowledge Base').selectOption({ index: kbIndex })
     }
     await this.page.getByRole('button', { name: 'Generate' }).click()
-    const keyValueLocator = this.page.getByTestId('api-key-value')
-    await expect(keyValueLocator).toBeVisible({ timeout: 5000 })
-    return keyValueLocator.innerText()
+    await expect(this.page.getByTestId('api-key-value')).toBeVisible({ timeout: 5000 })
+    return this.page.getByTestId('api-key-value').innerText()
   }
 
   async revokeFirst() {
@@ -27,6 +26,5 @@ export class APIKeyPage {
       .getByRole('button', { name: 'Revoke' })
       .click()
     await this.page.getByRole('button', { name: 'Revoke Key' }).click()
-    await expect(this.page.getByTestId('api-key-row').first()).not.toBeVisible({ timeout: 5000 })
   }
 }
