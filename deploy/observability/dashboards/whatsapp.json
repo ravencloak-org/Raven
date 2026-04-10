@@ -1,0 +1,34 @@
+{
+  "title": "Raven WhatsApp",
+  "description": "WhatsApp Business calling and messaging metrics.",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Call Rate",
+      "type": "line",
+      "query": "rate(raven_whatsapp_calls_total[5m])",
+      "description": "WhatsApp calls initiated per second."
+    },
+    {
+      "id": 2,
+      "title": "Calls by Direction",
+      "type": "bar",
+      "query": "sum by (direction) (increase(raven_whatsapp_calls_total[1h]))",
+      "description": "Inbound vs outbound call volume."
+    },
+    {
+      "id": 3,
+      "title": "Message Rate",
+      "type": "line",
+      "query": "rate(raven_whatsapp_messages_total[5m])",
+      "description": "WhatsApp messages processed per second."
+    },
+    {
+      "id": 4,
+      "title": "Messages by Type",
+      "type": "bar",
+      "query": "sum by (type) (increase(raven_whatsapp_messages_total[1h]))",
+      "description": "Message volume by type (text, audio, webhook, etc.)."
+    }
+  ]
+}

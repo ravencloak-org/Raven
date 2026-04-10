@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useLlmProvidersStore } from '../../stores/llm-providers'
+import { useMobile } from '../../composables/useMediaQuery'
 import { PROVIDER_MODELS, type ProviderType, type CreateLlmProviderRequest } from '../../api/llm-providers'
 
 const store = useLlmProvidersStore()
+const { isMobile } = useMobile()
 const orgId = 'org-456' // TODO: get from auth store / route
 
 const showCreateDialog = ref(false)
@@ -80,6 +82,15 @@ function statusColor(status: string) {
   return status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
 }
 
+function mobileStatusClass(status: string): string {
+  if (status === 'active') return 'bg-green-900 text-green-300'
+  return 'bg-slate-700 text-slate-300'
+}
+
+function modelCountForProvider(providerType: ProviderType): number {
+  return (PROVIDER_MODELS[providerType] ?? []).length
+}
+
 onMounted(() => store.fetchProviders(orgId))
 </script>
 
@@ -99,7 +110,8 @@ onMounted(() => store.fetchProviders(orgId))
       <button class="mt-2 text-sm text-indigo-600 hover:underline" @click="showCreateDialog = true">Add your first provider</button>
     </div>
 
-    <div v-else class="space-y-4">
+    <!-- Desktop: full provider cards -->
+    <div v-else-if="!isMobile" class="space-y-4">
       <div v-for="provider in store.providers" :key="provider.id" class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
         <div class="flex items-start justify-between">
           <div>
@@ -132,6 +144,55 @@ onMounted(() => store.fetchProviders(orgId))
         <div v-if="testResult[provider.id]" class="mt-2 rounded px-3 py-2 text-sm" :class="testResult[provider.id].success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'">
           {{ testResult[provider.id].message }}
           <span v-if="testResult[provider.id].latency_ms"> ({{ testResult[provider.id].latency_ms }}ms)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile: compact card list -->
+    <div v-else class="space-y-3">
+      <div
+        v-for="provider in store.providers"
+        :key="provider.id"
+        class="bg-slate-800 rounded-xl p-3.5"
+      >
+        <!-- Header: name + status badge -->
+        <div class="flex items-start justify-between gap-2">
+          <span class="text-white font-semibold text-[15px] truncate">{{ provider.display_name }}</span>
+          <span
+            class="shrink-0 inline-block rounded-full px-2 py-0.5 text-xs font-medium"
+            :class="mobileStatusClass(provider.status)"
+          >
+            {{ provider.status }}
+          </span>
+        </div>
+
+        <!-- Subtitle: model count -->
+        <p class="text-slate-400 text-xs mt-1">
+          {{ modelCountForProvider(provider.provider_type) }} model{{ modelCountForProvider(provider.provider_type) === 1 ? '' : 's' }}
+          &bull; {{ provider.provider_type.toUpperCase() }}
+        </p>
+
+        <!-- Test result (if present) -->
+        <div v-if="testResult[provider.id]" class="mt-2 rounded px-3 py-2 text-xs" :class="testResult[provider.id].success ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'">
+          {{ testResult[provider.id].message }}
+          <span v-if="testResult[provider.id].latency_ms"> ({{ testResult[provider.id].latency_ms }}ms)</span>
+        </div>
+
+        <!-- Action row -->
+        <div class="border-t border-slate-700 mt-2.5 pt-2.5 flex items-center justify-end gap-2">
+          <button
+            class="border border-slate-600 text-slate-300 text-xs px-3 py-1 rounded-lg disabled:opacity-50"
+            :disabled="testingId === provider.id"
+            @click="handleTest(provider.id)"
+          >
+            {{ testingId === provider.id ? 'Testing...' : 'Test' }}
+          </button>
+          <button
+            class="border border-red-500 text-red-400 text-xs px-3 py-1 rounded-lg"
+            @click="confirmDelete(provider.id, provider.display_name)"
+          >
+            Delete
+          </button>
         </div>
       </div>
     </div>

@@ -21,7 +21,7 @@
     "livekit-client": "^2.18.1",
     "pinia": "^3.0.4",
     "remeda": "^2.33.7",
-    "vue": "^3.5.30",
+    "vue": "^3.5.32",
     "vue-router": "^5.0.4"
   },
   "devDependencies": {
@@ -32,17 +32,17 @@
     "@vitejs/plugin-vue": "^6.0.5",
     "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.9.0",
-    "eslint": "^10.1.0",
+    "eslint": "^10.2.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-vue": "^10.8.0",
     "globals": "^17.4.0",
     "happy-dom": "^20.8.9",
-    "prettier": "^3.8.1",
+    "prettier": "^3.8.2",
     "tailwindcss": "^4.2.2",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.58.1",
     "vite": "^8.0.8",
-    "vitest": "^4.1.2",
+    "vitest": "^4.1.4",
     "vue-tsc": "^3.2.5"
   }
 }

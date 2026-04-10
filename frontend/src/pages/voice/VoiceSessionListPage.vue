@@ -2,12 +2,14 @@
 import { onMounted, ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useVoiceSessionsStore } from '../../stores/voice-sessions'
+import { useMobile } from '../../composables/useMediaQuery'
 import VoiceStatusBadge from '../../components/voice/VoiceStatusBadge.vue'
 import CreateSessionModal from '../../components/voice/CreateSessionModal.vue'
 
 const route = useRoute()
 const router = useRouter()
 const store = useVoiceSessionsStore()
+const { isMobile } = useMobile()
 
 const orgId = route.params.orgId as string
 const showCreateModal = ref(false)
@@ -49,6 +51,12 @@ function formatDuration(seconds?: number): string {
   const s = seconds % 60
   return `${m}m ${s}s`
 }
+
+function mobileStateClass(state: string): string {
+  if (state === 'active') return 'bg-green-900 text-green-300'
+  if (state === 'created') return 'bg-amber-900 text-amber-300'
+  return 'bg-slate-700 text-slate-300'
+}
 </script>
 
 <template>
@@ -77,8 +85,8 @@ function formatDuration(seconds?: number): string {
       No voice sessions yet. Create one to get started.
     </div>
 
-    <!-- Sessions table -->
-    <div v-else class="overflow-x-auto">
+    <!-- Desktop: Sessions table -->
+    <div v-else-if="!isMobile" class="overflow-x-auto">
       <table class="w-full border-collapse">
         <thead>
           <tr
@@ -114,6 +122,55 @@ function formatDuration(seconds?: number): string {
       </table>
 
       <!-- Pagination -->
+      <div class="mt-4 flex items-center justify-between">
+        <p class="text-sm text-gray-400">
+          {{ store.total }} session{{ store.total === 1 ? '' : 's' }} total
+        </p>
+        <div v-if="totalPages > 1" class="flex gap-1">
+          <button
+            v-for="page in totalPages"
+            :key="page"
+            :disabled="page - 1 === currentPage"
+            :class="[
+              'min-h-[44px] min-w-[44px] rounded-md px-3 py-1 text-sm',
+              page - 1 === currentPage
+                ? 'bg-indigo-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+            ]"
+            @click="goToPage(page - 1)"
+          >
+            {{ page }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile: card list -->
+    <div v-else class="space-y-3">
+      <div
+        v-for="session in store.sessions"
+        :key="session.id"
+        class="bg-slate-800 rounded-xl p-3.5 cursor-pointer"
+        @click="openSession(session.id)"
+      >
+        <!-- Header: session name + state badge -->
+        <div class="flex items-start justify-between gap-2">
+          <span class="text-white font-semibold text-[15px] truncate">{{ session.livekit_room }}</span>
+          <span
+            class="shrink-0 inline-block rounded-full px-2 py-0.5 text-xs font-medium capitalize"
+            :class="mobileStateClass(session.state)"
+          >
+            {{ session.state }}
+          </span>
+        </div>
+
+        <!-- Metadata -->
+        <p class="text-slate-500 text-xs mt-2">
+          {{ formatDuration(session.call_duration_seconds) }} &bull; {{ formatDate(session.created_at) }}
+        </p>
+      </div>
+
+      <!-- Pagination (mobile) -->
       <div class="mt-4 flex items-center justify-between">
         <p class="text-sm text-gray-400">
           {{ store.total }} session{{ store.total === 1 ? '' : 's' }} total

@@ -70,5 +70,5 @@ jobs:
         continue-on-error: true
         run: |
           govulncheck -scan=package \
-            $(go list ./... | grep -v '/testutil')
+            $(go list ./... | grep -vE '/testutil$')
 

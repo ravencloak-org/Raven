@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useApiKeysStore } from '../../stores/apikeys'
+import { useMobile } from '../../composables/useMediaQuery'
 import { pipe, split, map, filter, isTruthy } from 'remeda'
+import { useMobile } from '../../composables/useMediaQuery'
 
 const store = useApiKeysStore()
+const { isMobile } = useMobile()
 
 // --- Create dialog state ---
 const showCreateDialog = ref(false)
@@ -108,6 +111,11 @@ function dismissNewKeyBanner() {
   newRawKey.value = ''
   store.clearLastCreatedKey()
 }
+
+function mobileStatusClass(status: string): string {
+  if (status === 'active') return 'bg-green-900 text-green-300'
+  return 'bg-red-900 text-red-300'
+}
 </script>
 
 <template>
@@ -121,7 +129,7 @@ function dismissNewKeyBanner() {
         </p>
       </div>
       <button
-        class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+        class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 min-h-[44px]"
         @click="openCreateDialog"
       >
         Create API Key
@@ -172,7 +180,7 @@ function dismissNewKeyBanner() {
           </div>
         </div>
         <button
-          class="ml-4 text-green-400 hover:text-green-600"
+          class="ml-4 text-green-400 hover:text-green-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
           aria-label="Dismiss"
           @click="dismissNewKeyBanner"
         >
@@ -199,8 +207,8 @@ function dismissNewKeyBanner() {
       <p class="text-gray-500">No API keys yet. Create one to get started.</p>
     </div>
 
-    <!-- Keys table -->
-    <div v-else class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+    <!-- Desktop: Keys table -->
+    <div v-else-if="!isMobile" class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
@@ -242,7 +250,7 @@ function dismissNewKeyBanner() {
             <td class="whitespace-nowrap px-6 py-4 text-right text-sm">
               <button
                 v-if="key.status === 'active'"
-                class="text-red-600 hover:text-red-800 font-medium"
+                class="text-red-600 hover:text-red-800 font-medium min-h-[44px] min-w-[44px]"
                 @click="promptRevoke(key.id, key.name)"
               >
                 Revoke
@@ -252,6 +260,41 @@ function dismissNewKeyBanner() {
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Mobile: card list -->
+    <div v-else class="space-y-3">
+      <div
+        v-for="key in store.keys"
+        :key="key.id"
+        class="bg-slate-800 rounded-xl p-3.5"
+      >
+        <!-- Header: name + status badge -->
+        <div class="flex items-start justify-between gap-2">
+          <span class="text-white font-semibold text-[15px] truncate">{{ key.name }}</span>
+          <span
+            class="shrink-0 inline-block rounded-full px-2 py-0.5 text-xs font-medium"
+            :class="mobileStatusClass(key.status)"
+          >
+            {{ key.status }}
+          </span>
+        </div>
+
+        <!-- Masked key -->
+        <p class="font-mono text-xs text-slate-400 mt-1">{{ key.key_prefix }}••••••••</p>
+
+        <!-- Action row -->
+        <div class="border-t border-slate-700 mt-2.5 pt-2.5 flex items-center justify-between">
+          <span class="text-slate-500 text-xs">{{ formatDate(key.created_at) }}</span>
+          <button
+            v-if="key.status === 'active'"
+            class="border border-red-500 text-red-400 text-xs px-3 py-1 rounded-lg"
+            @click="promptRevoke(key.id, key.name)"
+          >
+            Revoke
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Create API Key Dialog (modal overlay) -->
@@ -275,6 +318,7 @@ function dismissNewKeyBanner() {
               required
               placeholder="e.g. Production Widget"
               class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              :class="isMobile ? 'min-h-[48px] text-[15px]' : ''"
             />
           </div>
 
@@ -289,6 +333,7 @@ function dismissNewKeyBanner() {
               type="text"
               placeholder="example.com, app.example.com"
               class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              :class="isMobile ? 'min-h-[48px] text-[15px]' : ''"
             />
             <p class="mt-1 text-xs text-gray-400">Comma-separated. Leave blank to allow any domain.</p>
           </div>
@@ -305,14 +350,19 @@ function dismissNewKeyBanner() {
               min="1"
               required
               class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              :class="isMobile ? 'min-h-[48px] text-[15px]' : ''"
             />
           </div>
 
           <!-- Actions -->
-          <div class="flex justify-end gap-3 pt-2">
+          <div
+            class="flex gap-3 pt-2"
+            :class="isMobile ? 'flex-col' : 'flex-row justify-end'"
+          >
             <button
               type="button"
-              class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 min-h-[44px]"
+              :class="isMobile ? 'w-full' : ''"
               @click="showCreateDialog = false"
             >
               Cancel
@@ -320,7 +370,8 @@ function dismissNewKeyBanner() {
             <button
               type="submit"
               :disabled="creating || !newKeyName.trim()"
-              class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
+              :class="isMobile ? 'w-full' : ''"
             >
               {{ creating ? 'Creating...' : 'Create Key' }}
             </button>
@@ -341,10 +392,14 @@ function dismissNewKeyBanner() {
           Are you sure you want to revoke <strong>{{ keyToRevokeName }}</strong>? This action cannot
           be undone. Any integrations using this key will stop working immediately.
         </p>
-        <div class="mt-6 flex justify-end gap-3">
+        <div
+          class="mt-6 flex gap-3"
+          :class="isMobile ? 'flex-col' : 'flex-row justify-end'"
+        >
           <button
             type="button"
-            class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 min-h-[44px]"
+            :class="isMobile ? 'w-full' : ''"
             @click="showRevokeDialog = false"
           >
             Cancel
@@ -352,7 +407,8 @@ function dismissNewKeyBanner() {
           <button
             type="button"
             :disabled="revoking"
-            class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50"
+            class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 min-h-[44px]"
+            :class="isMobile ? 'w-full' : ''"
             @click="confirmRevoke"
           >
             {{ revoking ? 'Revoking...' : 'Revoke Key' }}

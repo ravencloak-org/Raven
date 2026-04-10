@@ -1,0 +1,48 @@
+{
+  "title": "Raven API Overview",
+  "description": "High-level HTTP request metrics, error rates, and latency for the Raven Go API.",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request Rate (req/s)",
+      "type": "line",
+      "query": "rate(raven_http_requests_total[5m])",
+      "description": "HTTP requests per second grouped by method and route."
+    },
+    {
+      "id": 2,
+      "title": "Error Rate (%)",
+      "type": "line",
+      "query": "sum(rate(raven_http_requests_total{http_status_code=~\"5..\"}[5m])) / sum(rate(raven_http_requests_total[5m])) * 100",
+      "description": "Percentage of 5xx responses over 5-minute windows.",
+      "thresholds": [
+        { "value": 5, "color": "red", "label": "Alert threshold" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "P50 / P95 / P99 Latency",
+      "type": "line",
+      "query": "histogram_quantile(0.50, sum by (le) (rate(http_server_request_duration_bucket[5m])))",
+      "additional_queries": [
+        "histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_bucket[5m])))",
+        "histogram_quantile(0.99, sum by (le) (rate(http_server_request_duration_bucket[5m])))"
+      ],
+      "description": "Request latency percentiles."
+    },
+    {
+      "id": 4,
+      "title": "Requests by Status Code",
+      "type": "bar",
+      "query": "sum by (http_status_code) (increase(raven_http_requests_total[1h]))",
+      "description": "Distribution of HTTP status codes over the last hour."
+    },
+    {
+      "id": 5,
+      "title": "Top 10 Slowest Routes",
+      "type": "table",
+      "query": "topk(10, histogram_quantile(0.95, sum by (http_route, le) (rate(http_server_request_duration_bucket[5m]))))",
+      "description": "Routes with the highest P95 latency."
+    }
+  ]
+}

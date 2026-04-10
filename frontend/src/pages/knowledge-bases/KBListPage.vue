@@ -2,10 +2,12 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useKnowledgeBasesStore } from '../../stores/knowledge-bases'
+import { useMobile } from '../../composables/useMediaQuery'
 
 const route = useRoute()
 const router = useRouter()
 const store = useKnowledgeBasesStore()
+const { isMobile } = useMobile()
 
 const orgId = route.params.orgId as string
 const wsId = route.params.wsId as string
@@ -46,6 +48,12 @@ function statusColor(status: string): string {
     ? 'bg-green-100 text-green-800'
     : 'bg-gray-100 text-gray-600'
 }
+
+function mobileStatusClass(status: string): string {
+  if (status === 'active') return 'bg-green-900 text-green-300'
+  if (status === 'archived') return 'bg-slate-700 text-slate-300'
+  return 'bg-amber-900 text-amber-300'
+}
 </script>
 
 <template>
@@ -53,17 +61,23 @@ function statusColor(status: string): string {
     <h1 class="text-2xl font-bold mb-6">Knowledge Bases</h1>
 
     <!-- Create KB form -->
-    <form class="flex gap-3 mb-8" @submit.prevent="handleCreate">
+    <form
+      class="flex gap-3 mb-8"
+      :class="isMobile ? 'flex-col' : 'flex-row'"
+      @submit.prevent="handleCreate"
+    >
       <input
         v-model="newName"
         type="text"
         placeholder="New knowledge base name"
         class="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        :class="isMobile ? 'min-h-[48px] text-[15px]' : ''"
       />
       <button
         type="submit"
         :disabled="creating || !newName.trim()"
-        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
+        :class="isMobile ? 'w-full' : ''"
       >
         {{ creating ? 'Creating...' : 'Create Knowledge Base' }}
       </button>
@@ -80,8 +94,8 @@ function statusColor(status: string): string {
       No knowledge bases yet. Create one above.
     </div>
 
-    <!-- KB cards grid -->
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <!-- Desktop: KB cards grid -->
+    <div v-else-if="!isMobile" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       <div
         v-for="kb in store.knowledgeBases"
         :key="kb.id"
@@ -106,7 +120,7 @@ function statusColor(status: string): string {
           </span>
           <button
             v-if="kb.status === 'active'"
-            class="text-red-600 hover:text-red-800 text-xs"
+            class="text-red-600 hover:text-red-800 text-xs min-h-[44px] min-w-[44px]"
             @click.stop="handleArchive(kb.id)"
           >
             Archive
@@ -116,6 +130,50 @@ function statusColor(status: string): string {
         <p class="mt-2 text-xs text-gray-400">
           Updated {{ new Date(kb.updated_at).toLocaleDateString() }}
         </p>
+      </div>
+    </div>
+
+    <!-- Mobile: card list -->
+    <div v-else class="space-y-3">
+      <div
+        v-for="kb in store.knowledgeBases"
+        :key="kb.id"
+        class="bg-slate-800 rounded-xl p-3.5 cursor-pointer"
+        @click="openKB(kb.id)"
+      >
+        <!-- Header row: title + status badge -->
+        <div class="flex items-start justify-between gap-2">
+          <span class="text-white font-semibold text-[15px] truncate">{{ kb.name }}</span>
+          <span
+            class="shrink-0 inline-block rounded-full px-2 py-0.5 text-xs font-medium"
+            :class="mobileStatusClass(kb.status)"
+          >
+            {{ kb.status }}
+          </span>
+        </div>
+
+        <!-- Subtitle: doc count -->
+        <p class="text-slate-400 text-xs mt-1">
+          {{ kb.doc_count }} document{{ kb.doc_count === 1 ? '' : 's' }}
+        </p>
+
+        <!-- Metadata -->
+        <p class="text-slate-500 text-xs mt-2">
+          Updated {{ new Date(kb.updated_at).toLocaleDateString() }}
+        </p>
+
+        <!-- Action row -->
+        <div
+          v-if="kb.status === 'active'"
+          class="border-t border-slate-700 mt-2.5 pt-2.5 flex justify-end"
+        >
+          <button
+            class="text-red-400 text-xs"
+            @click.stop="handleArchive(kb.id)"
+          >
+            Archive
+          </button>
+        </div>
       </div>
     </div>
 

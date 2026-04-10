@@ -1,0 +1,34 @@
+{
+  "title": "Raven Voice Sessions",
+  "description": "Voice session lifecycle, active sessions gauge, and turn volume.",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Sessions Created (rate)",
+      "type": "line",
+      "query": "rate(raven_voice_sessions_created[5m])",
+      "description": "New voice sessions created per second."
+    },
+    {
+      "id": 2,
+      "title": "Active Sessions",
+      "type": "gauge",
+      "query": "raven_voice_sessions_active",
+      "description": "Currently active voice sessions across all orgs."
+    },
+    {
+      "id": 3,
+      "title": "Voice Turns Rate",
+      "type": "line",
+      "query": "rate(raven_voice_turns_total[5m])",
+      "description": "Voice turns appended per second."
+    },
+    {
+      "id": 4,
+      "title": "Sessions by Org",
+      "type": "table",
+      "query": "sum by (org_id) (raven_voice_sessions_active)",
+      "description": "Active sessions per organisation."
+    }
+  ]
+}

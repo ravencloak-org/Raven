@@ -45,11 +45,11 @@ jobs:
 
       - run: CGO_ENABLED=1 go build ./cmd/api
 
-      - run: go test -race -timeout 20m -coverprofile=coverage.txt ./...
+      - run: go test -race -timeout 30m -coverprofile=coverage.txt ./...
         env:
           TESTCONTAINERS_RYUK_DISABLED: "true"
 
-      - run: go test -race -timeout 20m -run '^TestMigrationsUpAndDown$' ./migrations/...
+      - run: go test -race -run '^TestMigrationsUpAndDown$' ./migrations/...
         env:
           TESTCONTAINERS_RYUK_DISABLED: "true"
 

@@ -2,10 +2,12 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useWorkspacesStore } from '../../stores/workspaces'
+import { useMobile } from '../../composables/useMediaQuery'
 
 const route = useRoute()
 const router = useRouter()
 const store = useWorkspacesStore()
+const { isMobile } = useMobile()
 
 const orgId = route.params.orgId as string
 const newName = ref('')
@@ -46,17 +48,23 @@ async function handleDelete(wsId: string) {
     <h1 class="text-2xl font-bold mb-6">Workspaces</h1>
 
     <!-- Create workspace form -->
-    <form class="flex gap-3 mb-8" @submit.prevent="handleCreate">
+    <form
+      class="flex gap-3 mb-8"
+      :class="isMobile ? 'flex-col' : 'flex-row'"
+      @submit.prevent="handleCreate"
+    >
       <input
         v-model="newName"
         type="text"
         placeholder="New workspace name"
         class="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        :class="isMobile ? 'min-h-[48px] text-[15px]' : ''"
       />
       <button
         type="submit"
         :disabled="creating || !newName.trim()"
-        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
+        :class="isMobile ? 'w-full' : ''"
       >
         {{ creating ? 'Creating...' : 'Create Workspace' }}
       </button>
@@ -73,8 +81,8 @@ async function handleDelete(wsId: string) {
       No workspaces yet. Create one above.
     </div>
 
-    <!-- Workspace table -->
-    <table v-else class="w-full border-collapse">
+    <!-- Desktop: Workspace table -->
+    <table v-else-if="!isMobile" class="w-full border-collapse">
       <thead>
         <tr class="border-b border-gray-200 text-left text-sm font-medium text-gray-500">
           <th class="pb-3 pr-4">Name</th>
@@ -97,7 +105,7 @@ async function handleDelete(wsId: string) {
           </td>
           <td class="py-3">
             <button
-              class="text-sm text-red-600 hover:text-red-800"
+              class="text-sm text-red-600 hover:text-red-800 min-h-[44px] min-w-[44px]"
               @click.stop="handleDelete(ws.id)"
             >
               Delete
@@ -106,6 +114,35 @@ async function handleDelete(wsId: string) {
         </tr>
       </tbody>
     </table>
+
+    <!-- Mobile: card list -->
+    <div v-else class="space-y-3">
+      <div
+        v-for="ws in store.workspaces"
+        :key="ws.id"
+        class="bg-slate-800 rounded-xl p-3.5 cursor-pointer flex items-center gap-3"
+        @click="openWorkspace(ws.id)"
+      >
+        <!-- Colored initial avatar -->
+        <div
+          class="shrink-0 flex items-center justify-center rounded-lg bg-indigo-600 text-white font-semibold text-lg"
+          style="width:40px;height:40px"
+        >
+          {{ ws.name.charAt(0).toUpperCase() }}
+        </div>
+
+        <!-- Content -->
+        <div class="flex-1 min-w-0">
+          <p class="text-white font-semibold text-[15px] truncate">{{ ws.name }}</p>
+          <p class="text-slate-400 text-xs mt-0.5">
+            {{ ws.slug }}
+          </p>
+        </div>
+
+        <!-- Chevron -->
+        <span class="text-slate-500 text-lg shrink-0">›</span>
+      </div>
+    </div>
 
     <!-- Total count -->
     <p v-if="store.workspaces.length > 0" class="mt-4 text-sm text-gray-400">

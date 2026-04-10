@@ -56,6 +56,24 @@ function stateClasses(state: string) {
   }
 }
 
+function mobileCardBorderClass(state: string): string {
+  if (state === 'connected' || state === 'active') return 'border-l-4 border-green-500'
+  if (state === 'ringing') return 'border-l-4 border-blue-500'
+  return 'border-l-4 border-slate-600'
+}
+
+function mobileStateBadgeClass(state: string): string {
+  if (state === 'connected' || state === 'active') return 'bg-green-900 text-green-300'
+  if (state === 'ringing') return 'bg-blue-900 text-blue-300'
+  return 'bg-slate-700 text-slate-300'
+}
+
+function mobileStateBadgeLabel(state: string): string {
+  if (state === 'connected' || state === 'active') return 'LIVE'
+  if (state === 'ringing') return 'RING'
+  return 'END'
+}
+
 function handleCallStarted() {
   showCallModal.value = false
 }
@@ -132,7 +150,8 @@ function selectCall(callId: string) {
         <div
           v-for="call in filteredCalls"
           :key="call.id"
-          class="rounded-lg border border-gray-200 p-4 cursor-pointer hover:bg-gray-50"
+          class="rounded-lg border border-gray-200 bg-slate-800 p-4 cursor-pointer hover:bg-slate-700"
+          :class="mobileCardBorderClass(call.state)"
           @click="selectCall(call.id)"
         >
           <div class="flex items-center gap-2 mb-2">
@@ -146,20 +165,20 @@ function selectCall(callId: string) {
             </span>
             <span
               :class="[
-                'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize',
-                stateClasses(call.state),
+                'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium uppercase',
+                mobileStateBadgeClass(call.state),
               ]"
             >
-              {{ call.state }}
+              {{ mobileStateBadgeLabel(call.state) }}
             </span>
           </div>
-          <p class="text-sm font-medium">
+          <p class="text-sm font-medium text-white">
             {{ call.caller }} &rarr; {{ call.callee }}
           </p>
-          <p class="text-xs text-gray-400 mt-1">
+          <p class="text-xs text-slate-400 mt-1">
             {{ new Date(call.created_at).toLocaleString() }}
           </p>
-          <p v-if="call.duration_seconds != null" class="text-xs text-gray-400">
+          <p v-if="call.duration_seconds != null" class="text-xs text-slate-400">
             Duration: {{ call.duration_seconds }}s
           </p>
         </div>
