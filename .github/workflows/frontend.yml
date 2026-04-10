@@ -68,8 +68,17 @@ jobs:
       # ------------------------------------------------------------------
       # Required secrets for Playwright E2E tests
       # ------------------------------------------------------------------
-      # API_BASE_URL and KEYCLOAK_URL must point to a running backend and
-      # Keycloak instance.  The E2E_* credentials authenticate test users.
+      # API_BASE_URL   — base URL of the running Raven API (e.g. https://api.example.com)
+      # KEYCLOAK_URL   — base URL of the Keycloak instance for OIDC auth
+      # E2E_USER       — username of the regular test user
+      # E2E_PASS       — password of the regular test user
+      # E2E_ADMIN      — username of the admin test user
+      # E2E_ADMIN_PASS — password of the admin test user
+      # E2E_API_KEY    — pre-generated API key for token-authenticated requests
+      # E2E_KB_ID      — knowledge-base ID used in retrieval E2E flows
+      # E2E_KB_A_KEY   — API key scoped to knowledge-base A
+      # E2E_KB_B_ID    — knowledge-base B ID used in multi-KB E2E flows
+      # META_WEBHOOK_SECRET — HMAC secret for verifying Meta webhook payloads
       #
       # When these secrets are missing (forks, new environments, or PRs
       # from external contributors), every API-dependent E2E test will
@@ -77,6 +86,27 @@ jobs:
       # these environment variables.  The Playwright run will still pass,
       # but with zero API coverage.
       # ------------------------------------------------------------------
+      - name: Verify E2E secrets
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          missing=""
+          [ -z "$E2E_USER" ]       && missing="$missing E2E_USER"
+          [ -z "$E2E_PASS" ]       && missing="$missing E2E_PASS"
+          [ -z "$E2E_ADMIN" ]      && missing="$missing E2E_ADMIN"
+          [ -z "$E2E_ADMIN_PASS" ] && missing="$missing E2E_ADMIN_PASS"
+          [ -z "$API_BASE_URL" ]   && missing="$missing API_BASE_URL"
+          [ -z "$KEYCLOAK_URL" ]   && missing="$missing KEYCLOAK_URL"
+          if [ -n "$missing" ]; then
+            echo "::warning::E2E secrets missing:$missing — tests will be skipped"
+          fi
+        env:
+          E2E_USER: ${{ secrets.E2E_USER }}
+          E2E_PASS: ${{ secrets.E2E_PASS }}
+          E2E_ADMIN: ${{ secrets.E2E_ADMIN }}
+          E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          KEYCLOAK_URL: ${{ secrets.KEYCLOAK_URL }}
+
       - name: Playwright E2E tests
         run: npm run test:e2e
         env:
