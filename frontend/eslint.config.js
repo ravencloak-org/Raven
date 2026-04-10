@@ -25,4 +25,10 @@ export default tseslint.config(
     },
   },
   eslintConfigPrettier,
+  {
+    files: ['e2e/**/*.spec.ts', 'e2e/**/*.ts'],
+    rules: {
+      'no-empty-pattern': 'off',
+    },
+  },
 )
