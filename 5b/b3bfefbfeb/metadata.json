@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "5bb3bfefbfeb",
+  "strategy": "manual-commit",
+  "branch": "test/go-backend-suite",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".worktrees/feat-issue-193-billing-enforcement/cmd/api/main.go",
+    ".worktrees/feat-issue-193-billing-enforcement/internal/repository/billing.go",
+    ".worktrees/feat-issue-194-billing-ui/docs/superpowers/plans/2026-04-10-billing-ui.md",
+    ".worktrees/feat-issue-197-keycloak-provisioning/docs/superpowers/plans/2026-04-10-keycloak-provisioning.md",
+    "docs/superpowers/plans/2026-04-10-billing-subscription-enforcement.md",
+    "docs/superpowers/plans/2026-04-10-wave1-quick-fixes.md",
+    "docs/superpowers/plans/2026-04-10-wave2-ee-tests-and-billing.md",
+    "docs/superpowers/plans/2026-04-10-wave3-mvp-features.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/5b/b3bfefbfeb/0/metadata.json",
+      "transcript": "/5b/b3bfefbfeb/0/full.jsonl",
+      "context": "/5b/b3bfefbfeb/0/context.md",
+      "content_hash": "/5b/b3bfefbfeb/0/content_hash.txt",
+      "prompt": "/5b/b3bfefbfeb/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 24,
+    "cache_creation_tokens": 299131,
+    "cache_read_tokens": 1153791,
+    "output_tokens": 34571,
+    "api_call_count": 16
+  }
+}
