@@ -6,11 +6,43 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/ravencloak-org/Raven/internal/repository"
 	"github.com/ravencloak-org/Raven/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// seedRLSFixtures inserts the org-A, org-B, and workspace records required by
+// FK constraints on knowledge_bases. Runs as superuser (no RLS applies).
+// It also grants raven_app the minimum privileges needed to exercise RLS.
+func seedRLSFixtures(t *testing.T, pool *pgxpool.Pool, ctx context.Context, orgA, orgB, wsID string) {
+	t.Helper()
+
+	_, err := pool.Exec(ctx,
+		`INSERT INTO organizations (id, name, slug) VALUES ($1, $2, $3), ($4, $5, $6)`,
+		orgA, "Org A", "org-a-"+orgA[:8],
+		orgB, "Org B", "org-b-"+orgB[:8],
+	)
+	require.NoError(t, err, "seed organizations")
+
+	// workspaces has RLS enabled but raven_test is a superuser → bypasses policy.
+	_, err = pool.Exec(ctx,
+		`INSERT INTO workspaces (id, org_id, name, slug) VALUES ($1, $2, $3, $4)`,
+		wsID, orgA, "WS", "ws-"+wsID[:8],
+	)
+	require.NoError(t, err, "seed workspace")
+
+	// Grant raven_app the minimum permissions it needs so SET LOCAL ROLE raven_app
+	// can read and write knowledge_bases during RLS enforcement.
+	for _, stmt := range []string{
+		`GRANT USAGE ON SCHEMA public TO raven_app`,
+		`GRANT SELECT, INSERT ON knowledge_bases TO raven_app`,
+	} {
+		_, err = pool.Exec(ctx, stmt)
+		require.NoError(t, err, "grant: %s", stmt)
+	}
+}
 
 // TestRLS_CrossOrgKB_ReturnsZeroRows verifies that org-B cannot read
 // knowledge bases that belong to org-A, even when using the same workspace ID.
@@ -27,10 +59,16 @@ func TestRLS_CrossOrgKB_ReturnsZeroRows(t *testing.T) {
 	wsID := uuid.NewString()
 	slug := uuid.NewString()[:8]
 
+	seedRLSFixtures(t, pool, ctx, orgA, orgB, wsID)
+
 	kbRepo := repository.NewKBRepository(pool)
 
-	// Create a KB for org-A using a raw transaction.
+	// Create a KB for org-A as raven_app (RLS enforced) so the insert respects
+	// the WITH CHECK policy and the row is visible under org-A's context.
 	txA, err := pool.Begin(ctx)
+	require.NoError(t, err)
+	defer func() { _ = txA.Rollback(ctx) }()
+	_, err = txA.Exec(ctx, "SET LOCAL ROLE raven_app")
 	require.NoError(t, err)
 	_, err = txA.Exec(ctx, "SELECT set_config('app.current_org_id', $1, true)", orgA)
 	require.NoError(t, err)
@@ -42,6 +80,9 @@ func TestRLS_CrossOrgKB_ReturnsZeroRows(t *testing.T) {
 	// Verify org-A can read its own KB.
 	txVerifyA, err := pool.Begin(ctx)
 	require.NoError(t, err)
+	defer func() { _ = txVerifyA.Rollback(ctx) }()
+	_, err = txVerifyA.Exec(ctx, "SET LOCAL ROLE raven_app")
+	require.NoError(t, err)
 	_, err = txVerifyA.Exec(ctx, "SELECT set_config('app.current_org_id', $1, true)", orgA)
 	require.NoError(t, err)
 	kbsA, err := kbRepo.ListByWorkspace(ctx, txVerifyA, orgA, wsID)
@@ -50,7 +91,11 @@ func TestRLS_CrossOrgKB_ReturnsZeroRows(t *testing.T) {
 	_ = txVerifyA.Rollback(ctx)
 
 	// Verify org-B cannot see org-A's KB (RLS isolation).
+	// With app.current_org_id = orgB, the USING policy filters rows where org_id ≠ orgB.
 	txB, err := pool.Begin(ctx)
+	require.NoError(t, err)
+	defer func() { _ = txB.Rollback(ctx) }()
+	_, err = txB.Exec(ctx, "SET LOCAL ROLE raven_app")
 	require.NoError(t, err)
 	_, err = txB.Exec(ctx, "SELECT set_config('app.current_org_id', $1, true)", orgB)
 	require.NoError(t, err)
@@ -75,10 +120,15 @@ func TestRLS_CrossOrgKB_GetByID_ReturnsError(t *testing.T) {
 	wsID := uuid.NewString()
 	slug := uuid.NewString()[:8]
 
+	seedRLSFixtures(t, pool, ctx, orgA, orgB, wsID)
+
 	kbRepo := repository.NewKBRepository(pool)
 
 	// Create a KB for org-A.
 	txA, err := pool.Begin(ctx)
+	require.NoError(t, err)
+	defer func() { _ = txA.Rollback(ctx) }()
+	_, err = txA.Exec(ctx, "SET LOCAL ROLE raven_app")
 	require.NoError(t, err)
 	_, err = txA.Exec(ctx, "SELECT set_config('app.current_org_id', $1, true)", orgA)
 	require.NoError(t, err)
@@ -88,6 +138,9 @@ func TestRLS_CrossOrgKB_GetByID_ReturnsError(t *testing.T) {
 
 	// org-B tries to fetch org-A's KB by ID — RLS must prevent access.
 	txB, err := pool.Begin(ctx)
+	require.NoError(t, err)
+	defer func() { _ = txB.Rollback(ctx) }()
+	_, err = txB.Exec(ctx, "SET LOCAL ROLE raven_app")
 	require.NoError(t, err)
 	_, err = txB.Exec(ctx, "SELECT set_config('app.current_org_id', $1, true)", orgB)
 	require.NoError(t, err)
