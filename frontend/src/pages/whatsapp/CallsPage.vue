@@ -242,7 +242,7 @@ function selectCall(callId: string) {
 
     <!-- Initiate call modal -->
     <InitiateCallModal
-      v-if="showCallModal"
+      :open="showCallModal"
       :org-id="orgId"
       :phone-numbers="store.phoneNumbers"
       @close="showCallModal = false"

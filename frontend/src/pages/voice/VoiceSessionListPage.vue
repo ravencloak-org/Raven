@@ -196,7 +196,7 @@ function mobileStateClass(state: string): string {
 
     <!-- Create session modal -->
     <CreateSessionModal
-      v-if="showCreateModal"
+      :open="showCreateModal"
       @create="handleCreate"
       @close="showCreateModal = false"
     />
