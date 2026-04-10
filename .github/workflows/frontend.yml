@@ -65,6 +65,18 @@ jobs:
       - name: Build for preview
         run: npm run build
 
+      # ------------------------------------------------------------------
+      # Required secrets for Playwright E2E tests
+      # ------------------------------------------------------------------
+      # API_BASE_URL and KEYCLOAK_URL must point to a running backend and
+      # Keycloak instance.  The E2E_* credentials authenticate test users.
+      #
+      # When these secrets are missing (forks, new environments, or PRs
+      # from external contributors), every API-dependent E2E test will
+      # silently skip because the test fixtures guard on the presence of
+      # these environment variables.  The Playwright run will still pass,
+      # but with zero API coverage.
+      # ------------------------------------------------------------------
       - name: Playwright E2E tests
         run: npm run test:e2e
         env:
@@ -78,8 +90,8 @@ jobs:
           E2E_KB_A_KEY: ${{ secrets.E2E_KB_A_KEY }}
           E2E_KB_B_ID: ${{ secrets.E2E_KB_B_ID }}
           META_WEBHOOK_SECRET: ${{ secrets.META_WEBHOOK_SECRET }}
-          API_BASE_URL: ${{ secrets.API_BASE_URL }}
-          KEYCLOAK_URL: ${{ secrets.KEYCLOAK_URL }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}          # required for API E2E tests
+          KEYCLOAK_URL: ${{ secrets.KEYCLOAK_URL }}          # required for API E2E tests
 
       - name: Upload Playwright report
         if: failure()
