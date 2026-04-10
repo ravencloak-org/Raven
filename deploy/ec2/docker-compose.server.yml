@@ -8,6 +8,20 @@
 #   docker compose -f deploy/ec2/docker-compose.server.yml --env-file .env.server up -d
 
 services:
+  # ─── Frontend (Vue SPA served via nginx) ───────────────────────────────────
+  frontend:
+    image: ${FRONTEND_IMAGE:-ghcr.io/ravencloak-org/frontend:latest}
+    ports:
+      - "127.0.0.1:3080:80"
+    networks:
+      - raven-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   # ─── Go API ────────────────────────────────────────────────────────────────
   go-api:
     image: ${GO_API_IMAGE:-ghcr.io/ravencloak-org/go-api:latest}
