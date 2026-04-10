@@ -38,6 +38,7 @@ import (
 	"github.com/ravencloak-org/Raven/internal/cache"
 	"github.com/ravencloak-org/Raven/internal/config"
 	"github.com/ravencloak-org/Raven/internal/db"
+	"github.com/ravencloak-org/Raven/internal/hyperswitch"
 	_ "github.com/ravencloak-org/Raven/docs/swagger" // swagger docs
 	rpcClient "github.com/ravencloak-org/Raven/internal/grpc"
 	"github.com/ravencloak-org/Raven/internal/handler"
@@ -233,7 +234,6 @@ func main() {
 	webhookRepo := repository.NewWebhookRepository(pool)
 	leadRepo := repository.NewLeadRepository(pool)
 	whatsappRepo := repository.NewWhatsAppRepository(pool)
-	billingRepo := repository.NewBillingRepository(pool)
 
 	// --- ClickHouse embedding repository (enterprise, optional) ---
 	var chEmbeddingRepo *repository.ClickHouseEmbeddingRepository
@@ -290,13 +290,9 @@ func main() {
 	webhookSvc := service.NewWebhookService(webhookRepo, pool, queueClient)
 	leadSvc := service.NewLeadService(leadRepo)
 	whatsappSvc := service.NewWhatsAppService(whatsappRepo, pool)
-	billingSvc := service.NewBillingService(
-		billingRepo, pool,
-		cfg.Hyperswitch.BaseURL,
-		cfg.Hyperswitch.APIKey,
-		cfg.Hyperswitch.WebhookSecret,
-		cfg.Hyperswitch.RazorpayKeyID,
-	)
+	billingRepo := repository.NewBillingRepository(pool)
+	hsClient := hyperswitch.NewClient(cfg.Hyperswitch.BaseURL, cfg.Hyperswitch.APIKey)
+	billingSvc := service.NewBillingService(billingRepo, pool, hsClient, cfg.Hyperswitch.WebhookSecret)
 	chatRepo := repository.NewChatRepository(pool)
 	chatSvc := service.NewChatService(chatRepo, grpcClient, pool)
 	voiceRepo := repository.NewVoiceRepository(pool)
@@ -670,20 +666,20 @@ func main() {
 			}
 		}
 
+		// --- Billing / subscription routes ---
+		billing := api.Group("/billing")
+		{
+			billing.GET("/plans", billingHandler.GetPlans)
+			billing.POST("/subscriptions", billingHandler.Subscribe)
+			billing.DELETE("/subscriptions/:id", billingHandler.Unsubscribe)
+			billing.POST("/payment-intents", billingHandler.CreatePaymentIntent)
+		}
+
 		// --- User / me routes ---
 		api.GET("/me", userHandler.GetMe)
 		api.PUT("/me", userHandler.UpdateMe)
 		api.DELETE("/me", userHandler.DeleteMe)
 		api.GET("/users/:user_id", middleware.RequireOrgRole("org_admin"), userHandler.GetUser)
-
-		// --- Billing routes ---
-		billing := api.Group("/billing")
-		{
-			billing.GET("/plans", billingHandler.GetPlans)
-			billing.POST("/subscribe", middleware.RequireOrgRole("org_admin"), billingHandler.Subscribe)
-			billing.DELETE("/subscribe", middleware.RequireOrgRole("org_admin"), billingHandler.Unsubscribe)
-			billing.POST("/payment-intents", middleware.RequireOrgRole("org_admin"), billingHandler.CreatePaymentIntent)
-		}
 	}
 
 	// Public chat routes — API key authentication (for embeddable chat widget).
@@ -703,9 +699,8 @@ func main() {
 		chatAPI.DELETE("/:kb_id/sessions/:session_id", chatHandler.DeleteSession)
 	}
 
-	// --- Hyperswitch webhook (public, no JWT — Hyperswitch sends to a single URL) ---
-	// Signature verification is performed inside the handler using HMAC-SHA256.
-	router.POST("/webhooks/hyperswitch", billingHandler.Webhook)
+	// --- Hyperswitch Billing Webhook (public, no JWT — uses HMAC signature verification) ---
+	router.POST("/api/v1/billing/webhook", billingHandler.Webhook)
 
 	// --- Meta Graph API Webhook (public, no JWT — Meta sends to a single URL) ---
 	metaWebhookHandler := handler.NewMetaWebhookHandler(cfg.Meta.AppSecret, cfg.Meta.WebhookToken, nil)

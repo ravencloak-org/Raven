@@ -367,6 +367,9 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("ebpf.audit_ring_buffer_size", "RAVEN_EBPF_AUDIT_RING_BUFFER_SIZE")
 	_ = v.BindEnv("ebpf.xdp_enabled", "RAVEN_EBPF_XDP_ENABLED")
 	_ = v.BindEnv("ebpf.xdp_interface", "RAVEN_EBPF_XDP_INTERFACE")
+	_ = v.BindEnv("hyperswitch.base_url", "RAVEN_HYPERSWITCH_BASE_URL")
+	_ = v.BindEnv("hyperswitch.api_key", "RAVEN_HYPERSWITCH_API_KEY")
+	_ = v.BindEnv("hyperswitch.webhook_secret", "RAVEN_HYPERSWITCH_WEBHOOK_SECRET")
 
 	// Try to read config file but don't fail if not found
 	_ = v.ReadInConfig()
