@@ -102,6 +102,18 @@ const router = createRouter({
             import('../pages/voice/VoiceSessionDetailPage.vue'),
           meta: { requiresAuth: true },
         },
+        {
+          path: 'orgs/:orgId/whatsapp/phone-numbers',
+          name: 'whatsapp-phone-numbers',
+          component: () => import('../pages/whatsapp/PhoneNumbersPage.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
+          path: 'orgs/:orgId/whatsapp/calls',
+          name: 'whatsapp-calls',
+          component: () => import('../pages/whatsapp/CallsPage.vue'),
+          meta: { requiresAuth: true },
+        },
       ],
     },
     {

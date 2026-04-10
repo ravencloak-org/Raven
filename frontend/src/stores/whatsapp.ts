@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { filter } from 'remeda'
 import {
   listPhoneNumbers,
   createPhoneNumber,
@@ -7,142 +8,164 @@ import {
   listCalls,
   getCall,
   initiateCall,
-  endCall,
-  getBridge,
+  updateCallState,
+  getBridgeStatus,
+  listActiveBridges,
   type WhatsAppPhoneNumber,
   type WhatsAppCall,
   type WhatsAppBridge,
   type CreatePhoneNumberRequest,
   type InitiateCallRequest,
+  type CallState,
 } from '../api/whatsapp'
 
 export const useWhatsAppStore = defineStore('whatsapp', () => {
   // --- Phone numbers ---
   const phoneNumbers = ref<WhatsAppPhoneNumber[]>([])
-  const phoneNumbersTotal = ref(0)
-  const phoneNumbersLoading = ref(false)
-  const phoneNumbersError = ref<string | null>(null)
+  const phoneTotal = ref(0)
 
   // --- Calls ---
   const calls = ref<WhatsAppCall[]>([])
-  const callsTotal = ref(0)
-  const callsLoading = ref(false)
-  const callsError = ref<string | null>(null)
-
-  // --- Active call ---
+  const callTotal = ref(0)
   const activeCall = ref<WhatsAppCall | null>(null)
-  const activeBridge = ref<WhatsAppBridge | null>(null)
 
-  // --- Actions: Phone Numbers ---
+  // --- Bridges ---
+  const bridges = ref<WhatsAppBridge[]>([])
+  const currentBridge = ref<WhatsAppBridge | null>(null)
 
-  async function fetchPhoneNumbers(orgId: string, limit = 20, offset = 0): Promise<void> {
-    phoneNumbersLoading.value = true
-    phoneNumbersError.value = null
+  // --- Shared state ---
+  const loading = ref(false)
+  const error = ref<string | null>(null)
+
+  // --- Phone number actions ---
+
+  async function fetchPhoneNumbers(orgId: string, offset = 0, limit = 20) {
+    loading.value = true
+    error.value = null
     try {
-      const res = await listPhoneNumbers(orgId, limit, offset)
+      const res = await listPhoneNumbers(orgId, offset, limit)
       phoneNumbers.value = res.phone_numbers
-      phoneNumbersTotal.value = res.total
+      phoneTotal.value = res.total
     } catch (e) {
-      phoneNumbersError.value = e instanceof Error ? e.message : String(e)
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
-      phoneNumbersLoading.value = false
+      loading.value = false
     }
   }
 
   async function addPhoneNumber(
     orgId: string,
-    data: CreatePhoneNumberRequest,
+    req: CreatePhoneNumberRequest,
   ): Promise<WhatsAppPhoneNumber> {
-    const phone = await createPhoneNumber(orgId, data)
+    const phone = await createPhoneNumber(orgId, req)
     phoneNumbers.value.push(phone)
-    phoneNumbersTotal.value += 1
+    phoneTotal.value += 1
     return phone
   }
 
   async function removePhoneNumber(orgId: string, phoneId: string): Promise<void> {
     await deletePhoneNumber(orgId, phoneId)
-    phoneNumbers.value = phoneNumbers.value.filter((p) => p.id !== phoneId)
-    phoneNumbersTotal.value -= 1
+    phoneNumbers.value = filter(phoneNumbers.value, (p) => p.id !== phoneId)
+    phoneTotal.value -= 1
   }
 
-  // --- Actions: Calls ---
+  // --- Call actions ---
 
-  async function fetchCalls(orgId: string, limit = 20, offset = 0): Promise<void> {
-    callsLoading.value = true
-    callsError.value = null
+  async function fetchCalls(orgId: string, offset = 0, limit = 20) {
+    loading.value = true
+    error.value = null
     try {
-      const res = await listCalls(orgId, limit, offset)
+      const res = await listCalls(orgId, offset, limit)
       calls.value = res.calls
-      callsTotal.value = res.total
+      callTotal.value = res.total
     } catch (e) {
-      callsError.value = e instanceof Error ? e.message : String(e)
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
-      callsLoading.value = false
+      loading.value = false
     }
   }
 
-  async function startCall(orgId: string, data: InitiateCallRequest): Promise<WhatsAppCall> {
-    const call = await initiateCall(orgId, data)
+  async function fetchCall(orgId: string, callId: string) {
+    loading.value = true
+    error.value = null
+    try {
+      activeCall.value = await getCall(orgId, callId)
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function startCall(orgId: string, req: InitiateCallRequest): Promise<WhatsAppCall> {
+    const call = await initiateCall(orgId, req)
     calls.value.unshift(call)
-    callsTotal.value += 1
+    callTotal.value += 1
     activeCall.value = call
     return call
   }
 
-  async function refreshActiveCall(orgId: string, callId: string): Promise<void> {
-    try {
-      const call = await getCall(orgId, callId)
-      activeCall.value = call
-      // Sync the call in the list too
-      const idx = calls.value.findIndex((c) => c.id === callId)
-      if (idx !== -1) calls.value[idx] = call
-    } catch {
-      // silent — caller handles polling logic
-    }
-  }
-
-  async function terminateCall(orgId: string, callId: string): Promise<WhatsAppCall> {
-    const call = await endCall(orgId, callId)
+  async function endCall(orgId: string, callId: string): Promise<WhatsAppCall> {
+    const call = await updateCallState(orgId, callId, 'ended' as CallState)
     activeCall.value = call
+    // Update the call in the calls list
     const idx = calls.value.findIndex((c) => c.id === callId)
-    if (idx !== -1) calls.value[idx] = call
+    if (idx !== -1) {
+      calls.value[idx] = call
+    }
     return call
   }
 
-  async function fetchBridge(orgId: string, callId: string): Promise<void> {
+  // --- Bridge actions ---
+
+  async function fetchBridgeStatus(orgId: string, callId: string) {
     try {
-      activeBridge.value = await getBridge(orgId, callId)
+      const res = await getBridgeStatus(orgId, callId)
+      currentBridge.value = res.bridge
     } catch {
-      activeBridge.value = null
+      currentBridge.value = null
     }
   }
 
-  function clearActiveCall(): void {
+  async function fetchActiveBridges(orgId: string) {
+    try {
+      bridges.value = await listActiveBridges(orgId)
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : String(e)
+    }
+  }
+
+  function clearActiveCall() {
     activeCall.value = null
-    activeBridge.value = null
+    currentBridge.value = null
   }
 
   return {
-    // state
+    // Phone numbers
     phoneNumbers,
-    phoneNumbersTotal,
-    phoneNumbersLoading,
-    phoneNumbersError,
-    calls,
-    callsTotal,
-    callsLoading,
-    callsError,
-    activeCall,
-    activeBridge,
-    // actions
+    phoneTotal,
     fetchPhoneNumbers,
     addPhoneNumber,
     removePhoneNumber,
+
+    // Calls
+    calls,
+    callTotal,
+    activeCall,
     fetchCalls,
+    fetchCall,
     startCall,
-    refreshActiveCall,
-    terminateCall,
-    fetchBridge,
+    endCall,
+
+    // Bridges
+    bridges,
+    currentBridge,
+    fetchBridgeStatus,
+    fetchActiveBridges,
+
+    // Shared
+    loading,
+    error,
     clearActiveCall,
   }
 })
