@@ -34,7 +34,7 @@ export const useVoiceSessionsStore = defineStore('voice-sessions', () => {
       sessions.value = res.sessions
       total.value = res.total
     } catch (e) {
-      error.value = (e as Error).message
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }
@@ -46,7 +46,7 @@ export const useVoiceSessionsStore = defineStore('voice-sessions', () => {
     try {
       currentSession.value = await getVoiceSession(orgId, sessionId)
     } catch (e) {
-      error.value = (e as Error).message
+      error.value = e instanceof Error ? e.message : String(e)
     } finally {
       loading.value = false
     }
@@ -88,7 +88,7 @@ export const useVoiceSessionsStore = defineStore('voice-sessions', () => {
       const res = await listVoiceTurns(orgId, sessionId)
       turns.value = res.turns
     } catch (e) {
-      error.value = (e as Error).message
+      error.value = e instanceof Error ? e.message : String(e)
     }
   }
 

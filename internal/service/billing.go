@@ -128,7 +128,8 @@ func (s *BillingService) CreateSubscription(ctx context.Context, orgID string, r
 	// The subscription is recorded as trialing; it transitions to active on payment_succeeded.
 	hsPaymentID, clientSecret, err := s.createHyperswitchPayment(ctx, orgID, plan.PriceMonthly, "INR")
 	if err != nil {
-		return nil, apierror.NewInternal("failed to create Hyperswitch payment: " + err.Error())
+		slog.ErrorContext(ctx, "BillingService.CreateSubscription payment error", "error", err, "org_id", orgID)
+		return nil, apierror.NewInternal("failed to create payment intent")
 	}
 
 	sub := &model.Subscription{
@@ -222,7 +223,8 @@ func (s *BillingService) CancelSubscription(ctx context.Context, orgID string, s
 func (s *BillingService) CreatePaymentIntent(ctx context.Context, orgID string, req model.CreatePaymentIntentRequest) (*model.PaymentIntent, error) {
 	hsPaymentID, clientSecret, err := s.createHyperswitchPayment(ctx, orgID, req.Amount, req.Currency)
 	if err != nil {
-		return nil, apierror.NewInternal("failed to create Hyperswitch payment: " + err.Error())
+		slog.ErrorContext(ctx, "BillingService.CreatePaymentIntent payment error", "error", err, "org_id", orgID)
+		return nil, apierror.NewInternal("failed to create payment intent")
 	}
 
 	now := time.Now().UTC()
