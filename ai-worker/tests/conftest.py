@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from raven_worker.config import Settings
-from raven_worker.generated import ai_worker_pb2  # noqa: E402
+from raven_worker.generated import ai_worker_pb2
 
 # ---------------------------------------------------------------------------
 # Inject lightweight stub modules when heavy deps (asyncpg, anthropic, openai,
@@ -43,7 +43,7 @@ def _inject_missing_stubs() -> None:
         ant = _make_stub(
             "anthropic",
             AsyncAnthropic=MagicMock(),
-            APIError=Exception,
+            APIError=type("APIError", (Exception,), {}),
         )
         stubs["anthropic"] = ant
 
@@ -51,17 +51,23 @@ def _inject_missing_stubs() -> None:
         oai = _make_stub(
             "openai",
             AsyncOpenAI=MagicMock(),
-            RateLimitError=Exception,
-            APIError=Exception,
+            RateLimitError=type("RateLimitError", (Exception,), {}),
+            APIError=type("APIError", (Exception,), {}),
         )
         stubs["openai"] = oai
 
     if "cohere" not in sys.modules:
+        cohere_errors = _make_stub(
+            "cohere.errors",
+            TooManyRequestsError=type("TooManyRequestsError", (Exception,), {}),
+        )
         coh = _make_stub(
             "cohere",
             AsyncClientV2=MagicMock(),
+            errors=cohere_errors,
         )
         stubs["cohere"] = coh
+        stubs["cohere.errors"] = cohere_errors
 
     if "redis" not in sys.modules:
         redis_asyncio = _make_stub("redis.asyncio", Redis=MagicMock(), from_url=MagicMock())
@@ -74,11 +80,6 @@ def _inject_missing_stubs() -> None:
 
 
 _inject_missing_stubs()
-
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -102,10 +103,8 @@ def mock_openai_provider():
     provider = AsyncMock()
     provider.embed = AsyncMock(return_value=[0.1] * 1536)
     provider.embed_batch = AsyncMock(return_value=[[0.1] * 1536])
-    provider.complete = AsyncMock(return_value="Test completion response")
     provider.dimensions = 1536
     provider.model_name = "text-embedding-3-small"
-    provider.provider_name = "openai"
     return provider
 
 
@@ -115,10 +114,8 @@ def mock_cohere_provider():
     provider = AsyncMock()
     provider.embed = AsyncMock(return_value=[0.2] * 1024)
     provider.embed_batch = AsyncMock(return_value=[[0.2] * 1024])
-    provider.complete = AsyncMock(return_value="Cohere response")
     provider.dimensions = 1024
     provider.model_name = "embed-english-v3.0"
-    provider.provider_name = "cohere"
     return provider
 
 
@@ -128,10 +125,8 @@ def mock_anthropic_provider():
     provider = AsyncMock()
     provider.embed = AsyncMock(return_value=[0.3] * 1536)
     provider.embed_batch = AsyncMock(return_value=[[0.3] * 1536])
-    provider.complete = AsyncMock(return_value="Anthropic response")
     provider.dimensions = 1536
     provider.model_name = "claude-3-haiku-20240307"
-    provider.provider_name = "anthropic"
     return provider
 
 
@@ -160,7 +155,8 @@ def _disable_rag_cache():
     Tests that specifically exercise cache behaviour should override
     ``_check_cache`` / ``_store_cache`` in their own patches.
 
-    Skips gracefully if raven_worker.services.rag cannot be imported.
+    Skips gracefully if raven_worker.services.rag cannot be imported
+    (e.g., when asyncpg or anthropic are not installed in the test env).
     """
     try:
         import raven_worker.services.rag  # noqa: F401
