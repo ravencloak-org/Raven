@@ -1,3 +1,5 @@
+import { useBillingStore } from '../stores/billing'
+
 const BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
 interface RequestOptions {
@@ -26,6 +28,17 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     },
     body: body ? JSON.stringify(body) : undefined,
   })
+
+  if (response.status === 402) {
+    // Payment required — show upgrade prompt via billing store
+    try {
+      const billingStore = useBillingStore()
+      billingStore.showUpgradePrompt()
+    } catch {
+      // Store may not be available outside Pinia context; ignore
+    }
+    throw Object.assign(new Error('Payment required'), { status: 402 })
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: response.statusText }))
