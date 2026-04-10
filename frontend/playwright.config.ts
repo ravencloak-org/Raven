@@ -11,7 +11,16 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+      testIgnore: 'e2e/mobile/**',
+    },
+    {
+      name: 'mobile-chrome',
+      use: { ...devices['Pixel 7'] },
+      testMatch: 'e2e/mobile/**/*.spec.ts',
+    },
   ],
   webServer: {
     command: process.env.CI ? 'npx vite preview' : 'npm run dev',
