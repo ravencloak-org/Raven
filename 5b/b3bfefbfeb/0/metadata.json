@@ -3,37 +3,40 @@
   "checkpoint_id": "5bb3bfefbfeb",
   "session_id": "cfa487ee-ce1a-4dd2-b6b8-4701f22a1272",
   "strategy": "manual-commit",
-  "created_at": "2026-04-10T16:28:06.493428Z",
-  "branch": "test/go-backend-suite",
+  "created_at": "2026-04-10T18:27:51.11977Z",
+  "branch": "docs/github-pages-refresh",
   "checkpoints_count": 1,
   "files_touched": [
     ".worktrees/feat-issue-193-billing-enforcement/cmd/api/main.go",
     ".worktrees/feat-issue-193-billing-enforcement/internal/repository/billing.go",
     ".worktrees/feat-issue-194-billing-ui/docs/superpowers/plans/2026-04-10-billing-ui.md",
     ".worktrees/feat-issue-197-keycloak-provisioning/docs/superpowers/plans/2026-04-10-keycloak-provisioning.md",
+    "CONTRIBUTING.md",
+    "DEVELOPMENT.md",
+    "README.md",
+    "_config.yml",
+    "docs/project-status.md",
     "docs/superpowers/plans/2026-04-10-billing-subscription-enforcement.md",
-    "docs/superpowers/plans/2026-04-10-wave1-quick-fixes.md",
-    "docs/superpowers/plans/2026-04-10-wave2-ee-tests-and-billing.md",
-    "docs/superpowers/plans/2026-04-10-wave3-mvp-features.md"
+    "frontend/README.md"
   ],
   "agent": "Claude Code",
-  "transcript_identifier_at_start": "4c8b282a-da91-488d-9ae3-7ab39a69c4d2",
-  "checkpoint_transcript_start": 781,
-  "transcript_lines_at_start": 781,
+  "transcript_identifier_at_start": "77353198-1c61-4a6d-9097-00c7057414ba",
+  "checkpoint_transcript_start": 907,
+  "transcript_lines_at_start": 907,
   "token_usage": {
-    "input_tokens": 24,
-    "cache_creation_tokens": 299131,
-    "cache_read_tokens": 1153791,
-    "output_tokens": 34571,
-    "api_call_count": 16
+    "input_tokens": 107,
+    "cache_creation_tokens": 608667,
+    "cache_read_tokens": 7799733,
+    "output_tokens": 43136,
+    "api_call_count": 79
   },
   "initial_attribution": {
-    "calculated_at": "2026-04-10T16:28:06.06483Z",
-    "agent_lines": 5615,
-    "human_added": 0,
-    "human_modified": 559,
-    "human_removed": 2382,
-    "total_committed": 6174,
-    "agent_percentage": 90.94590217039197
+    "calculated_at": "2026-04-10T18:27:50.844348Z",
+    "agent_lines": 0,
+    "human_added": 3098,
+    "human_modified": 184,
+    "human_removed": 0,
+    "total_committed": 3098,
+    "agent_percentage": 0
   }
 }

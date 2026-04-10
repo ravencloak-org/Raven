@@ -2,18 +2,22 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "5bb3bfefbfeb",
   "strategy": "manual-commit",
-  "branch": "feat/glance-service-monitors",
+  "branch": "docs/github-pages-refresh",
   "checkpoints_count": 1,
   "files_touched": [
     ".worktrees/feat-issue-193-billing-enforcement/cmd/api/main.go",
     ".worktrees/feat-issue-193-billing-enforcement/internal/repository/billing.go",
     ".worktrees/feat-issue-194-billing-ui/docs/superpowers/plans/2026-04-10-billing-ui.md",
     ".worktrees/feat-issue-197-keycloak-provisioning/docs/superpowers/plans/2026-04-10-keycloak-provisioning.md",
+    "CONTRIBUTING.md",
+    "DEVELOPMENT.md",
+    "README.md",
+    "_config.yml",
+    "docs/project-status.md",
     "docs/superpowers/plans/2026-04-10-billing-subscription-enforcement.md",
     "docs/superpowers/plans/2026-04-10-wave1-quick-fixes.md",
-    "docs/superpowers/plans/2026-04-10-wave2-ee-tests-and-billing.md",
-    "docs/superpowers/plans/2026-04-10-wave3-mvp-features.md",
-    "docs/superpowers/specs/2026-04-10-mvp-launch-execution-order.md"
+    "docs/superpowers/specs/2026-04-10-mvp-launch-execution-order.md",
+    "frontend/README.md"
   ],
   "sessions": [
     {
@@ -32,10 +36,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 620,
-    "cache_creation_tokens": 553320,
-    "cache_read_tokens": 9641511,
-    "output_tokens": 83481,
-    "api_call_count": 97
+    "input_tokens": 703,
+    "cache_creation_tokens": 862856,
+    "cache_read_tokens": 16287453,
+    "output_tokens": 92046,
+    "api_call_count": 160
   }
 }
