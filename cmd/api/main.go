@@ -234,6 +234,7 @@ func main() {
 	webhookRepo := repository.NewWebhookRepository(pool)
 	leadRepo := repository.NewLeadRepository(pool)
 	whatsappRepo := repository.NewWhatsAppRepository(pool)
+	billingRepo := repository.NewBillingRepository(pool)
 
 	// --- ClickHouse embedding repository (enterprise, optional) ---
 	var chEmbeddingRepo *repository.ClickHouseEmbeddingRepository
@@ -290,7 +291,6 @@ func main() {
 	webhookSvc := service.NewWebhookService(webhookRepo, pool, queueClient)
 	leadSvc := service.NewLeadService(leadRepo)
 	whatsappSvc := service.NewWhatsAppService(whatsappRepo, pool)
-	billingRepo := repository.NewBillingRepository(pool)
 	hsClient := hyperswitch.NewClient(cfg.Hyperswitch.BaseURL, cfg.Hyperswitch.APIKey)
 	billingSvc := service.NewBillingService(billingRepo, pool, hsClient, cfg.Hyperswitch.WebhookSecret)
 	chatRepo := repository.NewChatRepository(pool)
@@ -680,6 +680,7 @@ func main() {
 		api.PUT("/me", userHandler.UpdateMe)
 		api.DELETE("/me", userHandler.DeleteMe)
 		api.GET("/users/:user_id", middleware.RequireOrgRole("org_admin"), userHandler.GetUser)
+
 	}
 
 	// Public chat routes — API key authentication (for embeddable chat widget).
