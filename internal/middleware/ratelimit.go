@@ -290,3 +290,215 @@ func ByOrgID(rl *RateLimiter, limit int) gin.HandlerFunc {
 	}, keyPrefixOrg+"fallback:")
 }
 
+// ── Per-org tier-based rate limiting ────────────────────────────────────────
+
+// RouteGroup identifies the category of endpoint being rate-limited. Each group
+// can have different per-tier limits (e.g. completions are more expensive than
+// general CRUD).
+type RouteGroup string
+
+const (
+	// RouteGroupGeneral is the default route group for standard API endpoints.
+	RouteGroupGeneral RouteGroup = "general"
+	// RouteGroupCompletion is the route group for AI completion endpoints.
+	RouteGroupCompletion RouteGroup = "completion"
+	// RouteGroupWidget is the route group for the public chatbot widget endpoint.
+	RouteGroupWidget RouteGroup = "widget"
+)
+
+// TierLimits defines the rate limits for a single subscription tier.
+type TierLimits struct {
+	GeneralRPM    int // requests per minute for general API endpoints
+	CompletionRPM int // requests per minute for AI completion endpoints; -1 = unlimited
+}
+
+// TierConfig maps each PlanTier to its TierLimits.
+type TierConfig struct {
+	Free       TierLimits
+	Pro        TierLimits
+	Enterprise TierLimits
+	WidgetRPM  int // separate stricter limit for widget endpoints
+}
+
+// DefaultTierConfig returns the issue-specified tier limits.
+func DefaultTierConfig() TierConfig {
+	return TierConfig{
+		Free:       TierLimits{GeneralRPM: 60, CompletionRPM: 10},
+		Pro:        TierLimits{GeneralRPM: 600, CompletionRPM: 120},
+		Enterprise: TierLimits{GeneralRPM: 6000, CompletionRPM: -1},
+		WidgetRPM:  30,
+	}
+}
+
+// TierResolver looks up the subscription tier for an organisation.
+// Implementations may read from Valkey cache, the database, or a static mapping.
+type TierResolver interface {
+	// Resolve returns the PlanTier for the given org ID.
+	// On error, implementations should return a fallback tier (e.g. "free").
+	Resolve(ctx context.Context, orgID string) string
+}
+
+// StaticTierResolver always returns a fixed tier. Useful for testing and as the
+// default when no billing integration is wired up.
+type StaticTierResolver struct {
+	Tier string
+}
+
+// Resolve implements TierResolver by returning the static tier.
+func (s *StaticTierResolver) Resolve(_ context.Context, _ string) string {
+	return s.Tier
+}
+
+// ValkeyTierResolver reads the subscription tier from a Valkey key.
+// The key format is "raven:org_tier:{org_id}".
+// If the key does not exist, it falls back to "free".
+type ValkeyTierResolver struct {
+	client redis.Cmdable
+	logger *slog.Logger
+}
+
+// NewValkeyTierResolver constructs a ValkeyTierResolver.
+func NewValkeyTierResolver(client redis.Cmdable, logger *slog.Logger) *ValkeyTierResolver {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return &ValkeyTierResolver{client: client, logger: logger}
+}
+
+// Resolve reads the tier from Valkey. Falls back to "free" on miss or error.
+func (v *ValkeyTierResolver) Resolve(ctx context.Context, orgID string) string {
+	callCtx, cancel := context.WithTimeout(ctx, 200*time.Millisecond)
+	defer cancel()
+
+	tier, err := v.client.Get(callCtx, "raven:org_tier:"+orgID).Result()
+	if err != nil {
+		// Key not found or Valkey error — default to free tier.
+		return "free"
+	}
+	switch tier {
+	case "free", "pro", "enterprise":
+		return tier
+	default:
+		v.logger.WarnContext(ctx, "rate limiter: unknown tier in Valkey, defaulting to free",
+			slog.String("org_id", orgID),
+			slog.String("tier", tier),
+		)
+		return "free"
+	}
+}
+
+// limitsForTier returns the TierLimits for the given tier string.
+func limitsForTier(tc TierConfig, tier string) TierLimits {
+	switch tier {
+	case "pro":
+		return tc.Pro
+	case "enterprise":
+		return tc.Enterprise
+	default:
+		return tc.Free
+	}
+}
+
+// limitForRouteGroup returns the per-minute limit for the given route group and tier.
+// Returns -1 for unlimited.
+func limitForRouteGroup(tc TierConfig, tier string, group RouteGroup) int {
+	if group == RouteGroupWidget {
+		return tc.WidgetRPM
+	}
+	tl := limitsForTier(tc, tier)
+	switch group {
+	case RouteGroupCompletion:
+		return tl.CompletionRPM
+	default:
+		return tl.GeneralRPM
+	}
+}
+
+// keyPrefixTier is the Valkey key prefix for per-org tier-based rate limiting.
+const keyPrefixTier = "ratelimit:"
+
+// ByOrgTier returns a Gin middleware that rate-limits per org based on
+// subscription tier and route group. The key format is:
+//
+//	ratelimit:{org_id}:{route_group}:{window}
+//
+// where window is always "60s" for the 1-minute sliding window.
+//
+// Enterprise completion endpoints with CompletionRPM == -1 are not limited.
+func ByOrgTier(rl *RateLimiter, tierResolver TierResolver, tierCfg TierConfig, group RouteGroup) gin.HandlerFunc {
+	const windowMs = int64(60_000) // 1 minute sliding window
+
+	return func(c *gin.Context) {
+		orgID := ""
+		if raw, ok := c.Get(string(ContextKeyOrgID)); ok {
+			orgID, _ = raw.(string)
+		}
+		if orgID == "" {
+			// No org context — fall back to IP-based limiting with free-tier general limits.
+			ip := c.ClientIP()
+			key := keyPrefixTier + "anon:" + string(group) + ":60s:" + ip
+			limit := limitForRouteGroup(tierCfg, "free", group)
+			if limit < 0 {
+				c.Next()
+				return
+			}
+			result := rl.check(c.Request.Context(), key, limit, windowMs)
+			setRateLimitHeaders(c, limit, result)
+			if !result.admitted {
+				rejectRateLimited(c, result)
+				return
+			}
+			c.Next()
+			return
+		}
+
+		tier := tierResolver.Resolve(c.Request.Context(), orgID)
+		limit := limitForRouteGroup(tierCfg, tier, group)
+
+		// -1 means unlimited — skip rate limiting entirely.
+		if limit < 0 {
+			c.Next()
+			return
+		}
+
+		key := fmt.Sprintf("%s%s:%s:60s", keyPrefixTier, orgID, string(group))
+		result := rl.check(c.Request.Context(), key, limit, windowMs)
+
+		setRateLimitHeaders(c, limit, result)
+		if !result.admitted {
+			rejectRateLimited(c, result)
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// setRateLimitHeaders writes X-RateLimit-* headers, preserving the tightest
+// constraint when multiple rate-limit middlewares are stacked.
+func setRateLimitHeaders(c *gin.Context, limit int, result rateLimitResult) {
+	prevRemStr := c.Writer.Header().Get("X-RateLimit-Remaining")
+	if prevRemStr == "" {
+		c.Header("X-RateLimit-Limit", strconv.Itoa(limit))
+		c.Header("X-RateLimit-Remaining", strconv.FormatInt(result.remaining, 10))
+		c.Header("X-RateLimit-Reset", strconv.FormatInt(result.resetAt, 10))
+	} else if prevRem, err := strconv.ParseInt(prevRemStr, 10, 64); err == nil && result.remaining < prevRem {
+		c.Header("X-RateLimit-Limit", strconv.Itoa(limit))
+		c.Header("X-RateLimit-Remaining", strconv.FormatInt(result.remaining, 10))
+		c.Header("X-RateLimit-Reset", strconv.FormatInt(result.resetAt, 10))
+	}
+}
+
+// rejectRateLimited aborts with 429 and sets the Retry-After header.
+func rejectRateLimited(c *gin.Context, result rateLimitResult) {
+	retryAfter := result.resetAt - time.Now().Unix()
+	if retryAfter < 1 {
+		retryAfter = 1
+	}
+	c.Header("Retry-After", strconv.FormatInt(retryAfter, 10))
+	c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+		"error":       "rate_limit_exceeded",
+		"retry_after": retryAfter,
+	})
+}
+

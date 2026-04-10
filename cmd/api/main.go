@@ -151,6 +151,22 @@ func main() {
 
 	// Build rate limiter using config-driven limits.
 	rl := middleware.NewRateLimiter(valkeyClient, slog.Default())
+	tierResolver := middleware.NewValkeyTierResolver(valkeyClient, slog.Default())
+	tierCfg := middleware.TierConfig{
+		Free: middleware.TierLimits{
+			GeneralRPM:    cfg.RateLimit.FreeGeneralRPM,
+			CompletionRPM: cfg.RateLimit.FreeCompletionRPM,
+		},
+		Pro: middleware.TierLimits{
+			GeneralRPM:    cfg.RateLimit.ProGeneralRPM,
+			CompletionRPM: cfg.RateLimit.ProCompletionRPM,
+		},
+		Enterprise: middleware.TierLimits{
+			GeneralRPM:    cfg.RateLimit.EnterpriseGeneralRPM,
+			CompletionRPM: cfg.RateLimit.EnterpriseCompletionRPM,
+		},
+		WidgetRPM: cfg.RateLimit.WidgetRPM,
+	}
 
 	// --- Response cache ---
 	// Exact-match RAG response cache backed by Valkey. Will be passed to the
@@ -396,11 +412,8 @@ func main() {
 	router.Use(middleware.CORSMiddleware(&cfg.CORS))
 	router.Use(apierror.ErrorHandler())
 
-	// Apply rate limiting by user ID and org ID using config-driven defaults.
-	router.Use(middleware.ByUserID(rl, cfg.RateLimit.DefaultUserLimit))
-	router.Use(middleware.ByOrgID(rl, cfg.RateLimit.DefaultOrgLimit))
-
 	// Infrastructure endpoint — intentionally outside the versioned group.
+	// Excluded from rate limiting.
 	router.GET("/healthz", handler.HealthCheck)
 
 	// Swagger UI — served at /api/docs (unauthenticated; disable in prod via env).
@@ -414,6 +427,11 @@ func main() {
 	// using the org_id stored in the Gin context key middleware.ContextKeyOrgID.
 	api := router.Group("/api/v1")
 	api.Use(middleware.JWTMiddleware(&cfg.Keycloak))
+	// Per-user and per-org flat rate limits (config-driven defaults).
+	api.Use(middleware.ByUserID(rl, cfg.RateLimit.DefaultUserLimit))
+	api.Use(middleware.ByOrgID(rl, cfg.RateLimit.DefaultOrgLimit))
+	// Per-org tier-based rate limit for general API endpoints.
+	api.Use(middleware.ByOrgTier(rl, tierResolver, tierCfg, middleware.RouteGroupGeneral))
 	{
 		api.GET("/ping", handler.Ping)
 
@@ -669,8 +687,13 @@ func main() {
 	chatAPI.Use(middleware.APIKeyAuth(&apiKeyLookupAdapter{repo: apiKeyRepo}))
 	chatAPI.Use(middleware.SecurityRulesMiddleware(&securityEvaluatorAdapter{svc: securitySvc}))
 	chatAPI.Use(middleware.StrangerCheck(strangerSvc, valkeyClient))
+	// Stricter widget rate limit for public-facing chatbot endpoints.
+	chatAPI.Use(middleware.ByOrgTier(rl, tierResolver, tierCfg, middleware.RouteGroupWidget))
 	{
-		chatAPI.POST("/:kb_id/completions", chatHandler.StreamCompletion)
+		// Completion endpoint gets the additional per-org completion rate limit.
+		chatAPI.POST("/:kb_id/completions",
+			middleware.ByOrgTier(rl, tierResolver, tierCfg, middleware.RouteGroupCompletion),
+			chatHandler.StreamCompletion)
 		chatAPI.GET("/:kb_id/sessions", chatHandler.ListSessions)
 		chatAPI.GET("/:kb_id/sessions/:session_id/history", chatHandler.GetHistory)
 		chatAPI.DELETE("/:kb_id/sessions/:session_id", chatHandler.DeleteSession)

@@ -11,13 +11,7 @@ on:
   issues:
     types: [opened, assigned]
 
-  # Automatic: review every PR when opened or updated
-  pull_request:
-    types: [opened, synchronize, reopened]
-    branches: [main]
-
 jobs:
-  # ── Manual @claude mentions ──────────────────────────────────────────────────
   claude-assist:
     name: Claude (on-demand)
     if: |
@@ -43,54 +37,3 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           additional_permissions: |
             actions: read
-
-  # ── Automatic PR review + fix on every PR ───────────────────────────────────
-  claude-review:
-    name: Claude (auto-review)
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-      issues: read
-      id-token: write
-      actions: read
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-          ref: ${{ github.head_ref }}
-
-      - name: Run Claude Code Review
-        id: claude-review
-        uses: anthropics/claude-code-action@v1
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          additional_permissions: |
-            actions: read
-          prompt: |
-            You are a senior engineer reviewing a pull request for the Raven project —
-            a multi-tenant AI knowledge base platform (Go API + Python AI worker + Vue.js frontend).
-
-            Your tasks:
-            1. Review the diff for bugs, security issues, missing tests, and style violations.
-            2. Check if existing tests cover the changes. If not, write the missing tests.
-            3. If there are lint or type errors, fix them and commit the fixes directly to this branch.
-            4. Post a concise review comment summarising: what looks good, what was fixed, and any remaining concerns.
-
-            Stack-specific rules:
-            - Go: run `go vet ./...` and `go test ./...` to validate
-            - Python: run `ruff check` and `pytest` inside ai-worker/ to validate
-            - TypeScript: run `npm run lint` and `npm run test:unit` inside frontend/ to validate
-            - Never commit secrets, never force-push, never modify unrelated files
-            - Do not add Co-Authored-By trailers to commit messages; commits must appear authored by the repo owner only
-
-            If everything is clean after your fixes, approve the PR.
-            If there are issues you cannot fix automatically, request changes with a clear explanation.
-
-      # If Claude committed fixes, label the PR so a human reviews before Mergify merges.
-      - name: Label PR for human review after automated fixes
-        if: steps.claude-review.outputs.commits_made == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh pr edit "${{ github.event.pull_request.number }}" --add-label "needs-review"
