@@ -4,7 +4,7 @@ import crypto from 'crypto'
 const API_BASE = process.env.API_BASE_URL ?? 'http://localhost:8080'
 
 test.describe('Webhook HMAC Validation', () => {
-  test.beforeEach(async (_ctx, testInfo) => {
+  test.beforeEach(async ({}, testInfo) => {
     testInfo.skip(!process.env.API_BASE_URL, 'Set API_BASE_URL to run API integration tests')
   })
 
