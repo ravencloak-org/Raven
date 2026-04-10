@@ -114,6 +114,12 @@ const router = createRouter({
           component: () => import('../pages/whatsapp/CallsPage.vue'),
           meta: { requiresAuth: true },
         },
+        {
+          path: 'billing',
+          name: 'billing',
+          component: () => import('../pages/billing/BillingPage.vue'),
+          meta: { requiresAuth: true },
+        },
       ],
     },
     {

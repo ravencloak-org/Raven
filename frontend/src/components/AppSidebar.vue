@@ -152,6 +152,36 @@
           </svg>
           <span v-if="mobile" class="text-sm font-medium">Calls</span>
         </RouterLink>
+
+        <!-- Billing -->
+        <RouterLink
+          v-if="billingEnabled"
+          to="/billing"
+          :class="[
+            'flex items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white',
+            mobile
+              ? 'h-10 w-full gap-3 px-3'
+              : 'h-10 w-10 justify-center',
+          ]"
+          active-class="bg-slate-800 text-white"
+          title="Billing"
+          @click="mobile && $emit('close')"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5 shrink-0"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
+            <path
+              fill-rule="evenodd"
+              d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          <span v-if="mobile" class="text-sm font-medium">Billing</span>
+        </RouterLink>
       </nav>
     </aside>
   </Transition>
@@ -159,6 +189,7 @@
 
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
+import { useFeatureFlag } from '../composables/useFeatureFlag'
 
 defineProps<{
   mobile?: boolean
@@ -168,6 +199,8 @@ defineProps<{
 defineEmits<{
   close: []
 }>()
+
+const { isEnabled: billingEnabled } = useFeatureFlag('billing_enabled')
 </script>
 
 <style scoped>
