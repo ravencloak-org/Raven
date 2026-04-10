@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useWhatsAppStore } from '../../stores/whatsapp'
 import type { WhatsAppPhoneNumber } from '../../api/whatsapp'
 import ResponsiveModal from '../ResponsiveModal.vue'
@@ -21,6 +21,15 @@ const selectedPhoneId = ref(props.phoneNumbers.length > 0 ? props.phoneNumbers[0
 const callee = ref('')
 const submitting = ref(false)
 const submitError = ref<string | null>(null)
+
+watch(() => props.open, (open) => {
+  if (open) {
+    selectedPhoneId.value = props.phoneNumbers.length > 0 ? props.phoneNumbers[0].id : ''
+    callee.value = ''
+    submitting.value = false
+    submitError.value = null
+  }
+})
 
 async function handleSubmit() {
   const num = callee.value.trim()

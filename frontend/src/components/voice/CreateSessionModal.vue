@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import ResponsiveModal from '../ResponsiveModal.vue'
 
 const props = defineProps<{
@@ -13,6 +13,13 @@ const emit = defineEmits<{
 
 const roomName = ref('')
 const submitting = ref(false)
+
+watch(() => props.open, (open) => {
+  if (open) {
+    roomName.value = ''
+    submitting.value = false
+  }
+})
 
 async function handleSubmit() {
   submitting.value = true
