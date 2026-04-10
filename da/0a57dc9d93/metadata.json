@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "da0a57dc9d93",
+  "strategy": "manual-commit",
+  "branch": "test/go-backend-suite",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/superpowers/specs/2026-04-10-mvp-launch-execution-order.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/da/0a57dc9d93/0/metadata.json",
+      "transcript": "/da/0a57dc9d93/0/full.jsonl",
+      "context": "/da/0a57dc9d93/0/context.md",
+      "content_hash": "/da/0a57dc9d93/0/content_hash.txt",
+      "prompt": "/da/0a57dc9d93/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 92,
+    "cache_creation_tokens": 143550,
+    "cache_read_tokens": 3320859,
+    "output_tokens": 15618,
+    "api_call_count": 53
+  }
+}
