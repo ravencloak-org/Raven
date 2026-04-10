@@ -7,12 +7,19 @@ services:
     ports:
       - "8080:8080"
     env_file: .env
+    environment:
+      # OpenTelemetry — ship traces, metrics and logs to OpenObserve.
+      RAVEN_OTEL_ENABLED: "true"
+      RAVEN_OTEL_ENDPOINT: "openobserve:5081"
+      RAVEN_OTEL_SERVICE_NAME: "raven-api"
     depends_on:
       postgres:
         condition: service_healthy
       valkey:
         condition: service_healthy
       keycloak:
+        condition: service_started
+      openobserve:
         condition: service_started
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz"]
@@ -263,10 +270,13 @@ services:
   openobserve:
     image: public.ecr.aws/zinclabs/openobserve:latest
     ports:
-      - "5080:5080"
+      - "5080:5080"   # UI + HTTP API
+      - "5081:5081"   # gRPC OTLP receiver (traces, metrics, logs)
     environment:
       ZO_ROOT_USER_EMAIL: ${ZO_ROOT_USER_EMAIL:-admin@raven.local}
       ZO_ROOT_USER_PASSWORD: ${ZO_ROOT_USER_PASSWORD:?ZO_ROOT_USER_PASSWORD is required}
+      # Enable OTLP gRPC ingestion on port 5081.
+      ZO_GRPC_PORT: "5081"
     volumes:
       - openobserve-data:/data
     networks:

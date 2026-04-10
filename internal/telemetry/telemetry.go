@@ -1,28 +1,38 @@
-// Package telemetry initialises OpenTelemetry tracing and metrics for the
-// Raven API.  When no OTLP endpoint is configured the package gracefully
-// degrades to no-op providers so the rest of the application works without
-// any observable overhead.
+// Package telemetry initialises OpenTelemetry tracing, metrics and logging
+// for the Raven API.  When no OTLP endpoint is configured the package
+// gracefully degrades to no-op providers so the rest of the application works
+// without any observable overhead.
 package telemetry
 
 import (
 	"context"
 	"errors"
+	"log/slog"
 
+	"go.opentelemetry.io/contrib/bridges/otelslog"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	logGlobal "go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+
+	sdklog "go.opentelemetry.io/otel/sdk/log"
 )
 
-// InitProvider sets up a TracerProvider and MeterProvider.
+// InitProvider sets up a TracerProvider, MeterProvider and LoggerProvider.
 //
-// If endpoint is non-empty, OTLP gRPC exporters are configured for both traces
-// and metrics.  Otherwise no-op providers are used so that callers never need
-// to nil-check.
+// If endpoint is non-empty, OTLP gRPC exporters are configured for traces,
+// metrics and logs.  Otherwise no-op providers are used so that callers never
+// need to nil-check.
+//
+// When an OTLP endpoint is configured, the global slog default is replaced
+// with a multi-handler that writes JSON to stderr AND ships structured logs
+// to the collector (with trace_id correlation).
 //
 // The returned shutdown function flushes pending telemetry and releases
 // resources.  It is safe to call even when the providers are no-ops.
@@ -41,9 +51,12 @@ func InitProvider(ctx context.Context, serviceName, serviceVersion, endpoint, en
 		return nil, err
 	}
 
-	// When there is no endpoint we leave the global providers at their
-	// defaults (no-op).  Return a no-op shutdown.
+	// When there is no endpoint we leave the global OTel providers at their
+	// defaults (no-op), but still configure a JSON stderr slog handler so that
+	// structured logs are consistent regardless of whether OTLP is enabled.
 	if endpoint == "" {
+		stderrHandler := slog.NewJSONHandler(writerStderr{}, &slog.HandlerOptions{Level: slog.LevelInfo})
+		slog.SetDefault(slog.New(stderrHandler))
 		return func(context.Context) error { return nil }, nil
 	}
 
@@ -91,6 +104,29 @@ func InitProvider(ctx context.Context, serviceName, serviceVersion, endpoint, en
 	)
 	shutdownFuncs = append(shutdownFuncs, mp.Shutdown)
 	otel.SetMeterProvider(mp)
+
+	// --- Log exporter ---
+	logExporter, err := otlploggrpc.New(ctx,
+		otlploggrpc.WithEndpoint(endpoint),
+		otlploggrpc.WithInsecure(),
+	)
+	if err != nil {
+		return shutdownAll, err
+	}
+
+	lp := sdklog.NewLoggerProvider(
+		sdklog.WithProcessor(sdklog.NewBatchProcessor(logExporter)),
+		sdklog.WithResource(res),
+	)
+	shutdownFuncs = append(shutdownFuncs, lp.Shutdown)
+	logGlobal.SetLoggerProvider(lp)
+
+	// Replace the default slog handler with a multi-handler that writes to
+	// both stderr (JSON) and the OTLP collector.  The otelslog bridge
+	// automatically picks up trace_id / span_id from the context.
+	otelHandler := otelslog.NewHandler(serviceName, otelslog.WithLoggerProvider(lp))
+	stderrHandler := slog.NewJSONHandler(writerStderr{}, &slog.HandlerOptions{Level: slog.LevelInfo})
+	slog.SetDefault(slog.New(newMultiHandler(otelHandler, stderrHandler)))
 
 	// --- Propagation ---
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(

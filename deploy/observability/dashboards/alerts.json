@@ -1,0 +1,48 @@
+{
+  "title": "Raven Alerts",
+  "description": "Alert rules for the Raven API. Import into OpenObserve or convert to your alerting tool's format.",
+  "alerts": [
+    {
+      "name": "high_error_rate",
+      "description": "Fires when the 5xx error rate exceeds 5% over a 5-minute window.",
+      "condition": "sum(rate(raven_http_requests_total{http_status_code=~\"5..\"}[5m])) / sum(rate(raven_http_requests_total[5m])) > 0.05",
+      "for": "5m",
+      "severity": "critical",
+      "action": {
+        "type": "webhook",
+        "url": "${ALERT_WEBHOOK_URL}",
+        "payload": {
+          "text": "Raven API error rate > 5% for 5 minutes. Check the API Overview dashboard."
+        }
+      }
+    },
+    {
+      "name": "high_p95_latency",
+      "description": "Fires when P95 request latency exceeds 2 seconds over a 5-minute window.",
+      "condition": "histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_bucket[5m]))) > 2",
+      "for": "5m",
+      "severity": "warning",
+      "action": {
+        "type": "webhook",
+        "url": "${ALERT_WEBHOOK_URL}",
+        "payload": {
+          "text": "Raven API P95 latency > 2s for 5 minutes."
+        }
+      }
+    },
+    {
+      "name": "chat_completion_failures",
+      "description": "Fires when chat completion error rate is high.",
+      "condition": "sum(rate(raven_http_requests_total{http_route=~\"/api/v1/chat/.*/completions\",http_status_code=~\"5..\"}[5m])) / sum(rate(raven_http_requests_total{http_route=~\"/api/v1/chat/.*/completions\"}[5m])) > 0.05",
+      "for": "5m",
+      "severity": "critical",
+      "action": {
+        "type": "webhook",
+        "url": "${ALERT_WEBHOOK_URL}",
+        "payload": {
+          "text": "Chat completion failures detected. Check the Chat Completions dashboard."
+        }
+      }
+    }
+  ]
+}
