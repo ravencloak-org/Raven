@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { useChatbotConfigStore } from '../../stores/chatbot-config'
+import { useMobile } from '../../composables/useMediaQuery'
 
 const store = useChatbotConfigStore()
+const { isMobile } = useMobile()
 
 // --- Local form state bound via v-model ---
 const themeColor = ref('#4f46e5')
@@ -134,6 +136,7 @@ async function copyEmbedCode() {
                 type="text"
                 placeholder="e.g. Raven Chat"
                 class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                :class="isMobile ? 'min-h-[48px] text-[15px]' : ''"
               />
             </div>
 
@@ -155,6 +158,7 @@ async function copyEmbedCode() {
                   pattern="^#[0-9a-fA-F]{6}$"
                   placeholder="#4f46e5"
                   class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm font-mono focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  :class="isMobile ? 'min-h-[48px] text-[15px]' : ''"
                 />
               </div>
             </div>
@@ -170,6 +174,7 @@ async function copyEmbedCode() {
                 type="url"
                 placeholder="https://example.com/avatar.png"
                 class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                :class="isMobile ? 'min-h-[48px] text-[15px]' : ''"
               />
               <p class="mt-1 text-xs text-gray-400">Image displayed as the bot avatar in the chat.</p>
             </div>
@@ -185,6 +190,7 @@ async function copyEmbedCode() {
                 rows="3"
                 placeholder="Hi there! How can I help you today?"
                 class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                :class="isMobile ? 'min-h-[48px] text-[15px]' : ''"
               />
             </div>
 
@@ -197,6 +203,7 @@ async function copyEmbedCode() {
                 id="position"
                 v-model="position"
                 class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                :class="isMobile ? 'min-h-[48px] text-[15px]' : ''"
               >
                 <option value="bottom-right">Bottom Right</option>
                 <option value="bottom-left">Bottom Left</option>
@@ -221,7 +228,7 @@ async function copyEmbedCode() {
                   </span>
                   <button
                     type="button"
-                    class="rounded-md p-1 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                    class="rounded-md p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 min-h-[44px] min-w-[44px] flex items-center justify-center"
                     aria-label="Remove question"
                     @click="removeQuestion(idx)"
                   >
@@ -241,11 +248,12 @@ async function copyEmbedCode() {
                   type="text"
                   placeholder="Add a suggested question..."
                   class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  :class="isMobile ? 'min-h-[48px] text-[15px]' : ''"
                   @keydown.enter.prevent="addQuestion"
                 />
                 <button
                   type="button"
-                  class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 whitespace-nowrap"
+                  class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 whitespace-nowrap min-h-[44px] min-w-[44px]"
                   @click="addQuestion"
                 >
                   Add
@@ -258,7 +266,8 @@ async function copyEmbedCode() {
               <button
                 type="submit"
                 :disabled="store.saving"
-                class="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
+                :class="isMobile ? 'w-full' : ''"
               >
                 {{ store.saving ? 'Saving...' : 'Save Configuration' }}
               </button>
@@ -412,7 +421,7 @@ async function copyEmbedCode() {
           <div class="relative">
             <pre class="rounded-lg bg-gray-900 p-4 text-sm font-mono text-green-400 overflow-x-auto select-all whitespace-pre-wrap break-all">{{ embedCode }}</pre>
             <button
-              class="absolute top-2 right-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
+              class="absolute top-2 right-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors min-h-[44px] min-w-[44px]"
               :class="
                 copiedEmbed
                   ? 'bg-green-600 text-white'

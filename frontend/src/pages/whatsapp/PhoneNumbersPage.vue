@@ -2,9 +2,12 @@
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useWhatsAppStore } from '../../stores/whatsapp'
+import { useMobile } from '../../composables/useMediaQuery'
 
 const route = useRoute()
 const store = useWhatsAppStore()
+
+const { isMobile } = useMobile()
 
 const orgId = route.params.orgId as string
 
@@ -76,6 +79,7 @@ async function handleDelete(phoneId: string) {
           type="text"
           placeholder="+1234567890"
           class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          :class="isMobile ? 'min-h-[48px] text-[15px]' : ''"
           required
         />
       </div>
@@ -89,6 +93,7 @@ async function handleDelete(phoneId: string) {
           type="text"
           placeholder="Business Name"
           class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          :class="isMobile ? 'min-h-[48px] text-[15px]' : ''"
         />
       </div>
       <div>
@@ -101,6 +106,7 @@ async function handleDelete(phoneId: string) {
           type="text"
           placeholder="WhatsApp Business Account ID"
           class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          :class="isMobile ? 'min-h-[48px] text-[15px]' : ''"
           required
         />
       </div>

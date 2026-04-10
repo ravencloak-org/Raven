@@ -2,10 +2,12 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useKnowledgeBasesStore } from '../../stores/knowledge-bases'
+import { useMobile } from '../../composables/useMediaQuery'
 
 const route = useRoute()
 const router = useRouter()
 const store = useKnowledgeBasesStore()
+const { isMobile } = useMobile()
 
 const orgId = route.params.orgId as string
 const wsId = route.params.wsId as string
@@ -53,17 +55,23 @@ function statusColor(status: string): string {
     <h1 class="text-2xl font-bold mb-6">Knowledge Bases</h1>
 
     <!-- Create KB form -->
-    <form class="flex gap-3 mb-8" @submit.prevent="handleCreate">
+    <form
+      class="flex gap-3 mb-8"
+      :class="isMobile ? 'flex-col' : 'flex-row'"
+      @submit.prevent="handleCreate"
+    >
       <input
         v-model="newName"
         type="text"
         placeholder="New knowledge base name"
         class="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        :class="isMobile ? 'min-h-[48px] text-[15px]' : ''"
       />
       <button
         type="submit"
         :disabled="creating || !newName.trim()"
-        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
+        :class="isMobile ? 'w-full' : ''"
       >
         {{ creating ? 'Creating...' : 'Create Knowledge Base' }}
       </button>
@@ -106,7 +114,7 @@ function statusColor(status: string): string {
           </span>
           <button
             v-if="kb.status === 'active'"
-            class="text-red-600 hover:text-red-800 text-xs"
+            class="text-red-600 hover:text-red-800 text-xs min-h-[44px] min-w-[44px]"
             @click.stop="handleArchive(kb.id)"
           >
             Archive
