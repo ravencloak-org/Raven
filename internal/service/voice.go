@@ -41,23 +41,19 @@ type VoiceService struct {
 	pool   *pgxpool.Pool
 	lkc    LiveKitClient
 	lkHost string // LiveKit host URL for token responses
-	// maxConcurrentSessions is the default limit (Free plan = 1). Set to -1 for unlimited.
-	maxConcurrentSessions int
+	quota  QuotaCheckerI
 }
 
 // NewVoiceService creates a new VoiceService. The livekit client may be nil if
 // LiveKit is not configured (room operations become no-ops).
-// maxSessions controls the concurrent session cap per org (1 = free, -1 = unlimited).
-func NewVoiceService(repo VoiceRepository, pool *pgxpool.Pool, lkc LiveKitClient, lkHost string, maxSessions int) *VoiceService {
-	if maxSessions == 0 {
-		maxSessions = 1 // default to free tier
-	}
+// quota controls concurrent session caps and voice-minute limits per org.
+func NewVoiceService(repo VoiceRepository, pool *pgxpool.Pool, lkc LiveKitClient, lkHost string, quota QuotaCheckerI) *VoiceService {
 	return &VoiceService{
-		repo:                  repo,
-		pool:                  pool,
-		lkc:                   lkc,
-		lkHost:                lkHost,
-		maxConcurrentSessions: maxSessions,
+		repo:   repo,
+		pool:   pool,
+		lkc:    lkc,
+		lkHost: lkHost,
+		quota:  quota,
 	}
 }
 
@@ -80,15 +76,24 @@ func (s *VoiceService) CreateSession(ctx context.Context, orgID string, req *mod
 		return nil, apierror.NewBadRequest("request body must not be nil")
 	}
 
-	// Auto-generate room name.
+	// Enforce monthly voice-minute quota before creating session.
+	if s.quota != nil {
+		if err := s.quota.CheckVoiceMinuteQuota(ctx, orgID); err != nil {
+			return nil, err
+		}
+	}
+
 	req.LiveKitRoom = generateRoomName(orgID)
+
+	// Resolve concurrent session limit from subscription tier.
+	maxSessions := 1 // default free
+	if s.quota != nil {
+		maxSessions = s.quota.GetConcurrentVoiceLimit(ctx, orgID)
+	}
 
 	var session *model.VoiceSession
 	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
-		// Check concurrent session limit with advisory lock to prevent races.
-		if s.maxConcurrentSessions >= 0 {
-			// Acquire a transaction-scoped advisory lock keyed on a hash of the orgID
-			// to serialize concurrent session-create requests for the same org.
+		if maxSessions >= 0 {
 			lockKey := int64(fnv32a(orgID))
 			if _, e := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", lockKey); e != nil {
 				return e
@@ -97,7 +102,7 @@ func (s *VoiceService) CreateSession(ctx context.Context, orgID string, req *mod
 			if e != nil {
 				return e
 			}
-			if active >= s.maxConcurrentSessions {
+			if active >= maxSessions {
 				return apierror.NewTooManyRequests("concurrent voice session limit reached")
 			}
 		}
@@ -114,7 +119,6 @@ func (s *VoiceService) CreateSession(ctx context.Context, orgID string, req *mod
 		return nil, apierror.NewInternal("failed to create voice session")
 	}
 
-	// Create the room on LiveKit (best-effort; session exists in DB even if this fails).
 	if s.lkc != nil {
 		if err := s.lkc.CreateRoom(ctx, session.LiveKitRoom, ""); err != nil {
 			slog.ErrorContext(ctx, "VoiceService.CreateSession: failed to create LiveKit room",

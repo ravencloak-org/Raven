@@ -14,17 +14,24 @@ import (
 
 // KBService contains business logic for knowledge base management.
 type KBService struct {
-	repo *repository.KBRepository
-	pool *pgxpool.Pool
+	repo  *repository.KBRepository
+	pool  *pgxpool.Pool
+	quota QuotaCheckerI
 }
 
 // NewKBService creates a new KBService.
-func NewKBService(repo *repository.KBRepository, pool *pgxpool.Pool) *KBService {
-	return &KBService{repo: repo, pool: pool}
+func NewKBService(repo *repository.KBRepository, pool *pgxpool.Pool, quota QuotaCheckerI) *KBService {
+	return &KBService{repo: repo, pool: pool, quota: quota}
 }
 
 // Create validates and creates a new knowledge base within a workspace.
 func (s *KBService) Create(ctx context.Context, orgID, wsID string, req model.CreateKBRequest) (*model.KnowledgeBase, error) {
+	if s.quota != nil {
+		if err := s.quota.CheckKBQuota(ctx, orgID); err != nil {
+			return nil, err
+		}
+	}
+
 	slug := toSlug(req.Name)
 	if slug == "" {
 		return nil, apierror.NewBadRequest("knowledge base name produces an empty slug")

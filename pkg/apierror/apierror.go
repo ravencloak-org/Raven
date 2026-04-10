@@ -75,6 +75,26 @@ func NewInternal(detail string) *AppError {
 	}
 }
 
+// QuotaError extends AppError with billing-specific fields for 402 responses.
+type QuotaError struct {
+	AppError
+	UpgradeRequired bool `json:"upgrade_required"`
+	Limit           int  `json:"limit"`
+}
+
+// NewPaymentRequired creates a 402 Payment Required error with upgrade context.
+func NewPaymentRequired(detail string, limit int) *QuotaError {
+	return &QuotaError{
+		AppError: AppError{
+			Code:    http.StatusPaymentRequired,
+			Message: "Payment Required",
+			Detail:  detail,
+		},
+		UpgradeRequired: true,
+		Limit:           limit,
+	}
+}
+
 // ErrorHandler is a Gin middleware that catches errors set via c.Error()
 // and returns a JSON error response.
 func ErrorHandler() gin.HandlerFunc {
@@ -83,7 +103,9 @@ func ErrorHandler() gin.HandlerFunc {
 
 		if len(c.Errors) > 0 {
 			err := c.Errors.Last().Err
-			if appErr, ok := err.(*AppError); ok {
+			if quotaErr, ok := err.(*QuotaError); ok {
+				c.JSON(quotaErr.Code, quotaErr)
+			} else if appErr, ok := err.(*AppError); ok {
 				c.JSON(appErr.Code, appErr)
 			} else {
 				c.JSON(http.StatusInternalServerError, &AppError{

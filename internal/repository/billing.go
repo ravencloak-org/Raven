@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -11,8 +12,8 @@ import (
 	"github.com/ravencloak-org/Raven/internal/model"
 )
 
-// BillingRepository handles database operations for subscriptions and payment events.
-// All operations run inside a pgx.Tx with org_id set for RLS.
+// BillingRepository handles database operations for subscriptions, payment events,
+// and usage queries. All operations run inside a pgx.Tx with org_id set for RLS.
 type BillingRepository struct {
 	pool *pgxpool.Pool
 }
@@ -71,6 +72,19 @@ const (
 
 	sqlPaymentEventExists = `
 		SELECT EXISTS(SELECT 1 FROM payment_events WHERE payment_id = $1 AND event_type = $2)`
+
+	sqlCountKBsByOrg = `
+		SELECT COUNT(*) FROM knowledge_bases
+		WHERE org_id = $1 AND archived_at IS NULL`
+
+	sqlCountMembersByOrg = `
+		SELECT COUNT(DISTINCT user_id) FROM workspace_members
+		WHERE workspace_id IN (SELECT id FROM workspaces WHERE org_id = $1)`
+
+	sqlVoiceUsageForPeriod = `
+		SELECT COALESCE(SUM(total_duration_seconds), 0)
+		FROM voice_usage_summaries
+		WHERE org_id = $1 AND period_start >= $2`
 )
 
 func scanSubscription(row pgx.Row) (*model.Subscription, error) {
@@ -191,4 +205,34 @@ func (r *BillingRepository) PaymentEventExists(ctx context.Context, tx pgx.Tx, p
 		return false, fmt.Errorf("BillingRepository.PaymentEventExists: %w", err)
 	}
 	return exists, nil
+}
+
+// CountKBsByOrg returns the number of active (non-archived) knowledge bases for an org.
+func (r *BillingRepository) CountKBsByOrg(ctx context.Context, tx pgx.Tx, orgID string) (int, error) {
+	var count int
+	err := tx.QueryRow(ctx, sqlCountKBsByOrg, orgID).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("BillingRepository.CountKBsByOrg: %w", err)
+	}
+	return count, nil
+}
+
+// CountMembersByOrg returns the number of distinct users across all workspaces in an org.
+func (r *BillingRepository) CountMembersByOrg(ctx context.Context, tx pgx.Tx, orgID string) (int, error) {
+	var count int
+	err := tx.QueryRow(ctx, sqlCountMembersByOrg, orgID).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("BillingRepository.CountMembersByOrg: %w", err)
+	}
+	return count, nil
+}
+
+// GetVoiceUsageForPeriod returns total voice duration (seconds) for an org since periodStart.
+func (r *BillingRepository) GetVoiceUsageForPeriod(ctx context.Context, tx pgx.Tx, orgID string, periodStart time.Time) (int, error) {
+	var totalSeconds int
+	err := tx.QueryRow(ctx, sqlVoiceUsageForPeriod, orgID, periodStart).Scan(&totalSeconds)
+	if err != nil {
+		return 0, fmt.Errorf("BillingRepository.GetVoiceUsageForPeriod: %w", err)
+	}
+	return totalSeconds, nil
 }
