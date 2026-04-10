@@ -38,6 +38,7 @@ import (
 	"github.com/ravencloak-org/Raven/internal/cache"
 	"github.com/ravencloak-org/Raven/internal/config"
 	"github.com/ravencloak-org/Raven/internal/db"
+	"github.com/ravencloak-org/Raven/internal/hyperswitch"
 	_ "github.com/ravencloak-org/Raven/docs/swagger" // swagger docs
 	rpcClient "github.com/ravencloak-org/Raven/internal/grpc"
 	"github.com/ravencloak-org/Raven/internal/handler"
@@ -150,6 +151,22 @@ func main() {
 
 	// Build rate limiter using config-driven limits.
 	rl := middleware.NewRateLimiter(valkeyClient, slog.Default())
+	tierResolver := middleware.NewValkeyTierResolver(valkeyClient, slog.Default())
+	tierCfg := middleware.TierConfig{
+		Free: middleware.TierLimits{
+			GeneralRPM:    cfg.RateLimit.FreeGeneralRPM,
+			CompletionRPM: cfg.RateLimit.FreeCompletionRPM,
+		},
+		Pro: middleware.TierLimits{
+			GeneralRPM:    cfg.RateLimit.ProGeneralRPM,
+			CompletionRPM: cfg.RateLimit.ProCompletionRPM,
+		},
+		Enterprise: middleware.TierLimits{
+			GeneralRPM:    cfg.RateLimit.EnterpriseGeneralRPM,
+			CompletionRPM: cfg.RateLimit.EnterpriseCompletionRPM,
+		},
+		WidgetRPM: cfg.RateLimit.WidgetRPM,
+	}
 
 	// --- Response cache ---
 	// Exact-match RAG response cache backed by Valkey. Will be passed to the
@@ -273,6 +290,9 @@ func main() {
 	webhookSvc := service.NewWebhookService(webhookRepo, pool, queueClient)
 	leadSvc := service.NewLeadService(leadRepo)
 	whatsappSvc := service.NewWhatsAppService(whatsappRepo, pool)
+	billingRepo := repository.NewBillingRepository(pool)
+	hsClient := hyperswitch.NewClient(cfg.Hyperswitch.BaseURL, cfg.Hyperswitch.APIKey)
+	billingSvc := service.NewBillingService(billingRepo, pool, hsClient, cfg.Hyperswitch.WebhookSecret)
 	chatRepo := repository.NewChatRepository(pool)
 	chatSvc := service.NewChatService(chatRepo, grpcClient, pool)
 	voiceRepo := repository.NewVoiceRepository(pool)
@@ -381,6 +401,7 @@ func main() {
 	}
 	leadHandler := handler.NewLeadHandler(leadSvc)
 	whatsappHandler := handler.NewWhatsAppHandler(whatsappSvc)
+	billingHandler := handler.NewBillingHandler(billingSvc)
 
 	// Create router
 	router := gin.Default()
@@ -391,11 +412,8 @@ func main() {
 	router.Use(middleware.CORSMiddleware(&cfg.CORS))
 	router.Use(apierror.ErrorHandler())
 
-	// Apply rate limiting by user ID and org ID using config-driven defaults.
-	router.Use(middleware.ByUserID(rl, cfg.RateLimit.DefaultUserLimit))
-	router.Use(middleware.ByOrgID(rl, cfg.RateLimit.DefaultOrgLimit))
-
 	// Infrastructure endpoint — intentionally outside the versioned group.
+	// Excluded from rate limiting.
 	router.GET("/healthz", handler.HealthCheck)
 
 	// Swagger UI — served at /api/docs (unauthenticated; disable in prod via env).
@@ -409,6 +427,11 @@ func main() {
 	// using the org_id stored in the Gin context key middleware.ContextKeyOrgID.
 	api := router.Group("/api/v1")
 	api.Use(middleware.JWTMiddleware(&cfg.Keycloak))
+	// Per-user and per-org flat rate limits (config-driven defaults).
+	api.Use(middleware.ByUserID(rl, cfg.RateLimit.DefaultUserLimit))
+	api.Use(middleware.ByOrgID(rl, cfg.RateLimit.DefaultOrgLimit))
+	// Per-org tier-based rate limit for general API endpoints.
+	api.Use(middleware.ByOrgTier(rl, tierResolver, tierCfg, middleware.RouteGroupGeneral))
 	{
 		api.GET("/ping", handler.Ping)
 
@@ -643,6 +666,15 @@ func main() {
 			}
 		}
 
+		// --- Billing / subscription routes ---
+		billing := api.Group("/billing")
+		{
+			billing.GET("/plans", billingHandler.GetPlans)
+			billing.POST("/subscriptions", billingHandler.Subscribe)
+			billing.DELETE("/subscriptions/:id", billingHandler.Unsubscribe)
+			billing.POST("/payment-intents", billingHandler.CreatePaymentIntent)
+		}
+
 		// --- User / me routes ---
 		api.GET("/me", userHandler.GetMe)
 		api.PUT("/me", userHandler.UpdateMe)
@@ -655,12 +687,20 @@ func main() {
 	chatAPI.Use(middleware.APIKeyAuth(&apiKeyLookupAdapter{repo: apiKeyRepo}))
 	chatAPI.Use(middleware.SecurityRulesMiddleware(&securityEvaluatorAdapter{svc: securitySvc}))
 	chatAPI.Use(middleware.StrangerCheck(strangerSvc, valkeyClient))
+	// Stricter widget rate limit for public-facing chatbot endpoints.
+	chatAPI.Use(middleware.ByOrgTier(rl, tierResolver, tierCfg, middleware.RouteGroupWidget))
 	{
-		chatAPI.POST("/:kb_id/completions", chatHandler.StreamCompletion)
+		// Completion endpoint gets the additional per-org completion rate limit.
+		chatAPI.POST("/:kb_id/completions",
+			middleware.ByOrgTier(rl, tierResolver, tierCfg, middleware.RouteGroupCompletion),
+			chatHandler.StreamCompletion)
 		chatAPI.GET("/:kb_id/sessions", chatHandler.ListSessions)
 		chatAPI.GET("/:kb_id/sessions/:session_id/history", chatHandler.GetHistory)
 		chatAPI.DELETE("/:kb_id/sessions/:session_id", chatHandler.DeleteSession)
 	}
+
+	// --- Hyperswitch Billing Webhook (public, no JWT — uses HMAC signature verification) ---
+	router.POST("/api/v1/billing/webhook", billingHandler.Webhook)
 
 	// --- Meta Graph API Webhook (public, no JWT — Meta sends to a single URL) ---
 	metaWebhookHandler := handler.NewMetaWebhookHandler(cfg.Meta.AppSecret, cfg.Meta.WebhookToken, nil)
