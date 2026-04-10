@@ -1477,3 +1477,818 @@ The remaining spec is a self-contained, coherent test file with 6 tests that all
 Each `go func() { _ = asynqSrv.Start(mux) }()` was replaced with `require.NoError(t, asynqSrv.Start(mux))`. The surrounding context (the differing `lead_id` values `"l-1"`, `"dl-1"`, `"s-1"`) was used to uniquely identify each occurrence and ensure no cross-contamination between edits. Nothing else in the file was changed.</result>
 <usage><total_tokens>30309</total_tokens><tool_uses>5</tool_uses><duration_ms>31290</duration_ms></usage>
 </task-notification>
+
+---
+
+1
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.5/skills/subagent-driven-development
+
+# Subagent-Driven Development
+
+Execute plan by dispatching fresh subagent per task, with two-stage review after each: spec compliance review first, then code quality review.
+
+**Why subagents:** You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions and context, you ensure they stay focused and succeed at their task. They should never inherit your session's context or history — you construct exactly what they need. This also preserves your own context for coordination work.
+
+**Core principle:** Fresh subagent per task + two-stage review (spec then quality) = high quality, fast iteration
+
+## When to Use
+
+```dot
+digraph when_to_use {
+    "Have implementation plan?" [shape=diamond];
+    "Tasks mostly independent?" [shape=diamond];
+    "Stay in this session?" [shape=diamond];
+    "subagent-driven-development" [shape=box];
+    "executing-plans" [shape=box];
+    "Manual execution or brainstorm first" [shape=box];
+
+    "Have implementation plan?" -> "Tasks mostly independent?" [label="yes"];
+    "Have implementation plan?" -> "Manual execution or brainstorm first" [label="no"];
+    "Tasks mostly independent?" -> "Stay in this session?" [label="yes"];
+    "Tasks mostly independent?" -> "Manual execution or brainstorm first" [label="no - tightly coupled"];
+    "Stay in this session?" -> "subagent-driven-development" [label="yes"];
+    "Stay in this session?" -> "executing-plans" [label="no - parallel session"];
+}
+```
+
+**vs. Executing Plans (parallel session):**
+- Same session (no context switch)
+- Fresh subagent per task (no context pollution)
+- Two-stage review after each task: spec compliance first, then code quality
+- Faster iteration (no human-in-loop between tasks)
+
+## The Process
+
+```dot
+digraph process {
+    rankdir=TB;
+
+    subgraph cluster_per_task {
+        label="Per Task";
+        "Dispatch implementer subagent (./implementer-prompt.md)" [shape=box];
+        "Implementer subagent asks questions?" [shape=diamond];
+        "Answer questions, provide context" [shape=box];
+        "Implementer subagent implements, tests, commits, self-reviews" [shape=box];
+        "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [shape=box];
+        "Spec reviewer subagent confirms code matches spec?" [shape=diamond];
+        "Implementer subagent fixes spec gaps" [shape=box];
+        "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [shape=box];
+        "Code quality reviewer subagent approves?" [shape=diamond];
+        "Implementer subagent fixes quality issues" [shape=box];
+        "Mark task complete in TodoWrite" [shape=box];
+    }
+
+    "Read plan, extract all tasks with full text, note context, create TodoWrite" [shape=box];
+    "More tasks remain?" [shape=diamond];
+    "Dispatch final code reviewer subagent for entire implementation" [shape=box];
+    "Use superpowers:finishing-a-development-branch" [shape=box style=filled fillcolor=lightgreen];
+
+    "Read plan, extract all tasks with full text, note context, create TodoWrite" -> "Dispatch implementer subagent (./implementer-prompt.md)";
+    "Dispatch implementer subagent (./implementer-prompt.md)" -> "Implementer subagent asks questions?";
+    "Implementer subagent asks questions?" -> "Answer questions, provide context" [label="yes"];
+    "Answer questions, provide context" -> "Dispatch implementer subagent (./implementer-prompt.md)";
+    "Implementer subagent asks questions?" -> "Implementer subagent implements, tests, commits, self-reviews" [label="no"];
+    "Implementer subagent implements, tests, commits, self-reviews" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)";
+    "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" -> "Spec reviewer subagent confirms code matches spec?";
+    "Spec reviewer subagent confirms code matches spec?" -> "Implementer subagent fixes spec gaps" [label="no"];
+    "Implementer subagent fixes spec gaps" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [label="re-review"];
+    "Spec reviewer subagent confirms code matches spec?" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="yes"];
+    "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" -> "Code quality reviewer subagent approves?";
+    "Code quality reviewer subagent approves?" -> "Implementer subagent fixes quality issues" [label="no"];
+    "Implementer subagent fixes quality issues" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="re-review"];
+    "Code quality reviewer subagent approves?" -> "Mark task complete in TodoWrite" [label="yes"];
+    "Mark task complete in TodoWrite" -> "More tasks remain?";
+    "More tasks remain?" -> "Dispatch implementer subagent (./implementer-prompt.md)" [label="yes"];
+    "More tasks remain?" -> "Dispatch final code reviewer subagent for entire implementation" [label="no"];
+    "Dispatch final code reviewer subagent for entire implementation" -> "Use superpowers:finishing-a-development-branch";
+}
+```
+
+## Model Selection
+
+Use the least powerful model that can handle each role to conserve cost and increase speed.
+
+**Mechanical implementation tasks** (isolated functions, clear specs, 1-2 files): use a fast, cheap model. Most implementation tasks are mechanical when the plan is well-specified.
+
+**Integration and judgment tasks** (multi-file coordination, pattern matching, debugging): use a standard model.
+
+**Architecture, design, and review tasks**: use the most capable available model.
+
+**Task complexity signals:**
+- Touches 1-2 files with a complete spec → cheap model
+- Touches multiple files with integration concerns → standard model
+- Requires design judgment or broad codebase understanding → most capable model
+
+## Handling Implementer Status
+
+Implementer subagents report one of four statuses. Handle each appropriately:
+
+**DONE:** Proceed to spec compliance review.
+
+**DONE_WITH_CONCERNS:** The implementer completed the work but flagged doubts. Read the concerns before proceeding. If the concerns are about correctness or scope, address them before review. If they're observations (e.g., "this file is getting large"), note them and proceed to review.
+
+**NEEDS_CONTEXT:** The implementer needs information that wasn't provided. Provide the missing context and re-dispatch.
+
+**BLOCKED:** The implementer cannot complete the task. Assess the blocker:
+1. If it's a context problem, provide more context and re-dispatch with the same model
+2. If the task requires more reasoning, re-dispatch with a more capable model
+3. If the task is too large, break it into smaller pieces
+4. If the plan itself is wrong, escalate to the human
+
+**Never** ignore an escalation or force the same model to retry without changes. If the implementer said it's stuck, something needs to change.
+
+## Prompt Templates
+
+- `./implementer-prompt.md` - Dispatch implementer subagent
+- `./spec-reviewer-prompt.md` - Dispatch spec compliance reviewer subagent
+- `./code-quality-reviewer-prompt.md` - Dispatch code quality reviewer subagent
+
+## Example Workflow
+
+```
+You: I'm using Subagent-Driven Development to execute this plan.
+
+[Read plan file once: docs/superpowers/plans/feature-plan.md]
+[Extract all 5 tasks with full text and context]
+[Create TodoWrite with all tasks]
+
+Task 1: Hook installation script
+
+[Get Task 1 text and context (already extracted)]
+[Dispatch implementation subagent with full task text + context]
+
+Implementer: "Before I begin - should the hook be installed at user or system level?"
+
+You: "User level (~/.config/superpowers/hooks/)"
+
+Implementer: "Got it. Implementing now..."
+[Later] Implementer:
+  - Implemented install-hook command
+  - Added tests, 5/5 passing
+  - Self-review: Found I missed --force flag, added it
+  - Committed
+
+[Dispatch spec compliance reviewer]
+Spec reviewer: ✅ Spec compliant - all requirements met, nothing extra
+
+[Get git SHAs, dispatch code quality reviewer]
+Code reviewer: Strengths: Good test coverage, clean. Issues: None. Approved.
+
+[Mark Task 1 complete]
+
+Task 2: Recovery modes
+
+[Get Task 2 text and context (already extracted)]
+[Dispatch implementation subagent with full task text + context]
+
+Implementer: [No questions, proceeds]
+Implementer:
+  - Added verify/repair modes
+  - 8/8 tests passing
+  - Self-review: All good
+  - Committed
+
+[Dispatch spec compliance reviewer]
+Spec reviewer: ❌ Issues:
+  - Missing: Progress reporting (spec says "report every 100 items")
+  - Extra: Added --json flag (not requested)
+
+[Implementer fixes issues]
+Implementer: Removed --json flag, added progress reporting
+
+[Spec reviewer reviews again]
+Spec reviewer: ✅ Spec compliant now
+
+[Dispatch code quality reviewer]
+Code reviewer: Strengths: Solid. Issues (Important): Magic number (100)
+
+[Implementer fixes]
+Implementer: Extracted PROGRESS_INTERVAL constant
+
+[Code reviewer reviews again]
+Code reviewer: ✅ Approved
+
+[Mark Task 2 complete]
+
+...
+
+[After all tasks]
+[Dispatch final code-reviewer]
+Final reviewer: All requirements met, ready to merge
+
+Done!
+```
+
+## Advantages
+
+**vs. Manual execution:**
+- Subagents follow TDD naturally
+- Fresh context per task (no confusion)
+- Parallel-safe (subagents don't interfere)
+- Subagent can ask questions (before AND during work)
+
+**vs. Executing Plans:**
+- Same session (no handoff)
+- Continuous progress (no waiting)
+- Review checkpoints automatic
+
+**Efficiency gains:**
+- No file reading overhead (controller provides full text)
+- Controller curates exactly what context is needed
+- Subagent gets complete information upfront
+- Questions surfaced before work begins (not after)
+
+**Quality gates:**
+- Self-review catches issues before handoff
+- Two-stage review: spec compliance, then code quality
+- Review loops ensure fixes actually work
+- Spec compliance prevents over/under-building
+- Code quality ensures implementation is well-built
+
+**Cost:**
+- More subagent invocations (implementer + 2 reviewers per task)
+- Controller does more prep work (extracting all tasks upfront)
+- Review loops add iterations
+- But catches issues early (cheaper than debugging later)
+
+## Red Flags
+
+**Never:**
+- Start implementation on main/master branch without explicit user consent
+- Skip reviews (spec compliance OR code quality)
+- Proceed with unfixed issues
+- Dispatch multiple implementation subagents in parallel (conflicts)
+- Make subagent read plan file (provide full text instead)
+- Skip scene-setting context (subagent needs to understand where task fits)
+- Ignore subagent questions (answer before letting them proceed)
+- Accept "close enough" on spec compliance (spec reviewer found issues = not done)
+- Skip review loops (reviewer found issues = implementer fixes = review again)
+- Let implementer self-review replace actual review (both are needed)
+- **Start code quality review before spec compliance is ✅** (wrong order)
+- Move to next task while either review has open issues
+
+**If subagent asks questions:**
+- Answer clearly and completely
+- Provide additional context if needed
+- Don't rush them into implementation
+
+**If reviewer finds issues:**
+- Implementer (same subagent) fixes them
+- Reviewer reviews again
+- Repeat until approved
+- Don't skip the re-review
+
+**If subagent fails task:**
+- Dispatch fix subagent with specific instructions
+- Don't try to fix manually (context pollution)
+
+## Integration
+
+**Required workflow skills:**
+- **superpowers:using-git-worktrees** - REQUIRED: Set up isolated workspace before starting
+- **superpowers:writing-plans** - Creates the plan this skill executes
+- **superpowers:requesting-code-review** - Code review template for reviewer subagents
+- **superpowers:finishing-a-development-branch** - Complete development after all tasks
+
+**Subagents should use:**
+- **superpowers:test-driven-development** - Subagents follow TDD for each task
+
+**Alternative workflow:**
+- **superpowers:executing-plans** - Use for parallel session instead of same-session execution
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.5/skills/using-git-worktrees
+
+# Using Git Worktrees
+
+## Overview
+
+Git worktrees create isolated workspaces sharing the same repository, allowing work on multiple branches simultaneously without switching.
+
+**Core principle:** Systematic directory selection + safety verification = reliable isolation.
+
+**Announce at start:** "I'm using the using-git-worktrees skill to set up an isolated workspace."
+
+## Directory Selection Process
+
+Follow this priority order:
+
+### 1. Check Existing Directories
+
+```bash
+# Check in priority order
+ls -d .worktrees 2>/dev/null     # Preferred (hidden)
+ls -d worktrees 2>/dev/null      # Alternative
+```
+
+**If found:** Use that directory. If both exist, `.worktrees` wins.
+
+### 2. Check CLAUDE.md
+
+```bash
+grep -i "worktree.*director" CLAUDE.md 2>/dev/null
+```
+
+**If preference specified:** Use it without asking.
+
+### 3. Ask User
+
+If no directory exists and no CLAUDE.md preference:
+
+```
+No worktree directory found. Where should I create worktrees?
+
+1. .worktrees/ (project-local, hidden)
+2. ~/.config/superpowers/worktrees/<project-name>/ (global location)
+
+Which would you prefer?
+```
+
+## Safety Verification
+
+### For Project-Local Directories (.worktrees or worktrees)
+
+**MUST verify directory is ignored before creating worktree:**
+
+```bash
+# Check if directory is ignored (respects local, global, and system gitignore)
+git check-ignore -q .worktrees 2>/dev/null || git check-ignore -q worktrees 2>/dev/null
+```
+
+**If NOT ignored:**
+
+Per Jesse's rule "Fix broken things immediately":
+1. Add appropriate line to .gitignore
+2. Commit the change
+3. Proceed with worktree creation
+
+**Why critical:** Prevents accidentally committing worktree contents to repository.
+
+### For Global Directory (~/.config/superpowers/worktrees)
+
+No .gitignore verification needed - outside project entirely.
+
+## Creation Steps
+
+### 1. Detect Project Name
+
+```bash
+project=$(basename "$(git rev-parse --show-toplevel)")
+```
+
+### 2. Create Worktree
+
+```bash
+# Determine full path
+case $LOCATION in
+  .worktrees|worktrees)
+    path="$LOCATION/$BRANCH_NAME"
+    ;;
+  ~/.config/superpowers/worktrees/*)
+    path="~/.config/superpowers/worktrees/$project/$BRANCH_NAME"
+    ;;
+esac
+
+# Create worktree with new branch
+git worktree add "$path" -b "$BRANCH_NAME"
+cd "$path"
+```
+
+### 3. Run Project Setup
+
+Auto-detect and run appropriate setup:
+
+```bash
+# Node.js
+if [ -f package.json ]; then npm install; fi
+
+# Rust
+if [ -f Cargo.toml ]; then cargo build; fi
+
+# Python
+if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+if [ -f pyproject.toml ]; then poetry install; fi
+
+# Go
+if [ -f go.mod ]; then go mod download; fi
+```
+
+### 4. Verify Clean Baseline
+
+Run tests to ensure worktree starts clean:
+
+```bash
+# Examples - use project-appropriate command
+npm test
+cargo test
+pytest
+go test ./...
+```
+
+**If tests fail:** Report failures, ask whether to proceed or investigate.
+
+**If tests pass:** Report ready.
+
+### 5. Report Location
+
+```
+Worktree ready at <full-path>
+Tests passing (<N> tests, 0 failures)
+Ready to implement <feature-name>
+```
+
+## Quick Reference
+
+| Situation | Action |
+|-----------|--------|
+| `.worktrees/` exists | Use it (verify ignored) |
+| `worktrees/` exists | Use it (verify ignored) |
+| Both exist | Use `.worktrees/` |
+| Neither exists | Check CLAUDE.md → Ask user |
+| Directory not ignored | Add to .gitignore + commit |
+| Tests fail during baseline | Report failures + ask |
+| No package.json/Cargo.toml | Skip dependency install |
+
+## Common Mistakes
+
+### Skipping ignore verification
+
+- **Problem:** Worktree contents get tracked, pollute git status
+- **Fix:** Always use `git check-ignore` before creating project-local worktree
+
+### Assuming directory location
+
+- **Problem:** Creates inconsistency, violates project conventions
+- **Fix:** Follow priority: existing > CLAUDE.md > ask
+
+### Proceeding with failing tests
+
+- **Problem:** Can't distinguish new bugs from pre-existing issues
+- **Fix:** Report failures, get explicit permission to proceed
+
+### Hardcoding setup commands
+
+- **Problem:** Breaks on projects using different tools
+- **Fix:** Auto-detect from project files (package.json, etc.)
+
+## Example Workflow
+
+```
+You: I'm using the using-git-worktrees skill to set up an isolated workspace.
+
+[Check .worktrees/ - exists]
+[Verify ignored - git check-ignore confirms .worktrees/ is ignored]
+[Create worktree: git worktree add .worktrees/auth -b feature/auth]
+[Run npm install]
+[Run npm test - 47 passing]
+
+Worktree ready at /Users/jesse/myproject/.worktrees/auth
+Tests passing (47 tests, 0 failures)
+Ready to implement auth feature
+```
+
+## Red Flags
+
+**Never:**
+- Create worktree without verifying it's ignored (project-local)
+- Skip baseline test verification
+- Proceed with failing tests without asking
+- Assume directory location when ambiguous
+- Skip CLAUDE.md check
+
+**Always:**
+- Follow directory priority: existing > CLAUDE.md > ask
+- Verify directory is ignored for project-local
+- Auto-detect and run project setup
+- Verify clean test baseline
+
+## Integration
+
+**Called by:**
+- **brainstorming** (Phase 4) - REQUIRED when design is approved and implementation follows
+- **subagent-driven-development** - REQUIRED before executing any tasks
+- **executing-plans** - REQUIRED before executing any tasks
+- Any skill needing isolated workspace
+
+**Pairs with:**
+- **finishing-a-development-branch** - REQUIRED for cleanup after work complete
+
+---
+
+all of them in parallel
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   - User started by asking about available indexing tools, then requested parallel indexing across all available systems (serena, context-mode, context7, contextplus)
+   - User requested brainstorming next steps for the Raven project
+   - User chose option B (prioritize ALL open issues and decide execution order)
+   - User approved Approach A (three sequential waves with parallelism within each wave)
+   - User approved all three design sections and the written spec
+   - User chose Subagent-Driven Development (option 1) for execution
+   - User requested all three waves run in parallel
+   - Four implementation agents are now running in background
+
+2. Key Technical Concepts:
+   - **Raven platform**: Multi-tenant AI platform (Go 1.25 API + Python gRPC AI worker + Vue 3 frontend)
+   - **Module path**: `github.com/ravencloak-org/Raven`
+   - **Stack**: Gin, pgx/v5, Asynq (backed by Valkey/Redis-compatible), testcontainers-go, LiveKit, SeaweedFS, Keycloak, pgvector/BM25
+   - **RLS pattern**: `db.WithOrgID(ctx, pool, orgID, func(tx pgx.Tx) error {...})` to set `app.current_org_id`
+   - **SSRF guard**: `safeDialContext` in `webhook_delivery.go` blocks 127.0.0.1, requiring `NewWebhookDeliveryHandlerWithClient` for integration tests
+   - **TDD discipline**: Write failing test → verify fail → implement → verify pass → commit
+   - **CLAUDE.md rules**: No Co-Authored-By trailers, squash merge only, `gh pr merge --auto --squash` after creation
+   - **Git worktrees**: Three isolated worktrees created for parallel wave execution
+   - **Contextplus**: Requires Ollama running; uses `mxbai-embed-large` / `nomic-embed-text` models
+   - **Wave execution**: Subagent-Driven Development with two-stage review (spec compliance + code quality) per task
+
+3. Files and Code Sections:
+   - **`docs/superpowers/specs/2026-04-10-mvp-launch-execution-order.md`** (created): 11 open issues prioritized into 3 waves. Pre-flight closes #200. Wave 1: #233, #237, #232. Wave 2: #236, #193. Wave 3: #194, #197. Deferred: #238, #239, #240.
+   
+   - **`docs/superpowers/plans/2026-04-10-wave1-quick-fixes.md`** (created): #233 and #232 already fixed; only #237 needs real work (remove TestPackageCompiles from 7 EE stub test files). Fixed issues: Go version 1.24→1.25, commit hash for REVOKE fix (c761096 not 3c99007), expected output description corrected.
+   
+   - **`docs/superpowers/plans/2026-04-10-wave2-ee-tests-and-billing.md`** (created, multiple revisions): Track A (webhook integration tests) + Track B (billing enforcement, delegates to existing plan). Critical fixes applied over 3 review iterations:
+     - UUID literals: `uuid.New().String()` instead of string IDs
+     - SSRF bypass: `NewWebhookDeliveryHandlerWithClient(*pgxpool.Pool, *repository.WebhookRepository, *http.Client, *slog.Logger)` 
+     - Column fix: `status` (VARCHAR) not `success` (bool) in webhook_deliveries
+     - Table spelling: `organizations` not `organisations`
+     - TDD order: valkey_test.go before valkey.go
+     - `require.NoError(t, asynqSrv.Start(mux))` not goroutine wrapper
+     - `db.WithOrgID` wrapping ALL verification queries
+     - `[]string{"lead.generated"}` not raw PostgreSQL array literal
+     - `require.Eventually` polling not `time.Sleep`
+   
+   - **`docs/superpowers/plans/2026-04-10-wave3-mvp-features.md`** (created, multiple revisions): 16 tasks for billing UI (#194, blocked by #193) and Keycloak onboarding (#197, independent). Fixes applied:
+     - `getTenantStatus`: `offset=0&limit=1` not `page/page_size`, flat array `data.length > 0`
+     - `cfg.AppURL` field added (env: `RAVEN_APP_URL`, default `http://localhost:5173`) instead of `cfg.CORS.AllowedOrigins[0]`
+     - 402 handling inline in `billing.ts` authFetch (not in client.ts)
+     - `onboarding.spec.ts` added (Task 7b) with 6 meaningful store tests
+     - `newProvisioningRouter()` helper using `apierror.ErrorHandler()`
+     - `computed(() => [...])` for PlanCard features
+     - DOM cleanup instead of `widgets.destroy()` in PaymentModal
+     - Spec paths: `docs/superpowers/specs/` not `docs/specs/`
+     - Removed two dead `checkTenantStatus` tests from onboarding.spec.ts
+
+   - **`.worktrees/wave1-quick-fixes`**: Branch `feat/wave1-quick-fixes`, agent wave1-impl running
+   - **`.worktrees/wave2-ee-billing`**: Branch `feat/wave2-ee-billing`, agents wave2a-t1-impl AND wave2b-t1-impl running
+   - **`.worktrees/wave3-mvp-features`**: Branch `feat/wave3-mvp-features`, agent wave3b-t0-spec running
+
+   - **`internal/testutil/valkey_test.go`** (being created by wave2a-t1-impl): TDD smoke test - currently showing undefined error (EXPECTED - TDD step 2)
+   ```go
+   func TestNewTestValkey_Ping(t *testing.T) {
+       vc := testutil.NewTestValkey(t)
+       client := redis.NewClient(&redis.Options{Addr: vc.Addr})
+       defer client.Close()
+       err := client.Ping(context.Background()).Err()
+       require.NoError(t, err)
+   }
+   ```
+
+4. Errors and fixes:
+   - **Contextplus permission denied**: All tools blocked. Fixed by confirming Ollama was running (`ollama list` showed `mxbai-embed-large` and `nomic-embed-text`), retried and permissions were accepted.
+   - **Wave 2 plan - UUID string literals**: Hardcoded IDs like `"org-retry-test"` used in UUID columns. Fixed: `uuid.New().String()` for all IDs.
+   - **Wave 2 plan - SSRF guard**: `httptest.NewServer` binds to 127.0.0.1 which `safeDialContext` blocks. Fixed: `NewWebhookDeliveryHandlerWithClient` constructor added.
+   - **Wave 2 plan - `success` column**: Queried non-existent bool column. Fixed: use `status` (VARCHAR "delivered"/"failed").
+   - **Wave 2 plan - `organisations` typo**: British spelling rejected. Fixed: `organizations`.
+   - **Wave 2 plan - `t.Logf` goroutine panic**: After test ends, goroutine calls `t.Logf`. Fixed: `_ = asynqSrv.Start(mux)` (discard error, no goroutine).
+   - **Wave 2 plan - RLS bypass**: Direct `pool.QueryRow` returns no rows without `app.current_org_id`. Fixed: wrapped ALL verification queries in `db.WithOrgID`.
+   - **Wave 3 plan - getTenantStatus**: Wrong query params (`page/page_size`) and wrong response shape (`data.items`). Fixed: `offset=0&limit=1`, `data.length > 0`.
+   - **Wave 3 plan - AllowedOrigins panic**: `cfg.CORS.AllowedOrigins[0]` panics if empty. Fixed: `AppURL string` config field.
+   - **Wave 3 plan - 402 interceptor dead code**: `billing.ts` never calls through `client.ts`. Fixed: inline 402 handling in billing.ts's own authFetch.
+   - **Spec review - stale issue states**: #230, #231, #234, #235 listed as open but already closed. Fixed: updated counts to 11 open issues (4 milestone + 7 non-milestone).
+
+5. Problem Solving:
+   - Identified that the `valkey_test.go` LSP error is EXPECTED - it's the TDD "red" phase for wave2a-t1-impl agent
+   - The `telemetry.go` OTel errors are pre-existing issue #235 (OTel restoration in backlog), unrelated to current work
+   - Wave 2 Track A and Track B both operate in the same worktree (`.worktrees/wave2-ee-billing`) but touch different files: Track A touches `internal/testutil/`, `internal/jobs/`; Track B touches `pkg/apierror/` and billing-related files
+   - Wave 3 Feature A (#194 billing UI) is blocked by Wave 2 Track B (#193) but design spec (Task 0) can proceed independently
+
+6. All user messages:
+   - "what are the tools available for indexing installed here?"
+   - "Index on all of them. Using parallel agents"
+   - "yes" (to retry contextplus after confirming Ollama running)
+   - "use ollama cli"
+   - "yes" (to retry contextplus indexing)
+   - "awesome"
+   - "let's brainstorm the next steps then"
+   - "b" (chose option B: prioritize across all open issues)
+   - "check local indexes using semantic search and understand" (mid-task message to use semantic search)
+   - "yes" (Wave 1 design approved)
+   - "yes" (Wave 2 design approved)
+   - "yes" (Wave 3 design approved)
+   - "yes" (full design approved, proceed to write doc)
+   - "Proceed." (proceed to implementation planning after spec approved)
+   - "1" (chose Subagent-Driven Development)
+   - "all of them in parallel" (run all three waves in parallel)
+   - "done" (acknowledged wave2 fixer was running)
+   - "Where are we?" (status check - answered with current state table)
+   - "done" (acknowledged two remaining agents were running)
+
+7. Pending Tasks:
+   - **Task #7 (in_progress)**: W1 - wave1-impl agent running: close #233/#232 (already fixed), remove TestPackageCompiles from 7 EE stub test files (#237), create PR
+   - **Task #8 (in_progress)**: W2A-T1 - wave2a-t1-impl agent running: create Valkey testcontainer helper (TDD: test first, then implementation)
+   - **Task #12 (in_progress)**: W2B - wave2b-t1-impl agent running: billing enforcement Task 1 (402 error constructor in pkg/apierror/)
+   - **Task #14 (in_progress)**: W3B-T0 - wave3b-t0-spec agent running: write Keycloak onboarding design spec (#197)
+   - **Task #9** (pending, blocked by #8): W2A-T2 webhook retry integration test
+   - **Task #10** (pending, blocked by #9): W2A-T3 dead-letter integration test
+   - **Task #11** (pending, blocked by #10): W2A-T4 success reset + cleanup
+   - **Task #13** (pending): W3A-T0 billing UI design spec (#194)
+   - **Task #15** (pending, blocked by #14): W3B Keycloak implementation
+   - **Task #16** (pending, blocked by #12 and #13): W3A billing UI implementation
+   - Close #200 (all sub-issues already merged, just needs closing)
+
+8. Current Work:
+   Four background agents are running simultaneously:
+
+   **wave1-impl** (agent a9014d4d87c222c85) in `.worktrees/wave1-quick-fixes`:
+   - Removing `TestPackageCompiles` from 7 EE stub test files
+   - Files: analytics_test.go, connectors_test.go, lead_test.go, sso_test.go, audit_test.go → replace with blank-import-only stubs
+   - webhooks_test.go → remove only TestPackageCompiles function
+   - security_test.go → remove only TestPackageCompiles, keep WAF concept tests
+   - Will run `go test ./internal/ee/...` and `golangci-lint run ./internal/ee/...`, create PR with `gh pr merge --auto --squash`
+
+   **wave2a-t1-impl** (agent a1cdab3acbc0a2328) in `.worktrees/wave2-ee-billing`:
+   - TDD: created `internal/testutil/valkey_test.go` (step 1 - confirmed by LSP error showing `testutil.NewTestValkey` undefined)
+   - Next: create `internal/testutil/valkey.go` implementation, then verify test passes
+   - ValkeyContainer struct with `Addr string`, uses `valkey/valkey:8-alpine` image
+
+   **wave2b-t1-impl** (agent a44c171b1c52c1a6d) in `.worktrees/wave2-ee-billing`:
+   - Following billing enforcement plan Task 1
+   - Adding `NewPaymentRequired` and `QuotaError` to `pkg/apierror/apierror.go`
+   - Only touches `pkg/apierror/` files
+
+   **wave3b-t0-spec** (agent ab0bf1813d5aeacc0) in `.worktrees/wave3-mvp-features`:
+   - Writing `docs/superpowers/specs/197-keycloak-onboarding-design.md`
+   - Covering backend Keycloak Admin API client, `POST /internal/provision-realm`, security model, frontend wizard (4-step), error handling, testing strategy
+
+9. Optional Next Step:
+   Wait for all 4 background agents to complete, then:
+   - For Task #7 (wave1-impl): Run spec compliance review, then code quality review, then mark complete
+   - For Task #8 (wave2a-t1-impl): Run spec compliance review, then code quality review, then dispatch Task #9 (webhook retry integration test)
+   - For Task #12 (wave2b-t1-impl): Run spec compliance review, then code quality review, then dispatch Task 2 of billing enforcement plan
+   - For Task #14 (wave3b-t0-spec): Review the design spec, then dispatch W3B implementation (Task #15) and also start W3A-T0 (billing UI design spec, Task #13)
+
+   The immediate next step upon receiving completion notifications is to dispatch spec compliance reviewers for whichever tasks complete first, as established by the subagent-driven-development skill: "DONE → Dispatch spec compliance reviewer → if approved → dispatch code quality reviewer → if approved → mark task complete → dispatch next task."
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/jobinlawrance/.REDACTED.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+<task-notification>
+<task-id>a9014d4d87c222c85</task-id>
+<tool-use-id>toolu_01VqVQ9ZfdD6cNdVjCrg9GKj</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Wave 1: EE stub test cleanup (#237)" completed</summary>
+<result>All edits are complete. Now I need Bash access to run the tests, lint, commit, and create the PR. Please grant Bash access so I can proceed with:
+
+1. `go test -v -count=1 ./internal/ee/...` — verify all packages pass
+2. `golangci-lint run ./internal/ee/...` — verify no lint errors
+3. `git commit -m "chore(test): remove vacuous TestPackageCompiles from EE stubs"`
+4. `gh pr create` + `gh pr merge --auto --squash`
+
+**Status: BLOCKED**
+
+All 7 file edits are complete:
+- `/Users/jobinlawrance/Project/raven/.worktrees/wave1-quick-fixes/internal/ee/analytics/analytics_test.go` — replaced with blank-import-only stub
+- `/Users/jobinlawrance/Project/raven/.worktrees/wave1-quick-fixes/internal/ee/connectors/connectors_test.go` — replaced with blank-import-only stub
+- `/Users/jobinlawrance/Project/raven/.worktrees/wave1-quick-fixes/internal/ee/lead/lead_test.go` — replaced with blank-import-only stub
+- `/Users/jobinlawrance/Project/raven/.worktrees/wave1-quick-fixes/internal/ee/sso/sso_test.go` — replaced with blank-import-only stub
+- `/Users/jobinlawrance/Project/raven/.worktrees/wave1-quick-fixes/internal/ee/audit/audit_test.go` — replaced with blank-import-only stub
+- `/Users/jobinlawrance/Project/raven/.worktrees/wave1-quick-fixes/internal/ee/webhooks/webhooks_test.go` — `TestPackageCompiles` removed; HMAC tests and retry/dead-letter tests preserved
+- `/Users/jobinlawrance/Project/raven/.worktrees/wave1-quick-fixes/internal/ee/security/security_test.go` — `TestPackageCompiles` removed; WAF concept tests preserved
+
+**Verification of #233 and #232:** Both confirmed fixed — commit `ee54499` covers the `os.Stat` guard (#233) and commits `c761096`/`e65c205` cover the REVOKE cleanup (#232).
+
+**Blocked on:** Bash permission needed to run `go test`, `golangci-lint`, `git commit`, `gh pr create`, and `gh pr merge`. Please grant Bash access to complete the remaining steps.</result>
+<usage><total_tokens>25428</total_tokens><tool_uses>17</tool_uses><duration_ms>47118</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a1cdab3acbc0a2328</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Wave 2A Task 1: Valkey testcontainer helper" completed</summary>
+<result>I need permission to run the git commit command. I've completed all the implementation steps (writing the test, confirming the compile error, creating the implementation, and confirming the test passes). The only remaining step is to commit the two new files:
+
+- `/Users/jobinlawrance/Project/raven/.worktrees/wave2-ee-billing/internal/testutil/valkey.go`
+- `/Users/jobinlawrance/Project/raven/.worktrees/wave2-ee-billing/internal/testutil/valkey_test.go`
+
+Please run the following command to commit:
+
+```bash
+cd /Users/jobinlawrance/Project/raven/.worktrees/wave2-ee-billing &amp;&amp; git add internal/testutil/valkey.go internal/testutil/valkey_test.go &amp;&amp; git commit -m "test(infra): add Valkey testcontainer helper for integration tests"
+```
+
+---
+
+**Status: DONE_WITH_CONCERNS**
+
+All implementation steps completed successfully:
+
+1. **Test written first** (`internal/testutil/valkey_test.go`) — confirms TDD approach
+2. **Compile error verified** — `testutil.NewTestValkey undefined` as expected
+3. **Implementation created** (`internal/testutil/valkey.go`) — `ValkeyContainer` struct and `NewTestValkey` function using testcontainers-go with `valkey/valkey:8-alpine`, log-based readiness wait, and `t.Cleanup` for automatic teardown
+4. **Test passes** — `TestNewTestValkey_Ping` ran in ~11.5s, container spun up, Ping succeeded, container terminated cleanly
+5. **Commit blocked** — Bash permission was denied for the git commit step; the two files are staged and ready. Run the command above to complete the commit.
+
+**Minor concern:** The gcloud credential errors in the test output are benign noise (testcontainers checks multiple registries before falling back to anonymous Docker Hub pulls). They do not affect test correctness.</result>
+<usage><total_tokens>21840</total_tokens><tool_uses>6</tool_uses><duration_ms>53092</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a44c171b1c52c1a6d</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Wave 2B Task 1: Billing 402 error constructor" completed</summary>
+<result>The Bash tool is blocking the git commit. I need the user to run the commit command. Let me explain:
+
+I need to run the following git commit command in the worktree, but the Bash tool denied permission for this action. Please run it manually:
+
+```bash
+cd /Users/jobinlawrance/Project/raven/.worktrees/wave2-ee-billing &amp;&amp; git add pkg/apierror/apierror.go pkg/apierror/apierror_test.go &amp;&amp; git commit -m "feat(billing): add 402 Payment Required error with QuotaError type"
+```
+
+---
+
+**Status: DONE_WITH_CONCERNS**
+
+All implementation and TDD steps for Task 1 are complete:
+
+1. **Test written** at `/Users/jobinlawrance/Project/raven/.worktrees/wave2-ee-billing/pkg/apierror/apierror_test.go` — exercises `NewPaymentRequired`, all fields, and the `error` interface.
+2. **Test confirmed failing** before implementation (undefined: `apierror.NewPaymentRequired`).
+3. **Implementation added** to `/Users/jobinlawrance/Project/raven/.worktrees/wave2-ee-billing/pkg/apierror/apierror.go`:
+   - `QuotaError` struct embedding `AppError` with `UpgradeRequired bool` and `Limit int` JSON fields.
+   - `NewPaymentRequired(detail string, limit int) *QuotaError` constructor.
+   - `ErrorHandler` updated to check `*QuotaError` before `*AppError` so 402 responses serialize the full `QuotaError` payload.
+4. **Test confirmed passing** — `TestNewPaymentRequired` PASS.
+
+**Concern:** The `git commit` step was denied by the Bash tool permission system. Please run the commit command above manually to complete Task 1.</result>
+<usage><total_tokens>25137</total_tokens><tool_uses>11</tool_uses><duration_ms>56064</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ab0bf1813d5aeacc0</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Wave 3B Task 0: Keycloak onboarding design spec" completed</summary>
+<result>I need Bash permission to commit the file. Here is what I was doing: running `git add` and `git commit` in the worktree at `/Users/jobinlawrance/Project/raven/.worktrees/wave3-mvp-features` to commit the newly created design spec file with the message `docs: add design spec for Keycloak realm auto-provisioning (#197)`.
+
+Please run the following commands to complete the commit:
+
+```bash
+cd /Users/jobinlawrance/Project/raven/.worktrees/wave3-mvp-features
+git add docs/superpowers/specs/197-keycloak-onboarding-design.md
+git commit -m "docs: add design spec for Keycloak realm auto-provisioning (#197)"
+```
+
+---
+
+**Status: DONE_WITH_CONCERNS**
+
+The spec has been written and saved to `/Users/jobinlawrance/Project/raven/.worktrees/wave3-mvp-features/docs/superpowers/specs/197-keycloak-onboarding-design.md`. The commit could not be executed because Bash permission was denied — please run the three commands above to complete the task.
+
+**What the spec covers:**
+
+1. **Overview and goals** — problem statement, goals, non-goals, dependencies
+2. **Backend design** — new `KeycloakConfig` fields (`AdminURL`, `AdminUser`, `AdminPassword`) with exact env var names; `AdminClient` interface and struct with token caching; `ProvisioningService` interface and 9-step flow; full `POST /internal/provision-realm` HTTP contract (request/response models, status codes for all error cases); route registration on the unauthenticated `/api/v1/internal` group
+3. **Provisioning flow** — complete table of what gets created per tenant (realm, roles, client scope with mappers, OIDC client); realm template config values mirrored from `deploy/keycloak/raven-realm.json`; all required env vars with examples; `UpdateKeycloakRealm` repo method spec
+4. **Frontend design** — 4-step wizard (Welcome → Org Details → First Workspace → Complete) using `AuthLayout`; `onboarding.ts` API client with `getOnboardingStatus` / `updateOrgDetails` / `createFirstWorkspace`; Pinia store state and actions; `router.beforeEach` guard extension with 60-second status cache and graceful failure behaviour
+5. **Error handling and rollback** — partial provisioning recovery via retry-safe idempotency; 409-swallowing on client/scope re-creation; frontend error state management with guard failure tolerance
+6. **Testing strategy** — httptest mock server for Admin client unit tests; mock service for handler tests; Pinia testing for store; exact `go test` and `vitest run` commands
+
+**Concern:** The plan's Task 0 names the output file `197-keycloak-realm-provisioning.md`, but the task instructions specified `197-keycloak-onboarding-design.md`. I used the instructions-specified name. If the plan file name is needed for the tasks that follow, rename with `git mv` after committing.</result>
+<usage><total_tokens>49749</total_tokens><tool_uses>14</tool_uses><duration_ms>180899</duration_ms></usage>
+</task-notification>
+
+---
+
+yes
+
+---
+
+done
+
+---
+
+update all indexes as well
+
+---
+
+its eunning

@@ -2,8 +2,8 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "5bb3bfefbfeb",
   "strategy": "manual-commit",
-  "branch": "test/go-backend-suite",
-  "checkpoints_count": 2,
+  "branch": "feat/glance-service-monitors",
+  "checkpoints_count": 1,
   "files_touched": [
     ".worktrees/feat-issue-193-billing-enforcement/cmd/api/main.go",
     ".worktrees/feat-issue-193-billing-enforcement/internal/repository/billing.go",
@@ -32,10 +32,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 180,
-    "cache_creation_tokens": 577134,
-    "cache_read_tokens": 7306459,
-    "output_tokens": 63721,
-    "api_call_count": 96
+    "input_tokens": 620,
+    "cache_creation_tokens": 553320,
+    "cache_read_tokens": 9641511,
+    "output_tokens": 83481,
+    "api_call_count": 97
   }
 }
