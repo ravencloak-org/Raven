@@ -48,6 +48,7 @@ deploy/ansible/group_vars/all.yml
 docker-compose.override.yml
 
 # Coverage
+coverage.out
 coverage.txt
 coverage.html
 htmlcov/
