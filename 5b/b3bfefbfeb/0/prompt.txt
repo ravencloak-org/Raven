@@ -1317,3 +1317,15 @@ error in above url
 ---
 
 which new image? create a release for it first
+
+---
+
+both the cname added are returning 502
+
+---
+
+both redurect to keycloak without client existing
+
+---
+
+don't use the word Raven Cloudflare in github login title. url is in infininte redirect https://app.ravencloak.org/dashboard#state=32b31e0c-6325-45e2-a704-a073b3cd78d6&session_state=0d645cb8-7de4-4ce9-b430-5b5e2e22b46b&iss=https%3A%2F%2Fauth.ravencloak.org%2Frealms%2Fraven&code=78f818db-f881-46f3-b07f-3b3c3fc4e0bb.0d645cb8-7de4-4ce9-b430-5b5e2e22b46b.311dd21c-e149-48ac-b53d-42a56f6325ad

@@ -2,12 +2,14 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "5bb3bfefbfeb",
   "strategy": "manual-commit",
-  "branch": "ci/docker-versioned-tags",
+  "branch": "fix/keycloak-cloudflare-auth",
   "checkpoints_count": 1,
   "files_touched": [
-    ".github/workflows/docker.yml",
     "docs/superpowers/plans/2026-04-10-wave1-quick-fixes.md",
-    "docs/superpowers/specs/2026-04-10-mvp-launch-execution-order.md"
+    "docs/superpowers/specs/2026-04-10-mvp-launch-execution-order.md",
+    "frontend/public/silent-check-sso.html",
+    "frontend/src/router/index.ts",
+    "frontend/src/stores/auth.ts"
   ],
   "sessions": [
     {
@@ -26,10 +28,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 607,
-    "cache_creation_tokens": 261850,
-    "cache_read_tokens": 9518600,
-    "output_tokens": 53377,
-    "api_call_count": 90
+    "input_tokens": 637,
+    "cache_creation_tokens": 288101,
+    "cache_read_tokens": 13226589,
+    "output_tokens": 64835,
+    "api_call_count": 116
   }
 }

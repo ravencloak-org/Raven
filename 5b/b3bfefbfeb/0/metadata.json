@@ -3,30 +3,32 @@
   "checkpoint_id": "5bb3bfefbfeb",
   "session_id": "cfa487ee-ce1a-4dd2-b6b8-4701f22a1272",
   "strategy": "manual-commit",
-  "created_at": "2026-04-10T21:57:38.59998Z",
-  "branch": "ci/docker-versioned-tags",
+  "created_at": "2026-04-10T22:13:31.671583Z",
+  "branch": "fix/keycloak-cloudflare-auth",
   "checkpoints_count": 1,
   "files_touched": [
-    ".github/workflows/docker.yml"
+    "frontend/public/silent-check-sso.html",
+    "frontend/src/router/index.ts",
+    "frontend/src/stores/auth.ts"
   ],
   "agent": "Claude Code",
-  "transcript_identifier_at_start": "91798f8a-d781-4f95-91a2-6d9688cc86ec",
-  "checkpoint_transcript_start": 1431,
-  "transcript_lines_at_start": 1431,
+  "transcript_identifier_at_start": "bc22ff76-8f8e-4dab-adca-9c05ac3749cf",
+  "checkpoint_transcript_start": 1460,
+  "transcript_lines_at_start": 1460,
   "token_usage": {
-    "input_tokens": 11,
-    "cache_creation_tokens": 7661,
-    "cache_read_tokens": 1030880,
-    "output_tokens": 4467,
-    "api_call_count": 9
+    "input_tokens": 41,
+    "cache_creation_tokens": 33912,
+    "cache_read_tokens": 4738869,
+    "output_tokens": 15925,
+    "api_call_count": 35
   },
   "initial_attribution": {
-    "calculated_at": "2026-04-10T21:57:38.265315Z",
+    "calculated_at": "2026-04-10T22:13:31.374749Z",
     "agent_lines": 0,
-    "human_added": 367,
-    "human_modified": 9,
+    "human_added": 851,
+    "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 367,
+    "total_committed": 851,
     "agent_percentage": 0
   }
 }
