@@ -3,7 +3,6 @@ import { ref, onMounted, computed } from 'vue'
 import { useApiKeysStore } from '../../stores/apikeys'
 import { useMobile } from '../../composables/useMediaQuery'
 import { pipe, split, map, filter, isTruthy } from 'remeda'
-import { useMobile } from '../../composables/useMediaQuery'
 
 const store = useApiKeysStore()
 const { isMobile } = useMobile()
