@@ -71,7 +71,7 @@ omit = ["raven_worker/generated/*"]
 
 [tool.coverage.report]
 show_missing = true
-fail_under = 50
+fail_under = 70
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
