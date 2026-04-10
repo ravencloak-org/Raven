@@ -239,3 +239,24 @@ Summary:
    - (Implicit from prior session) "Go for it with Parallel Legends" â€” implement issues #197 (Keycloak provisioning) and #194 (billing UI) with parallel agents simultaneously
    - "what are You're working on?" â€...
 
+### Prompt 30
+
+what is the cloudflare deployment status for frontend?
+
+### Prompt 31
+
+it's giving a 502 Bad Gateway
+nginx/1.24.0 (Ubuntu)
+
+### Prompt 32
+
+ssh ubuntu@ec2-65-0-85-115.ap-south-1.compute.amazonaws.com and check what's the logs, and give me subdomains for hosted services in raven, using ravencloak.org cloudflare cli
+
+### Prompt 33
+
+yes
+
+### Prompt 34
+
+error in above url
+
