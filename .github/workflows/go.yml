@@ -38,7 +38,7 @@ jobs:
       - run: go mod download
 
       - name: Install eBPF build tools
-        run: sudo apt-get install -y clang llvm libbpf-dev linux-tools-$(uname -r)
+        run: sudo apt-get install -y clang llvm libbpf-dev linux-tools-$(uname -r) || sudo apt-get install -y clang llvm libbpf-dev
 
       - run: CGO_ENABLED=1 go build ./cmd/api
 
@@ -74,7 +74,7 @@ jobs:
           cache: true
 
       - name: Install eBPF build tools
-        run: sudo apt-get install -y clang llvm libbpf-dev linux-tools-$(uname -r)
+        run: sudo apt-get install -y clang llvm libbpf-dev linux-tools-$(uname -r) || sudo apt-get install -y clang llvm libbpf-dev
 
       - uses: golangci/golangci-lint-action@v9
         with:

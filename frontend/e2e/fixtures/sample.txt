@@ -1,0 +1,1 @@
+This is a sample document for Playwright E2E testing. It contains enough text to be chunked and processed by the Raven knowledge base pipeline.
