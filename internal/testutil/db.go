@@ -20,10 +20,32 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
+// TestDBOption configures NewTestDB behaviour.
+type TestDBOption func(*testDBConfig)
+
+type testDBConfig struct {
+	migrationsDir string // override for the default migrations directory
+}
+
+// WithMigrationsDir overrides the default (runtime.Caller-based) migrations
+// directory. Use this when the binary is executed from a non-standard working
+// directory, inside Docker, or with `go test -C`.
+func WithMigrationsDir(dir string) TestDBOption {
+	return func(c *testDBConfig) {
+		c.migrationsDir = dir
+	}
+}
+
 // NewTestDB spins up a real PostgreSQL container using pgvector, runs all migrations,
 // and returns a pool. Container is terminated when t ends.
-func NewTestDB(t *testing.T) *pgxpool.Pool {
+func NewTestDB(t *testing.T, opts ...TestDBOption) *pgxpool.Pool {
 	t.Helper()
+
+	var cfg testDBConfig
+	for _, o := range opts {
+		o(&cfg)
+	}
+
 	ctx := context.Background()
 
 	req := testcontainers.ContainerRequest{
@@ -69,7 +91,7 @@ func NewTestDB(t *testing.T) *pgxpool.Pool {
 	}
 	require.NoError(t, db.PingContext(ctx), "database must be reachable")
 
-	RunMigrations(t, db)
+	RunMigrations(t, db, cfg.migrationsDir)
 	_ = db.Close()
 
 	pgxConnStr := fmt.Sprintf(
@@ -84,18 +106,30 @@ func NewTestDB(t *testing.T) *pgxpool.Pool {
 }
 
 // RunMigrations applies all goose migrations from the repo migrations/ dir.
-func RunMigrations(t *testing.T, db *sql.DB) {
+// An optional overrideDir can be provided (first non-empty string wins) to
+// bypass the default runtime.Caller-based resolution.
+func RunMigrations(t *testing.T, db *sql.DB, overrideDir ...string) {
 	t.Helper()
 
-	// Resolve migrations dir relative to this file: internal/testutil/ -> repo root/migrations/
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed to retrieve file path")
+	var migrationsDir string
+	for _, d := range overrideDir {
+		if d != "" {
+			migrationsDir = d
+			break
+		}
 	}
-	migrationsDir := filepath.Join(filepath.Dir(filename), "..", "..", "migrations")
+
+	if migrationsDir == "" {
+		// Resolve migrations dir relative to this file: internal/testutil/ -> repo root/migrations/
+		_, filename, _, ok := runtime.Caller(0)
+		if !ok {
+			t.Fatal("runtime.Caller failed to retrieve file path")
+		}
+		migrationsDir = filepath.Join(filepath.Dir(filename), "..", "..", "migrations")
+	}
 
 	if _, err := os.Stat(migrationsDir); err != nil {
-		t.Fatalf("migrations directory not found at %s (resolved from testutil/db.go location): %v", migrationsDir, err)
+		t.Fatalf("migrations directory not found at %s: %v", migrationsDir, err)
 	}
 
 	if err := goose.SetDialect("postgres"); err != nil {
