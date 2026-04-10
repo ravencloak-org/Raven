@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "da0a57dc9d93",
+  "session_id": "cfa487ee-ce1a-4dd2-b6b8-4701f22a1272",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-10T16:08:14.414979Z",
+  "branch": "feat/issue-193-billing-enforcement",
+  "checkpoints_count": 4,
+  "files_touched": [
+    ".serena/memories/code_style_and_conventions.md",
+    ".serena/memories/codebase_structure.md",
+    ".serena/memories/design_patterns_and_guidelines.md",
+    ".serena/memories/task_completion_checklist.md",
+    "cmd/api/main.go",
+    "docs/superpowers/plans/2026-04-10-billing-subscription-enforcement.md",
+    "internal/handler/usage.go",
+    "internal/repository/billing.go"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "4c936b67-79f1-4e12-bf7a-705e19bafb2c",
+  "token_usage": {
+    "input_tokens": 233,
+    "cache_creation_tokens": 444725,
+    "cache_read_tokens": 31405680,
+    "output_tokens": 81148,
+    "api_call_count": 194
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-10T16:08:14.23814Z",
+    "agent_lines": 102,
+    "human_added": 1194,
+    "human_modified": 1770,
+    "human_removed": 0,
+    "total_committed": 3066,
+    "agent_percentage": 3.326810176125244
+  }
+}
