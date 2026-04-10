@@ -18,9 +18,7 @@ import (
 // The blank import above forces the compiler to build the package; if it has
 // syntax errors or missing dependencies this test file will not compile.
 func TestPackageCompiles(t *testing.T) {
-	// The EE webhooks package is currently a stub (package declaration only).
-	// Once exported types are added, this test should instantiate or reference them.
-	t.Skip("TODO: exercise real webhooks package API once exported types exist")
+	// blank import above guarantees compilation
 }
 
 // computeHMAC is a helper that computes sha256 HMAC for webhook signature tests.
