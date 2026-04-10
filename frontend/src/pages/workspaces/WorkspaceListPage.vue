@@ -81,8 +81,8 @@ async function handleDelete(wsId: string) {
       No workspaces yet. Create one above.
     </div>
 
-    <!-- Workspace table -->
-    <table v-else class="w-full border-collapse">
+    <!-- Desktop: Workspace table -->
+    <table v-else-if="!isMobile" class="w-full border-collapse">
       <thead>
         <tr class="border-b border-gray-200 text-left text-sm font-medium text-gray-500">
           <th class="pb-3 pr-4">Name</th>
@@ -114,6 +114,35 @@ async function handleDelete(wsId: string) {
         </tr>
       </tbody>
     </table>
+
+    <!-- Mobile: card list -->
+    <div v-else class="space-y-3">
+      <div
+        v-for="ws in store.workspaces"
+        :key="ws.id"
+        class="bg-slate-800 rounded-xl p-3.5 cursor-pointer flex items-center gap-3"
+        @click="openWorkspace(ws.id)"
+      >
+        <!-- Colored initial avatar -->
+        <div
+          class="shrink-0 flex items-center justify-center rounded-lg bg-indigo-600 text-white font-semibold text-lg"
+          style="width:40px;height:40px"
+        >
+          {{ ws.name.charAt(0).toUpperCase() }}
+        </div>
+
+        <!-- Content -->
+        <div class="flex-1 min-w-0">
+          <p class="text-white font-semibold text-[15px] truncate">{{ ws.name }}</p>
+          <p class="text-slate-400 text-xs mt-0.5">
+            {{ ws.slug }}
+          </p>
+        </div>
+
+        <!-- Chevron -->
+        <span class="text-slate-500 text-lg shrink-0">›</span>
+      </div>
+    </div>
 
     <!-- Total count -->
     <p v-if="store.workspaces.length > 0" class="mt-4 text-sm text-gray-400">
