@@ -14,13 +14,14 @@ import (
 
 // WorkspaceService contains business logic for workspace management.
 type WorkspaceService struct {
-	repo *repository.WorkspaceRepository
-	pool *pgxpool.Pool
+	repo  *repository.WorkspaceRepository
+	pool  *pgxpool.Pool
+	quota QuotaCheckerI
 }
 
 // NewWorkspaceService creates a new WorkspaceService.
-func NewWorkspaceService(repo *repository.WorkspaceRepository, pool *pgxpool.Pool) *WorkspaceService {
-	return &WorkspaceService{repo: repo, pool: pool}
+func NewWorkspaceService(repo *repository.WorkspaceRepository, pool *pgxpool.Pool, quota QuotaCheckerI) *WorkspaceService {
+	return &WorkspaceService{repo: repo, pool: pool, quota: quota}
 }
 
 // Create validates and creates a new workspace within an organisation.
@@ -108,6 +109,12 @@ func (s *WorkspaceService) Delete(ctx context.Context, orgID, wsID string) error
 
 // AddMember adds a user to a workspace.
 func (s *WorkspaceService) AddMember(ctx context.Context, orgID, wsID string, req model.AddWorkspaceMemberRequest) (*model.WorkspaceMember, error) {
+	if s.quota != nil {
+		if err := s.quota.CheckSeatQuota(ctx, orgID); err != nil {
+			return nil, err
+		}
+	}
+
 	var member *model.WorkspaceMember
 	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
 		var err error
