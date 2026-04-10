@@ -152,6 +152,37 @@
           </svg>
           <span v-if="mobile" class="text-sm font-medium">Calls</span>
         </RouterLink>
+
+        <!-- Billing section label (mobile only) -->
+        <span v-if="mobile" class="mt-4 px-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
+          Account
+        </span>
+
+        <!-- Billing -->
+        <RouterLink
+          to="/orgs/_/billing"
+          :class="[
+            'flex items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white',
+            mobile
+              ? 'h-10 w-full gap-3 px-3'
+              : 'h-10 w-10 justify-center',
+          ]"
+          active-class="bg-slate-800 text-white"
+          title="Billing"
+          @click="mobile && $emit('close')"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5 shrink-0"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z"
+            />
+          </svg>
+          <span v-if="mobile" class="text-sm font-medium">Billing</span>
+        </RouterLink>
       </nav>
     </aside>
   </Transition>
