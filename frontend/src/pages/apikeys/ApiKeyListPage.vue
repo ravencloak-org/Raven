@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useApiKeysStore } from '../../stores/apikeys'
+import { useMobile } from '../../composables/useMediaQuery'
 import { pipe, split, map, filter, isTruthy } from 'remeda'
 import { useMobile } from '../../composables/useMediaQuery'
 
@@ -110,6 +111,11 @@ function dismissNewKeyBanner() {
   newRawKey.value = ''
   store.clearLastCreatedKey()
 }
+
+function mobileStatusClass(status: string): string {
+  if (status === 'active') return 'bg-green-900 text-green-300'
+  return 'bg-red-900 text-red-300'
+}
 </script>
 
 <template>
@@ -201,8 +207,8 @@ function dismissNewKeyBanner() {
       <p class="text-gray-500">No API keys yet. Create one to get started.</p>
     </div>
 
-    <!-- Keys table -->
-    <div v-else class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+    <!-- Desktop: Keys table -->
+    <div v-else-if="!isMobile" class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
@@ -254,6 +260,41 @@ function dismissNewKeyBanner() {
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Mobile: card list -->
+    <div v-else class="space-y-3">
+      <div
+        v-for="key in store.keys"
+        :key="key.id"
+        class="bg-slate-800 rounded-xl p-3.5"
+      >
+        <!-- Header: name + status badge -->
+        <div class="flex items-start justify-between gap-2">
+          <span class="text-white font-semibold text-[15px] truncate">{{ key.name }}</span>
+          <span
+            class="shrink-0 inline-block rounded-full px-2 py-0.5 text-xs font-medium"
+            :class="mobileStatusClass(key.status)"
+          >
+            {{ key.status }}
+          </span>
+        </div>
+
+        <!-- Masked key -->
+        <p class="font-mono text-xs text-slate-400 mt-1">{{ key.key_prefix }}••••••••</p>
+
+        <!-- Action row -->
+        <div class="border-t border-slate-700 mt-2.5 pt-2.5 flex items-center justify-between">
+          <span class="text-slate-500 text-xs">{{ formatDate(key.created_at) }}</span>
+          <button
+            v-if="key.status === 'active'"
+            class="border border-red-500 text-red-400 text-xs px-3 py-1 rounded-lg"
+            @click="promptRevoke(key.id, key.name)"
+          >
+            Revoke
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Create API Key Dialog (modal overlay) -->
