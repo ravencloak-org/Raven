@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "5bb3bfefbfeb",
+  "session_id": "ab618a0e-ea92-4b6f-bafe-c387ff9ec7b8",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-10T16:28:27.137512Z",
+  "branch": "test/go-backend-suite",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/superpowers/plans/2026-04-10-wave1-quick-fixes.md",
+    "docs/superpowers/specs/2026-04-10-mvp-launch-execution-order.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "b62d61f0-4320-4c17-80e4-e064ee437737",
+  "token_usage": {
+    "input_tokens": 156,
+    "cache_creation_tokens": 278003,
+    "cache_read_tokens": 6152668,
+    "output_tokens": 29150,
+    "api_call_count": 80
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-10T16:28:27.032487Z",
+    "agent_lines": 0,
+    "human_added": 5945,
+    "human_modified": 122,
+    "human_removed": 0,
+    "total_committed": 5945,
+    "agent_percentage": 0
+  }
+}
