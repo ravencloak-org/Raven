@@ -9,25 +9,70 @@ pages:
               - timezone: Asia/Kolkata
                 label: India
 
+          - type: monitor
+            title: Raven Services
+            sites:
+              - title: Go API
+                url: https://api.ravencloak.org/healthz
+                icon: si:go
+              - title: Keycloak Auth
+                url: https://auth.ravencloak.org/auth/health/live
+                icon: si:keycloak
+              - title: OpenObserve
+                url: https://logs.ravencloak.org/healthz
+                icon: si:elasticsearch
+              - title: Beszel
+                url: https://monitor.ravencloak.org
+                icon: si:prometheus
+              - title: Glance
+                url: https://dash.ravencloak.org
+                icon: si:homeassistant
+              - title: Dockhand
+                url: https://docker.ravencloak.org
+                icon: si:docker
+
           - type: bookmarks
             groups:
-              - title: Raven Services
+              - title: Observability
                 links:
-                  - title: API Health
-                    url: https://api.ravencloak.org/healthz
-                  - title: Keycloak
-                    url: https://auth.ravencloak.org
-              - title: Admin Tools
-                links:
-                  - title: Beszel
+                  - title: OpenObserve Logs
+                    url: https://logs.ravencloak.org
+                  - title: Beszel Metrics
                     url: https://monitor.ravencloak.org
+              - title: Platform
+                links:
+                  - title: API
+                    url: https://api.ravencloak.org/api/v1
+                  - title: Keycloak Admin
+                    url: https://auth.ravencloak.org/auth/admin
                   - title: Dockhand
                     url: https://docker.ravencloak.org
-                  - title: OpenObserve
-                    url: https://logs.ravencloak.org
 
       - size: full
         widgets:
+          - type: monitor
+            title: Infrastructure Health
+            sites:
+              - title: API /healthz
+                url: https://api.ravencloak.org/healthz
+                icon: si:go
+                allow-insecure: false
+              - title: API /api/v1/health
+                url: https://api.ravencloak.org/api/v1/health
+                icon: si:go
+              - title: Keycloak live
+                url: https://auth.ravencloak.org/auth/health/live
+                icon: si:keycloak
+              - title: Keycloak ready
+                url: https://auth.ravencloak.org/auth/health/ready
+                icon: si:keycloak
+              - title: OpenObserve UI
+                url: https://logs.ravencloak.org/healthz
+                icon: si:elasticsearch
+              - title: Beszel Hub
+                url: https://monitor.ravencloak.org
+                icon: si:prometheus
+
           - type: hacker-news
 
       - size: small
@@ -36,3 +81,12 @@ pages:
             location: Mumbai, India
             units: metric
             hour-format: 24h
+
+          - type: bookmarks
+            groups:
+              - title: Raven v0.2.0
+                links:
+                  - title: GitHub Release
+                    url: https://github.com/ravencloak-org/Raven/releases/tag/v0.2.0
+                  - title: Repository
+                    url: https://github.com/ravencloak-org/Raven
