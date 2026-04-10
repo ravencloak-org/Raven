@@ -1,3 +1,4 @@
+// Package repository_test contains integration tests for the repository layer.
 package repository_test
 
 import (
