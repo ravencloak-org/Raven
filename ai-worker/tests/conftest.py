@@ -43,7 +43,7 @@ def _inject_missing_stubs() -> None:
         ant = _make_stub(
             "anthropic",
             AsyncAnthropic=MagicMock(),
-            APIError=Exception,
+            APIError=type("APIError", (Exception,), {}),
         )
         stubs["anthropic"] = ant
 
@@ -51,17 +51,23 @@ def _inject_missing_stubs() -> None:
         oai = _make_stub(
             "openai",
             AsyncOpenAI=MagicMock(),
-            RateLimitError=Exception,
-            APIError=Exception,
+            RateLimitError=type("RateLimitError", (Exception,), {}),
+            APIError=type("APIError", (Exception,), {}),
         )
         stubs["openai"] = oai
 
     if "cohere" not in sys.modules:
+        cohere_errors = _make_stub(
+            "cohere.errors",
+            TooManyRequestsError=type("TooManyRequestsError", (Exception,), {}),
+        )
         coh = _make_stub(
             "cohere",
             AsyncClientV2=MagicMock(),
+            errors=cohere_errors,
         )
         stubs["cohere"] = coh
+        stubs["cohere.errors"] = cohere_errors
 
     if "redis" not in sys.modules:
         redis_asyncio = _make_stub("redis.asyncio", Redis=MagicMock(), from_url=MagicMock())

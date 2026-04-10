@@ -7,6 +7,7 @@ on:
       - 'cmd/**'
       - 'internal/**'
       - 'pkg/**'
+      - 'tests/**'
       - 'go.mod'
       - 'go.sum'
   pull_request:
@@ -15,6 +16,7 @@ on:
       - 'cmd/**'
       - 'internal/**'
       - 'pkg/**'
+      - 'tests/**'
       - 'go.mod'
       - 'go.sum'
 
@@ -97,3 +99,37 @@ jobs:
 
       - name: Run eBPF integration tests
         run: go test -race -v ./internal/ebpf/... ./cmd/api/...
+
+  ebpf-privileged-tests:
+    name: eBPF Privileged Test Harness
+    runs-on: ubuntu-latest
+    # Only run on pushes to main — these tests require privileged containers
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+    container:
+      image: ubuntu:24.04
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install system dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            clang llvm libbpf-dev linux-tools-$(uname -r) \
+            ca-certificates curl git docker.io
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - run: go mod download
+
+      - name: Run privileged eBPF tests
+        run: |
+          go test -tags ebpf -race -v -timeout 10m \
+            ./tests/ebpf/xdp/... \
+            ./tests/ebpf/observability/... \
+            ./tests/ebpf/audit/...
