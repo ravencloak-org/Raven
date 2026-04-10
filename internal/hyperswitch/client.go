@@ -62,7 +62,7 @@ func (c *Client) CreatePayment(ctx context.Context, req *CreatePaymentRequest) (
 	if err != nil {
 		return nil, fmt.Errorf("hyperswitch: execute request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	return decodeResponse[PaymentResponse](resp)
 }
@@ -79,7 +79,7 @@ func (c *Client) CancelPayment(ctx context.Context, paymentID string) error {
 	if err != nil {
 		return fmt.Errorf("hyperswitch: execute cancel request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode >= 400 {
 		respData, _ := io.ReadAll(resp.Body)
@@ -100,7 +100,7 @@ func (c *Client) GetPayment(ctx context.Context, paymentID string) (*PaymentResp
 	if err != nil {
 		return nil, fmt.Errorf("hyperswitch: execute get request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	return decodeResponse[PaymentResponse](resp)
 }

@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -39,68 +38,6 @@ func (m *mockHyperswitchClient) CancelPayment(ctx context.Context, paymentID str
 		return m.cancelPaymentFn(ctx, paymentID)
 	}
 	return nil
-}
-
-// --- Mock billing repository ---
-
-type mockBillingRepo struct {
-	createSubscriptionFn          func(ctx context.Context, tx pgx.Tx, sub *model.Subscription) (*model.Subscription, error)
-	getSubscriptionByIDFn         func(ctx context.Context, tx pgx.Tx, orgID, subID string) (*model.Subscription, error)
-	getSubscriptionByHyperswitchFn func(ctx context.Context, tx pgx.Tx, hsID string) (*model.Subscription, error)
-	getActiveSubscriptionFn       func(ctx context.Context, tx pgx.Tx, orgID string) (*model.Subscription, error)
-	updateSubscriptionStatusFn    func(ctx context.Context, tx pgx.Tx, orgID, subID string, status model.SubscriptionStatus) (*model.Subscription, error)
-	extendSubscriptionPeriodFn    func(ctx context.Context, tx pgx.Tx, hsID string) (*model.Subscription, error)
-	insertPaymentEventFn          func(ctx context.Context, tx pgx.Tx, orgID, eventType, paymentID, status string, raw []byte) (bool, error)
-}
-
-func (m *mockBillingRepo) CreateSubscription(ctx context.Context, tx pgx.Tx, sub *model.Subscription) (*model.Subscription, error) {
-	if m.createSubscriptionFn != nil {
-		return m.createSubscriptionFn(ctx, tx, sub)
-	}
-	sub.ID = "sub_mock_123"
-	return sub, nil
-}
-
-func (m *mockBillingRepo) GetSubscriptionByID(ctx context.Context, tx pgx.Tx, orgID, subID string) (*model.Subscription, error) {
-	if m.getSubscriptionByIDFn != nil {
-		return m.getSubscriptionByIDFn(ctx, tx, orgID, subID)
-	}
-	return nil, nil
-}
-
-func (m *mockBillingRepo) GetSubscriptionByHyperswitchID(ctx context.Context, tx pgx.Tx, hsID string) (*model.Subscription, error) {
-	if m.getSubscriptionByHyperswitchFn != nil {
-		return m.getSubscriptionByHyperswitchFn(ctx, tx, hsID)
-	}
-	return nil, nil
-}
-
-func (m *mockBillingRepo) GetActiveSubscription(ctx context.Context, tx pgx.Tx, orgID string) (*model.Subscription, error) {
-	if m.getActiveSubscriptionFn != nil {
-		return m.getActiveSubscriptionFn(ctx, tx, orgID)
-	}
-	return nil, nil
-}
-
-func (m *mockBillingRepo) UpdateSubscriptionStatus(ctx context.Context, tx pgx.Tx, orgID, subID string, status model.SubscriptionStatus) (*model.Subscription, error) {
-	if m.updateSubscriptionStatusFn != nil {
-		return m.updateSubscriptionStatusFn(ctx, tx, orgID, subID, status)
-	}
-	return &model.Subscription{ID: subID, OrgID: orgID, Status: status}, nil
-}
-
-func (m *mockBillingRepo) ExtendSubscriptionPeriod(ctx context.Context, tx pgx.Tx, hsID string) (*model.Subscription, error) {
-	if m.extendSubscriptionPeriodFn != nil {
-		return m.extendSubscriptionPeriodFn(ctx, tx, hsID)
-	}
-	return &model.Subscription{HyperswitchSubscriptionID: hsID, Status: model.SubscriptionStatusActive}, nil
-}
-
-func (m *mockBillingRepo) InsertPaymentEvent(ctx context.Context, tx pgx.Tx, orgID, eventType, paymentID, status string, raw []byte) (bool, error) {
-	if m.insertPaymentEventFn != nil {
-		return m.insertPaymentEventFn(ctx, tx, orgID, eventType, paymentID, status, raw)
-	}
-	return true, nil
 }
 
 // --- Tests ---
