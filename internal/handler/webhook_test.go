@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -31,37 +30,37 @@ type mockWebhookService struct {
 
 func (m *mockWebhookService) Create(ctx context.Context, orgID, userID string, req model.CreateWebhookRequest) (*model.WebhookConfig, error) {
 	if m.createFn == nil {
-		return nil, errors.New("mockWebhookService.createFn not set")
+		panic("mockWebhookService: unexpected call to Create (createFn not set)")
 	}
 	return m.createFn(ctx, orgID, userID, req)
 }
 func (m *mockWebhookService) GetByID(ctx context.Context, orgID, id string) (*model.WebhookConfig, error) {
 	if m.getByIDFn == nil {
-		return nil, errors.New("mockWebhookService.getByIDFn not set")
+		panic("mockWebhookService: unexpected call to GetByID (getByIDFn not set)")
 	}
 	return m.getByIDFn(ctx, orgID, id)
 }
 func (m *mockWebhookService) List(ctx context.Context, orgID string) ([]model.WebhookConfig, error) {
 	if m.listFn == nil {
-		return nil, errors.New("mockWebhookService.listFn not set")
+		panic("mockWebhookService: unexpected call to List (listFn not set)")
 	}
 	return m.listFn(ctx, orgID)
 }
 func (m *mockWebhookService) Update(ctx context.Context, orgID, id string, req model.UpdateWebhookRequest) (*model.WebhookConfig, error) {
 	if m.updateFn == nil {
-		return nil, errors.New("mockWebhookService.updateFn not set")
+		panic("mockWebhookService: unexpected call to Update (updateFn not set)")
 	}
 	return m.updateFn(ctx, orgID, id, req)
 }
 func (m *mockWebhookService) Delete(ctx context.Context, orgID, id string) error {
 	if m.deleteFn == nil {
-		return errors.New("mockWebhookService.deleteFn not set")
+		panic("mockWebhookService: unexpected call to Delete (deleteFn not set)")
 	}
 	return m.deleteFn(ctx, orgID, id)
 }
 func (m *mockWebhookService) ListDeliveries(ctx context.Context, orgID, webhookID string, limit int) ([]model.WebhookDelivery, error) {
 	if m.listDeliveriesFn == nil {
-		return nil, errors.New("mockWebhookService.listDeliveriesFn not set")
+		panic("mockWebhookService: unexpected call to ListDeliveries (listDeliveriesFn not set)")
 	}
 	return m.listDeliveriesFn(ctx, orgID, webhookID, limit)
 }

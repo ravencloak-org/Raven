@@ -11,16 +11,20 @@ import (
 )
 
 // TestPackageCompiles ensures the security package is importable and correctly declared.
+// The blank import above forces the compiler to build the package; if it has
+// syntax errors or missing dependencies this test file will not compile.
 func TestPackageCompiles(t *testing.T) {
-	// The EE security package is a stub pending implementation.
-	// This test ensures the package declaration is correct and it builds cleanly.
-	t.Log("internal/ee/security package compiles successfully")
+	// The EE security package is currently a stub (package declaration only).
+	// Once exported types are added, this test should instantiate or reference them.
+	t.Skip("TODO: exercise real security package API once exported types exist")
 }
 
 // TestWAFRuleEval_BlockPattern verifies that a WAF block rule matched against
 // a request body containing the pattern returns the "block" action.
-// This tests the rule evaluation logic that will live in this package.
+// This is a concept test that validates the expected contract for the WAF rule
+// engine. It does not import or exercise any exported API from the security package.
 func TestWAFRuleEval_BlockPattern_Concept(t *testing.T) {
+	t.Skip("TODO: exercise real security package WAF API once exported types exist")
 	// The WAF rule engine will evaluate HTTP request attributes against
 	// configured rules. This test documents the expected contract.
 	type Rule struct {
@@ -50,7 +54,9 @@ func TestWAFRuleEval_BlockPattern_Concept(t *testing.T) {
 }
 
 // TestWAFRuleEval_AllowOverridesBlock verifies priority-based rule ordering.
+// This is a concept test that does not exercise the real security package API.
 func TestWAFRuleEval_AllowOverridesBlock_Concept(t *testing.T) {
+	t.Skip("TODO: exercise real security package WAF API once exported types exist")
 	type Rule struct {
 		Pattern  string
 		Action   string
@@ -80,7 +86,9 @@ func TestWAFRuleEval_AllowOverridesBlock_Concept(t *testing.T) {
 }
 
 // TestWAFRuleEval_LogRule_PassesThrough verifies log-only rules do not block.
+// This is a concept test that does not exercise the real security package API.
 func TestWAFRuleEval_LogRule_PassesThrough_Concept(t *testing.T) {
+	t.Skip("TODO: exercise real security package WAF API once exported types exist")
 	type Rule struct {
 		Pattern string
 		Action  string
