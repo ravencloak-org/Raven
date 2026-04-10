@@ -1,0 +1,38 @@
+title: Raven
+description: Open-source multi-tenant knowledge base platform with AI-powered chat, voice, and WhatsApp
+url: https://ravencloak-org.github.io
+baseurl: /Raven
+repository: ravencloak-org/Raven
+
+remote_theme: pages-themes/cayman@v0.2.0
+plugins:
+  - jekyll-remote-theme
+  - jekyll-seo-tag
+
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
+
+exclude:
+  - .worktrees/
+  - .claude/
+  - ai-worker/.venv/
+  - frontend/node_modules/
+  - frontend/dist/
+  - "*.sh"
+  - Makefile
+  - go.mod
+  - go.sum
+
+header_pages:
+  - docs/project-status.md
+  - docs/milestones.md
+  - DEVELOPMENT.md
+  - CONTRIBUTING.md
