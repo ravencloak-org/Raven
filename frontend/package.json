@@ -21,7 +21,7 @@
     "livekit-client": "^2.18.1",
     "pinia": "^3.0.4",
     "remeda": "^2.33.7",
-    "vue": "^3.5.30",
+    "vue": "^3.5.32",
     "vue-router": "^5.0.4"
   },
   "devDependencies": {
