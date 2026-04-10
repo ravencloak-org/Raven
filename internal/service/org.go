@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"regexp"
 	"strings"
 
@@ -12,12 +13,20 @@ import (
 
 // OrgService contains business logic for organisation management.
 type OrgService struct {
-	repo *repository.OrgRepository
+	repo  *repository.OrgRepository
+	wsSvc *WorkspaceService
 }
 
 // NewOrgService creates a new OrgService.
-func NewOrgService(repo *repository.OrgRepository) *OrgService {
-	return &OrgService{repo: repo}
+// An optional WorkspaceService may be injected so that a Default workspace is
+// auto-created whenever a new organisation is registered.  Pass nil to skip
+// the workspace bootstrap (e.g. in tests that only exercise org creation).
+func NewOrgService(repo *repository.OrgRepository, wsSvc ...*WorkspaceService) *OrgService {
+	svc := &OrgService{repo: repo}
+	if len(wsSvc) > 0 {
+		svc.wsSvc = wsSvc[0]
+	}
+	return svc
 }
 
 var slugRe = regexp.MustCompile(`[^a-z0-9]+`)
@@ -30,6 +39,9 @@ func toSlug(name string) string {
 }
 
 // Create validates the request, derives a slug, and persists a new organisation.
+// When a WorkspaceService is wired in, a "Default" workspace is automatically
+// created after the organisation is persisted so that every new tenant starts
+// with a usable workspace out of the box.
 func (s *OrgService) Create(ctx context.Context, req model.CreateOrgRequest) (*model.Organization, error) {
 	slug := toSlug(req.Name)
 	if slug == "" {
@@ -43,6 +55,16 @@ func (s *OrgService) Create(ctx context.Context, req model.CreateOrgRequest) (*m
 		}
 		return nil, apierror.NewInternal("failed to create organisation: " + err.Error())
 	}
+
+	// Auto-provision a Default workspace for the new organisation.
+	if s.wsSvc != nil {
+		if _, wsErr := s.wsSvc.Create(ctx, org.ID, model.CreateWorkspaceRequest{Name: "Default"}); wsErr != nil {
+			// Non-fatal: the org was created successfully.  Log and continue.
+			slog.Warn("failed to auto-create Default workspace for new org",
+				"org_id", org.ID, "error", wsErr)
+		}
+	}
+
 	return org, nil
 }
 
