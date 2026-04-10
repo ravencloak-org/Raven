@@ -260,11 +260,15 @@ func main() {
 	// --- Wire storage client ---
 	seaweedClient := storage.NewSeaweedFSClient(cfg.SeaweedFS.MasterURL, nil)
 
+	// --- Wire billing & quota ---
+	subCache := service.NewValkeySubscriptionCache(valkeyClient)
+	quotaChecker := service.NewQuotaChecker(billingRepo, subCache, pool)
+
 	// --- Wire services ---
 	orgSvc := service.NewOrgService(orgRepo)
-	wsSvc := service.NewWorkspaceService(wsRepo, pool)
+	wsSvc := service.NewWorkspaceService(wsRepo, pool, quotaChecker)
 	userSvc := service.NewUserService(userRepo)
-	kbSvc := service.NewKBService(kbRepo, pool)
+	kbSvc := service.NewKBService(kbRepo, pool, quotaChecker)
 	sourceSvc := service.NewSourceService(sourceRepo, pool)
 	docSvc := service.NewDocumentService(docRepo, pool)
 	searchSvc := service.NewSearchService(searchRepo, pool)
@@ -310,7 +314,7 @@ func main() {
 	} else {
 		slog.Warn("LiveKit not configured: api_url, api_key, and api_secret are all required; voice session room management disabled")
 	}
-	voiceSvc := service.NewVoiceService(voiceRepo, pool, livekitClient, cfg.LiveKit.WSURL, 1)
+	voiceSvc := service.NewVoiceService(voiceRepo, pool, livekitClient, cfg.LiveKit.WSURL, quotaChecker)
 
 	// --- Wire WhatsApp-LiveKit bridge ---
 	waBridgeRepo := repository.NewWhatsAppBridgeRepository(pool)
@@ -399,6 +403,7 @@ func main() {
 	if ttsSvc != nil {
 		ttsHandler = handler.NewTTSHandler(ttsSvc)
 	}
+	usageHandler := handler.NewUsageHandler(quotaChecker)
 	leadHandler := handler.NewLeadHandler(leadSvc)
 	whatsappHandler := handler.NewWhatsAppHandler(whatsappSvc)
 	billingHandler := handler.NewBillingHandler(billingSvc)
@@ -673,6 +678,7 @@ func main() {
 			billing.POST("/subscriptions", billingHandler.Subscribe)
 			billing.DELETE("/subscriptions/:id", billingHandler.Unsubscribe)
 			billing.POST("/payment-intents", billingHandler.CreatePaymentIntent)
+			billing.GET("/usage", usageHandler.GetUsage)
 		}
 
 		// --- User / me routes ---
