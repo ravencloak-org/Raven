@@ -217,5 +217,7 @@ func TestGRPCClient_ContextTimeout_Cancelled(t *testing.T) {
 	defer cancel()
 
 	_, err = client.Worker().ParseAndEmbed(ctx, &pb.ParseRequest{Content: []byte("test")})
-	assert.Error(t, err, "expired context must propagate as an error")
+	st, ok := status.FromError(err)
+	assert.True(t, ok, "error should be a gRPC status error")
+	assert.Equal(t, codes.DeadlineExceeded, st.Code(), "expired context must produce DeadlineExceeded")
 }
