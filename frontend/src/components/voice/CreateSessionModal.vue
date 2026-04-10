@@ -40,7 +40,7 @@ async function handleSubmit() {
         v-model="roomName"
         type="text"
         placeholder="Auto-generated if blank"
-        class="mb-4 w-full rounded-md border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        class="mb-4 w-full min-h-[48px] rounded-md border border-slate-600 bg-slate-700 px-3 py-2 text-[15px] text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
       />
       <div class="hidden sm:flex justify-end gap-3">
         <button

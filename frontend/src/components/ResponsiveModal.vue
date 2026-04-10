@@ -18,12 +18,17 @@ const { isMobile } = useMobile()
     <!-- Mobile: full-screen page -->
     <div
       v-if="open && isMobile"
+      role="dialog"
+      aria-modal="true"
+      :aria-label="title"
       class="fixed inset-0 z-50 flex flex-col bg-slate-900"
+      @keydown.escape="$emit('close')"
     >
       <!-- Header -->
       <div class="flex h-14 items-center border-b border-slate-700 px-4">
         <button
           class="flex min-h-[44px] min-w-[44px] items-center justify-center text-slate-300 hover:text-white"
+          :aria-label="`Close ${title}`"
           @click="$emit('close')"
         >
           <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -52,8 +57,12 @@ const { isMobile } = useMobile()
     <!-- Desktop: centered overlay -->
     <div
       v-else-if="open && !isMobile"
+      role="dialog"
+      aria-modal="true"
+      :aria-label="title"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
       @click.self="$emit('close')"
+      @keydown.escape="$emit('close')"
     >
       <div class="w-full max-w-md rounded-xl bg-slate-800 mx-4">
         <slot />

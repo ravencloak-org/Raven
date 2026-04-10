@@ -20,6 +20,7 @@ const showArchiveDialog = ref(false)
 const kbToArchiveId = ref<string | null>(null)
 const kbToArchiveName = ref('')
 const archiving = ref(false)
+const archiveError = ref<string | null>(null)
 
 onMounted(() => store.fetchKnowledgeBases(orgId, wsId))
 
@@ -51,11 +52,12 @@ function promptArchive(kbId: string, kbName: string) {
 async function confirmArchive() {
   if (!kbToArchiveId.value) return
   archiving.value = true
+  archiveError.value = null
   try {
     await store.archive(orgId, wsId, kbToArchiveId.value)
     showArchiveDialog.value = false
-  } catch {
-    /* error surfaced via store.error */
+  } catch (e) {
+    archiveError.value = (e as Error).message ?? 'Failed to archive. Please try again.'
   } finally {
     archiving.value = false
   }
@@ -206,11 +208,17 @@ function mobileStatusClass(status: string): string {
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       @click.self="showArchiveDialog = false"
     >
-      <div class="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
-        <h2 class="text-lg font-semibold text-gray-900">Archive Knowledge Base</h2>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="archive-kb-title"
+        class="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl"
+      >
+        <h2 id="archive-kb-title" class="text-lg font-semibold text-gray-900">Archive Knowledge Base</h2>
         <p class="mt-2 text-sm text-gray-600">
           Are you sure you want to archive <strong>{{ kbToArchiveName }}</strong>? It will be removed from active use.
         </p>
+        <p v-if="archiveError" class="mt-2 text-sm text-red-600">{{ archiveError }}</p>
         <div class="mt-6 flex justify-end gap-3">
           <button
             type="button"
@@ -248,6 +256,7 @@ function mobileStatusClass(status: string): string {
           <p class="text-center text-sm text-slate-400">
             Are you sure you want to archive <strong class="text-slate-200">{{ kbToArchiveName }}</strong>? It will be removed from active use.
           </p>
+          <p v-if="archiveError" class="text-center text-sm text-red-400">{{ archiveError }}</p>
         </div>
         <button
           type="button"

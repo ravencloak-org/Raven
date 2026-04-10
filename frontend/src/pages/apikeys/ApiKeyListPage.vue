@@ -419,8 +419,8 @@ function mobileStatusClass(status: string): string {
 
     <!-- Revoke Confirmation: Mobile bottom sheet -->
     <BottomSheet
-      v-else-if="isMobile && showRevokeDialog"
-      :open="showRevokeDialog"
+      v-if="isMobile && showRevokeDialog"
+      :open="true"
       @close="showRevokeDialog = false"
     >
       <div class="px-4 pb-6 flex flex-col gap-3">
