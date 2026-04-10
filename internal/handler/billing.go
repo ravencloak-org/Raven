@@ -45,7 +45,7 @@ func (h *BillingHandler) GetPlans(c *gin.Context) {
 	c.JSON(http.StatusOK, plans)
 }
 
-// Subscribe handles POST /api/v1/billing/subscribe.
+// Subscribe handles POST /api/v1/billing/subscriptions.
 //
 // @Summary     Create subscription
 // @Tags        billing
@@ -57,7 +57,7 @@ func (h *BillingHandler) GetPlans(c *gin.Context) {
 // @Failure     422 {object} apierror.AppError
 // @Failure     401 {object} apierror.AppError
 // @Failure     500 {object} apierror.AppError
-// @Router      /billing/subscribe [post]
+// @Router      /billing/subscriptions [post]
 func (h *BillingHandler) Subscribe(c *gin.Context) {
 	orgID, exists := c.Get(string(middleware.ContextKeyOrgID))
 	if !exists {
@@ -88,18 +88,18 @@ func (h *BillingHandler) Subscribe(c *gin.Context) {
 	c.JSON(http.StatusCreated, sub)
 }
 
-// Unsubscribe handles DELETE /api/v1/billing/subscribe.
+// Unsubscribe handles DELETE /api/v1/billing/subscriptions/:id.
 //
 // @Summary     Cancel subscription
 // @Tags        billing
 // @Produce     json
 // @Security    BearerAuth
-// @Param       subscription_id query string true "Subscription ID to cancel"
+// @Param       id path string true "Subscription ID to cancel"
 // @Success     204
 // @Failure     401 {object} apierror.AppError
 // @Failure     404 {object} apierror.AppError
 // @Failure     500 {object} apierror.AppError
-// @Router      /billing/subscribe [delete]
+// @Router      /billing/subscriptions/{id} [delete]
 func (h *BillingHandler) Unsubscribe(c *gin.Context) {
 	orgID, exists := c.Get(string(middleware.ContextKeyOrgID))
 	if !exists {
@@ -111,12 +111,12 @@ func (h *BillingHandler) Unsubscribe(c *gin.Context) {
 		return
 	}
 
-	subscriptionID := c.Query("subscription_id")
+	subscriptionID := c.Param("id")
 	if subscriptionID == "" {
 		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, apierror.AppError{
 			Code:    http.StatusUnprocessableEntity,
 			Message: "Unprocessable Entity",
-			Detail:  "subscription_id query parameter is required",
+			Detail:  "subscription id path parameter is required",
 		})
 		return
 	}
@@ -127,6 +127,49 @@ func (h *BillingHandler) Unsubscribe(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// CreatePaymentIntent handles POST /api/v1/billing/payment-intents.
+//
+// @Summary     Create payment intent
+// @Tags        billing
+// @Accept      json
+// @Produce     json
+// @Security    BearerAuth
+// @Param       request body model.CreatePaymentIntentRequest true "Payment intent payload"
+// @Success     201 {object} model.PaymentIntent
+// @Failure     422 {object} apierror.AppError
+// @Failure     401 {object} apierror.AppError
+// @Failure     500 {object} apierror.AppError
+// @Router      /billing/payment-intents [post]
+func (h *BillingHandler) CreatePaymentIntent(c *gin.Context) {
+	orgID, exists := c.Get(string(middleware.ContextKeyOrgID))
+	if !exists {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, apierror.AppError{
+			Code:    http.StatusUnauthorized,
+			Message: "Unauthorized",
+			Detail:  "missing organisation context",
+		})
+		return
+	}
+
+	var req model.CreatePaymentIntentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, apierror.AppError{
+			Code:    http.StatusUnprocessableEntity,
+			Message: "Unprocessable Entity",
+			Detail:  err.Error(),
+		})
+		return
+	}
+
+	pi, err := h.svc.CreatePaymentIntent(c.Request.Context(), orgID.(string), req)
+	if err != nil {
+		_ = c.Error(err)
+		c.Abort()
+		return
+	}
+	c.JSON(http.StatusCreated, pi)
 }
 
 // Webhook handles POST /api/v1/billing/webhook.
