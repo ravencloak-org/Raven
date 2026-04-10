@@ -11,8 +11,8 @@ test.describe('API Auth', () => {
   })
 
   test('valid JWT returns 200', async ({ request }) => {
-    if (!process.env.E2E_USER || !process.env.E2E_PASS) {
-      test.skip(true, 'E2E_USER/E2E_PASS not configured')
+    if (!process.env.E2E_USER || !process.env.E2E_PASS || !process.env.KEYCLOAK_URL) {
+      test.skip(true, 'E2E_USER/E2E_PASS/KEYCLOAK_URL not configured')
       return
     }
     // Obtain a valid JWT from Keycloak test realm

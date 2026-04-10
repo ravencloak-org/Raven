@@ -18,9 +18,12 @@ import (
 // TestWebhookDelivery_HMAC_Signature verifies that the X-Raven-Signature header
 // is present and has the correct sha256= prefix format.
 func TestWebhookDelivery_HMAC_Signature(t *testing.T) {
+	var mu sync.Mutex
 	var receivedSig string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
 		receivedSig = r.Header.Get("X-Raven-Signature")
+		mu.Unlock()
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
@@ -42,10 +45,14 @@ func TestWebhookDelivery_HMAC_Signature(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
+	mu.Lock()
+	sig := receivedSig
+	mu.Unlock()
+
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.True(t, len(receivedSig) > 0, "X-Raven-Signature header must be present")
-	assert.Len(t, receivedSig, 71, "signature must be sha256= prefix + 64 hex chars")
-	assert.True(t, strings.HasPrefix(receivedSig, "sha256="), "signature must have sha256= prefix")
+	assert.True(t, len(sig) > 0, "X-Raven-Signature header must be present")
+	assert.Len(t, sig, 71, "signature must be sha256= prefix + 64 hex chars")
+	assert.True(t, strings.HasPrefix(sig, "sha256="), "signature must have sha256= prefix")
 }
 
 // TestWebhookDelivery_RetryTimestamps_RecordsCallTimes verifies that
@@ -67,8 +74,10 @@ func TestWebhookDelivery_RetryTimestamps_RecordsCallTimes(t *testing.T) {
 	// In production, the backoff is managed by Asynq; here we verify the recorder.
 	client := &http.Client{Timeout: 5 * time.Second}
 
-	makeCall := func() {
-		req, _ := http.NewRequest(http.MethodPost, server.URL, nil)
+	makeCall := func(t *testing.T) {
+		t.Helper()
+		req, err := http.NewRequest(http.MethodPost, server.URL, nil)
+		require.NoError(t, err)
 		resp, err := client.Do(req)
 		if err == nil {
 			defer func() { _ = resp.Body.Close() }()
@@ -76,14 +85,14 @@ func TestWebhookDelivery_RetryTimestamps_RecordsCallTimes(t *testing.T) {
 	}
 
 	// First attempt.
-	makeCall()
+	makeCall(t)
 	// 50ms pause simulates backoff (we test the recording, not the scheduler).
 	time.Sleep(50 * time.Millisecond)
 	// Second attempt.
-	makeCall()
+	makeCall(t)
 	time.Sleep(50 * time.Millisecond)
 	// Third attempt.
-	makeCall()
+	makeCall(t)
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -108,40 +117,56 @@ func TestWebhookDelivery_RetryTimestamps_RecordsCallTimes(t *testing.T) {
 // TestWebhookDelivery_ServerReturns200_Success verifies that a 2xx response
 // is treated as success (no further retries needed from caller perspective).
 func TestWebhookDelivery_ServerReturns200_Success(t *testing.T) {
+	var mu sync.Mutex
 	callCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
 		callCount++
+		mu.Unlock()
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
 
 	client := &http.Client{Timeout: 5 * time.Second}
-	req, _ := http.NewRequest(http.MethodPost, server.URL, nil)
+	req, err := http.NewRequest(http.MethodPost, server.URL, nil)
+	require.NoError(t, err)
 	resp, err := client.Do(req)
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
+	mu.Lock()
+	count := callCount
+	mu.Unlock()
+
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, 1, callCount, "only one call should be made on success")
+	assert.Equal(t, 1, count, "only one call should be made on success")
 }
 
 // TestWebhookDelivery_ContentType_IsJSON verifies that the delivery sends
 // application/json content type.
 func TestWebhookDelivery_ContentType_IsJSON(t *testing.T) {
+	var mu sync.Mutex
 	var receivedCT string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
 		receivedCT = r.Header.Get("Content-Type")
+		mu.Unlock()
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
 
 	client := &http.Client{Timeout: 5 * time.Second}
-	req, _ := http.NewRequest(http.MethodPost, server.URL, nil)
+	req, err := http.NewRequest(http.MethodPost, server.URL, nil)
+	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req)
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 
-	assert.Contains(t, receivedCT, "application/json",
+	mu.Lock()
+	ct := receivedCT
+	mu.Unlock()
+
+	assert.Contains(t, ct, "application/json",
 		"webhook delivery must use application/json content type")
 }

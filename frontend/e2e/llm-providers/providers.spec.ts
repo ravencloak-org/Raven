@@ -2,10 +2,14 @@ import { test, expect } from '../fixtures'
 
 test.describe('LLM Providers', () => {
   test('add OpenAI BYOK config', async ({ adminPage: page }) => {
+    if (!process.env.E2E_OPENAI_API_KEY) {
+      test.skip(true, 'E2E_OPENAI_API_KEY not configured — skipping LLM provider test')
+      return
+    }
     await page.goto('/llm-providers')
     await page.getByRole('button', { name: 'Add Provider' }).click()
     await page.getByLabel('Provider').selectOption('openai')
-    await page.getByLabel('API Key').fill(process.env.E2E_OPENAI_API_KEY ?? 'sk-test-fake-key-for-e2e')
+    await page.getByLabel('API Key').fill(process.env.E2E_OPENAI_API_KEY)
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByText('openai')).toBeVisible()
   })

@@ -26,8 +26,7 @@ func TestWAFRuleEval_BlockPattern_Concept(t *testing.T) {
 	type Rule struct {
 		Pattern string
 		Action  string
-		// Priority controls evaluation order; higher wins.
-		Priority int
+		// Priority removed — evalRule uses declaration order, not priority.
 	}
 
 	evalRule := func(body string, rules []Rule) string {
@@ -40,7 +39,7 @@ func TestWAFRuleEval_BlockPattern_Concept(t *testing.T) {
 	}
 
 	rules := []Rule{
-		{Pattern: "DROP TABLE", Action: "block", Priority: 10},
+		{Pattern: "DROP TABLE", Action: "block"},
 	}
 
 	action := evalRule("SELECT * FROM users; DROP TABLE users;", rules)

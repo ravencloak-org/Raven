@@ -195,10 +195,11 @@ func TestGRPCClient_TLSHandshake_InsecureClient_PlainServer(t *testing.T) {
 	assert.Error(t, err, "RPC against a closed connection must fail")
 }
 
-// TestGRPCClient_ContextTimeout_Cancelled verifies that a deadline-exceeded
-// context cancels a slow RPC.
+// TestGRPCClient_ContextTimeout_Cancelled verifies that an already-expired
+// context returns a deadline-exceeded error immediately.
 func TestGRPCClient_ContextTimeout_Cancelled(t *testing.T) {
-	// Start a fake server that delays before responding.
+	// Start a fake gRPC server. The 1ns timeout expires before the handshake
+	// completes, so the RPC fails with DeadlineExceeded immediately.
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 

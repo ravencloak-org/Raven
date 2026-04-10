@@ -124,12 +124,12 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
-            clang llvm libbpf-dev linux-tools-$(uname -r) \
+            clang llvm libbpf-dev linux-tools-$(uname -r) linux-tools-generic \
             ca-certificates curl git docker.io
 
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.26'
+          go-version: '1.26.2'
           cache: true
 
       - run: go mod download
