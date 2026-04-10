@@ -1,0 +1,890 @@
+run cr cli again
+
+---
+
+<task-notification>
+<task-id>bnjvsb1f8</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Run CodeRabbit CLI review" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+yes and in parallel agents in a separate worktree
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.5/skills/dispatching-parallel-agents
+
+# Dispatching Parallel Agents
+
+## Overview
+
+You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions and context, you ensure they stay focused and succeed at their task. They should never inherit your session's context or history — you construct exactly what they need. This also preserves your own context for coordination work.
+
+When you have multiple unrelated failures (different test files, different subsystems, different bugs), investigating them sequentially wastes time. Each investigation is independent and can happen in parallel.
+
+**Core principle:** Dispatch one agent per independent problem domain. Let them work concurrently.
+
+## When to Use
+
+```dot
+digraph when_to_use {
+    "Multiple failures?" [shape=diamond];
+    "Are they independent?" [shape=diamond];
+    "Single agent investigates all" [shape=box];
+    "One agent per problem domain" [shape=box];
+    "Can they work in parallel?" [shape=diamond];
+    "Sequential agents" [shape=box];
+    "Parallel dispatch" [shape=box];
+
+    "Multiple failures?" -> "Are they independent?" [label="yes"];
+    "Are they independent?" -> "Single agent investigates all" [label="no - related"];
+    "Are they independent?" -> "Can they work in parallel?" [label="yes"];
+    "Can they work in parallel?" -> "Parallel dispatch" [label="yes"];
+    "Can they work in parallel?" -> "Sequential agents" [label="no - shared state"];
+}
+```
+
+**Use when:**
+- 3+ test files failing with different root causes
+- Multiple subsystems broken independently
+- Each problem can be understood without context from others
+- No shared state between investigations
+
+**Don't use when:**
+- Failures are related (fix one might fix others)
+- Need to understand full system state
+- Agents would interfere with each other
+
+## The Pattern
+
+### 1. Identify Independent Domains
+
+Group failures by what's broken:
+- File A tests: Tool approval flow
+- File B tests: Batch completion behavior
+- File C tests: Abort functionality
+
+Each domain is independent - fixing tool approval doesn't affect abort tests.
+
+### 2. Create Focused Agent Tasks
+
+Each agent gets:
+- **Specific scope:** One test file or subsystem
+- **Clear goal:** Make these tests pass
+- **Constraints:** Don't change other code
+- **Expected output:** Summary of what you found and fixed
+
+### 3. Dispatch in Parallel
+
+```typescript
+// In Claude Code / AI environment
+Task("Fix agent-tool-abort.test.ts failures")
+Task("Fix batch-completion-behavior.test.ts failures")
+Task("Fix tool-approval-race-conditions.test.ts failures")
+// All three run concurrently
+```
+
+### 4. Review and Integrate
+
+When agents return:
+- Read each summary
+- Verify fixes don't conflict
+- Run full test suite
+- Integrate all changes
+
+## Agent Prompt Structure
+
+Good agent prompts are:
+1. **Focused** - One clear problem domain
+2. **Self-contained** - All context needed to understand the problem
+3. **Specific about output** - What should the agent return?
+
+```markdown
+Fix the 3 failing tests in src/agents/agent-tool-abort.test.ts:
+
+1. "should abort tool with partial output capture" - expects 'interrupted at' in message
+2. "should handle mixed completed and aborted tools" - fast tool aborted instead of completed
+3. "should properly track pendingToolCount" - expects 3 results but gets 0
+
+These are timing/race condition issues. Your task:
+
+1. Read the test file and understand what each test verifies
+2. Identify root cause - timing issues or actual bugs?
+3. Fix by:
+   - Replacing arbitrary timeouts with event-based waiting
+   - Fixing bugs in abort implementation if found
+   - Adjusting test expectations if testing changed behavior
+
+Do NOT just increase timeouts - find the real issue.
+
+Return: Summary of what you found and what you fixed.
+```
+
+## Common Mistakes
+
+**❌ Too broad:** "Fix all the tests" - agent gets lost
+**✅ Specific:** "Fix agent-tool-abort.test.ts" - focused scope
+
+**❌ No context:** "Fix the race condition" - agent doesn't know where
+**✅ Context:** Paste the error messages and test names
+
+**❌ No constraints:** Agent might refactor everything
+**✅ Constraints:** "Do NOT change production code" or "Fix tests only"
+
+**❌ Vague output:** "Fix it" - you don't know what changed
+**✅ Specific:** "Return summary of root cause and changes"
+
+## When NOT to Use
+
+**Related failures:** Fixing one might fix others - investigate together first
+**Need full context:** Understanding requires seeing entire system
+**Exploratory debugging:** You don't know what's broken yet
+**Shared state:** Agents would interfere (editing same files, using same resources)
+
+## Real Example from Session
+
+**Scenario:** 6 test failures across 3 files after major refactoring
+
+**Failures:**
+- agent-tool-abort.test.ts: 3 failures (timing issues)
+- batch-completion-behavior.test.ts: 2 failures (tools not executing)
+- tool-approval-race-conditions.test.ts: 1 failure (execution count = 0)
+
+**Decision:** Independent domains - abort logic separate from batch completion separate from race conditions
+
+**Dispatch:**
+```
+Agent 1 → Fix agent-tool-abort.test.ts
+Agent 2 → Fix batch-completion-behavior.test.ts
+Agent 3 → Fix tool-approval-race-conditions.test.ts
+```
+
+**Results:**
+- Agent 1: Replaced timeouts with event-based waiting
+- Agent 2: Fixed event structure bug (threadId in wrong place)
+- Agent 3: Added wait for async tool execution to complete
+
+**Integration:** All fixes independent, no conflicts, full suite green
+
+**Time saved:** 3 problems solved in parallel vs sequentially
+
+## Key Benefits
+
+1. **Parallelization** - Multiple investigations happen simultaneously
+2. **Focus** - Each agent has narrow scope, less context to track
+3. **Independence** - Agents don't interfere with each other
+4. **Speed** - 3 problems solved in time of 1
+
+## Verification
+
+After agents return:
+1. **Review each summary** - Understand what changed
+2. **Check for conflicts** - Did agents edit same code?
+3. **Run full suite** - Verify all fixes work together
+4. **Spot check** - Agents can make systematic errors
+
+## Real-World Impact
+
+From debugging session (2025-10-03):
+- 6 failures across 3 files
+- 3 agents dispatched in parallel
+- All investigations completed concurrently
+- All fixes integrated successfully
+- Zero conflicts between agent changes
+
+---
+
+<task-notification>
+<task-id>a749a070d81b28e5b</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix CI/CD and config issues" completed</summary>
+<result>All four edits are confirmed. Here is a summary of what was changed:
+
+**Files changed (4):**
+
+- `.github/workflows/go.yml` — Added `linux-tools-generic bpftool` to the "Install eBPF build tools" apt-get line in the `build-and-test` job, restoring `bpftool` so the later "Verify generated eBPF files are up-to-date" step can call `bpftool btf dump` without a missing-binary failure.
+
+- `.github/workflows/security.yml` — Changed the govulncheck invocation: grep exclusion updated from `grep -v '/internal/testutil'` to `grep -vE '/testutil$'` (anchored regex, extended mode) to prevent accidental exclusion of packages that merely contain "testutil" as a substring. Also changed `-scan symbol` to `-scan=package` (canonical flag form).
+
+- `.codecov.yml` — Both `if_not_found: success` entries changed to `if_not_found: failure` so CI hard-fails when coverage data is absent rather than silently passing. The broad `"cmd/**"` ignore glob narrowed to `"cmd/**/main.go"` so only entry-point files are excluded from coverage, not all code under `cmd/`.
+
+- `.env.example` — Replaced vague placeholder values (`snd_your_hyperswitch_api_key`, `your_webhook_secret`, `rzp_test_your_key_id`) with clearly invalid sentinels (`REPLACE_WITH_YOUR_HYPERSWITCH_API_KEY`, `REPLACE_WITH_YOUR_HYPERSWITCH_WEBHOOK_SECRET`, `REPLACE_WITH_YOUR_RAZORPAY_KEY_ID`). The sandbox base URL is unchanged.</result>
+<usage><total_tokens>22268</total_tokens><tool_uses>13</tool_uses><duration_ms>46458</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aca2bdaff1e7a09c8</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix EE placeholder tests to import their packages" completed</summary>
+<result>All 5 tests pass. Here is a summary:
+
+**Module path:** `github.com/ravencloak-org/Raven`
+
+**Files created** (the test files did not previously exist):
+
+- `/internal/ee/sso/sso_test.go` — package `sso_test`, blank import of `github.com/ravencloak-org/Raven/internal/ee/sso`
+- `/internal/ee/connectors/connectors_test.go` — package `connectors_test`, blank import of `.../internal/ee/connectors`
+- `/internal/ee/lead/lead_test.go` — package `lead_test`, blank import of `.../internal/ee/lead`
+- `/internal/ee/analytics/analytics_test.go` — package `analytics_test`, blank import of `.../internal/ee/analytics`
+- `/internal/ee/audit/audit_test.go` — package `audit_test`, blank import of `.../internal/ee/audit`
+
+**Notes on the audit file:** The task mentioned renaming exported `AuditEntry`/`AuditStore` to unexported variants, but those types do not appear in any existing file — the audit package is a pure stub with only a package declaration. The test file was created fresh with no such types, so no renaming was needed.
+
+**Compilation:** `go build ./internal/ee/...` exits cleanly. All 5 `TestPackageCompiles` tests pass. The blank imports cause the Go compiler to actually verify each package compiles, fulfilling the CodeRabbit finding.</result>
+<usage><total_tokens>20501</total_tokens><tool_uses>21</tool_uses><duration_ms>50407</duration_ms></usage>
+<worktree><worktreePath>/Users/jobinlawrance/Project/raven/.claude/worktrees/agent-aca2bdaf</worktreePath><worktreeBranch>worktree-agent-aca2bdaf</worktreeBranch></worktree>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a72f30368e47f841d</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix frontend API security issues" completed</summary>
+<result>All changes are correctly applied. Here is a bullet summary of every change made:
+
+**`frontend/src/api/whatsapp.ts`**
+- Auth guard in `authFetch`: added `if (!auth.accessToken) { throw new Error('Not authenticated') }` after getting the auth store; removed `?? ''` fallback from the `Authorization` header (line 94-102)
+- URL-encoded `orgId` in `whatsappBase`: `encodeURIComponent(orgId)` (line 118)
+- URL-encoded `phoneId` in `deletePhoneNumber` (line 146)
+- URL-encoded `callId` in `getCall` (line 166)
+- URL-encoded `callId` in `endCall` (line 182)
+- URL-encoded `callId` in `getBridge` (line 192)
+- Fixed duplicate `/whatsapp` segment in `listActiveBridges`: `${whatsappBase(orgId)}/whatsapp/bridges` → `${whatsappBase(orgId)}/bridges` (line 198)
+
+**`frontend/src/api/voice.ts`**
+- Auth guard in `authFetch`: added `if (!auth.accessToken) { throw new Error('Not authenticated') }` after getting the auth store; removed `?? ''` fallback from the `Authorization` header (lines 69-79)
+- URL-encoded `orgId` in `listVoiceSessions` (line 88)
+- URL-encoded `orgId` and `sessionId` in `getVoiceSession` (line 95)
+- URL-encoded `orgId` in `createVoiceSession` (line 104)
+- URL-encoded `orgId` and `sessionId` in `updateVoiceSessionState` (line 117)
+- URL-encoded `orgId` and `sessionId` in `generateVoiceToken` (line 129)
+- URL-encoded `orgId` and `sessionId` in `listVoiceTurns` (line 140)
+- URL-encoded `orgId` and `sessionId` in `appendVoiceTurn` (line 150)</result>
+<usage><total_tokens>29914</total_tokens><tool_uses>24</tool_uses><duration_ms>94652</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a9a3ce5a935f71316</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix frontend Vue components and stores" completed</summary>
+<result>All changes look correct. Here is a summary of every change made:
+
+---
+
+**`frontend/src/components/whatsapp/ActiveCallPanel.vue`**
+
+- Added `watch` to the Vue import (was `computed, onMounted, onUnmounted, ref`; now also includes `watch`).
+- Extracted `clearPolling` helper: clears `pollInterval` and sets it to `null`, replacing the inline `if (pollInterval) clearInterval(pollInterval)` in `onUnmounted`.
+- Added a `watch(() =&gt; props.call.state, ...)` that calls `clearPolling()` when `newState === 'ended'`, so the 4-second refresh interval stops as soon as the call ends without waiting for component teardown.
+- `onUnmounted` now delegates to `clearPolling()` (reuses the same helper).
+- Added `:aria-expanded="!sdpCollapsed"` to the SDP Answer toggle `&lt;button&gt;` (the reactive variable is `sdpCollapsed`, a `ref(true)`).
+
+**`frontend/src/components/whatsapp/WebhookEventLog.vue`**
+
+- Added `:datetime="new Date(entry.timestamp).toISOString()"` to the `&lt;time&gt;` element at line 117 (which displays `formatTime(entry.timestamp)`), providing a machine-readable ISO 8601 datetime attribute.
+
+**`frontend/src/stores/voice.ts`**
+
+- Removed `as VoiceSessionState` cast from `'active' as VoiceSessionState` in `activateSession` (line 90). Safe because `VoiceSessionState = 'created' | 'active' | 'ended'` already includes `'active'`.
+- Removed `as VoiceSessionState` cast from `'ended' as VoiceSessionState` in `endSession` (line 101). Safe for the same reason — `'ended'` is in the union.
+
+**`frontend/src/stores/whatsapp.spec.ts`**
+
+- Removed `listActiveBridges: vi.fn()` from the `vi.mock('../api/whatsapp', ...)` block — it had no corresponding `vi.mocked()` variable and was unused in any test assertion.
+- Added `it('propagates API errors', ...)` to the `removePhoneNumber` describe block, using `mockedDeletePhoneNumber.mockRejectedValue(new Error('deletePhoneNumber failed: 500'))` and asserting `store.removePhoneNumber(ORG_ID, 'phone-1')` rejects with that message.
+- Added `it('propagates API errors', ...)` to the `terminateCall` describe block, using `mockedEndCall.mockRejectedValue(new Error('endCall failed: 500'))` and asserting `store.terminateCall(ORG_ID, 'call-1')` rejects with that message.</result>
+<usage><total_tokens>36301</total_tokens><tool_uses>32</tool_uses><duration_ms>140492</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a181f70d104a84942</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix frontend E2E test issues" completed</summary>
+<result>All changes look correct. Here is a bullet summary of every fix applied:
+
+---
+
+**1. `frontend/e2e/fixtures/auth.ts` — both env vars validated**
+- `authenticatedPage`: guard changed from `!E2E_USER` to `!E2E_USER || !E2E_PASS`; skip message updated to `E2E_USER/E2E_PASS not configured`
+- `adminPage`: guard changed from `!E2E_ADMIN` to `!E2E_ADMIN || !E2E_ADMIN_PASS`; skip message updated to `E2E_ADMIN/E2E_ADMIN_PASS not configured`
+
+**2. `frontend/e2e/chat-widget/widget-sandbox.html` — meta tags added**
+- Added `&lt;meta charset="utf-8"&gt;` and `&lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;` inside `&lt;head&gt;`
+
+**3. `frontend/e2e/chat-widget/widget-sandbox-invalid-key.html` — meta tags added**
+- Same charset and viewport meta tags added to `&lt;head&gt;`
+
+**4. `frontend/e2e/api/rate-limit.spec.ts` — redundant assertion simplified**
+- Removed the `has429` boolean variable and separate `expect(has429).toBe(true)` check; replaced with `expect(limited).toBeDefined()` and unconditional `expect(limited!.headers()['retry-after']).toBeTruthy()`
+
+**5a. `frontend/e2e/pages/APIKeyPage.ts` — double locator lookup eliminated**
+- Stored `getByTestId('api-key-value')` in `keyValueLocator`; reused it for both the visibility assertion and the `innerText()` call
+
+**5b. `frontend/e2e/pages/APIKeyPage.ts` — revoke wait added**
+- Added `await expect(this.page.getByTestId('api-key-row').first()).not.toBeVisible({ timeout: 5000 })` after clicking the "Revoke Key" confirmation
+
+**6. `frontend/e2e/pages/ChatPage.ts` — empty-messages guard added**
+- `getLastResponse()` now throws `Error('No assistant messages found')` instead of silently accessing `messages[-1]` when the array is empty
+
+**7. `frontend/e2e/chat-widget/widget.spec.ts` — `waitForTimeout` replaced**
+- Replaced `waitForTimeout(3000)` + `.all()` + length check with `await expect(assistantMessage.first()).toBeVisible({ timeout: 10000 })` using an auto-retrying assertion
+
+**8. `frontend/e2e/voice/voice.spec.ts` — explicit skip for no sessions**
+- Inverted the `if (sessionCount &gt; 0)` guard to `if (sessionCount === 0) { test.skip(...); return }`, making the test body unconditional and the skip explicit
+
+**9a. `frontend/e2e/whatsapp/whatsapp.spec.ts` — auto-retrying callback assertion**
+- Replaced `innerText()` + `toMatch()` with `await expect(...).toHaveText(/success|200|ok/i)` (auto-retrying)
+
+**9b. `frontend/e2e/whatsapp/whatsapp.spec.ts` — explicit skip for no events**
+- Replaced silent `if (events.length &gt; 0)` with `if (events.length === 0) { test.skip(...); return }` followed by an unconditional assertion</result>
+<usage><total_tokens>31996</total_tokens><tool_uses>47</tool_uses><duration_ms>139505</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a264ca2e9384004ab</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix Go backend test quality issues" completed</summary>
+<result>All fixes applied and committed. Here is a summary:
+
+---
+
+## Changes made
+
+**5 files modified, `go build ./...` passes, unit tests pass.**
+
+### 1. `internal/handler/health_test.go`
+Both `TestHealthCheck_Returns200` and `TestPing_Returns200` now capture the `err` return from `http.NewRequest(...)` and assert it with `require.NoError(t, err)`.
+
+### 2. `internal/testutil/db.go`
+`RunMigrations`: replaced `_, filename, _, _ := runtime.Caller(0)` with the `ok` variant and a `t.Fatal("runtime.Caller failed to retrieve file path")` guard.
+
+### 3. `internal/testutil/fixtures.go`
+`NewKnowledgeBase` and `NewAPIKey` now accept `overrides ...func(*model.T)` variadic args (matching the pattern already used by `NewOrg`/`NewWorkspace`). Both functions now build the struct, apply overrides, then return the pointer.
+
+### 4. `internal/integration/migration_test.go`
+- Replaced `assert.EqualValues(t, 32, maxVersion, ...)` with `const minExpectedMigrations = 32` + `assert.GreaterOrEqual(t, int(maxVersion), minExpectedMigrations, ...)` so new migrations never break the test.
+- Added `"embeddings"` to the spot-check table slice (the `embeddings` table exists: confirmed by the HNSW index test referencing it in the same file).
+
+### 5. `internal/jobs/webhook_delivery_test.go`
+- Consolidated the four `TestReservedHeaders_*` functions into a single table-driven `TestReservedHeaders` test.
+- Renamed `TestIsPrivateIP_RFC1918` → `TestIsPrivateIP_PrivateRanges`; updated the doc comment to mention RFC 4193 / RFC 4291; added `"fc00::1"`, `"fd00::1"`, `"fe80::1"` to the private-IP list. These are covered by the existing `fc00::/7` and `fe80::/10` CIDR entries in `isPrivateIP`.</result>
+<usage><total_tokens>39957</total_tokens><tool_uses>44</tool_uses><duration_ms>213444</duration_ms></usage>
+</task-notification>
+
+---
+
+continue
+
+---
+
+There's a PR then.
+
+---
+
+fix the review comments on https://github.com/ravencloak-org/Raven/pull/207
+
+---
+
+<task-notification>
+<task-id>a14594968a31d43be</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix frontend E2E test issues from CR" completed</summary>
+<result>All 9 fixes have been committed. Here is a summary of what was done:
+
+**Branch:** `fix/e2e-coderabbit-review` (created from `test/playwright-e2e-suite`)
+
+**Files modified (8 files, 63 insertions, 19 deletions):**
+
+1. **`frontend/e2e/auth/login.spec.ts`** -- Added `test.skip()` guard when `E2E_USER`/`E2E_PASS` are missing; removed non-null assertions (`!`).
+
+2. **`frontend/e2e/api/auth.spec.ts`** -- Added `expect(tokenResp.ok())` check after Keycloak token request; added env var guards with `test.skip()` for three tests (`valid JWT`, `valid API key`, `wrong-scope API key`); removed all non-null assertions.
+
+3. **`frontend/e2e/api/rate-limit.spec.ts`** -- Added `test.skip()` guard when `E2E_API_KEY`/`E2E_KB_ID` are missing; removed non-null assertions.
+
+4. **`frontend/e2e/fixtures/api.ts`** -- Added `resp.ok()` checks with descriptive error messages (including status, statusText, and body) to all three API helper methods (`createKB`, `createAPIKey`, `uploadDocument`).
+
+5. **`frontend/e2e/knowledge-bases/kb.spec.ts`** -- Already used `Date.now()` and `testInfo.workerIndex` for unique names; no changes needed.
+
+6. **`frontend/e2e/workspaces/workspace.spec.ts`** -- Replaced hardcoded `'Test Workspace E2E'` with `Date.now()`-suffixed unique name.
+
+7. **`frontend/e2e/documents/documents.spec.ts`** -- Replaced hardcoded `processed-doc-id` with dynamic document discovery from the documents list; added null-check on `getAttribute('href')` with `test.skip()` fallback.
+
+8. **`frontend/e2e/api/streaming.spec.ts`** -- Added `test.skip()` guard when `E2E_KB_ID` is missing.
+
+9. **`frontend/e2e/chat/chat.spec.ts`** -- Replaced silent `if (citations.length &gt; 0)` skip with explicit `expect(citations.length).toBeGreaterThan(0)` assertion.</result>
+<usage><total_tokens>50065</total_tokens><tool_uses>56</tool_uses><duration_ms>192160</duration_ms></usage>
+<worktree><worktreePath>/Users/jobinlawrance/Project/raven/.claude/worktrees/agent-a1459496</worktreePath><worktreeBranch>worktree-agent-a1459496</worktreeBranch></worktree>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>abdc76f2592406cc5</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix codecov, conftest, EE tests, and integration tests" completed</summary>
+<result>All changes committed. Here is a summary of what was done:
+
+### Changes made
+
+1. **`.codecov.yml`** -- Added Python generated protobuf file exclusions: `ai-worker/raven_worker/generated/**`, `**/*_pb2.py`, `**/*_pb2_grpc.py`, `**/*_pb2.pyi`.
+
+2. **`ai-worker/tests/conftest.py`** -- Fixed stub exception types from bare `Exception` aliases to proper subclasses via `type("RateLimitError", (Exception,), {})` for openai (`RateLimitError`, `APIError`), anthropic (`APIError`). Added `cohere.errors` submodule stub with `TooManyRequestsError`. Verified ruff format/check passes.
+
+3. **`internal/ee/security/security_test.go`** -- Added blank import `_ "github.com/ravencloak-org/Raven/internal/ee/security"` to ensure the actual package is compiled and verified during test runs (the package is a stub, so blank import is sufficient).
+
+4. **`internal/ee/webhooks/webhooks_test.go`** -- Added blank import `_ "github.com/ravencloak-org/Raven/internal/ee/webhooks"`. Replaced the incorrect retry schedule test (`TestWebhookDelivery_Retry_Intervals_Ordered` asserting 1s/5s/30s asynq backoff) with `TestWebhookDelivery_Retry_ManagedByHandler` that reflects the actual implementation: `asynq.MaxRetry(0)` with retries managed by the handler via `failure_count`/`max_retries` in the database.
+
+5. **`internal/integration/webhook_delivery_test.go`** -- Replaced the weak HMAC assertion (`len &gt;= 7`) with `assert.Len(t, receivedSig, 71, ...)` and `strings.HasPrefix(receivedSig, "sha256=")`. Also updated the test to compute a real HMAC-SHA256 signature instead of using a hardcoded short value, so the length-71 assertion actually holds.
+
+6. **`internal/jobs/send_email_test.go`** -- Added `assert.Empty(t, repo.logs, ...)` after the corrupt payload error assertion to verify no side-effects (no notification log entries recorded).</result>
+<usage><total_tokens>64178</total_tokens><tool_uses>54</tool_uses><duration_ms>215852</duration_ms></usage>
+<worktree><worktreePath>/Users/jobinlawrance/Project/raven/.claude/worktrees/agent-abdc76f2</worktreePath><worktreeBranch>worktree-agent-abdc76f2</worktreeBranch></worktree>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a41ba811159ca5f50</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix billing service and migration issues" completed</summary>
+<result>All changes committed successfully. Here is a summary of what was done:
+
+**1. `internal/service/billing.go` -- 3 fixes:**
+- **VerifyWebhookSignature fail-closed** (line 260): Changed empty webhook secret from returning `nil` (skip verification) to returning `apierror.NewInternal("webhook secret not configured")`. This ensures the system fails closed rather than silently skipping auth.
+- **payment_succeeded idempotency guard** (line 322): Added an early return before updating subscription status -- if `sub.Status == model.SubscriptionStatusActive`, the handler now logs and returns nil to avoid reprocessing.
+- **HyperswitchSubscriptionID no longer overwritten** (line 177): Changed `persisted.HyperswitchSubscriptionID = clientSecret` to `persisted.ClientSecret = clientSecret`, using a new transient field on the model instead of corrupting the Hyperswitch ID.
+
+**2. `internal/model/billing.go`:**
+- Added `ClientSecret string` field (with `json:"client_secret,omitempty"`) to the `Subscription` struct as a transient (non-persisted) field for passing the client secret to the frontend.
+
+**3. `migrations/00032_payment_intents.sql`:**
+- Added `nullif(...)` guard to the `payment_intents_org_isolation` RLS policy: `nullif(current_setting('app.current_org_id', true), '')::uuid` prevents invalid UUID cast when the setting is an empty string.
+
+**4. `internal/testutil/grpc.go`:**
+- Added safe method overrides on `StubRAGStream` for `Context()`, `CloseSend()`, `Header()`, and `Trailer()` to prevent panics from the nil embedded `grpc.ClientStream`.
+- Added `google.golang.org/grpc/metadata` import.
+
+**5. `internal/repository/rls_test.go`:**
+- Replaced the no-op `setOrgID` helper with a working implementation that calls `tx.Exec(ctx, "SELECT set_config('app.current_org_id', $1, true)", orgID)`.
+- Changed the parameter type from a custom interface to `pgx.Tx` and added the `pgx` import.
+
+**6. `internal/service/billing_test.go`:**
+- Updated `TestVerifyWebhookSignature_EmptySecret_Skips` to `REDACTED`, now asserting that an empty secret returns a 500 error.
+- Added documentation comment to `newTestBillingService` explaining why nil `*pgxpool.Pool` is intentional for unit tests.</result>
+<usage><total_tokens>65542</total_tokens><tool_uses>52</tool_uses><duration_ms>235849</duration_ms></usage>
+<worktree><worktreePath>/Users/jobinlawrance/Project/raven/.claude/worktrees/agent-a41ba811</worktreePath><worktreeBranch>worktree-agent-a41ba811</worktreeBranch></worktree>
+</task-notification>
+
+---
+
+Are there any CodeRabbit review comments that need to be fixed in the PR? Check and fix it.
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+
+The session involved three sequential user requests:
+- **"run cr cli again"**: Run the CodeRabbit CLI review tool on the current branch
+- **"yes and in parallel agents in a separate worktree"**: Fix all CR findings using parallel isolated agents in git worktrees
+- **"There's a PR then."**: Create/confirm a PR for the changes
+- **"fix the review comments on https://github.com/ravencloak-org/Raven/pull/207"**: Fetch and fix all CR inline review comments on the existing PR
+- **"Are there any CodeRabbit review comments that need to be fixed in the PR? Check and fix it."**: Check for remaining unresolved CR comments on PR #207 and fix them
+
+The final request was in progress when the summary was triggered. The assistant had fetched the current PR #207 comments (75KB, saved to `/tmp/cr_comments_207.txt`) and was beginning to analyze them.
+
+---
+
+2. Key Technical Concepts:
+
+- **CodeRabbit CLI** (`cr review`) — automated code review tool producing actionable comments
+- **Git worktrees** — isolated working trees used for parallel agent execution (`isolation: "worktree"`)
+- **Go module**: `github.com/ravencloak-org/Raven`
+- **Tech stack**: Go + Gin API, Python gRPC AI worker, Vue.js 3, Keycloak, PostgreSQL/pgvector/BM25, Asynq, LiveKit, SeaweedFS, eBPF
+- **Playwright E2E tests** — `frontend/e2e/` directory with fixtures, page objects, and spec files
+- **Goose migrations** — SQL migration framework for Go
+- **testcontainers-go** — spinning up real PostgreSQL for integration tests
+- **RLS (Row-Level Security)** — PostgreSQL per-org data isolation via `app.current_org_id` session setting
+- **HMAC-SHA256** — webhook signature verification (`sha256=` prefix + 64 hex chars = 71 chars total)
+- **Asynq** — Redis-based task queue with `asynq.MaxRetry(0)` for webhook delivery
+- **Hyperswitch + Razorpay** — payment orchestration stack for India payments
+- **golangci-lint** and **ruff** — Go and Python linters that must pass before every push
+- **Cherry-pick** — strategy used to merge agent worktree changes onto main branch
+- **Auto-merge** — PR #207 has squash auto-merge queued via `gh pr merge 207 --auto --squash`
+- **encodeURIComponent** — URL path parameter encoding to prevent path injection in TypeScript API files
+
+---
+
+3. Files and Code Sections:
+
+**`internal/service/billing.go`** (modified by billing-fixes agent):
+- `VerifyWebhookSignature`: Changed empty secret from `return nil` (skip) to `return apierror.NewInternal("webhook secret not configured")` — fail closed
+- `payment_succeeded` handler: Added idempotency guard `if sub.Status == model.SubscriptionStatusActive { return nil }` before updating subscription
+- Fixed `persisted.HyperswitchSubscriptionID = clientSecret` → `persisted.ClientSecret = clientSecret` using new transient field
+
+**`internal/model/billing.go`** (modified):
+- Added `ClientSecret string \`json:"client_secret,omitempty"\`` transient field to `Subscription` struct
+
+**`migrations/00032_payment_intents.sql`** (modified):
+- RLS policy `payment_intents_org_isolation` USING clause changed from:
+  `org_id = current_setting('app.current_org_id', true)::uuid`
+  to:
+  `org_id = nullif(current_setting('app.current_org_id', true), '')::uuid`
+
+**`internal/testutil/grpc.go`** (modified):
+- Added safe method overrides to `StubRAGStream` to prevent nil-embedded `grpc.ClientStream` panics:
+  - `Context() context.Context` returning `context.Background()`
+  - `CloseSend() error` returning `nil`
+  - `Header() (metadata.MD, error)` returning `nil, nil`
+  - `Trailer() metadata.MD` returning `nil`
+
+**`internal/repository/rls_test.go`** (conflict-resolved and modified):
+- `setOrgID` implemented from no-op to:
+```go
+func setOrgID(t *testing.T, ctx context.Context, tx pgx.Tx, orgID string) {
+    t.Helper()
+    _, err := tx.Exec(ctx, "SELECT set_config('app.current_org_id', $1, true)", orgID)
+    require.NoError(t, err)
+}
+```
+- Conflict was between HEAD using wide interface and agent using `pgx.Tx`; resolved by taking `pgx.Tx` version
+
+**`internal/service/billing_test.go`** (modified):
+- `TestVerifyWebhookSignature_EmptySecret_Skips` renamed to `REDACTED`, now asserts 500 error
+- `newTestBillingService` documented that nil pool is intentional for unit tests
+
+**`.codecov.yml`** (modified):
+- Added Python protobuf exclusions:
+```yaml
+- "ai-worker/raven_worker/generated/**"
+- "**/*_pb2.py"
+- "**/*_pb2_grpc.py"
+- "**/*_pb2.pyi"
+```
+- Changed `cmd/**` to `cmd/**/main.go`
+- Changed both `if_not_found: success` to `if_not_found: failure`
+
+**`ai-worker/tests/conftest.py`** (modified):
+- Fixed stub exception types: `RateLimitError = Exception` → `type("RateLimitError", (Exception,), {})`
+- Added `cohere.errors` submodule with `TooManyRequestsError`
+- Passed `ruff format --check` and `ruff check`
+
+**`internal/ee/security/security_test.go`** (modified):
+- Added `_ "github.com/ravencloak-org/Raven/internal/ee/security"` blank import
+
+**`internal/ee/webhooks/webhooks_test.go`** (modified):
+- Added blank import of `internal/ee/webhooks`
+- Replaced incorrect retry interval assertions (1s/5s/30s) with test reflecting actual `asynq.MaxRetry(0)` implementation
+
+**`internal/integration/webhook_delivery_test.go`** (modified):
+- HMAC assertion strengthened from `len(receivedSig) >= 7` to:
+```go
+assert.Len(t, receivedSig, 71, "signature must be sha256= prefix + 64 hex chars")
+assert.True(t, strings.HasPrefix(receivedSig, "sha256="), "signature must have sha256= prefix")
+```
+
+**`internal/jobs/send_email_test.go`** (modified):
+- Added `assert.Empty(t, repo.logs, ...)` after corrupt payload error to verify no side-effects
+
+**`internal/ee/{sso,connectors,lead,analytics,audit}/\*_test.go`** (modified):
+- All 5 EE test files gained blank imports of their respective packages
+- `audit_test.go` had self-referential mock types (`AuditEntry`, `AuditStore`) removed
+
+**E2E test files** (8 files modified, copied from agent worktree `agent-a1459496`):
+- `frontend/e2e/auth/login.spec.ts`: Added `test.skip()` when `E2E_USER`/`E2E_PASS` missing
+- `frontend/e2e/api/auth.spec.ts`: Added `expect(tokenResp.ok())` validation + env guards
+- `frontend/e2e/api/rate-limit.spec.ts`: Added `test.skip()` guard for `E2E_API_KEY`/`E2E_KB_ID`
+- `frontend/e2e/api/streaming.spec.ts`: Added `test.skip()` guard for `E2E_KB_ID`
+- `frontend/e2e/chat/chat.spec.ts`: `citations.length > 0` silent skip → `expect(citations.length).toBeGreaterThan(0)`
+- `frontend/e2e/documents/documents.spec.ts`: Dynamic doc ID, null-check on `getAttribute('href')`
+- `frontend/e2e/fixtures/api.ts`: Added `resp.ok()` checks with descriptive errors
+- `frontend/e2e/workspaces/workspace.spec.ts`: `'Test Workspace E2E'` → unique name with `Date.now()`
+
+**`frontend/src/api/whatsapp.ts`** (already fixed on branch):
+- `whatsappBase`: `encodeURIComponent(orgId)`
+- All path functions encode their IDs
+- `authFetch`: throws `'Not authenticated'` when no token
+- `listActiveBridges`: fixed duplicate `/whatsapp/whatsapp/bridges` → `/whatsapp/bridges`
+
+**`frontend/src/api/voice.ts`** (already fixed on branch):
+- All path params use `encodeURIComponent(orgId)` and `encodeURIComponent(sessionId)`
+- `authFetch`: throws when no token
+
+**`frontend/src/components/whatsapp/ActiveCallPanel.vue`** (already fixed):
+- Added `watch(() => props.call.state, (newState) => { if (newState === 'ended') clearPolling() })`
+- Added `:aria-expanded="!sdpCollapsed"` to SDP toggle button
+
+**`frontend/src/components/whatsapp/WebhookEventLog.vue`** (already fixed):
+- Added `:datetime="new Date(entry.timestamp).toISOString()"` to `<time>` element
+
+---
+
+4. Errors and Fixes:
+
+- **Worktrees auto-cleaned after agent completion**: Only 1 of 6 first-round agents (`agent-aca2bdaf`, ee-tests) retained its worktree. The other 5 were cleaned. Solution: Discovered all changes were already present in prior commits on the branch; only needed to copy the EE test files from the surviving worktree.
+
+- **Cherry-pick conflict in `rls_test.go`**: When cherry-picking billing-fixes commit `f49f6aa`, `rls_test.go` conflicted between HEAD's wide interface signature and agent's `pgx.Tx`. Resolution: took the `pgx.Tx` version (cleaner, less indirection). Used `git add internal/repository/rls_test.go && git cherry-pick --continue --no-edit`.
+
+- **E2E cherry-pick empty**: Cherry-picking `8434e67` (e2e-fixes, based on `test/playwright-e2e-suite`) onto `test/go-backend-suite` produced empty commit because the two branches diverged. Resolution: Ran `git cherry-pick --skip` then manually copied files from `agent-a1459496` worktree.
+
+- **Diagnostic warnings about modules in worktrees**: LSP reported "module not included in workspace" for files in agent worktrees (`../agent-a41ba811`, `../agent-abdc76f2`). These are false positives from LSP looking at worktree paths — not actual code errors. The build passed.
+
+- **`grpc.go` imported `metadata` package but not used**: Diagnostic error about unused import. Agent-fixed version added the methods using `metadata.MD` types, resolving the use.
+
+---
+
+5. Problem Solving:
+
+- **Identifying what's already fixed**: Many CR comments referenced issues already fixed in prior commits on `test/go-backend-suite`. The assistant verified each file before making changes to avoid redundant work.
+
+- **Parallel agent strategy**: Used `isolation: "worktree"` with `mode: "bypassPermissions"` for second round of agents (fixing PR comments) to ensure faster execution without approval prompts.
+
+- **Merging three divergent agent worktrees**: Needed to combine changes from 3 agents (each working on their own worktree/branch) back into `test/go-backend-suite`. Used cherry-pick for billing and misc fixes; manual file copy for e2e fixes.
+
+- **PR already existed**: When trying `gh pr create`, found PR #207 already existed. Just verified it was up-to-date and auto-merge was queued.
+
+---
+
+6. All User Messages:
+
+- "run cr cli again"
+- "yes and in parallel agents in a separate worktree" (confirming to fix CR findings with parallel worktree agents)
+- "continue" (after login notification)
+- "There's a PR then." (requesting PR creation)
+- "fix the review comments on https://github.com/ravencloak-org/Raven/pull/207"
+- "Are there any CodeRabbit review comments that need to be fixed in the PR? Check and fix it."
+
+---
+
+7. Pending Tasks:
+
+- **Analyze and fix remaining PR #207 CodeRabbit inline comments**: The assistant had just fetched the current comments (75KB file at `/tmp/cr_comments_207.txt`) and was beginning to analyze them. The visible comments so far were:
+  1. `.codecov.yml` line 24: Python protobuf exclusions — **likely already fixed**
+  2. `.github/workflows/frontend.yml` line 43: Cache Playwright browsers — nitpick, not yet fixed
+  3. `.github/workflows/frontend.yml` line 82: E2E tests need backend services started — **CRITICAL**, not yet fixed
+  4. `.serena/memories/ci_workflows.md` line 25: Markdown formatting — nitpick
+  5. `.serena/memories/project_overview.md` line 48: Code block language specifier — nitpick
+  - Many more comments in the 75KB file not yet reviewed
+
+---
+
+8. Current Work:
+
+Immediately before the summary request, the assistant was in the process of checking for remaining CodeRabbit review comments on PR #207. The assistant had:
+
+1. Fetched all CR comments: `gh api repos/ravencloak-org/Raven/pulls/207/comments --jq '.[] | select(.user.login == "coderabbitai[bot]") | {path: .path, line: .line, body: .body}'`
+2. Saved to `/tmp/cr_comments_207.txt` (75,271 bytes, 30 JSON objects)
+3. Began reading the first 5 comments from the file
+
+The comments visible so far suggest:
+- **Critical**: `.github/workflows/frontend.yml` — E2E job references `API_BASE_URL: http://localhost:8080` and `KEYCLOAK_URL: http://localhost:8180` but no services are started. The Keycloak URL port (8180) also doesn't match the docker-compose config (8443/Traefik). This is the most important remaining issue.
+- **Nitpick**: Playwright browser caching in frontend.yml
+- **Nitpick**: Markdown formatting in `.serena/memories/` files (these are Serena AI memory files, not production code)
+
+The full comment list was not yet analyzed when the summary was requested.
+
+---
+
+9. Optional Next Step:
+
+The user's most recent explicit request was: **"Are there any CodeRabbit review comments that need to be fixed in the PR? Check and fix it."**
+
+The immediate next step is to finish analyzing all remaining PR #207 comments from `/tmp/cr_comments_207.txt`, categorize them by severity and actionability, then apply fixes — starting with the critical `.github/workflows/frontend.yml` issue about missing backend services for E2E tests, and continuing with other actionable non-trivial comments. The `.serena/memories/` markdown formatting nitpicks can be addressed but are low priority.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/jobinlawrance/.REDACTED.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+what's pending?
+
+---
+
+<task-notification>
+<task-id>a52b87cec45f3cf32</task-id>
+<tool-use-id>toolu_01Pb2rxZKhwKntWKXpjHS2Py</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix Go backend test files (webhook mock nil guards, ee/webhooks test comment)" completed</summary>
+<result>Both packages compile cleanly with no errors.
+
+Here is a summary of what was changed:
+
+**Fix 1: `/Users/jobinlawrance/Project/raven/internal/handler/webhook_test.go`**
+
+- Added `"errors"` to the import block.
+- Added nil guards to all 6 mock method implementations (`Create`, `GetByID`, `List`, `Update`, `Delete`, `ListDeliveries`). Each method now checks if its function field is nil and returns a descriptive `errors.New(...)` error instead of panicking with a nil function dereference. Methods returning `(*T, error)` return `nil, errors.New(...)`, and `Delete` (returning `error` only) returns `errors.New(...)`.
+
+**Fix 2: `/Users/jobinlawrance/Project/raven/internal/ee/webhooks/webhooks_test.go`**
+
+- Updated the `TestPackageCompiles` body to include a comment explaining that the blank import on line 14 is what actually verifies compilation, and updated the `t.Log` message to explicitly state this is verified via blank import.</result>
+<usage><total_tokens>25316</total_tokens><tool_uses>6</tool_uses><duration_ms>36203</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a05e9b011dce28dc1</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix E2E test files: streaming endpoint, webhooks replay, KB test uniqueness, licensing skip" completed</summary>
+<result>TypeScript check passes with exit code 0 — no errors.
+
+Here is a summary of every change made:
+
+**Fix 1 — `/Users/jobinlawrance/Project/raven/frontend/e2e/api/streaming.spec.ts`**
+Replaced the `EventSource`-based GET approach with a `fetch` POST to `POST /api/v1/chat/${kbId}/completions` using a `ReadableStream` reader loop (up to 20 iterations). The hardcoded 5-second `setTimeout` is gone; termination is now driven by the stream's `done` flag. The surrounding comment was updated from "SSE in browser context" to "streaming in browser context".
+
+**Fix 2 — `/Users/jobinlawrance/Project/raven/frontend/e2e/ee/webhooks.spec.ts`**
+Inverted the `failedCount &gt; 0` guard to a `failedCount === 0` early-exit with `test.skip(true, 'No failed deliveries available to test replay')` + `return`. The click-and-assert block is now at the top level of the test body instead of inside an `if` branch, so it executes (and fails loudly) when deliveries are present.
+
+**Fix 3 — `/Users/jobinlawrance/Project/raven/frontend/e2e/knowledge-bases/kb.spec.ts`**
+Added `testInfo` as a second parameter to the `'edit KB settings'` test. The hardcoded `'Settings Test KB'` string is replaced with `kbName = \`Settings Test KB ${testInfo.workerIndex}-${Date.now()}\`` to avoid parallel-run collisions.
+
+**Fix 4 — `/Users/jobinlawrance/Project/raven/frontend/e2e/ee/licensing.spec.ts`**
+Added an env-var guard at the top of `'EE feature shows upgrade prompt without license'`. If `E2E_NON_EE_USER` or `E2E_NON_EE_PASS` is absent, the test calls `test.skip(true, '...')` and returns early rather than blindly navigating with an unauthenticated page.</result>
+<usage><total_tokens>21595</total_tokens><tool_uses>11</tool_uses><duration_ms>46624</duration_ms></usage>
+</task-notification>
+
+---
+
+run cr review and fix all the issues pointed by it
+
+---
+
+<task-notification>
+<task-id>a13711e907d89e453</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix CI workflows: go.yml version consistency and security.yml grep pattern" completed</summary>
+<result>Both files pass YAML validation. Here is a summary of the three changes made:
+
+**`.github/workflows/go.yml`**
+
+1. `ebpf-privileged-tests` job — `setup-go` step: changed `go-version: '1.26'` to `go-version: '1.26.2'`, making it consistent with every other job in the file.
+
+2. `ebpf-privileged-tests` job — "Install system dependencies" step: added `linux-tools-generic` alongside `linux-tools-$(uname -r)` so that the `bpftool` tooling is available even when the exact kernel-version package is absent from the apt cache inside the privileged `ubuntu:24.04` container.
+
+**`.github/workflows/security.yml`**
+
+3. `go-vuln` job — `govulncheck` run step: changed `grep -vE '/testutil$'` to `grep -v '/testutil'`. Removing the `$` anchor means the exclusion now matches any package whose import path contains `/testutil` anywhere (e.g. `.../internal/testutil/db`), not only paths that end with exactly `/testutil`. The `-E` flag was also removed since the simplified pattern needs no extended-regex features.</result>
+<usage><total_tokens>20467</total_tokens><tool_uses>6</tool_uses><duration_ms>24794</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ac7c98458f7512f81</task-id>
+<tool-use-id>toolu_01NbpM6MAtxNCWvNBpfFNTAn</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix Go data races in webhook_delivery_test.go and grpc_fault_test.go comments" completed</summary>
+<result>Clean. Here is a summary of all changes made:
+
+---
+
+## Fix 1 — `internal/integration/webhook_delivery_test.go` (data races + ignored errors)
+
+**Data races fixed (3 locations):**
+
+- `TestWebhookDelivery_HMAC_Signature`: Added `var mu sync.Mutex`. Handler now locks before writing `receivedSig`, test goroutine locks before reading it into a local `sig` variable used in assertions.
+- `TestWebhookDelivery_ServerReturns200_Success`: Same pattern for `callCount` — mutex guards the increment in the handler and the read into local `count` before the assertion.
+- `TestWebhookDelivery_ContentType_IsJSON`: Same pattern for `receivedCT` → local `ct`.
+
+**Ignored errors fixed (2 locations):**
+
+- `makeCall` closure (inside `TestWebhookDelivery_RetryTimestamps_RecordsCallTimes`): Changed signature to `makeCall := func(t *testing.T)`, added `t.Helper()`, replaced `req, _ := http.NewRequest(...)` with `require.NoError(t, err)`. All three call sites updated to `makeCall(t)`.
+- `TestWebhookDelivery_ServerReturns200_Success` line ~119: `req, _ := http.NewRequest(...)` replaced with `req, err := ...; require.NoError(t, err)`.
+
+---
+
+## Fix 2 — `internal/integration/grpc_fault_test.go` (misleading comment)
+
+`TestGRPCClient_ContextTimeout_Cancelled`: Updated function doc comment and inline comment to accurately describe that the 1 ns context expires before the gRPC handshake completes — there is no delay in the fake server.
+
+---
+
+## Fix 3 — `internal/ee/security/security_test.go` (unused struct field)
+
+`TestWAFRuleEval_BlockPattern_Concept` only: Removed `Priority int` field from the local `Rule` struct and removed `Priority: 10` from the rule literal. Replaced the misleading comment "Priority controls evaluation order; higher wins" with "Priority removed — evalRule uses declaration order, not priority." The `TestWAFRuleEval_AllowOverridesBlock_Concept` struct was left untouched because its `evalByPriority` function genuinely uses `Priority`.</result>
+<usage><total_tokens>29223</total_tokens><tool_uses>13</tool_uses><duration_ms>85939</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a240e25cf8a334f29</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix frontend API auth, E2E hardcoded keys, and KEYCLOAK_URL guard" completed</summary>
+<result>The Bash tool requires permission to run. Please grant Bash permissions so I can run the TypeScript check (`npx tsc --noEmit`), or run it yourself in the frontend directory:
+
+```
+cd /Users/jobinlawrance/Project/raven/frontend &amp;&amp; npx tsc --noEmit 2&gt;&amp;1 | head -20
+```
+
+Here is a summary of all changes made:
+
+---
+
+**Fix 1 — `/Users/jobinlawrance/Project/raven/frontend/src/api/voice-sessions.ts`**
+
+Issue A (`authFetch`):
+- Added an early guard: throws `'Not authenticated'` if `auth.accessToken` is falsy, eliminating the `Bearer ` (empty token) case.
+- Moved `Authorization` header after `...init?.headers` so callers can no longer override it.
+
+Issue B (URL encoding): Applied `encodeURIComponent` to `orgId` and `sessionId` in all seven exported functions: `listVoiceSessions`, `getVoiceSession`, `createVoiceSession`, `updateVoiceSessionState`, `generateVoiceToken`, `listVoiceTurns`, `appendVoiceTurn`.
+
+**Fix 2 — `/Users/jobinlawrance/Project/raven/frontend/e2e/llm-providers/providers.spec.ts`**
+
+Replaced the `?? 'sk-test-fake-key-for-e2e'` fallback with an early `test.skip` guard when `E2E_OPENAI_API_KEY` is not set. The fill now uses `process.env.E2E_OPENAI_API_KEY` directly (TypeScript is satisfied because the guard narrows it to a defined string).
+
+**Fix 3 — `/Users/jobinlawrance/Project/raven/frontend/e2e/chat-widget/widget-sandbox.html`**
+
+Replaced the ambiguous `test-api-key-from-env` value with `rv_test_e2e_sandbox_key` and added a comment clarifying this is a static E2E sandbox fixture, not a production key.
+
+**Fix 4 — `/Users/jobinlawrance/Project/raven/frontend/e2e/api/auth.spec.ts`**
+
+Extended the skip guard on line 14 to also check `process.env.KEYCLOAK_URL`, preventing the confusing `undefined/realms/raven/...` URL when that env var is absent. Skip message updated to `'E2E_USER/E2E_PASS/KEYCLOAK_URL not configured'`.</result>
+<usage><total_tokens>26749</total_tokens><tool_uses>19</tool_uses><duration_ms>82899</duration_ms></usage>
+</task-notification>
+
+---
+
+continue

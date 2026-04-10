@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "18d606a1adba",
+  "strategy": "manual-commit",
+  "branch": "test/go-backend-suite",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/frontend.yml",
+    ".github/workflows/go.yml",
+    "frontend/src/components/whatsapp/WebhookEventLog.vue",
+    "frontend/src/stores/voice-sessions.ts",
+    "frontend/src/stores/whatsapp.ts",
+    "internal/repository/rls_test.go",
+    "internal/service/billing.go",
+    "migrations/00032_payment_intents.sql"
+  ],
+  "sessions": [
+    {
+      "metadata": "/18/d606a1adba/0/metadata.json",
+      "transcript": "/18/d606a1adba/0/full.jsonl",
+      "context": "/18/d606a1adba/0/context.md",
+      "content_hash": "/18/d606a1adba/0/content_hash.txt",
+      "prompt": "/18/d606a1adba/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 46,
+    "cache_creation_tokens": 65199,
+    "cache_read_tokens": 5101702,
+    "output_tokens": 23782,
+    "api_call_count": 40
+  }
+}

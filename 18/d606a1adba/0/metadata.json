@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "18d606a1adba",
+  "session_id": "34272b39-a087-4915-a239-bf166444203b",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-10T09:10:27.359762Z",
+  "branch": "test/go-backend-suite",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/frontend.yml",
+    ".github/workflows/go.yml",
+    "frontend/src/components/whatsapp/WebhookEventLog.vue",
+    "frontend/src/stores/voice-sessions.ts",
+    "frontend/src/stores/whatsapp.ts",
+    "internal/repository/rls_test.go",
+    "internal/service/billing.go",
+    "migrations/00032_payment_intents.sql"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "44fee300-e152-42fe-99b0-32f0c17c844e",
+  "checkpoint_transcript_start": 643,
+  "transcript_lines_at_start": 643,
+  "token_usage": {
+    "input_tokens": 46,
+    "cache_creation_tokens": 65199,
+    "cache_read_tokens": 5101702,
+    "output_tokens": 23782,
+    "api_call_count": 40
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-10T09:10:27.152952Z",
+    "agent_lines": 266,
+    "human_added": 431,
+    "human_modified": 5,
+    "human_removed": 0,
+    "total_committed": 702,
+    "agent_percentage": 37.89173789173789
+  }
+}
