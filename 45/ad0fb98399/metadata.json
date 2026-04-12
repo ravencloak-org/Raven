@@ -2,10 +2,10 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "45ad0fb98399",
   "strategy": "manual-commit",
-  "branch": "fix/cr-review-fixes",
+  "branch": "feat/ops/dotenvx-ci-docker",
   "checkpoints_count": 2,
   "files_touched": [
-    ".superpowers/brainstorm/16951-1776004641/hero-layout.html",
+    ".superpowers/brainstorm/27124-1776011353/hero-layout.html",
     "frontend/src/api/billing.ts",
     "frontend/src/pages/billing/BillingPage.vue",
     "internal/service/billing.go"
@@ -27,10 +27,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 43,
-    "cache_creation_tokens": 14851,
-    "cache_read_tokens": 3263964,
-    "output_tokens": 7983,
-    "api_call_count": 23
+    "input_tokens": 26,
+    "cache_creation_tokens": 225761,
+    "cache_read_tokens": 2070416,
+    "output_tokens": 5943,
+    "api_call_count": 14
   }
 }

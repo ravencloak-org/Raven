@@ -83,3 +83,23 @@ go for recommended, maybe in github go with the engineering tone and in the webs
 
 2
 
+### Prompt 18
+
+Bhttp://localhost:58169/ is connection refused
+
+### Prompt 19
+
+looks good, let's go with a black and white color scheme instaed of the current blue to represent the true colors of a Raven bird
+
+### Prompt 20
+
+yellow can be used as accent color, with dark and light theme based on tailwind css theme pallete
+
+### Prompt 21
+
+yes
+
+### Prompt 22
+
+works
+

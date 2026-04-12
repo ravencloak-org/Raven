@@ -227,3 +227,23 @@ go for recommended, maybe in github go with the engineering tone and in the webs
 ---
 
 2
+
+---
+
+Bhttp://localhost:58169/ is connection refused
+
+---
+
+looks good, let's go with a black and white color scheme instaed of the current blue to represent the true colors of a Raven bird
+
+---
+
+yellow can be used as accent color, with dark and light theme based on tailwind css theme pallete
+
+---
+
+yes
+
+---
+
+works
