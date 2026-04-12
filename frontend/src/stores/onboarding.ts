@@ -13,7 +13,7 @@ export const useOnboardingStore = defineStore('onboarding', () => {
   }
 
   const completed = computed<boolean>(() => {
-    storageVersion.value // reactive dependency for localStorage writes
+    void storageVersion.value // reactive dependency for localStorage writes
     return localStorage.getItem(storageKey()) === 'true'
   })
 
