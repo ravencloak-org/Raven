@@ -1,0 +1,369 @@
+Index this repository. Olama is already running, so make sure all the MCPs, tools, and plugins that are connected to Claude right now should index the project so far using parallel agents.
+
+---
+
+<task-notification>
+<task-id>aa390475681b0d244</task-id>
+<tool-use-id>toolu_01M8uHg8wTzn27nKszaS34Xz</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Context-mode batch indexing" completed</summary>
+<result>
+
+The repository has been successfully indexed. Here are the key findings about the Raven repository:
+
+---
+
+## Repository Overview
+
+**Raven** is an open-source, self-hostable, multi-tenant knowledge base platform with AI-powered chat, voice, and WhatsApp channels. It is organized under `github.com/ravencloak-org/Raven`.
+
+---
+
+## Architecture: Two-Process Design
+
+1. **Go API Server** (`cmd/api/main.go`) -- REST API using Gin framework. Handles HTTP routing, JWT validation, tenant routing, SSE streaming, and orchestration.
+2. **Python AI Worker** (`ai-worker/`) -- gRPC service handling all ML/AI workloads: RAG queries, embeddings, document parsing, web scraping, and a LiveKit-based voice agent.
+3. Communication between the two is over **gRPC**, with **Valkey** (Redis fork) as the async job queue (via `hibiken/asynq`).
+
+There is also a secondary Go entry point at `cmd/worker/main.go` for background job processing.
+
+---
+
+## Key Services and Infrastructure
+
+| Service | Technology | Role |
+|---------|-----------|------|
+| **go-api** | Go 1.25 + Gin | REST API, auth, orchestration |
+| **python-worker** | Python + gRPC | RAG, embeddings, parsing |
+| **python-agent** | Python + LiveKit | Real-time voice agent (STT/LLM/TTS) |
+| **postgres** | PostgreSQL 18 + pgvector | Relational data, vector search, BM25 |
+| **valkey** | Valkey (Redis fork) | Job queue, caching, rate limiting |
+| **keycloak** | Keycloak | OIDC/OAuth2 identity management |
+| **seaweedfs** | SeaweedFS | S3-compatible object storage |
+| **livekit-server** | LiveKit | WebRTC SFU for voice |
+| **traefik** | Traefik | Reverse proxy, auto-TLS |
+| **openobserve** | OpenObserve | Observability (traces, metrics, logs via OTLP) |
+| **pgbackrest** | pgBackRest | Database backup sidecar |
+
+---
+
+## Go Backend Structure
+
+- **Entry points**: `/cmd/api/main.go`, `/cmd/worker/main.go`
+- **Handlers** (`/internal/handler/`): org, user, billing, webhook, whatsapp, whatsapp_bridge, upload, document, search, semantic_cache, routing, security, notification, tts, health, kb (knowledge base), apikey, airbyte, stranger
+- **eBPF support**: `ebpf.go`, `ebpf_stub.go`, `ebpf_wire_test.go` in cmd/api; tests under `/tests/ebpf/` (xdp, audit)
+- **Migrations**: Managed by Goose (`goose -dir migrations`), with migration tests at `/migrations/migrations_test.go`
+- **Key Go dependencies**: Gin, pgx/v5, pgvector-go, goose v3, asynq, go-redis v9, viper, testify, swag (Swagger), cilium/ebpf, OpenTelemetry suite, testcontainers
+
+---
+
+## Python AI Worker Structure (`/ai-worker/`)
+
+- **Main modules**: `raven_worker/__main__.py`, `raven_worker/agent.py`
+- **Services**: embedding, RAG, semantic_cache
+- **Retrieval**: RRF (Reciprocal Rank Fusion) at `raven_worker/retrieval/rrf.py`
+- **Tests**: test_parser, test_rag_service, test_registry, test_embedding_providers, test_embedding_servicer, test_server, test_telemetry, test_cache
+
+---
+
+## Frontend (`/frontend/`)
+
+- **Stack**: Vue.js 3 + Tailwind CSS + Vite
+- **Key files**: `src/App.vue`, `src/main.ts`
+- **Composables**: `useAuth.ts`, `useMediaQuery.ts`, `useCookieConsent.ts`, `useFeatureFlag.ts`
+- **Plugins**: PostHog analytics (`src/plugins/posthog.ts`)
+- **E2E tests** (Playwright): auth, chat, orgs, workspaces, knowledge-bases, documents, API keys, LLM providers, voice, mobile, chat-widget, whatsapp, analytics, notifications, webhooks, licensing, security-rules, SSO, API tests (streaming, rate-limit, health, auth)
+- **Page objects**: DocumentPage, KBPage, ChatPage, APIKeyPage
+
+---
+
+## Proto Files
+
+Proto definitions exist for gRPC service contracts (found via `find -name '*.proto'` -- 20 results across the repo and worktrees).
+
+---
+
+## CI/CD Pipelines (`.github/workflows/`)
+
+| Workflow | Purpose |
+|----------|---------|
+| `go.yml` | Go CI (lint, test, build) |
+| `frontend.yml` | Frontend CI |
+| `python.yml` | Python CI |
+| `docker.yml` | Docker image builds (semver tagging via metadata-action) |
+| `security.yml` | Security scanning |
+| `ci-required.yml` | Required status checks gate |
+| `claude.yml` | Claude Code automation |
+| `pages.yml` | GitHub Pages deployment |
+| `landing.yml` | Landing page builds |
+| `opencode.yml` | OpenCode workflow |
+
+Additional config: `CODEOWNERS`, `dependabot.yml`, `PULL_REQUEST_TEMPLATE.md`.
+
+---
+
+## Deployment
+
+- **Docker Compose** orchestrates all services with health checks, Traefik labels for routing, and OpenTelemetry configuration.
+- **Edge-deployable**: Go API compiles to ~25 MB ARM64 binary for Raspberry Pi.
+- The frontend has its own Docker image with nginx config (per recent commit `abdcd89`).
+- Traefik handles TLS termination with Let's Encrypt cert resolver.
+
+---
+
+## Recent Development Activity
+
+The current branch (`fix/keycloak-cloudflare-auth`) is focused on fixing Keycloak authentication when behind Cloudflare. Recent work includes:
+- Keycloak check-sso for public routes
+- User menu dropdown with sign-out
+- Disabling `checkLoginIframe` to fix Cloudflare proxy issues
+- Frontend Docker image and EC2 server deployment wiring
+- Marketing landing page with pricing
+- Billing/subscription management UI
+- Keycloak realm auto-provisioning and tenant onboarding wizard
+- Subscription enforcement with plan limits and feature gates</result>
+<usage><total_tokens>40348</total_tokens><tool_uses>2</tool_uses><duration_ms>66129</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aca03197c543576fa</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "ContextPlus tree and analysis" completed</summary>
+<result>The indexing is complete. Here is the full report.
+
+---
+
+## Project Structure Overview
+
+**Raven** is an open-source multi-tenant knowledge base platform with AI-powered chat, voice, and WhatsApp integration. The monorepo contains three main services:
+
+### 1. Go API Server (`cmd/api/`, `internal/`)
+The core backend built with Go + Gin, following a clean layered architecture:
+- **`internal/handler/`** -- 30+ HTTP handlers (chat, documents, knowledge bases, voice, WhatsApp, billing, etc.)
+- **`internal/service/`** -- Business logic layer (hybrid retrieval, quota enforcement, SDP relay for LiveKit, etc.)
+- **`internal/repository/`** -- Database access layer using pgx/v5 with RLS-aware queries
+- **`internal/model/`** -- Domain types for all entities
+- **`internal/middleware/`** -- JWT auth (Keycloak), RBAC, rate limiting, API key auth, CORS, OTel, WAF-style security rules
+- **`internal/queue/`** -- Asynq job queue backed by Valkey
+- **`internal/jobs/`** -- Scheduled cron tasks (cleanup, recrawl, webhook delivery, usage aggregation)
+- **`internal/grpc/`** -- gRPC client for communicating with the Python AI worker
+- **`internal/ebpf/`** -- Linux-only eBPF subsystems (audit trail, kernel observability, XDP pre-filtering) with non-Linux stubs
+- **`internal/cache/`** -- Valkey-backed response cache
+- **`internal/storage/`** -- SeaweedFS object storage client
+- **`internal/hyperswitch/`** -- Payment orchestration client (Razorpay/UPI compatible)
+- **`internal/telemetry/`** -- OpenTelemetry + PostHog analytics
+- **`internal/ee/`** -- Enterprise features (analytics, audit, connectors, lead scoring, licensing, security, SSO, webhooks)
+- **`pkg/`** -- Public packages (apierror, livekit, meta, validator)
+
+### 2. Python AI Worker (`ai-worker/`)
+gRPC service for document parsing, embedding, and RAG:
+- **`raven_worker/server.py`** -- gRPC server with health checking and graceful shutdown
+- **`raven_worker/services/rag.py`** -- Full RAG pipeline (semantic cache -&gt; hybrid retrieval -&gt; RRF fusion -&gt; LLM streaming)
+- **`raven_worker/services/embedding.py`** -- Embedding generation service
+- **`raven_worker/processors/`** -- Document parsing (LiteParse), web scraping (httpx+BeautifulSoup), text chunking
+- **`raven_worker/providers/`** -- BYOK embedding providers (OpenAI, Cohere, Anthropic) with registry
+- **`raven_worker/retrieval/`** -- Vector search (pgvector), BM25 search, RRF fusion, Cohere reranking
+- **`raven_worker/agent.py`** -- LiveKit voice agent worker
+- **`raven_worker/memory/`** -- Per-session file-based memory store
+
+### 3. Vue.js 3 Frontend (`frontend/`)
+- **`src/stores/`** -- Pinia stores for auth (Keycloak SSO), knowledge bases, chat, voice, WhatsApp, billing, analytics, etc.
+- **`src/pages/`** -- Dashboard, KB management, chat, voice sessions, WhatsApp, billing, analytics, onboarding
+- **`src/components/chat-widget/`** -- Embeddable `&lt;raven-chat&gt;` web component (shadow DOM isolated)
+- **`src/api/`** -- API client modules
+- **`e2e/`** -- Comprehensive Playwright E2E test suite (25+ spec files)
+
+### Supporting Infrastructure
+- **`migrations/`** -- 32 SQL migration files (PostgreSQL schema with pgvector, RLS policies)
+- **`proto/`** -- Protobuf definitions shared between Go and Python
+- **`deploy/`** -- Ansible, Cloudflare Pages, EC2, edge, Keycloak, LiveKit, observability, PostgreSQL, Traefik configs
+- **`docker-compose.yml`** + overlays for eBPF, edge (Raspberry Pi), and ChartDB
+
+## Static Analysis Findings
+
+All linters pass cleanly across all three codebases:
+- **Go** (`golangci-lint run ./...`): No issues
+- **Python** (`ruff check .`): All checks passed
+- **TypeScript/Vue** (`vue-tsc --noEmit`, `eslint src/`): No issues
+
+## ContextPlus Memory Graph
+
+31 nodes indexed with 29 auto-generated similarity edges (cosine &gt;= 0.72). Key clusters:
+- **Handler/Service/Repository/Model** cluster (strongly interlinked at 0.73-0.81 similarity)
+- **AI Worker** cluster: server.py, rag.py, agent.py, and proto definition (0.73-0.87 similarity)
+- **Queue/Jobs** pair (0.77 similarity)
+- **Frontend** cluster: main.ts, router, auth store, chat widget
+- Cross-language links: Go gRPC client &lt;-&gt; Proto definition &lt;-&gt; Python gRPC server</result>
+<usage><total_tokens>63304</total_tokens><tool_uses>20</tool_uses><duration_ms>214983</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a5b9b505ffe127bc9</task-id>
+<tool-use-id>toolu_01NCDDDgAqpYerpebB4U91tk</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Serena onboarding/indexing" completed</summary>
+<result>There is already a `ci_workflows` memory (likely from a previous partial onboarding or manual creation). All 6 new memories plus the existing one are present. The onboarding is complete.
+
+Here is a summary of what was indexed:
+
+---
+
+**Onboarding completed successfully.** Seven memory files are now saved for the Raven project.
+
+### What was indexed
+
+1. **`project_overview`** -- Raven is a multi-tenant AI knowledge platform with Go+Gin API, Python gRPC AI worker, Vue.js 3 frontend, Keycloak auth, PostgreSQL (pgvector+ParadeDB), Valkey+Asynq queues, SeaweedFS storage, LiveKit voice, and OpenTelemetry observability. It uses a Handler-Service-Repository layered architecture with PostgreSQL RLS for tenant isolation.
+
+2. **`suggested_commands`** -- All essential commands for building, running, testing, linting across Go, Python, and Vue.js components, plus Docker Compose, database migrations (goose), edge cross-compilation, and system utilities for macOS/Darwin.
+
+3. **`codebase_structure`** -- Full directory map covering `cmd/` (api + worker entry points), `internal/` (19 packages including handler, service, repository, middleware, config, jobs, etc.), `pkg/` (apierror, livekit, meta, validator), `ai-worker/`, `frontend/src/`, `proto/`, `migrations/`, `deploy/`, and CI workflows.
+
+4. **`style_and_conventions`** -- Go patterns (layered architecture, `apierror.AppError`, `db.WithOrgID` for RLS, error wrapping format), Python conventions (ruff, type hints, structlog), Vue.js conventions (Composition API, Pinia, Tailwind-only, `&lt;script setup&gt;`), and Git workflow rules (Conventional Commits, squash-merge only, no AI attribution, immediate auto-merge queueing).
+
+5. **`task_completion_checklist`** -- Pre-push quality gates: `golangci-lint run`, `go test -race`, `ruff check`, `pytest`, `npm run lint`, `tsc --noEmit`, `npm run build`, and Playwright E2E when applicable. Post-PR: `gh pr merge --auto --squash`.
+
+6. **`services_and_ports`** -- Local development service map with ports (API :8080, frontend :3000, Keycloak :8081, Postgres :5432, Valkey :6379, SeaweedFS :8888, OpenObserve :5080, Traefik :8090) and Docker Compose overlay files.
+
+7. **`ci_workflows`** -- Pre-existing memory (already saved from prior session).
+
+### Key findings about the codebase
+
+- **32+ database migrations** with strict RLS enforcement on all tenant-scoped tables
+- **Extensive test coverage**: handler, service, and repository layers all have `_test.go` files; Python has pytest; frontend has Vitest + Playwright
+- **Edge deployment support**: `Makefile.edge` cross-compiles static ARM64/AMD64 binaries for Raspberry Pi
+- **Enterprise Edition**: `internal/ee/` and `frontend/src/ee/` contain EE feature stubs with dual licensing
+- **eBPF integration**: `internal/ebpf/` with cilium/ebpf for network observability, requiring CGO and kernel headers</result>
+<usage><total_tokens>54671</total_tokens><tool_uses>45</tool_uses><duration_ms>378648</duration_ms></usage>
+</task-notification>
+
+---
+
+run cr review and create issues for the review accoriding to priority and launch parallel agents to fix all of them in different worktress and then commit then to the same branch and create a single PR for it
+
+---
+
+<task-notification>
+<task-id>a49e78cb781b594ff</task-id>
+<tool-use-id>toolu_01HwaqLBqaQwMB6E9EEb5icx</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "P0: Security fixes" completed</summary>
+<result>All 5 security fixes have been committed. Here is a summary of what was done:
+
+**Files modified (8 files):**
+
+1. `/Users/jobinlawrance/Project/raven/internal/service/billing.go` -- Fix 1: `VerifyWebhookSignature` now returns an error when `webhookSecret` is empty instead of silently accepting any payload (fail-closed).
+
+2. `/Users/jobinlawrance/Project/raven/internal/handler/billing.go` -- Fix 4: Replaced `io.ReadAll(c.Request.Body)` with `io.ReadAll(io.LimitReader(c.Request.Body, 1&lt;&lt;20))` to enforce a 1 MB body size limit on the webhook endpoint.
+
+3. `/Users/jobinlawrance/Project/raven/internal/handler/provision.go` -- Fixes 2, 3, 5:
+   - Added `internalSecret` field and `RequireInternalAuth` middleware for bearer token auth on the provision endpoint.
+   - Changed `NewProvisionHandler` to accept a 4th `internalSecret` parameter.
+   - Updated `provisionRealmRequest` to accept optional `redirect_uris` and `web_origins` fields.
+   - Changed `buildRealmPayload` signature to accept redirect URIs and web origins instead of using wildcards. Defaults to `localhost:3000` and `localhost:8080` patterns.
+   - Changed `obtainAdminToken` and `realmExists` to accept `context.Context` and use `http.NewRequestWithContext`.
+
+4. `/Users/jobinlawrance/Project/raven/internal/config/config.go` -- Added `InternalSecret` field to `KeycloakConfig` struct and a `BindEnv` call for `RAVEN_KEYCLOAK_INTERNAL_SECRET`.
+
+5. `/Users/jobinlawrance/Project/raven/cmd/api/main.go` -- Updated `NewProvisionHandler` call to pass `cfg.Keycloak.InternalSecret` and added `RequireInternalAuth` middleware to the provision route.
+
+6. `/Users/jobinlawrance/Project/raven/.env.example` -- Added `RAVEN_KEYCLOAK_INTERNAL_SECRET=changeme` entry.
+
+7. `/Users/jobinlawrance/Project/raven/deploy/keycloak/realm-export.json` -- Replaced `"redirectUris": ["*"]` with `["http://localhost:3000/*"]` and `"webOrigins": ["*"]` with `["http://localhost:3000"]`.
+
+8. `/Users/jobinlawrance/Project/raven/internal/service/billing_test.go` -- Updated the empty-secret test from `TestVerifyWebhookSignature_EmptySecret_Allows` to `TestVerifyWebhookSignature_EmptySecret_Rejects` to match the new fail-closed behavior.
+
+All tests pass, build compiles, and linter reports no issues. Commit `9819b73` on branch `fix/cr-review-fixes`.</result>
+<usage><total_tokens>66195</total_tokens><tool_uses>47</tool_uses><duration_ms>343995</duration_ms></usage>
+</task-notification>
+
+---
+
+run the test plans, actions are failing
+
+---
+
+<task-notification>
+<task-id>ae96557d2de3a6616</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Run frontend lint and typecheck" completed</summary>
+<result>Now I can see the full picture. Here are the results:
+
+---
+
+**Results Summary**
+
+1. **`npm run lint`** -- FAILED
+2. **`npx vue-tsc --noEmit`** -- PASSED (no output, exit 0)
+3. **`npm run build`** -- FAILED (same root cause as lint)
+
+**Root Cause -- syntax error in `/Users/jobinlawrance/Project/raven/frontend/src/router/index.ts`**
+
+The `router.beforeEach` guard (lines 152-176) has a broken structure. Specifically:
+
+- **Line 155-157**: The first `if` block (`to.meta.requiresAuth &amp;&amp; !auth.isAuthenticated`) does `auth.login(); return false` but is **missing its closing brace `}`**. 
+- **Lines 158-163**: A comment + second `if` block (Keycloak callback guard) is nested inside the unclosed first `if`, creating malformed syntax.
+- **Lines 165-171**: A duplicate auth check (`to.meta.requiresAuth`) re-declares `const auth` inside a nested scope (shadowing the one on line 153).
+- **Line 173**: References `auth` from line 153 but sits outside the `if` block scope due to the missing brace, causing the parsing error at line 176.
+
+The `beforeEach` guard appears to be a botched merge of two versions. The intended logic seems to be:
+
+```typescript
+router.beforeEach(async (to) =&gt; {
+  const auth = useAuthStore()
+
+  // If the URL contains a Keycloak callback code, let keycloak.init() finish
+  // processing it before we evaluate auth state.
+  if (window.location.href.includes('code=') &amp;&amp; window.location.href.includes('state=')) {
+    return
+  }
+
+  if (to.meta.requiresAuth &amp;&amp; !auth.isAuthenticated) {
+    auth.login()
+    return false
+  }
+
+  if (to.name === 'login' &amp;&amp; auth.isAuthenticated) {
+    return { name: 'dashboard' }
+  }
+})
+```
+
+**Lint error output:**
+```
+/Users/jobinlawrance/Project/raven/frontend/src/router/index.ts
+  176:1  error  Parsing error: Declaration or statement expected
+```
+
+**Build error output:**
+```
+src/router/index.ts(176,2): error TS1128: Declaration or statement expected.
+```</result>
+<usage><total_tokens>23499</total_tokens><tool_uses>6</tool_uses><duration_ms>84183</duration_ms></usage>
+</task-notification>
+
+---
+
+then mark it in the PR description and fix the reviews by coderabbit and push asap
+
+---
+
+https://github.com/ravencloak-org/Raven/pull/285#discussion_r3069586778 fix this
+
+---
+
+https://github.com/ravencloak-org/Raven/pull/285#discussion_r3069586778
+
+---
+
+actions are failing

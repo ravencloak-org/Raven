@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "2e1d1d1d9057",
+  "session_id": "e0b67fff-5c46-4ec7-bad7-744b74d5f40a",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-12T14:45:46.853444Z",
+  "branch": "fix/cr-review-fixes",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "frontend/src/stores/onboarding.ts"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "b852dbda-93cc-4039-b899-7ad7833cc315",
+  "checkpoint_transcript_start": 635,
+  "transcript_lines_at_start": 635,
+  "token_usage": {
+    "input_tokens": 15,
+    "cache_creation_tokens": 5265,
+    "cache_read_tokens": 2105584,
+    "output_tokens": 1846,
+    "api_call_count": 11
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-12T14:45:46.712212Z",
+    "agent_lines": 0,
+    "human_added": 4,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 5,
+    "agent_percentage": 0
+  }
+}
