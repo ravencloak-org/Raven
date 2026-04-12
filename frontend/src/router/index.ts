@@ -6,7 +6,10 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/dashboard',
+      redirect: () => {
+        const auth = useAuthStore()
+        return auth.isAuthenticated ? '/dashboard' : '/login'
+      },
     },
     {
       path: '/login',
@@ -146,15 +149,16 @@ const router = createRouter({
   ],
 })
 
-// No auth guard needed — keycloak.init({ onLoad: 'login-required' })
-// guarantees the user is authenticated before the app mounts.
-// The only guard remaining redirects authenticated users away from /login.
 router.beforeEach(async (to) => {
-  if (to.name === 'login') {
-    const auth = useAuthStore()
-    if (auth.isAuthenticated) {
-      return { name: 'dashboard' }
-    }
+  const auth = useAuthStore()
+
+  if (to.meta.requiresAuth && !auth.isAuthenticated) {
+    auth.login()
+    return false
+  }
+
+  if (to.name === 'login' && auth.isAuthenticated) {
+    return { name: 'dashboard' }
   }
 })
 

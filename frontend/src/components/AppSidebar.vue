@@ -70,6 +70,7 @@
 
         <!-- Voice Sessions -->
         <RouterLink
+          v-if="orgPrefix"
           :to="`${orgPrefix}/voice`"
           :class="[
             'flex items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white',
@@ -97,12 +98,13 @@
         </RouterLink>
 
         <!-- WhatsApp section label (mobile only) -->
-        <span v-if="mobile" class="mt-4 px-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
+        <span v-if="mobile && orgPrefix" class="mt-4 px-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
           WhatsApp
         </span>
 
         <!-- Phone Numbers -->
         <RouterLink
+          v-if="orgPrefix"
           :to="`${orgPrefix}/whatsapp/phone-numbers`"
           :class="[
             'flex items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white',
@@ -129,6 +131,7 @@
 
         <!-- Calls -->
         <RouterLink
+          v-if="orgPrefix"
           :to="`${orgPrefix}/whatsapp/calls`"
           :class="[
             'flex items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white',
@@ -154,12 +157,13 @@
         </RouterLink>
 
         <!-- Billing section label (mobile only) -->
-        <span v-if="mobile" class="mt-4 px-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
+        <span v-if="mobile && orgPrefix" class="mt-4 px-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
           Account
         </span>
 
         <!-- Billing -->
         <RouterLink
+          v-if="orgPrefix"
           :to="`${orgPrefix}/billing`"
           :class="[
             'flex items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white',
@@ -194,7 +198,9 @@ import { RouterLink } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
-const orgPrefix = computed(() => `/orgs/${auth.user?.orgId || '_'}`)
+const orgPrefix = computed(() =>
+  auth.user?.orgId ? `/orgs/${auth.user.orgId}` : null,
+)
 
 defineProps<{
   mobile?: boolean

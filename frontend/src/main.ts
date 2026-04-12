@@ -12,13 +12,8 @@ app.use(pinia)
 app.use(router)
 app.use(posthogPlugin, { router })
 
-// Initialise Keycloak before mounting.
-// With onLoad: 'login-required', init() either:
-//   a) redirects to Keycloak (never resolves on this page load), or
-//   b) exchanges the code from the URL and resolves with authenticated=true.
-// The app only mounts after auth succeeds — no router guard needed.
+// Initialise Keycloak before mounting so the auth store is ready when the
+// router guard evaluates.  With check-sso the app mounts regardless of
+// whether the user is logged in — the router guard handles redirects.
 const authStore = useAuthStore()
-authStore.init().then(() => {
-  console.log('[main] auth ready, mounting app')
-  app.mount('#app')
-})
+authStore.init().then(() => app.mount('#app'))

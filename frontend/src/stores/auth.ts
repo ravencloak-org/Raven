@@ -27,13 +27,16 @@ export const useAuthStore = defineStore('auth', () => {
   async function init(): Promise<void> {
     try {
       const authenticated = await keycloak.init({
-        onLoad: 'login-required',
+        onLoad: 'check-sso',
         pkceMethod: 'S256',
         checkLoginIframe: false,
       })
       if (authenticated) {
         await _syncFromKeycloak()
-        setInterval(() => keycloak.updateToken(30), 60_000)
+        setInterval(async () => {
+          const refreshed = await keycloak.updateToken(30)
+          if (refreshed) await _syncFromKeycloak()
+        }, 60_000)
       }
     } catch {
       // Keycloak unavailable — proceed as unauthenticated

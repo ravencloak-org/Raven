@@ -8,6 +8,9 @@
       <button
         class="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-200"
         title="User menu"
+        aria-haspopup="true"
+        :aria-expanded="menuOpen"
+        aria-controls="user-menu"
         @click="menuOpen = !menuOpen"
       >
         {{ userInitial }}
@@ -15,6 +18,8 @@
 
       <div
         v-if="menuOpen"
+        id="user-menu"
+        role="menu"
         class="absolute right-0 top-10 z-50 w-56 rounded-md border border-gray-200 bg-white py-1 shadow-lg"
       >
         <div class="border-b border-gray-100 px-4 py-2">
@@ -38,13 +43,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useAuth } from '../composables/useAuth'
 import { useAuthStore } from '../stores/auth'
 
 const { user } = useAuth()
 const authStore = useAuthStore()
 const menuOpen = ref(false)
+
+function onEscape(e: KeyboardEvent) {
+  if (e.key === 'Escape' && menuOpen.value) menuOpen.value = false
+}
+onMounted(() => window.addEventListener('keydown', onEscape))
+onUnmounted(() => window.removeEventListener('keydown', onEscape))
 
 const userInitial = computed(() => {
   if (user.value?.username) {
