@@ -40,3 +40,11 @@ yes
 ---
 
 use gh cli to the repo's github secrets
+
+---
+
+why is .env.ci file uploaded which is unencrypted https://github.REDACTED
+
+---
+
+is it cool, is it all added to action config files? can we have an action suceed?

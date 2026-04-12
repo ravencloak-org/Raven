@@ -47,3 +47,11 @@ yes
 
 use gh cli to the repo's github secrets
 
+### Prompt 10
+
+why is .env.ci file uploaded which is unencrypted https://github.REDACTED
+
+### Prompt 11
+
+is it cool, is it all added to action config files? can we have an action suceed?
+
