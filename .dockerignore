@@ -1,0 +1,12 @@
+# dotenvx private keys — never bake into images
+.env.keys
+
+# Git
+.git
+.gitignore
+
+# CI/IDE
+.github
+.claude
+.serena
+.vscode

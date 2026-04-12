@@ -37,6 +37,9 @@ jobs:
 
       - run: go mod download
 
+      - name: Install dotenvx
+        run: curl -sfS https://dotenvx.sh/install.sh | sh
+
       - name: Install eBPF build tools
         run: sudo apt-get install -y clang llvm libbpf-dev linux-tools-$(uname -r) || sudo apt-get install -y clang llvm libbpf-dev
 
@@ -45,12 +48,14 @@ jobs:
 
       - run: CGO_ENABLED=1 go build ./cmd/api
 
-      - run: go test -race -timeout 30m -coverprofile=coverage.txt ./...
+      - run: dotenvx run -f .env.ci -- go test -race -timeout 30m -coverprofile=coverage.txt ./...
         env:
+          DOTENV_PRIVATE_KEY_CI: ${{ secrets.DOTENV_PRIVATE_KEY_CI }}
           TESTCONTAINERS_RYUK_DISABLED: "true"
 
-      - run: go test -race -run '^TestMigrationsUpAndDown$' ./migrations/...
+      - run: dotenvx run -f .env.ci -- go test -race -run '^TestMigrationsUpAndDown$' ./migrations/...
         env:
+          DOTENV_PRIVATE_KEY_CI: ${{ secrets.DOTENV_PRIVATE_KEY_CI }}
           TESTCONTAINERS_RYUK_DISABLED: "true"
 
       - uses: codecov/codecov-action@v6

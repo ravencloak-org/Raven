@@ -17,11 +17,14 @@ RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w -extldflags '-static'" -o 
 # ── Stage 2: Runtime ─────────────────────────────────────────────────────────
 FROM alpine:3.23
 
-RUN apk add --no-cache ca-certificates tzdata \
+RUN apk add --no-cache ca-certificates tzdata curl \
+    && curl -sfS https://dotenvx.sh | sh \
     && addgroup -g 1000 raven \
     && adduser -u 1000 -G raven -D raven
 
-COPY --from=builder /api /api
+COPY --from=builder /api /app/api
+
+WORKDIR /app
 
 USER raven
 
@@ -30,4 +33,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=5 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8080/healthz || exit 1
 
-CMD ["/api"]
+CMD ["dotenvx", "run", "--", "/app/api"]

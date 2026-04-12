@@ -25,6 +25,9 @@ permissions:
   contents: read
   packages: write
 
+env:
+  DOTENV_PRIVATE_KEY: ${{ secrets.DOTENV_PRIVATE_KEY }}
+
 jobs:
   build-go-api:
     name: Build go-api

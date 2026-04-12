@@ -1,0 +1,14 @@
+# dotenvx private keys — never bake into images
+.env.keys
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+.mypy_cache
+.ruff_cache
+.pytest_cache
+*.egg-info
+
+# IDE
+.vscode
