@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "7fddd0c01e9e",
+  "session_id": "cda62b25-b8ee-4d57-9b22-17d0cb7aa515",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-12T14:38:26.174103Z",
+  "branch": "fix/cr-review-fixes",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".gitignore",
+    "Dockerfile",
+    "Makefile",
+    "ai-worker/Dockerfile",
+    "docker-compose.yml"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 2679,
+    "cache_creation_tokens": 50030,
+    "cache_read_tokens": 881760,
+    "output_tokens": 9513,
+    "api_call_count": 18
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-12T14:38:26.144963Z",
+    "agent_lines": 0,
+    "human_added": 61,
+    "human_modified": 65,
+    "human_removed": 0,
+    "total_committed": 96,
+    "agent_percentage": 0
+  }
+}

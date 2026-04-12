@@ -1,0 +1,8 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+I have installed and encrypted using the service called dotenvx. Now use the link that I will paste to integrate it into our Go server code. https://dotenvx.com/docs/secrets-in-go
+
