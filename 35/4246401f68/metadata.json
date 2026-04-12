@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "354246401f68",
+  "strategy": "manual-commit",
+  "branch": "fix/cr-review-fixes",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".claude/settings.local.json",
+    ".mcp.json",
+    ".serena/memories/services_and_ports.md",
+    ".serena/memories/task_completion_checklist.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/35/4246401f68/0/metadata.json",
+      "transcript": "/35/4246401f68/0/full.jsonl",
+      "context": "/35/4246401f68/0/context.md",
+      "content_hash": "/35/4246401f68/0/content_hash.txt",
+      "prompt": "/35/4246401f68/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 896,
+    "cache_creation_tokens": 165295,
+    "cache_read_tokens": 3104865,
+    "output_tokens": 14057,
+    "api_call_count": 53
+  }
+}

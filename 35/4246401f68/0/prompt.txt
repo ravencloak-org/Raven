@@ -1,0 +1,17 @@
+❯ /mcp
+  ⎿  Failed to reconnect to ragcode.
+
+❯ /mcp
+  ⎿  Failed to reconnect to token-optimizer.
+
+---
+
+Fix and connect those MCPs.
+
+---
+
+/,cp
+
+---
+
+what are the smart tools availble with ragcode and token-optimizer
