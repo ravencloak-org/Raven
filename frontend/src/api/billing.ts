@@ -45,8 +45,9 @@ async function authFetch(path: string, init?: RequestInit): Promise<Response> {
 
 // --- Billing endpoints ---
 
-export async function getUsage(orgId: string): Promise<BillingUsage> {
-  const res = await authFetch(`/orgs/${encodeURIComponent(orgId)}/billing/usage`)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function getUsage(_orgId: string): Promise<BillingUsage> {
+  const res = await authFetch('/billing/usage')
   if (res.status === 402) {
     throw Object.assign(new Error('Payment required'), { status: 402 })
   }
@@ -54,10 +55,9 @@ export async function getUsage(orgId: string): Promise<BillingUsage> {
   return res.json()
 }
 
-export async function getSubscription(orgId: string): Promise<Subscription> {
-  const res = await authFetch(
-    `/orgs/${encodeURIComponent(orgId)}/billing/subscriptions/current`,
-  )
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function getSubscription(_orgId: string): Promise<Subscription> {
+  const res = await authFetch('/billing/plans')
   if (res.status === 402) {
     throw Object.assign(new Error('Payment required'), { status: 402 })
   }

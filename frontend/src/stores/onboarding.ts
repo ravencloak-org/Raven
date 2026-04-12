@@ -1,21 +1,27 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
-
-const STORAGE_KEY = 'onboarding_completed'
+import { ref, computed } from 'vue'
+import { useAuthStore } from './auth'
 
 export const useOnboardingStore = defineStore('onboarding', () => {
-  const completed = ref<boolean>(localStorage.getItem(STORAGE_KEY) === 'true')
   const currentStep = ref<number>(1)
 
+  function storageKey(): string {
+    const auth = useAuthStore()
+    const userId = auth.user?.sub ?? 'anonymous'
+    return `onboarding_completed_${userId}`
+  }
+
+  const completed = computed<boolean>(() => {
+    return localStorage.getItem(storageKey()) === 'true'
+  })
+
   function markComplete(): void {
-    completed.value = true
-    localStorage.setItem(STORAGE_KEY, 'true')
+    localStorage.setItem(storageKey(), 'true')
   }
 
   function reset(): void {
-    completed.value = false
     currentStep.value = 1
-    localStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(storageKey())
   }
 
   return { completed, currentStep, markComplete, reset }
