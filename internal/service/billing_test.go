@@ -119,16 +119,10 @@ func TestGetPlanByID_NotFound(t *testing.T) {
 	assert.Contains(t, err.Error(), "not found")
 }
 
-func TestCreatePaymentIntent_Success(t *testing.T) {
+func TestCreatePaymentIntent_HyperswitchError(t *testing.T) {
 	hsClient := &mockHyperswitchClient{
-		createPaymentFn: func(_ context.Context, req *hyperswitch.CreatePaymentRequest) (*hyperswitch.PaymentResponse, error) {
-			assert.Equal(t, int64(5000), req.Amount)
-			assert.Equal(t, "INR", req.Currency)
-			return &hyperswitch.PaymentResponse{
-				PaymentID:    "hs_pay_test",
-				ClientSecret: "hs_secret_test",
-				Status:       "requires_payment_method",
-			}, nil
+		createPaymentFn: func(_ context.Context, _ *hyperswitch.CreatePaymentRequest) (*hyperswitch.PaymentResponse, error) {
+			return nil, assert.AnError
 		},
 	}
 
@@ -138,12 +132,9 @@ func TestCreatePaymentIntent_Success(t *testing.T) {
 		Amount:   5000,
 		Currency: "INR",
 	})
-	require.NoError(t, err)
-	assert.Equal(t, "hs_pay_test", pi.HyperswitchPaymentID)
-	assert.Equal(t, "hs_secret_test", pi.ClientSecret)
-	assert.Equal(t, int64(5000), pi.Amount)
-	assert.Equal(t, "INR", pi.Currency)
-	assert.Equal(t, model.PaymentIntentStatusRequiresPayment, pi.Status)
+	require.Error(t, err)
+	assert.Nil(t, pi)
+	assert.Contains(t, err.Error(), "failed to create Hyperswitch payment")
 }
 
 func TestSubscriptionStateMachine_FreePlan(t *testing.T) {

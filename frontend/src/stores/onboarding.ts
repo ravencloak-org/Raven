@@ -7,7 +7,7 @@ export const useOnboardingStore = defineStore('onboarding', () => {
 
   function storageKey(): string {
     const auth = useAuthStore()
-    const userId = auth.user?.sub ?? 'anonymous'
+    const userId = auth.user?.id ?? 'anonymous'
     return `onboarding_completed_${userId}`
   }
 
