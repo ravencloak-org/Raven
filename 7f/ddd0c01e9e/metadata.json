@@ -9,17 +9,8 @@
     "Dockerfile",
     "Makefile",
     "ai-worker/Dockerfile",
-    "cmd/api/main.go",
     "docker-compose.yml",
-    "frontend/src/api/billing.ts",
-    "frontend/src/pages/billing/BillingPage.vue",
-    "internal/handler/billing.go",
-    "internal/handler/billing_test.go",
-    "internal/handler/provision.go",
-    "internal/repository/billing.go",
-    "internal/repository/rls_test.go",
-    "internal/service/billing.go",
-    "internal/service/quota.go"
+    "frontend/src/stores/onboarding.ts"
   ],
   "sessions": [
     {
@@ -38,10 +29,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 2720,
-    "cache_creation_tokens": 105790,
-    "cache_read_tokens": 7545981,
-    "output_tokens": 22759,
-    "api_call_count": 57
+    "input_tokens": 2692,
+    "cache_creation_tokens": 55787,
+    "cache_read_tokens": 2553323,
+    "output_tokens": 12076,
+    "api_call_count": 27
   }
 }
