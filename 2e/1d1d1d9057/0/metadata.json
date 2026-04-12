@@ -3,30 +3,31 @@
   "checkpoint_id": "2e1d1d1d9057",
   "session_id": "e0b67fff-5c46-4ec7-bad7-744b74d5f40a",
   "strategy": "manual-commit",
-  "created_at": "2026-04-12T14:45:46.853444Z",
+  "created_at": "2026-04-12T14:50:58.703918Z",
   "branch": "fix/cr-review-fixes",
   "checkpoints_count": 1,
   "files_touched": [
-    "frontend/src/stores/onboarding.ts"
+    "internal/ee/webhooks/webhooks_test.go",
+    "internal/middleware/ratelimit_test.go"
   ],
   "agent": "Claude Code",
-  "transcript_identifier_at_start": "b852dbda-93cc-4039-b899-7ad7833cc315",
-  "checkpoint_transcript_start": 635,
-  "transcript_lines_at_start": 635,
+  "transcript_identifier_at_start": "3ae30933-8d01-41e0-8b4f-c647d49852af",
+  "checkpoint_transcript_start": 685,
+  "transcript_lines_at_start": 685,
   "token_usage": {
     "input_tokens": 15,
-    "cache_creation_tokens": 5265,
-    "cache_read_tokens": 2105584,
-    "output_tokens": 1846,
-    "api_call_count": 11
+    "cache_creation_tokens": 5105,
+    "cache_read_tokens": 2551786,
+    "output_tokens": 2316,
+    "api_call_count": 13
   },
   "initial_attribution": {
-    "calculated_at": "2026-04-12T14:45:46.712212Z",
+    "calculated_at": "2026-04-12T14:50:58.568767Z",
     "agent_lines": 0,
-    "human_added": 4,
-    "human_modified": 1,
+    "human_added": 0,
+    "human_modified": 4,
     "human_removed": 0,
-    "total_committed": 5,
+    "total_committed": 0,
     "agent_percentage": 0
   }
 }

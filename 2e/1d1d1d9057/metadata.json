@@ -5,7 +5,8 @@
   "branch": "fix/cr-review-fixes",
   "checkpoints_count": 1,
   "files_touched": [
-    "frontend/src/stores/onboarding.ts"
+    "internal/ee/webhooks/webhooks_test.go",
+    "internal/middleware/ratelimit_test.go"
   ],
   "sessions": [
     {
@@ -18,9 +19,9 @@
   ],
   "token_usage": {
     "input_tokens": 15,
-    "cache_creation_tokens": 5265,
-    "cache_read_tokens": 2105584,
-    "output_tokens": 1846,
-    "api_call_count": 11
+    "cache_creation_tokens": 5105,
+    "cache_read_tokens": 2551786,
+    "output_tokens": 2316,
+    "api_call_count": 13
   }
 }
