@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "ffdf98f70897",
+  "strategy": "manual-commit",
+  "branch": "feat/ops/dotenvx-ci-docker",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".claude/settings.local.json",
+    ".mcp.json",
+    ".superpowers/brainstorm/16951-1776004641/hero-layout.html",
+    ".superpowers/brainstorm/27124-1776011353/hero-layout.html",
+    "docs/superpowers/specs/2026-04-13-raven-landing-page-design.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ff/df98f70897/0/metadata.json",
+      "transcript": "/ff/df98f70897/0/full.jsonl",
+      "context": "/ff/df98f70897/0/context.md",
+      "content_hash": "/ff/df98f70897/0/content_hash.txt",
+      "prompt": "/ff/df98f70897/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 20,
+    "cache_creation_tokens": 16739,
+    "cache_read_tokens": 2125058,
+    "output_tokens": 8655,
+    "api_call_count": 16
+  }
+}
