@@ -284,3 +284,7 @@ what next apart from that
 
 Still the same inifinite redirect and spitting blood
 
+### Prompt 41
+
+I don't see the log out flow on the dashboard.
+

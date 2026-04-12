@@ -5,12 +5,9 @@
   "branch": "fix/keycloak-cloudflare-auth",
   "checkpoints_count": 2,
   "files_touched": [
-    ".serena/memories/codebase_structure.md",
     "deploy/keycloak/raven-realm.json",
-    "frontend/.env.local",
+    "frontend/src/components/AppHeader.vue",
     "frontend/src/components/AppSidebar.vue",
-    "frontend/src/main.ts",
-    "frontend/src/router/index.ts",
     "frontend/src/stores/auth.ts"
   ],
   "sessions": [
@@ -30,10 +27,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 6384,
-    "cache_creation_tokens": 1081789,
-    "cache_read_tokens": 23366663,
-    "output_tokens": 77598,
-    "api_call_count": 188
+    "input_tokens": 6278,
+    "cache_creation_tokens": 244137,
+    "cache_read_tokens": 9754397,
+    "output_tokens": 46326,
+    "api_call_count": 106
   }
 }
