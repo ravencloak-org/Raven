@@ -39,3 +39,11 @@ https://dotenvx.com/docs/platforms/docker-compose
 
 rebase from origin main and commit on feature/ops/... branch
 
+### Prompt 8
+
+yes
+
+### Prompt 9
+
+use gh cli to the repo's github secrets
+
