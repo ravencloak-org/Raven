@@ -70,7 +70,8 @@
 
         <!-- Voice Sessions -->
         <RouterLink
-          to="/orgs/_/voice"
+          v-if="orgPrefix"
+          :to="`${orgPrefix}/voice`"
           :class="[
             'flex items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white',
             mobile
@@ -97,13 +98,14 @@
         </RouterLink>
 
         <!-- WhatsApp section label (mobile only) -->
-        <span v-if="mobile" class="mt-4 px-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
+        <span v-if="mobile && orgPrefix" class="mt-4 px-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
           WhatsApp
         </span>
 
         <!-- Phone Numbers -->
         <RouterLink
-          to="/orgs/_/whatsapp/phone-numbers"
+          v-if="orgPrefix"
+          :to="`${orgPrefix}/whatsapp/phone-numbers`"
           :class="[
             'flex items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white',
             mobile
@@ -129,7 +131,8 @@
 
         <!-- Calls -->
         <RouterLink
-          to="/orgs/_/whatsapp/calls"
+          v-if="orgPrefix"
+          :to="`${orgPrefix}/whatsapp/calls`"
           :class="[
             'flex items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white',
             mobile
@@ -154,13 +157,14 @@
         </RouterLink>
 
         <!-- Billing section label (mobile only) -->
-        <span v-if="mobile" class="mt-4 px-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
+        <span v-if="mobile && orgPrefix" class="mt-4 px-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
           Account
         </span>
 
         <!-- Billing -->
         <RouterLink
-          to="/orgs/_/billing"
+          v-if="orgPrefix"
+          :to="`${orgPrefix}/billing`"
           :class="[
             'flex items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white',
             mobile
@@ -189,7 +193,14 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
+
+const auth = useAuthStore()
+const orgPrefix = computed(() =>
+  auth.user?.orgId ? `/orgs/${auth.user.orgId}` : null,
+)
 
 defineProps<{
   mobile?: boolean

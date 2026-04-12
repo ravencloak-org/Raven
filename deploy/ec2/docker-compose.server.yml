@@ -111,10 +111,13 @@ services:
       KC_DB_PASSWORD: ${KC_DB_PASSWORD:?KC_DB_PASSWORD is required}
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?KEYCLOAK_ADMIN_PASSWORD is required}
-      # Cloudflare Tunnel terminates TLS — Keycloak is behind a proxy
+      # Cloudflare Tunnel terminates TLS — Keycloak is behind a proxy.
+      # KC_HOSTNAME accepts a full URL in KC 26 so the issuer, auth
+      # endpoints and redirect URIs all use https:// without port leakage.
       KC_PROXY_HEADERS: xforwarded
       KC_HTTP_ENABLED: "true"
-      KC_HOSTNAME: ${KC_HOSTNAME}
+      KC_HOSTNAME: https://${KC_HOSTNAME}
+      KC_HOSTNAME_ADMIN: https://${KC_HOSTNAME}
       # HOSTNAME_STRICT=false is safe here: Cloudflare Tunnel is the only ingress
       # (no ports are exposed to the public internet), so hostname spoofing is not possible.
       KC_HOSTNAME_STRICT: "false"

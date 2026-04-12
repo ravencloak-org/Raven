@@ -6,7 +6,10 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/dashboard',
+      redirect: () => {
+        const auth = useAuthStore()
+        return auth.isAuthenticated ? '/dashboard' : '/login'
+      },
     },
     {
       path: '/login',
@@ -147,6 +150,11 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
+  const auth = useAuthStore()
+
+  if (to.meta.requiresAuth && !auth.isAuthenticated) {
+    auth.login()
+    return false
   // If the URL contains a Keycloak callback code, let keycloak.init() finish
   // processing it before we evaluate auth state. Without this guard the router
   // fires before the token exchange completes and triggers another redirect.
@@ -162,11 +170,8 @@ router.beforeEach(async (to) => {
     }
   }
 
-  if (to.name === 'login') {
-    const auth = useAuthStore()
-    if (auth.isAuthenticated) {
-      return { name: 'dashboard' }
-    }
+  if (to.name === 'login' && auth.isAuthenticated) {
+    return { name: 'dashboard' }
   }
 })
 

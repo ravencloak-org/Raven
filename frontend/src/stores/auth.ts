@@ -35,9 +35,11 @@ export const useAuthStore = defineStore('auth', () => {
         checkLoginIframe: false,
       })
       if (authenticated) {
-        _syncFromKeycloak()
-        // Auto-refresh token 30s before expiry
-        setInterval(() => keycloak.updateToken(30), 60_000)
+        await _syncFromKeycloak()
+        setInterval(async () => {
+          const refreshed = await keycloak.updateToken(30)
+          if (refreshed) await _syncFromKeycloak()
+        }, 60_000)
       }
     } catch {
       // Keycloak unavailable — proceed as unauthenticated
@@ -47,7 +49,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function login(): void {
-    keycloak.login({ redirectUri: window.location.origin + '/dashboard' })
+    keycloak.login({ redirectUri: window.location.href })
   }
 
   function logout(): void {
@@ -57,25 +59,49 @@ export const useAuthStore = defineStore('auth', () => {
     keycloak.logout({ redirectUri: window.location.origin + '/' })
   }
 
-  function _syncFromKeycloak(): void {
-    const p = keycloak.tokenParsed as Record<string, unknown>
+  async function _syncFromKeycloak(): Promise<void> {
     accessToken.value = keycloak.token ?? null
-    user.value = {
-      id: p['sub'] as string,
-      email: p['email'] as string,
-      username: p['preferred_username'] as string,
-      orgId: p['org_id'] as string,
-      orgRole: p['org_role'] as string,
+
+    // Prefer ID token for standard OIDC claims (sub, email, preferred_username).
+    // Access token for custom claims (org_id, org_role).
+    const idClaims = (keycloak.idTokenParsed ?? {}) as Record<string, unknown>
+    const atClaims = (keycloak.tokenParsed ?? {}) as Record<string, unknown>
+
+    let id = (idClaims['sub'] ?? atClaims['sub']) as string | undefined
+    let email = (idClaims['email'] ?? atClaims['email']) as string | undefined
+    let username = (idClaims['preferred_username'] ?? atClaims['preferred_username']) as string | undefined
+    const orgId = (atClaims['org_id'] ?? idClaims['org_id']) as string | undefined
+    const orgRole = (atClaims['org_role'] ?? idClaims['org_role']) as string | undefined
+
+    // Fallback: fetch from Keycloak account API when tokens lack user claims.
+    if (!id || !email) {
+      try {
+        const profile = await keycloak.loadUserProfile()
+        id = id ?? profile.id
+        email = email ?? profile.email
+        username = username ?? profile.username
+      } catch {
+        // Profile endpoint unavailable — continue with what we have
+      }
     }
 
-    // Identify the authenticated user in PostHog for analytics.
-    const { identify } = usePostHog()
-    identify(user.value.id, {
-      email: user.value.email,
-      username: user.value.username,
-      org_id: user.value.orgId,
-      org_role: user.value.orgRole,
-    })
+    if (id) {
+      user.value = {
+        id,
+        email: email ?? '',
+        username: username ?? '',
+        orgId: orgId ?? '',
+        orgRole: orgRole ?? '',
+      }
+
+      const { identify } = usePostHog()
+      identify(user.value.id, {
+        email: user.value.email,
+        username: user.value.username,
+        org_id: user.value.orgId,
+        org_role: user.value.orgRole,
+      })
+    }
   }
 
   return { user, accessToken, isAuthenticated, initialized, init, login, logout }
