@@ -163,6 +163,10 @@ type KeycloakConfig struct {
 	AdminURL           string `mapstructure:"admin_url"`
 	AdminClientID      string `mapstructure:"admin_client_id"`
 	AdminClientSecret  string `mapstructure:"admin_client_secret"`
+
+	// InternalSecret is a shared secret for authenticating internal API
+	// endpoints such as realm provisioning. Set via RAVEN_KEYCLOAK_INTERNAL_SECRET.
+	InternalSecret string `mapstructure:"internal_secret"`
 }
 
 // CORSConfig holds Cross-Origin Resource Sharing settings.
@@ -331,6 +335,7 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("keycloak.admin_url", "RAVEN_KEYCLOAK_ADMIN_URL")
 	_ = v.BindEnv("keycloak.admin_client_id", "RAVEN_KEYCLOAK_ADMIN_CLIENT_ID")
 	_ = v.BindEnv("keycloak.admin_client_secret", "RAVEN_KEYCLOAK_ADMIN_CLIENT_SECRET")
+	_ = v.BindEnv("keycloak.internal_secret", "RAVEN_KEYCLOAK_INTERNAL_SECRET")
 	_ = v.BindEnv("server.port", "RAVEN_SERVER_PORT")
 	_ = v.BindEnv("server.mode", "RAVEN_SERVER_MODE")
 	_ = v.BindEnv("clickhouse.host", "RAVEN_CLICKHOUSE_HOST")
@@ -380,9 +385,6 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("ebpf.audit_ring_buffer_size", "RAVEN_EBPF_AUDIT_RING_BUFFER_SIZE")
 	_ = v.BindEnv("ebpf.xdp_enabled", "RAVEN_EBPF_XDP_ENABLED")
 	_ = v.BindEnv("ebpf.xdp_interface", "RAVEN_EBPF_XDP_INTERFACE")
-	_ = v.BindEnv("hyperswitch.base_url", "RAVEN_HYPERSWITCH_BASE_URL")
-	_ = v.BindEnv("hyperswitch.api_key", "RAVEN_HYPERSWITCH_API_KEY")
-	_ = v.BindEnv("hyperswitch.webhook_secret", "RAVEN_HYPERSWITCH_WEBHOOK_SECRET")
 
 	// Try to read config file but don't fail if not found
 	_ = v.ReadInConfig()

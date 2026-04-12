@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -15,6 +16,11 @@ import (
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
+
+// quotaCheckFailures tracks the total number of quota check errors that resulted
+// in fail-open decisions. A steadily growing counter indicates persistent cache
+// or DB issues that effectively disable billing enforcement.
+var quotaCheckFailures atomic.Int64
 
 const (
 	orgSubCachePrefix = "raven:org_sub:"
@@ -139,7 +145,8 @@ func (q *QuotaChecker) GetOrgSubscription(ctx context.Context, orgID string) (*m
 func (q *QuotaChecker) CheckKBQuota(ctx context.Context, orgID string) error {
 	orgSub, err := q.GetOrgSubscription(ctx, orgID)
 	if err != nil {
-		slog.WarnContext(ctx, "quota: failed to get subscription, allowing request", "org_id", orgID, "error", err)
+		total := quotaCheckFailures.Add(1)
+		slog.WarnContext(ctx, "quota check failed, allowing request", "check", "kb_subscription", "org_id", orgID, "error", err, "total_failures", total)
 		return nil
 	}
 
@@ -163,7 +170,8 @@ func (q *QuotaChecker) CheckKBQuota(ctx context.Context, orgID string) error {
 		count, err = q.repo.CountKBsByOrg(ctx, nil, orgID)
 	}
 	if err != nil {
-		slog.WarnContext(ctx, "quota: failed to count KBs, allowing request", "org_id", orgID, "error", err)
+		total := quotaCheckFailures.Add(1)
+		slog.WarnContext(ctx, "quota check failed, allowing request", "check", "kb_count", "org_id", orgID, "error", err, "total_failures", total)
 		return nil
 	}
 
@@ -181,7 +189,8 @@ func (q *QuotaChecker) CheckKBQuota(ctx context.Context, orgID string) error {
 func (q *QuotaChecker) CheckSeatQuota(ctx context.Context, orgID string) error {
 	orgSub, err := q.GetOrgSubscription(ctx, orgID)
 	if err != nil {
-		slog.WarnContext(ctx, "quota: failed to get subscription, allowing request", "org_id", orgID, "error", err)
+		total := quotaCheckFailures.Add(1)
+		slog.WarnContext(ctx, "quota check failed, allowing request", "check", "seat_subscription", "org_id", orgID, "error", err, "total_failures", total)
 		return nil
 	}
 
@@ -205,7 +214,8 @@ func (q *QuotaChecker) CheckSeatQuota(ctx context.Context, orgID string) error {
 		count, err = q.repo.CountMembersByOrg(ctx, nil, orgID)
 	}
 	if err != nil {
-		slog.WarnContext(ctx, "quota: failed to count members, allowing request", "org_id", orgID, "error", err)
+		total := quotaCheckFailures.Add(1)
+		slog.WarnContext(ctx, "quota check failed, allowing request", "check", "seat_count", "org_id", orgID, "error", err, "total_failures", total)
 		return nil
 	}
 
@@ -224,7 +234,8 @@ func (q *QuotaChecker) CheckSeatQuota(ctx context.Context, orgID string) error {
 func (q *QuotaChecker) CheckVoiceMinuteQuota(ctx context.Context, orgID string) error {
 	orgSub, err := q.GetOrgSubscription(ctx, orgID)
 	if err != nil {
-		slog.WarnContext(ctx, "quota: failed to get subscription, allowing request", "org_id", orgID, "error", err)
+		total := quotaCheckFailures.Add(1)
+		slog.WarnContext(ctx, "quota check failed, allowing request", "check", "voice_subscription", "org_id", orgID, "error", err, "total_failures", total)
 		return nil
 	}
 
@@ -256,7 +267,8 @@ func (q *QuotaChecker) CheckVoiceMinuteQuota(ctx context.Context, orgID string) 
 		usageSeconds, err = q.repo.GetVoiceUsageForPeriod(ctx, nil, orgID, periodStart)
 	}
 	if err != nil {
-		slog.WarnContext(ctx, "quota: failed to get voice usage, allowing request", "org_id", orgID, "error", err)
+		total := quotaCheckFailures.Add(1)
+		slog.WarnContext(ctx, "quota check failed, allowing request", "check", "voice_usage", "org_id", orgID, "error", err, "total_failures", total)
 		return nil
 	}
 
@@ -275,7 +287,8 @@ func (q *QuotaChecker) CheckVoiceMinuteQuota(ctx context.Context, orgID string) 
 func (q *QuotaChecker) GetConcurrentVoiceLimit(ctx context.Context, orgID string) int {
 	orgSub, err := q.GetOrgSubscription(ctx, orgID)
 	if err != nil {
-		slog.WarnContext(ctx, "quota: failed to get subscription, defaulting to 1", "org_id", orgID, "error", err)
+		total := quotaCheckFailures.Add(1)
+		slog.WarnContext(ctx, "quota check failed, defaulting to 1", "check", "concurrent_voice", "org_id", orgID, "error", err, "total_failures", total)
 		return 1
 	}
 	return orgSub.Plan.MaxConcurrentVoiceSessions

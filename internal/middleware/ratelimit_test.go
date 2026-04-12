@@ -696,21 +696,21 @@ func TestValkeyTierResolver(t *testing.T) {
 	}
 
 	// Set a tier.
-	mr.Set("raven:org_tier:org-pro", "pro")
+	_ = mr.Set("raven:org_tier:org-pro", "pro")
 	tier = resolver.Resolve(context.Background(), "org-pro")
 	if tier != "pro" {
 		t.Errorf("expected 'pro', got %q", tier)
 	}
 
 	// Set enterprise.
-	mr.Set("raven:org_tier:org-ent", "enterprise")
+	_ = mr.Set("raven:org_tier:org-ent", "enterprise")
 	tier = resolver.Resolve(context.Background(), "org-ent")
 	if tier != "enterprise" {
 		t.Errorf("expected 'enterprise', got %q", tier)
 	}
 
 	// Invalid tier in Valkey — should default to "free".
-	mr.Set("raven:org_tier:org-invalid", "platinum")
+	_ = mr.Set("raven:org_tier:org-invalid", "platinum")
 	tier = resolver.Resolve(context.Background(), "org-invalid")
 	if tier != "free" {
 		t.Errorf("expected 'free' for invalid tier, got %q", tier)

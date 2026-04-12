@@ -27,6 +27,7 @@ type BillingRepository interface {
 	GetActiveSubscription(ctx context.Context, tx pgx.Tx, orgID string) (*model.Subscription, error)
 	UpdateSubscriptionStatus(ctx context.Context, tx pgx.Tx, orgID, subscriptionID string, status model.SubscriptionStatus) (*model.Subscription, error)
 	ExtendSubscriptionPeriod(ctx context.Context, tx pgx.Tx, hyperswitchID string) (*model.Subscription, error)
+	CreatePaymentIntent(ctx context.Context, tx pgx.Tx, pi *model.PaymentIntent) (*model.PaymentIntent, error)
 	InsertPaymentEvent(ctx context.Context, tx pgx.Tx, orgID, eventType, paymentID, status string, rawPayload []byte) (bool, error)
 }
 
@@ -73,6 +74,20 @@ func (s *BillingService) GetPlanByID(planID string) (*model.Plan, error) {
 		return nil, apierror.NewNotFound("plan not found: " + planID)
 	}
 	return &p, nil
+}
+
+// GetActiveSubscription returns the current active subscription for an org, or nil.
+func (s *BillingService) GetActiveSubscription(ctx context.Context, orgID string) (*model.Subscription, error) {
+	var sub *model.Subscription
+	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+		var e error
+		sub, e = s.repo.GetActiveSubscription(ctx, tx, orgID)
+		return e
+	})
+	if err != nil {
+		return nil, apierror.NewInternal("failed to retrieve subscription")
+	}
+	return sub, nil
 }
 
 // CreateSubscription creates a new subscription for the given organisation.
@@ -204,24 +219,40 @@ func (s *BillingService) CreatePaymentIntent(ctx context.Context, orgID string, 
 		return nil, apierror.NewInternal("failed to create Hyperswitch payment")
 	}
 
-	now := time.Now().UTC()
 	pi := &model.PaymentIntent{
-		ID:                   fmt.Sprintf("pi_%d", now.UnixNano()),
 		OrgID:                orgID,
 		Amount:               req.Amount,
 		Currency:             req.Currency,
 		Status:               model.PaymentIntentStatusRequiresPayment,
 		HyperswitchPaymentID: hsResp.PaymentID,
 		ClientSecret:         hsResp.ClientSecret,
-		CreatedAt:            now,
 	}
-	return pi, nil
+
+	var result *model.PaymentIntent
+	if err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+		var e error
+		result, e = s.repo.CreatePaymentIntent(ctx, tx, pi)
+		return e
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to persist payment intent", "error", err)
+		// Best-effort cancel the orphaned Hyperswitch payment with a fresh
+		// context — the original ctx may already be canceled/timed out.
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if cancelErr := s.hsClient.CancelPayment(cleanupCtx, hsResp.PaymentID); cancelErr != nil {
+			slog.ErrorContext(ctx, "failed to cancel orphaned Hyperswitch payment", "payment_id", hsResp.PaymentID, "error", cancelErr)
+		}
+		return nil, apierror.NewInternal("failed to persist payment intent")
+	}
+
+	return result, nil
 }
 
 // VerifyWebhookSignature verifies the Hyperswitch webhook HMAC-SHA256 signature.
 func (s *BillingService) VerifyWebhookSignature(payload []byte, signature string) error {
 	if s.webhookSecret == "" {
-		return nil
+		slog.Warn("webhook signature verification skipped: RAVEN_HYPERSWITCH_WEBHOOK_SECRET is not configured")
+		return apierror.NewUnauthorized("webhook signature verification is not configured")
 	}
 
 	mac := hmac.New(sha256.New, []byte(s.webhookSecret))

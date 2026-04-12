@@ -175,7 +175,7 @@ func TestRLS_MigrationVersion_AllApplied(t *testing.T) {
 		"SELECT MAX(version_id) FROM goose_db_version WHERE is_applied = true",
 	).Scan(&maxVersion)
 	require.NoError(t, err)
-	assert.EqualValues(t, 32, maxVersion, "all 32 migrations must be applied cleanly")
+	assert.EqualValues(t, 33, maxVersion, "all 33 migrations must be applied cleanly")
 
 	// Spot-check critical tables exist.
 	for _, table := range []string{

@@ -412,7 +412,7 @@ func TestWebhookDelivery_DeadLetter_FailureCountResets(t *testing.T) {
 		if cfg.Status == model.WebhookStatusFailed {
 			break
 		}
-		_, skipRetry = simulateDelivery(ws, server.URL, "reset-secret", "lead.generated", payload)
+		_, _ = simulateDelivery(ws, server.URL, "reset-secret", "lead.generated", payload)
 	}
 	cfg, _, statusChange := ws.snapshot()
 	assert.Equal(t, maxRetries, cfg.FailureCount,

@@ -45,8 +45,9 @@ async function authFetch(path: string, init?: RequestInit): Promise<Response> {
 
 // --- Billing endpoints ---
 
-export async function getUsage(orgId: string): Promise<BillingUsage> {
-  const res = await authFetch(`/orgs/${encodeURIComponent(orgId)}/billing/usage`)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function getUsage(_orgId: string): Promise<BillingUsage> {
+  const res = await authFetch('/billing/usage')
   if (res.status === 402) {
     throw Object.assign(new Error('Payment required'), { status: 402 })
   }
@@ -54,13 +55,24 @@ export async function getUsage(orgId: string): Promise<BillingUsage> {
   return res.json()
 }
 
-export async function getSubscription(orgId: string): Promise<Subscription> {
-  const res = await authFetch(
-    `/orgs/${encodeURIComponent(orgId)}/billing/subscriptions/current`,
-  )
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function getSubscription(_orgId: string): Promise<Subscription> {
+  const res = await authFetch('/billing/subscriptions/current')
   if (res.status === 402) {
     throw Object.assign(new Error('Payment required'), { status: 402 })
   }
   if (!res.ok) throw new Error(`getSubscription failed: ${res.status}`)
   return res.json()
+}
+
+export async function cancelSubscription(subscriptionId: string): Promise<void> {
+  const res = await authFetch(
+    `/billing/subscriptions/${encodeURIComponent(subscriptionId)}`,
+    { method: 'DELETE' },
+  )
+  if (!res.ok) {
+    const body = await res.json().catch(() => null)
+    const detail = body?.detail ?? body?.message ?? `status ${res.status}`
+    throw new Error(detail)
+  }
 }

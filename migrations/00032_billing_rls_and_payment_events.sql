@@ -9,7 +9,7 @@
 ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation ON subscriptions
-    USING (org_id = current_setting('app.current_org_id')::uuid);
+    USING (org_id = nullif(current_setting('app.current_org_id', true), '')::uuid);
 
 CREATE POLICY admin_bypass ON subscriptions
     FOR ALL

@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useBillingStore } from '../../stores/billing'
+import { cancelSubscription } from '../../api/billing'
 import { useMobile } from '../../composables/useMediaQuery'
 import BottomSheet from '../../components/BottomSheet.vue'
 
@@ -57,9 +58,20 @@ function handleCancelRequest() {
   showCancelConfirm.value = true
 }
 
-function handleCancelConfirmed() {
-  // Placeholder: wire to POST /billing/cancel once backend endpoint exists
-  showCancelConfirm.value = false
+const cancelError = ref<string | null>(null)
+
+async function handleCancelConfirmed() {
+  cancelError.value = null
+  try {
+    if (store.subscription?.id) {
+      await cancelSubscription(store.subscription.id)
+      showCancelConfirm.value = false
+      await store.fetchSubscription(orgId)
+      await store.fetchUsage(orgId)
+    }
+  } catch (e) {
+    cancelError.value = e instanceof Error ? e.message : 'Failed to cancel subscription'
+  }
 }
 </script>
 
@@ -209,6 +221,7 @@ function handleCancelConfirmed() {
           Are you sure you want to cancel your subscription? Your plan will revert to Free at the
           end of the billing period.
         </p>
+        <p v-if="cancelError" class="text-sm text-red-400">{{ cancelError }}</p>
         <div class="flex flex-col gap-2">
           <button
             class="w-full min-h-[48px] rounded-xl bg-red-600 text-sm font-semibold text-white hover:bg-red-500"
@@ -234,12 +247,18 @@ function handleCancelConfirmed() {
         @click.self="showCancelConfirm = false"
         @keydown.escape="showCancelConfirm = false"
       >
-        <div class="w-full max-w-sm rounded-xl bg-slate-800 mx-4 p-6 space-y-4">
-          <h3 class="text-lg font-bold text-white">Cancel Subscription</h3>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cancel-dialog-title"
+          class="w-full max-w-sm rounded-xl bg-slate-800 mx-4 p-6 space-y-4"
+        >
+          <h3 id="cancel-dialog-title" class="text-lg font-bold text-white">Cancel Subscription</h3>
           <p class="text-sm text-slate-300">
             Are you sure you want to cancel your subscription? Your plan will revert to Free at the
             end of the billing period.
           </p>
+          <p v-if="cancelError" class="text-sm text-red-400">{{ cancelError }}</p>
           <div class="flex gap-3 pt-2">
             <button
               class="flex-1 min-h-[44px] rounded-lg border border-slate-600 text-sm font-medium text-slate-300 hover:bg-slate-700"
