@@ -76,6 +76,20 @@ func (s *BillingService) GetPlanByID(planID string) (*model.Plan, error) {
 	return &p, nil
 }
 
+// GetActiveSubscription returns the current active subscription for an org, or nil.
+func (s *BillingService) GetActiveSubscription(ctx context.Context, orgID string) (*model.Subscription, error) {
+	var sub *model.Subscription
+	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+		var e error
+		sub, e = s.repo.GetActiveSubscription(ctx, tx, orgID)
+		return e
+	})
+	if err != nil {
+		return nil, apierror.NewInternal("failed to retrieve subscription")
+	}
+	return sub, nil
+}
+
 // CreateSubscription creates a new subscription for the given organisation.
 // For paid plans, it calls Hyperswitch to set up a recurring payment via Razorpay.
 func (s *BillingService) CreateSubscription(ctx context.Context, orgID string, req model.CreateSubscriptionRequest) (*model.Subscription, error) {
@@ -205,7 +219,6 @@ func (s *BillingService) CreatePaymentIntent(ctx context.Context, orgID string, 
 		return nil, apierror.NewInternal("failed to create Hyperswitch payment")
 	}
 
-	now := time.Now().UTC()
 	pi := &model.PaymentIntent{
 		OrgID:                orgID,
 		Amount:               req.Amount,
@@ -213,7 +226,6 @@ func (s *BillingService) CreatePaymentIntent(ctx context.Context, orgID string, 
 		Status:               model.PaymentIntentStatusRequiresPayment,
 		HyperswitchPaymentID: hsResp.PaymentID,
 		ClientSecret:         hsResp.ClientSecret,
-		CreatedAt:            now,
 	}
 
 	var result *model.PaymentIntent
@@ -223,6 +235,10 @@ func (s *BillingService) CreatePaymentIntent(ctx context.Context, orgID string, 
 		return e
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to persist payment intent", "error", err)
+		// Best-effort cancel the orphaned Hyperswitch payment.
+		if cancelErr := s.hsClient.CancelPayment(ctx, hsResp.PaymentID); cancelErr != nil {
+			slog.ErrorContext(ctx, "failed to cancel orphaned Hyperswitch payment", "payment_id", hsResp.PaymentID, "error", cancelErr)
+		}
 		return nil, apierror.NewInternal("failed to persist payment intent")
 	}
 

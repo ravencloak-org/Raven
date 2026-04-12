@@ -15,6 +15,7 @@ import (
 // BillingServicer is the interface the handler requires from the billing service layer.
 type BillingServicer interface {
 	GetPlans() []model.Plan
+	GetActiveSubscription(ctx context.Context, orgID string) (*model.Subscription, error)
 	CreateSubscription(ctx context.Context, orgID string, req model.CreateSubscriptionRequest) (*model.Subscription, error)
 	CancelSubscription(ctx context.Context, orgID string, subscriptionID string) error
 	CreatePaymentIntent(ctx context.Context, orgID string, req model.CreatePaymentIntentRequest) (*model.PaymentIntent, error)
@@ -43,6 +44,44 @@ func NewBillingHandler(svc BillingServicer) *BillingHandler {
 func (h *BillingHandler) GetPlans(c *gin.Context) {
 	plans := h.svc.GetPlans()
 	c.JSON(http.StatusOK, plans)
+}
+
+// GetCurrentSubscription handles GET /api/v1/billing/subscriptions/current.
+//
+// @Summary     Get current subscription
+// @Tags        billing
+// @Produce     json
+// @Security    BearerAuth
+// @Success     200 {object} model.Subscription
+// @Failure     401 {object} apierror.AppError
+// @Failure     404 {object} apierror.AppError
+// @Router      /billing/subscriptions/current [get]
+func (h *BillingHandler) GetCurrentSubscription(c *gin.Context) {
+	orgID, exists := c.Get(string(middleware.ContextKeyOrgID))
+	if !exists {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, apierror.AppError{
+			Code:    http.StatusUnauthorized,
+			Message: "Unauthorized",
+			Detail:  "missing organisation context",
+		})
+		return
+	}
+
+	sub, err := h.svc.GetActiveSubscription(c.Request.Context(), orgID.(string))
+	if err != nil {
+		_ = c.Error(err)
+		c.Abort()
+		return
+	}
+	if sub == nil {
+		c.AbortWithStatusJSON(http.StatusNotFound, apierror.AppError{
+			Code:    http.StatusNotFound,
+			Message: "Not Found",
+			Detail:  "no active subscription",
+		})
+		return
+	}
+	c.JSON(http.StatusOK, sub)
 }
 
 // Subscribe handles POST /api/v1/billing/subscriptions.
@@ -186,12 +225,21 @@ func (h *BillingHandler) CreatePaymentIntent(c *gin.Context) {
 // @Failure     400 {object} apierror.AppError
 // @Router      /billing/webhook [post]
 func (h *BillingHandler) Webhook(c *gin.Context) {
-	payload, err := io.ReadAll(io.LimitReader(c.Request.Body, 1<<20)) // 1 MB max
+	const maxWebhookBody = 1 << 20 // 1 MB
+	payload, err := io.ReadAll(io.LimitReader(c.Request.Body, maxWebhookBody+1))
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, apierror.AppError{
 			Code:    http.StatusBadRequest,
 			Message: "Bad Request",
 			Detail:  "failed to read request body",
+		})
+		return
+	}
+	if len(payload) > maxWebhookBody {
+		c.AbortWithStatusJSON(http.StatusRequestEntityTooLarge, apierror.AppError{
+			Code:    http.StatusRequestEntityTooLarge,
+			Message: "Payload Too Large",
+			Detail:  "webhook body exceeds 1 MB limit",
 		})
 		return
 	}

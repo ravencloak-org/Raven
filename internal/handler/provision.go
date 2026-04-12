@@ -48,8 +48,9 @@ func (h *ProvisionHandler) RequireInternalAuth(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "internal endpoint not configured"})
 		return
 	}
-	token := strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
-	if token == "" || token != h.internalSecret {
+	auth := c.GetHeader("Authorization")
+	parts := strings.SplitN(auth, " ", 2)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || parts[1] != h.internalSecret {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
@@ -88,15 +89,13 @@ func (h *ProvisionHandler) ProvisionRealm(c *gin.Context) {
 		return
 	}
 
-	// Default redirect URIs and web origins when not provided.
+	// Require explicit redirect URIs and web origins — never default to wildcard.
+	if len(req.RedirectURIs) == 0 || len(req.WebOrigins) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "redirect_uris and web_origins are required"})
+		return
+	}
 	redirectURIs := req.RedirectURIs
-	if len(redirectURIs) == 0 {
-		redirectURIs = []string{"http://localhost:3000/*", "http://localhost:8080/*"}
-	}
 	webOrigins := req.WebOrigins
-	if len(webOrigins) == 0 {
-		webOrigins = []string{"http://localhost:3000", "http://localhost:8080"}
-	}
 
 	// Build the realm representation.
 	realmBody := buildRealmPayload(realmName, redirectURIs, webOrigins)

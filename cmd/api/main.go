@@ -675,6 +675,7 @@ func main() {
 		billing := api.Group("/billing")
 		{
 			billing.GET("/plans", billingHandler.GetPlans)
+			billing.GET("/subscriptions/current", billingHandler.GetCurrentSubscription)
 			billing.POST("/subscriptions", billingHandler.Subscribe)
 			billing.DELETE("/subscriptions/:id", billingHandler.Unsubscribe)
 			billing.POST("/payment-intents", billingHandler.CreatePaymentIntent)

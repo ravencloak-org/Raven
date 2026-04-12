@@ -57,7 +57,7 @@ export async function getUsage(_orgId: string): Promise<BillingUsage> {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function getSubscription(_orgId: string): Promise<Subscription> {
-  const res = await authFetch('/billing/plans')
+  const res = await authFetch('/billing/subscriptions/current')
   if (res.status === 402) {
     throw Object.assign(new Error('Payment required'), { status: 402 })
   }

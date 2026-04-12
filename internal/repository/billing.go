@@ -65,8 +65,8 @@ const (
 		          current_period_start, current_period_end, created_at`
 
 	sqlPaymentIntentInsert = `
-		INSERT INTO payment_intents (org_id, amount, currency, status, hyperswitch_payment_id, client_secret, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO payment_intents (org_id, amount, currency, status, hyperswitch_payment_id, client_secret)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, org_id, amount, currency, status, hyperswitch_payment_id, client_secret, created_at`
 
 	sqlPaymentEventInsert = `
@@ -136,7 +136,6 @@ func (r *BillingRepository) CreatePaymentIntent(ctx context.Context, tx pgx.Tx, 
 		pi.Status,
 		pi.HyperswitchPaymentID,
 		pi.ClientSecret,
-		pi.CreatedAt,
 	)
 	var result model.PaymentIntent
 	err := row.Scan(

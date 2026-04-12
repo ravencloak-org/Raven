@@ -36,6 +36,10 @@ func (m *mockBillingService) GetPlans() []model.Plan {
 	return model.DefaultPlans()
 }
 
+func (m *mockBillingService) GetActiveSubscription(_ context.Context, _ string) (*model.Subscription, error) {
+	return nil, nil
+}
+
 func (m *mockBillingService) CreateSubscription(ctx context.Context, orgID string, req model.CreateSubscriptionRequest) (*model.Subscription, error) {
 	return m.createSubscriptionFn(ctx, orgID, req)
 }
