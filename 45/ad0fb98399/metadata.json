@@ -3,8 +3,9 @@
   "checkpoint_id": "45ad0fb98399",
   "strategy": "manual-commit",
   "branch": "fix/cr-review-fixes",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
+    ".superpowers/brainstorm/16951-1776004641/hero-layout.html",
     "frontend/src/api/billing.ts",
     "frontend/src/pages/billing/BillingPage.vue",
     "internal/service/billing.go"
@@ -16,13 +17,20 @@
       "context": "/45/ad0fb98399/0/context.md",
       "content_hash": "/45/ad0fb98399/0/content_hash.txt",
       "prompt": "/45/ad0fb98399/0/prompt.txt"
+    },
+    {
+      "metadata": "/45/ad0fb98399/1/metadata.json",
+      "transcript": "/45/ad0fb98399/1/full.jsonl",
+      "context": "/45/ad0fb98399/1/context.md",
+      "content_hash": "/45/ad0fb98399/1/content_hash.txt",
+      "prompt": "/45/ad0fb98399/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 9,
-    "cache_creation_tokens": 4167,
-    "cache_read_tokens": 1438991,
-    "output_tokens": 1903,
-    "api_call_count": 7
+    "input_tokens": 43,
+    "cache_creation_tokens": 14851,
+    "cache_read_tokens": 3263964,
+    "output_tokens": 7983,
+    "api_call_count": 23
   }
 }
