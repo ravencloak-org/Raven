@@ -29,6 +29,9 @@ export const useAuthStore = defineStore('auth', () => {
       const authenticated = await keycloak.init({
         onLoad: 'check-sso',
         pkceMethod: 'S256',
+        silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
+        // Must be false behind Cloudflare — the iframe-based session check uses
+        // third-party cookies that CF strips, causing an infinite redirect loop.
         checkLoginIframe: false,
       })
       if (authenticated) {
