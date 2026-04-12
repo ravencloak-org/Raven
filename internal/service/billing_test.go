@@ -65,12 +65,13 @@ func TestVerifyWebhookSignature_InvalidSignature(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid webhook signature")
 }
 
-func TestVerifyWebhookSignature_EmptySecret_Allows(t *testing.T) {
+func TestVerifyWebhookSignature_EmptySecret_Rejects(t *testing.T) {
 	svc := service.NewBillingService(nil, nil, nil, "")
 
 	payload := []byte(`{"event_type":"payment_succeeded"}`)
 	err := svc.VerifyWebhookSignature(payload, "any_signature")
-	assert.NoError(t, err)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "webhook signature verification is not configured")
 }
 
 func TestVerifyWebhookSignature_TamperedPayload(t *testing.T) {

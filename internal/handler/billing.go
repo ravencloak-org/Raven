@@ -186,7 +186,7 @@ func (h *BillingHandler) CreatePaymentIntent(c *gin.Context) {
 // @Failure     400 {object} apierror.AppError
 // @Router      /billing/webhook [post]
 func (h *BillingHandler) Webhook(c *gin.Context) {
-	payload, err := io.ReadAll(c.Request.Body)
+	payload, err := io.ReadAll(io.LimitReader(c.Request.Body, 1<<20)) // 1 MB max
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, apierror.AppError{
 			Code:    http.StatusBadRequest,

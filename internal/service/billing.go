@@ -221,7 +221,8 @@ func (s *BillingService) CreatePaymentIntent(ctx context.Context, orgID string, 
 // VerifyWebhookSignature verifies the Hyperswitch webhook HMAC-SHA256 signature.
 func (s *BillingService) VerifyWebhookSignature(payload []byte, signature string) error {
 	if s.webhookSecret == "" {
-		return nil
+		slog.Warn("webhook signature verification skipped: RAVEN_HYPERSWITCH_WEBHOOK_SECRET is not configured")
+		return apierror.NewUnauthorized("webhook signature verification is not configured")
 	}
 
 	mac := hmac.New(sha256.New, []byte(s.webhookSecret))

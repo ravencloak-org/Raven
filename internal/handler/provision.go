@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,29 +14,46 @@ import (
 )
 
 // ProvisionHandler exposes the internal realm auto-provisioning endpoint.
-// It is wired outside the auth middleware group — callers must be restricted
-// to the compose-internal network via firewall / network policy.
+// Callers must authenticate with a bearer token matching the configured internal secret.
 type ProvisionHandler struct {
-	adminURL           string
-	adminClientID      string
-	adminClientSecret  string
+	adminURL          string
+	adminClientID     string
+	adminClientSecret string
+	internalSecret    string
 }
 
 // NewProvisionHandler creates a ProvisionHandler with the given Keycloak admin credentials.
-func NewProvisionHandler(adminURL, adminClientID, adminClientSecret string) *ProvisionHandler {
+func NewProvisionHandler(adminURL, adminClientID, adminClientSecret, internalSecret string) *ProvisionHandler {
 	return &ProvisionHandler{
 		adminURL:          adminURL,
 		adminClientID:     adminClientID,
 		adminClientSecret: adminClientSecret,
+		internalSecret:    internalSecret,
 	}
 }
 
 type provisionRealmRequest struct {
-	RealmName string `json:"realm_name" binding:"required"`
+	RealmName    string   `json:"realm_name" binding:"required"`
+	RedirectURIs []string `json:"redirect_uris"`
+	WebOrigins   []string `json:"web_origins"`
 }
 
 type provisionRealmResponse struct {
 	Realm string `json:"realm"`
+}
+
+// RequireInternalAuth is middleware that validates the internal API bearer token.
+func (h *ProvisionHandler) RequireInternalAuth(c *gin.Context) {
+	if h.internalSecret == "" {
+		c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "internal endpoint not configured"})
+		return
+	}
+	token := strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
+	if token == "" || token != h.internalSecret {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	c.Next()
 }
 
 // ProvisionRealm handles POST /internal/provision-realm.
@@ -49,7 +67,9 @@ func (h *ProvisionHandler) ProvisionRealm(c *gin.Context) {
 		return
 	}
 
-	token, err := h.obtainAdminToken()
+	ctx := c.Request.Context()
+
+	token, err := h.obtainAdminToken(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to obtain admin token: " + err.Error()})
 		return
@@ -58,7 +78,7 @@ func (h *ProvisionHandler) ProvisionRealm(c *gin.Context) {
 	realmName := req.RealmName
 
 	// Check whether the realm already exists.
-	exists, err := h.realmExists(token, realmName)
+	exists, err := h.realmExists(ctx, token, realmName)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check realm existence: " + err.Error()})
 		return
@@ -68,8 +88,18 @@ func (h *ProvisionHandler) ProvisionRealm(c *gin.Context) {
 		return
 	}
 
+	// Default redirect URIs and web origins when not provided.
+	redirectURIs := req.RedirectURIs
+	if len(redirectURIs) == 0 {
+		redirectURIs = []string{"http://localhost:3000/*", "http://localhost:8080/*"}
+	}
+	webOrigins := req.WebOrigins
+	if len(webOrigins) == 0 {
+		webOrigins = []string{"http://localhost:3000", "http://localhost:8080"}
+	}
+
 	// Build the realm representation.
-	realmBody := buildRealmPayload(realmName)
+	realmBody := buildRealmPayload(realmName, redirectURIs, webOrigins)
 	realmJSON, err := json.Marshal(realmBody)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to marshal realm payload"})
@@ -77,7 +107,7 @@ func (h *ProvisionHandler) ProvisionRealm(c *gin.Context) {
 	}
 
 	adminRealmsURL := strings.TrimRight(h.adminURL, "/") + "/admin/realms"
-	httpReq, err := http.NewRequestWithContext(c.Request.Context(), http.MethodPost, adminRealmsURL, bytes.NewReader(realmJSON))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, adminRealmsURL, bytes.NewReader(realmJSON))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to build request: " + err.Error()})
 		return
@@ -106,7 +136,7 @@ func (h *ProvisionHandler) ProvisionRealm(c *gin.Context) {
 }
 
 // obtainAdminToken exchanges client credentials for a Keycloak master-realm access token.
-func (h *ProvisionHandler) obtainAdminToken() (string, error) {
+func (h *ProvisionHandler) obtainAdminToken(ctx context.Context) (string, error) {
 	tokenURL := strings.TrimRight(h.adminURL, "/") + "/realms/master/protocol/openid-connect/token"
 
 	form := url.Values{}
@@ -114,7 +144,13 @@ func (h *ProvisionHandler) obtainAdminToken() (string, error) {
 	form.Set("client_id", h.adminClientID)
 	form.Set("client_secret", h.adminClientSecret)
 
-	resp, err := http.PostForm(tokenURL, form) //nolint:gosec
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(form.Encode()))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -138,9 +174,9 @@ func (h *ProvisionHandler) obtainAdminToken() (string, error) {
 }
 
 // realmExists returns true when the given realm is already registered in Keycloak.
-func (h *ProvisionHandler) realmExists(token, realmName string) (bool, error) {
+func (h *ProvisionHandler) realmExists(ctx context.Context, token, realmName string) (bool, error) {
 	checkURL := strings.TrimRight(h.adminURL, "/") + "/admin/realms/" + url.PathEscape(realmName)
-	req, err := http.NewRequest(http.MethodGet, checkURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, checkURL, nil)
 	if err != nil {
 		return false, err
 	}
@@ -164,7 +200,7 @@ func (h *ProvisionHandler) realmExists(token, realmName string) (bool, error) {
 
 // buildRealmPayload constructs the Keycloak realm JSON with the raven-app
 // client and org_admin / org_member roles.
-func buildRealmPayload(realmName string) map[string]interface{} {
+func buildRealmPayload(realmName string, redirectURIs, webOrigins []string) map[string]interface{} {
 	return map[string]interface{}{
 		"realm":               realmName,
 		"displayName":         "Raven Platform",
@@ -202,8 +238,8 @@ func buildRealmPayload(realmName string) map[string]interface{} {
 				"directAccessGrantsEnabled": false,
 				"serviceAccountsEnabled":    false,
 				"protocol":                  "openid-connect",
-				"redirectUris":              []string{"*"},
-				"webOrigins":                []string{"*"},
+				"redirectUris":              redirectURIs,
+				"webOrigins":                webOrigins,
 				"attributes": map[string]string{
 					"pkce.code.challenge.method": "S256",
 				},

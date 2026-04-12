@@ -163,6 +163,10 @@ type KeycloakConfig struct {
 	AdminURL           string `mapstructure:"admin_url"`
 	AdminClientID      string `mapstructure:"admin_client_id"`
 	AdminClientSecret  string `mapstructure:"admin_client_secret"`
+
+	// InternalSecret is a shared secret for authenticating internal API
+	// endpoints such as realm provisioning. Set via RAVEN_KEYCLOAK_INTERNAL_SECRET.
+	InternalSecret string `mapstructure:"internal_secret"`
 }
 
 // CORSConfig holds Cross-Origin Resource Sharing settings.
@@ -331,6 +335,7 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("keycloak.admin_url", "RAVEN_KEYCLOAK_ADMIN_URL")
 	_ = v.BindEnv("keycloak.admin_client_id", "RAVEN_KEYCLOAK_ADMIN_CLIENT_ID")
 	_ = v.BindEnv("keycloak.admin_client_secret", "RAVEN_KEYCLOAK_ADMIN_CLIENT_SECRET")
+	_ = v.BindEnv("keycloak.internal_secret", "RAVEN_KEYCLOAK_INTERNAL_SECRET")
 	_ = v.BindEnv("server.port", "RAVEN_SERVER_PORT")
 	_ = v.BindEnv("server.mode", "RAVEN_SERVER_MODE")
 	_ = v.BindEnv("clickhouse.host", "RAVEN_CLICKHOUSE_HOST")

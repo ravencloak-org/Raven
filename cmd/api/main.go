@@ -721,13 +721,14 @@ func main() {
 		internal.POST("/keycloak-webhook", userHandler.KeycloakWebhook)
 	}
 
-	// Realm auto-provisioning — internal only, no auth middleware.
+	// Realm auto-provisioning — internal only, requires bearer token auth.
 	provisionHandler := handler.NewProvisionHandler(
 		cfg.Keycloak.AdminURL,
 		cfg.Keycloak.AdminClientID,
 		cfg.Keycloak.AdminClientSecret,
+		cfg.Keycloak.InternalSecret,
 	)
-	router.POST("/internal/provision-realm", provisionHandler.ProvisionRealm)
+	router.POST("/internal/provision-realm", provisionHandler.RequireInternalAuth, provisionHandler.ProvisionRealm)
 
 	// Create HTTP server
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
