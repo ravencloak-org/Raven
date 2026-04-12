@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "45ad0fb98399",
+  "session_id": "e0b67fff-5c46-4ec7-bad7-744b74d5f40a",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-12T15:05:34.686141Z",
+  "branch": "fix/cr-review-fixes",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "frontend/src/api/billing.ts",
+    "frontend/src/pages/billing/BillingPage.vue",
+    "internal/service/billing.go"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "5dbc6ef3-774f-46a1-8753-8438a02859a7",
+  "checkpoint_transcript_start": 757,
+  "transcript_lines_at_start": 757,
+  "token_usage": {
+    "input_tokens": 9,
+    "cache_creation_tokens": 4167,
+    "cache_read_tokens": 1438991,
+    "output_tokens": 1903,
+    "api_call_count": 7
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-12T15:05:34.536868Z",
+    "agent_lines": 0,
+    "human_added": 32,
+    "human_modified": 9,
+    "human_removed": 0,
+    "total_committed": 40,
+    "agent_percentage": 0
+  }
+}
