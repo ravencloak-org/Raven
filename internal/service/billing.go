@@ -27,6 +27,7 @@ type BillingRepository interface {
 	GetActiveSubscription(ctx context.Context, tx pgx.Tx, orgID string) (*model.Subscription, error)
 	UpdateSubscriptionStatus(ctx context.Context, tx pgx.Tx, orgID, subscriptionID string, status model.SubscriptionStatus) (*model.Subscription, error)
 	ExtendSubscriptionPeriod(ctx context.Context, tx pgx.Tx, hyperswitchID string) (*model.Subscription, error)
+	CreatePaymentIntent(ctx context.Context, tx pgx.Tx, pi *model.PaymentIntent) (*model.PaymentIntent, error)
 	InsertPaymentEvent(ctx context.Context, tx pgx.Tx, orgID, eventType, paymentID, status string, rawPayload []byte) (bool, error)
 }
 
@@ -206,7 +207,6 @@ func (s *BillingService) CreatePaymentIntent(ctx context.Context, orgID string, 
 
 	now := time.Now().UTC()
 	pi := &model.PaymentIntent{
-		ID:                   fmt.Sprintf("pi_%d", now.UnixNano()),
 		OrgID:                orgID,
 		Amount:               req.Amount,
 		Currency:             req.Currency,
@@ -215,7 +215,18 @@ func (s *BillingService) CreatePaymentIntent(ctx context.Context, orgID string, 
 		ClientSecret:         hsResp.ClientSecret,
 		CreatedAt:            now,
 	}
-	return pi, nil
+
+	var result *model.PaymentIntent
+	if err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+		var e error
+		result, e = s.repo.CreatePaymentIntent(ctx, tx, pi)
+		return e
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to persist payment intent", "error", err)
+		return nil, apierror.NewInternal("failed to persist payment intent")
+	}
+
+	return result, nil
 }
 
 // VerifyWebhookSignature verifies the Hyperswitch webhook HMAC-SHA256 signature.

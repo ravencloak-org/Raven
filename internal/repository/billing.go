@@ -64,6 +64,11 @@ const (
 		RETURNING id, org_id, plan_id, status, hyperswitch_subscription_id,
 		          current_period_start, current_period_end, created_at`
 
+	sqlPaymentIntentInsert = `
+		INSERT INTO payment_intents (org_id, amount, currency, status, hyperswitch_payment_id, client_secret, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, org_id, amount, currency, status, hyperswitch_payment_id, client_secret, created_at`
+
 	sqlPaymentEventInsert = `
 		INSERT INTO payment_events (org_id, event_type, payment_id, status, raw_payload)
 		VALUES ($1, $2, $3, $4, $5)
@@ -120,6 +125,34 @@ func (r *BillingRepository) CreateSubscription(ctx context.Context, tx pgx.Tx, s
 		return nil, fmt.Errorf("BillingRepository.CreateSubscription: %w", err)
 	}
 	return result, nil
+}
+
+// CreatePaymentIntent inserts a new payment intent and returns it with DB-assigned fields.
+func (r *BillingRepository) CreatePaymentIntent(ctx context.Context, tx pgx.Tx, pi *model.PaymentIntent) (*model.PaymentIntent, error) {
+	row := tx.QueryRow(ctx, sqlPaymentIntentInsert,
+		pi.OrgID,
+		pi.Amount,
+		pi.Currency,
+		pi.Status,
+		pi.HyperswitchPaymentID,
+		pi.ClientSecret,
+		pi.CreatedAt,
+	)
+	var result model.PaymentIntent
+	err := row.Scan(
+		&result.ID,
+		&result.OrgID,
+		&result.Amount,
+		&result.Currency,
+		&result.Status,
+		&result.HyperswitchPaymentID,
+		&result.ClientSecret,
+		&result.CreatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("BillingRepository.CreatePaymentIntent: %w", err)
+	}
+	return &result, nil
 }
 
 // GetSubscriptionByID retrieves a subscription by primary key within an org.
