@@ -167,6 +167,10 @@ const chatResponse = ref('')
 
 function next(): void {
   if (currentStep.value < TOTAL_STEPS) {
+    // TODO: Wire step submissions to backend APIs:
+    // Step 1 → POST /api/v1/orgs (create org with orgName.value)
+    // Step 2 → POST /api/v1/orgs/:orgId/knowledge-bases (create KB with kbName.value)
+    // Step 3 → POST /api/v1/orgs/:orgId/llm-providers (save provider config)
     currentStep.value++
   }
 }
@@ -178,12 +182,14 @@ function skip(): void {
 }
 
 function finish(): void {
+  // TODO: Validate all resources were created before marking complete
   onboarding.markComplete()
 }
 
 function sendTestMessage(): void {
   if (!chatInput.value.trim()) return
-  chatResponse.value = 'Chatbot ready!'
+  // TODO: Wire to POST /api/v1/chat/:kb_id/completions once KB is created in step 2
+  chatResponse.value = 'This is a preview — the chatbot will respond once setup is complete.'
   chatInput.value = ''
 }
 </script>

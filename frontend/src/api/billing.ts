@@ -64,3 +64,11 @@ export async function getSubscription(_orgId: string): Promise<Subscription> {
   if (!res.ok) throw new Error(`getSubscription failed: ${res.status}`)
   return res.json()
 }
+
+export async function cancelSubscription(subscriptionId: string): Promise<void> {
+  const res = await authFetch(
+    `/billing/subscriptions/${encodeURIComponent(subscriptionId)}`,
+    { method: 'DELETE' },
+  )
+  if (!res.ok) throw new Error(`cancelSubscription failed: ${res.status}`)
+}

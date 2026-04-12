@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useBillingStore } from '../../stores/billing'
+import { cancelSubscription } from '../../api/billing'
 import { useMobile } from '../../composables/useMediaQuery'
 import BottomSheet from '../../components/BottomSheet.vue'
 
@@ -57,9 +58,18 @@ function handleCancelRequest() {
   showCancelConfirm.value = true
 }
 
-function handleCancelConfirmed() {
-  // Placeholder: wire to POST /billing/cancel once backend endpoint exists
-  showCancelConfirm.value = false
+async function handleCancelConfirmed() {
+  try {
+    if (store.subscription?.id) {
+      await cancelSubscription(store.subscription.id)
+      await store.fetchSubscription(orgId)
+      await store.fetchUsage(orgId)
+    }
+  } catch (e) {
+    console.error('Failed to cancel subscription:', e)
+  } finally {
+    showCancelConfirm.value = false
+  }
 }
 </script>
 

@@ -694,16 +694,22 @@ func main() {
 	chatAPI.Use(middleware.APIKeyAuth(&apiKeyLookupAdapter{repo: apiKeyRepo}))
 	chatAPI.Use(middleware.SecurityRulesMiddleware(&securityEvaluatorAdapter{svc: securitySvc}))
 	chatAPI.Use(middleware.StrangerCheck(strangerSvc, valkeyClient))
-	// Stricter widget rate limit for public-facing chatbot endpoints.
-	chatAPI.Use(middleware.ByOrgTier(rl, tierResolver, tierCfg, middleware.RouteGroupWidget))
+	// Don't apply widget rate limit to the group — apply selectively instead.
 	{
-		// Completion endpoint gets the additional per-org completion rate limit.
+		// Completion endpoint gets its own per-org completion rate limit.
 		chatAPI.POST("/:kb_id/completions",
 			middleware.ByOrgTier(rl, tierResolver, tierCfg, middleware.RouteGroupCompletion),
 			chatHandler.StreamCompletion)
-		chatAPI.GET("/:kb_id/sessions", chatHandler.ListSessions)
-		chatAPI.GET("/:kb_id/sessions/:session_id/history", chatHandler.GetHistory)
-		chatAPI.DELETE("/:kb_id/sessions/:session_id", chatHandler.DeleteSession)
+		// Non-completion widget routes get the widget rate limit.
+		chatAPI.GET("/:kb_id/sessions",
+			middleware.ByOrgTier(rl, tierResolver, tierCfg, middleware.RouteGroupWidget),
+			chatHandler.ListSessions)
+		chatAPI.GET("/:kb_id/sessions/:session_id/history",
+			middleware.ByOrgTier(rl, tierResolver, tierCfg, middleware.RouteGroupWidget),
+			chatHandler.GetHistory)
+		chatAPI.DELETE("/:kb_id/sessions/:session_id",
+			middleware.ByOrgTier(rl, tierResolver, tierCfg, middleware.RouteGroupWidget),
+			chatHandler.DeleteSession)
 	}
 
 	// --- Hyperswitch Billing Webhook (public, no JWT — uses HMAC signature verification) ---
