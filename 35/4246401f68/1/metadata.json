@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "354246401f68",
+  "session_id": "e0b67fff-5c46-4ec7-bad7-744b74d5f40a",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-12T14:25:52.215735Z",
+  "branch": "fix/cr-review-fixes",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "frontend/src/router/index.ts",
+    "frontend/src/stores/onboarding.ts",
+    "internal/service/billing_test.go"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "4cf1725a-10ab-419a-802e-94fba1f814c2",
+  "token_usage": {
+    "input_tokens": 91,
+    "cache_creation_tokens": 237999,
+    "cache_read_tokens": 6393113,
+    "output_tokens": 35209,
+    "api_call_count": 67
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-12T14:25:52.137206Z",
+    "agent_lines": 0,
+    "human_added": 471,
+    "human_modified": 25,
+    "human_removed": 0,
+    "total_committed": 485,
+    "agent_percentage": 0
+  }
+}

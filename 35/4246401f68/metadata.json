@@ -3,10 +3,13 @@
   "checkpoint_id": "354246401f68",
   "strategy": "manual-commit",
   "branch": "fix/cr-review-fixes",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     ".claude/settings.local.json",
-    ".mcp.json"
+    ".mcp.json",
+    "frontend/src/router/index.ts",
+    "frontend/src/stores/onboarding.ts",
+    "internal/service/billing_test.go"
   ],
   "sessions": [
     {
@@ -15,13 +18,20 @@
       "context": "/35/4246401f68/0/context.md",
       "content_hash": "/35/4246401f68/0/content_hash.txt",
       "prompt": "/35/4246401f68/0/prompt.txt"
+    },
+    {
+      "metadata": "/35/4246401f68/1/metadata.json",
+      "transcript": "/35/4246401f68/1/full.jsonl",
+      "context": "/35/4246401f68/1/context.md",
+      "content_hash": "/35/4246401f68/1/content_hash.txt",
+      "prompt": "/35/4246401f68/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 2332,
-    "cache_creation_tokens": 178508,
-    "cache_read_tokens": 5021218,
-    "output_tokens": 17308,
-    "api_call_count": 72
+    "input_tokens": 2423,
+    "cache_creation_tokens": 416507,
+    "cache_read_tokens": 11414331,
+    "output_tokens": 52517,
+    "api_call_count": 139
   }
 }
