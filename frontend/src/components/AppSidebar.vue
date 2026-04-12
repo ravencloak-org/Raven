@@ -70,7 +70,7 @@
 
         <!-- Voice Sessions -->
         <RouterLink
-          to="/orgs/_/voice"
+          :to="`${orgPrefix}/voice`"
           :class="[
             'flex items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white',
             mobile
@@ -103,7 +103,7 @@
 
         <!-- Phone Numbers -->
         <RouterLink
-          to="/orgs/_/whatsapp/phone-numbers"
+          :to="`${orgPrefix}/whatsapp/phone-numbers`"
           :class="[
             'flex items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white',
             mobile
@@ -129,7 +129,7 @@
 
         <!-- Calls -->
         <RouterLink
-          to="/orgs/_/whatsapp/calls"
+          :to="`${orgPrefix}/whatsapp/calls`"
           :class="[
             'flex items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white',
             mobile
@@ -160,7 +160,7 @@
 
         <!-- Billing -->
         <RouterLink
-          to="/orgs/_/billing"
+          :to="`${orgPrefix}/billing`"
           :class="[
             'flex items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white',
             mobile
@@ -189,7 +189,12 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
+
+const auth = useAuthStore()
+const orgPrefix = computed(() => `/orgs/${auth.user?.orgId || '_'}`)
 
 defineProps<{
   mobile?: boolean

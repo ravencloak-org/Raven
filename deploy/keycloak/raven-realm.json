@@ -130,9 +130,10 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "protocol": "openid-connect",
-      "rootUrl": "https://raven-frontend.pages.dev",
+      "rootUrl": "https://www.ravencloak.org",
       "baseUrl": "/",
       "redirectUris": [
+        "https://www.ravencloak.org/*",
         "https://raven-frontend.pages.dev/*"
       ],
       "webOrigins": [

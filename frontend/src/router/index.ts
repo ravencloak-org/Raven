@@ -146,22 +146,10 @@ const router = createRouter({
   ],
 })
 
+// No auth guard needed — keycloak.init({ onLoad: 'login-required' })
+// guarantees the user is authenticated before the app mounts.
+// The only guard remaining redirects authenticated users away from /login.
 router.beforeEach(async (to) => {
-  // If the URL contains a Keycloak callback code, let keycloak.init() finish
-  // processing it before we evaluate auth state. Without this guard the router
-  // fires before the token exchange completes and triggers another redirect.
-  if (window.location.href.includes('code=') && window.location.href.includes('state=')) {
-    return
-  }
-
-  if (to.meta.requiresAuth) {
-    const auth = useAuthStore()
-    if (!auth.isAuthenticated) {
-      auth.login()
-      return false
-    }
-  }
-
   if (to.name === 'login') {
     const auth = useAuthStore()
     if (auth.isAuthenticated) {
