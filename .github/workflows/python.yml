@@ -43,7 +43,7 @@ jobs:
       - name: Install dotenvx
         run: curl -sfS https://dotenvx.sh/install.sh | sh
 
-      - run: dotenvx run -f .env.ci -- pytest -v --cov=raven_worker --cov-report=xml --cov-report=term-missing
+      - run: dotenvx run -f ${{ github.workspace }}/.env.ci -- pytest -v --cov=raven_worker --cov-report=xml --cov-report=term-missing
         env:
           DOTENV_PRIVATE_KEY_CI: ${{ secrets.DOTENV_PRIVATE_KEY_CI }}
 
@@ -75,4 +75,4 @@ jobs:
       - name: Run LLM provider smoke tests
         env:
           DOTENV_PRIVATE_KEY_CI: ${{ secrets.DOTENV_PRIVATE_KEY_CI }}
-        run: dotenvx run -f .env.ci -- python -m pytest tests/smoke/ -v --tb=short
+        run: dotenvx run -f ${{ github.workspace }}/.env.ci -- python -m pytest tests/smoke/ -v --tb=short
