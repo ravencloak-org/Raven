@@ -70,5 +70,9 @@ export async function cancelSubscription(subscriptionId: string): Promise<void> 
     `/billing/subscriptions/${encodeURIComponent(subscriptionId)}`,
     { method: 'DELETE' },
   )
-  if (!res.ok) throw new Error(`cancelSubscription failed: ${res.status}`)
+  if (!res.ok) {
+    const body = await res.json().catch(() => null)
+    const detail = body?.detail ?? body?.message ?? `status ${res.status}`
+    throw new Error(detail)
+  }
 }

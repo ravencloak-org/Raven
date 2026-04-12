@@ -221,6 +221,7 @@ async function handleCancelConfirmed() {
           Are you sure you want to cancel your subscription? Your plan will revert to Free at the
           end of the billing period.
         </p>
+        <p v-if="cancelError" class="text-sm text-red-400">{{ cancelError }}</p>
         <div class="flex flex-col gap-2">
           <button
             class="w-full min-h-[48px] rounded-xl bg-red-600 text-sm font-semibold text-white hover:bg-red-500"

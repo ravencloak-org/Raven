@@ -235,8 +235,11 @@ func (s *BillingService) CreatePaymentIntent(ctx context.Context, orgID string, 
 		return e
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to persist payment intent", "error", err)
-		// Best-effort cancel the orphaned Hyperswitch payment.
-		if cancelErr := s.hsClient.CancelPayment(ctx, hsResp.PaymentID); cancelErr != nil {
+		// Best-effort cancel the orphaned Hyperswitch payment with a fresh
+		// context — the original ctx may already be canceled/timed out.
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if cancelErr := s.hsClient.CancelPayment(cleanupCtx, hsResp.PaymentID); cancelErr != nil {
 			slog.ErrorContext(ctx, "failed to cancel orphaned Hyperswitch payment", "payment_id", hsResp.PaymentID, "error", cancelErr)
 		}
 		return nil, apierror.NewInternal("failed to persist payment intent")
