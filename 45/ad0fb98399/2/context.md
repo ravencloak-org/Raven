@@ -1,0 +1,41 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+where are we with the dotenvx integration in the go code?
+
+### Prompt 2
+
+but to access it you need to add it in the library https://dotenvx.com/docs/secrets-in-go
+
+### Prompt 3
+
+what about this? https://dotenvx.com/docs/secrets-in-go#3-inject
+
+### Prompt 4
+
+main should be something like this package main
+
+import (
+  "fmt"
+  "os"
+)
+
+func main() {
+  fmt.Printf("HELLO: %s\n", os.Getenv("HELLO"))
+} dotenvx run -- go run main.go
+
+### Prompt 5
+
+add  these in our docker compose and github maybe to make it production ready https://dotenvx.com/docs/cis/github-actions
+
+### Prompt 6
+
+https://dotenvx.com/docs/platforms/docker-compose
+
+### Prompt 7
+
+rebase from origin main and commit on feature/ops/... branch
+

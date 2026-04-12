@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "45ad0fb98399",
+  "session_id": "f19aadcf-f9ec-4409-bd21-e4546e0b0eb1",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-12T23:41:53.697944Z",
+  "branch": "feat/ops/dotenvx-ci-docker",
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".dockerignore",
+    ".env.ci",
+    ".github/workflows/docker.yml",
+    ".github/workflows/go.yml",
+    ".github/workflows/python.yml",
+    ".gitignore",
+    "ai-worker/.dockerignore",
+    "docker-compose.yml"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "cdaa7fb5-ed34-4b81-aee5-3f5ca19ec3e3",
+  "token_usage": {
+    "input_tokens": 77,
+    "cache_creation_tokens": 143569,
+    "cache_read_tokens": 3617877,
+    "output_tokens": 13495,
+    "api_call_count": 53
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-12T23:41:53.651218Z",
+    "agent_lines": 92,
+    "human_added": 25,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 117,
+    "agent_percentage": 78.63247863247864
+  }
+}
