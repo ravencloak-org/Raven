@@ -1,5 +1,5 @@
 -- +goose Up
--- Issue #192 — Hyperswitch + Razorpay payment integration: payment_intents table + subscriptions RLS.
+-- Issue #192 — Hyperswitch + Razorpay payment integration: payment_intents table.
 --
 -- Tracks one-off payment intents created via Hyperswitch. The hyperswitch_payment_id
 -- column is used as an idempotency key so that duplicate webhook events (replays)
@@ -45,25 +45,7 @@ ALTER TABLE payment_intents ENABLE ROW LEVEL SECURITY;
 CREATE POLICY payment_intents_org_isolation ON payment_intents
     USING (org_id = nullif(current_setting('app.current_org_id', true), '')::uuid);
 
--- Backfill RLS on subscriptions (was missing from 00019).
---
--- Webhook handlers (handlePaymentSucceeded, handlePaymentFailed, etc.) look up
--- subscriptions by Hyperswitch ID without knowing the org, so they run directly
--- on the pool as the raven superuser. Superusers bypass ENABLE ROW LEVEL SECURITY
--- by default (only FORCE ROW LEVEL SECURITY would require an explicit bypass policy).
--- If the app role is ever changed to a non-superuser, add a BYPASSRLS grant or a
--- separate permissive policy for the service role.
-ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
-
--- nullif guards against the empty-string case when app.current_org_id is not set,
--- which would otherwise cause an invalid UUID cast error for non-superuser roles.
-CREATE POLICY subscriptions_org_isolation ON subscriptions
-    USING (nullif(current_setting('app.current_org_id', true), '')::uuid = org_id);
-
 -- +goose Down
-DROP POLICY IF EXISTS subscriptions_org_isolation ON subscriptions;
-ALTER TABLE subscriptions DISABLE ROW LEVEL SECURITY;
-
 DROP TRIGGER IF EXISTS trg_payment_intents_updated_at ON payment_intents;
 DROP POLICY IF EXISTS payment_intents_org_isolation ON payment_intents;
 DROP INDEX IF EXISTS idx_payment_intents_hs_payment_id;
