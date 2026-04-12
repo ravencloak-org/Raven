@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "6d982aba1f84",
+  "session_id": "622fd2c2-651a-482c-910c-823866b1cc5a",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-12T13:13:10.808452Z",
+  "branch": "fix/keycloak-cloudflare-auth",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "deploy/keycloak/raven-realm.json",
+    "frontend/src/components/AppSidebar.vue",
+    "frontend/src/stores/auth.ts"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "03d0babd-9321-46eb-a339-4cb359c52f40",
+  "token_usage": {
+    "input_tokens": 6269,
+    "cache_creation_tokens": 240780,
+    "cache_read_tokens": 8305785,
+    "output_tokens": 44059,
+    "api_call_count": 99
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-12T13:13:10.699652Z",
+    "agent_lines": 37,
+    "human_added": 320,
+    "human_modified": 15,
+    "human_removed": 0,
+    "total_committed": 372,
+    "agent_percentage": 9.946236559139784
+  }
+}

@@ -1,0 +1,21 @@
+Use playright Chrome extension to actually debug the application that is deployed at wave and clock dot org. It's not up to par; half of the things don't work.
+
+---
+
+https://www.ravencloak.org/
+
+---
+
+what's the username and password?
+
+---
+
+ssh ubuntu@ec2-65-0-85-115.ap-south-1.compute.amazonaws.com and find it for me
+
+---
+
+create the required stuff now that you can caccess
+
+---
+
+yes
