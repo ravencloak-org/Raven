@@ -548,3 +548,70 @@ transforming...✓ 301 modules transformed.
 ---
 
 it doesn't allow to be kept empty
+
+---
+
+19:13:52.071      main = "src/index.ts"
+19:13:52.072      
+19:13:52.072      ```
+19:13:52.074      
+19:13:52.074      
+19:13:52.074      If are uploading a directory of assets, you can either:
+19:13:52.074      - Specify the path to the directory of assets via the command line: (ex: `npx wrangler versions upload --assets=./dist`)
+19:13:52.074      - Or add the following to your "wrangler.toml" file:
+19:13:52.075      
+19:13:52.075      ```
+19:13:52.075      compatibility_date = "2026-04-13"
+19:13:52.076      
+19:13:52.076      [assets]
+19:13:52.076      directory = "./dist"
+19:13:52.076      
+19:13:52.076      ```
+19:13:52.077      
+19:13:52.077    
+19:13:52.077    
+19:13:52.149    🪵  Logs were written to "/opt/buildhome/.config/.wrangler/logs/wrangler-2026-04-13_13-43-51_193.log"
+19:13:52.280    Failed: error occurred while running deploy command
+
+---
+
+not working,  raven git:(feat/zitadel-migration) ✗ npx wrangler dev
+
+ ⛅️ wrangler 4.82.0
+───────────────────
+
+✘ [ERROR] Missing entry-point to Worker script or to assets directory
+
+
+  If there is code to deploy, you can either:
+  - Specify an entry-point to your Worker script via the command line (ex: `npx wrangler dev
+  src/index.ts`)
+  - Or create a "wrangler.jsonc" file containing:
+
+  ```
+  {
+    "name": "worker-name",
+    "compatibility_date": "2026-04-13",
+    "main": "src/index.ts"
+  }
+  ```
+
+
+  If are uploading a directory of assets, you can either:
+  - Specify the path to the directory of assets via the command line: (ex: `npx wrangler dev
+  --assets=./dist`)
+  - Or create a "wrangler.jsonc" file containing:
+
+  ```
+  {
+    "name": "worker-name",
+    "compatibility_date": "2026-04-13",
+    "assets": {
+      "directory": "./dist"
+    }
+  }
+  ```
+
+
+
+🪵  Logs were written to "/Users/jobinlawrance/Library/Preferences/.wrangler/logs/wrangler-2026-04-13_13-51-34_861.log"

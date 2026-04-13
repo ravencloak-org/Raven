@@ -86,3 +86,38 @@ Initializing build environment...
 
 it doesn't allow to be kept empty
 
+### Prompt 15
+
+19:13:52.071      main = "src/index.ts"
+19:13:52.072      
+19:13:52.072      ```
+19:13:52.074      
+19:13:52.074      
+19:13:52.074      If are uploading a directory of assets, you can either:
+19:13:52.074      - Specify the path to the directory of assets via the command line: (ex: `npx wrangler versions upload --assets=./dist`)
+19:13:52.074      - Or add the following to your "wrangler.toml" file:
+19:13:52.075      
+19:13:52.075      ```
+19:13:52.075      compatibility_date = "2026-04-13"
+19:1...
+
+### Prompt 16
+
+not working,  raven git:(feat/zitadel-migration) ✗ npx wrangler dev
+
+ ⛅️ wrangler 4.82.0
+───────────────────
+
+✘ [ERROR] Missing entry-point to Worker script or to assets directory
+
+
+  If there is code to deploy, you can either:
+  - Specify an entry-point to your Worker script via the command line (ex: `npx wrangler dev
+  src/index.ts`)
+  - Or create a "wrangler.jsonc" file containing:
+
+  ```
+  {
+    "name": "worker-name",
+    "compatibility_date": "2...
+
