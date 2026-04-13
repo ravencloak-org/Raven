@@ -721,11 +721,11 @@ func main() {
 	router.GET("/webhooks/meta", metaWebhookHandler.VerifyWebhook)
 	router.POST("/webhooks/meta", metaWebhookHandler.HandleEvent)
 
-	// Internal routes — no JWT, no rate limiting.
-	// Must only be reachable from the compose-internal network (enforce via firewall/network policy).
-	internal := router.Group("/api/v1/internal")
+	// Auth routes (authenticated via JWT but org not required — pre-onboarding users).
+	authHandler := handler.NewAuthHandler(userSvc)
+	authGroup := api.Group("/auth")
 	{
-		internal.POST("/keycloak-webhook", userHandler.KeycloakWebhook)
+		authGroup.POST("/callback", authHandler.Callback)
 	}
 
 	// Realm auto-provisioning — internal only, requires bearer token auth.
