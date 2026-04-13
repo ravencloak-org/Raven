@@ -1,0 +1,7 @@
+/* landing/src/input.css */
+@import "tailwindcss";
+@source "../";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
