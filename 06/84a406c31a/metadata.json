@@ -5,15 +5,11 @@
   "branch": "feat/ops/dotenvx-ci-docker",
   "checkpoints_count": 1,
   "files_touched": [
-    ".dockerignore",
-    ".github/workflows/docker.yml",
     ".github/workflows/go.yml",
     ".github/workflows/python.yml",
     "Dockerfile",
-    "Makefile",
-    "ai-worker/.dockerignore",
     "ai-worker/Dockerfile",
-    "docker-compose.yml"
+    "docs/superpowers/plans/2026-04-13-raven-landing-page.md"
   ],
   "sessions": [
     {
@@ -25,10 +21,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 49,
-    "cache_creation_tokens": 29494,
-    "cache_read_tokens": 5226444,
-    "output_tokens": 11891,
-    "api_call_count": 41
+    "input_tokens": 15,
+    "cache_creation_tokens": 13484,
+    "cache_read_tokens": 1931120,
+    "output_tokens": 2194,
+    "api_call_count": 13
   }
 }
