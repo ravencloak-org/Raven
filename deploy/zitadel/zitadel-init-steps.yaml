@@ -1,0 +1,28 @@
+# deploy/zitadel/zitadel-init-steps.yaml
+FirstInstance:
+  Org:
+    Human:
+      UserName: "admin@ravencloak.org"
+      FirstName: "Raven"
+      LastName: "Admin"
+      Password: "RavenAdmin1!"  # Change on first login
+    Machine:
+      UserName: "raven-api"
+      Name: "Raven API Service User"
+      PAT:
+        ExpirationDate: "2030-01-01T00:00:00Z"
+  OIDCApp:
+    Name: "raven-app"
+    RedirectURIs:
+      - "https://app.ravencloak.org/callback"
+      - "http://localhost:5173/callback"
+    PostLogoutRedirectURIs:
+      - "https://app.ravencloak.org"
+      - "http://localhost:5173"
+    ResponseTypes:
+      - "OIDC_RESPONSE_TYPE_CODE"
+    GrantTypes:
+      - "OIDC_GRANT_TYPE_AUTHORIZATION_CODE"
+    AuthMethodType: "OIDC_AUTH_METHOD_TYPE_NONE"
+    AppType: "OIDC_APP_TYPE_USER_AGENT"
+    DevMode: true
