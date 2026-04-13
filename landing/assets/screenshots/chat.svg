@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" fill="none">
+  <rect width="1280" height="720" rx="16" fill="#171717"/>
+  <rect x="440" y="310" width="400" height="40" rx="8" fill="#262626"/>
+  <text x="640" y="338" font-family="system-ui" font-size="16" fill="#737373" text-anchor="middle">AI Chat Interface</text>
+</svg>

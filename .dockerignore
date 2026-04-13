@@ -1,0 +1,17 @@
+# Environment files — never bake into images
+.env
+.env.ci
+.env.keys
+.env.local
+.env.secrets
+.env.*.local
+
+# Git
+.git
+.gitignore
+
+# CI/IDE
+.github
+.claude
+.serena
+.vscode

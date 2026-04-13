@@ -37,6 +37,9 @@ jobs:
 
       - run: go mod download
 
+      - name: Install dotenvx
+        run: curl -sfS https://dotenvx.sh | sh
+
       - name: Install eBPF build tools
         run: sudo apt-get install -y clang llvm libbpf-dev linux-tools-$(uname -r) || sudo apt-get install -y clang llvm libbpf-dev
 
@@ -45,12 +48,27 @@ jobs:
 
       - run: CGO_ENABLED=1 go build ./cmd/api
 
-      - run: go test -race -timeout 30m -coverprofile=coverage.txt ./...
+      - name: Run tests
+        run: |
+          if [ -n "$DOTENV_PRIVATE_KEY_CI" ]; then
+            dotenvx run -f .env.ci -- go test -race -timeout 30m -coverprofile=coverage.txt ./...
+          else
+            echo "::warning::DOTENV_PRIVATE_KEY_CI not set (fork PR?) — running tests without dotenvx"
+            go test -race -timeout 30m -coverprofile=coverage.txt ./...
+          fi
         env:
+          DOTENV_PRIVATE_KEY_CI: ${{ secrets.DOTENV_PRIVATE_KEY_CI }}
           TESTCONTAINERS_RYUK_DISABLED: "true"
 
-      - run: go test -race -run '^TestMigrationsUpAndDown$' ./migrations/...
+      - name: Run migration tests
+        run: |
+          if [ -n "$DOTENV_PRIVATE_KEY_CI" ]; then
+            dotenvx run -f .env.ci -- go test -race -run '^TestMigrationsUpAndDown$' ./migrations/...
+          else
+            go test -race -run '^TestMigrationsUpAndDown$' ./migrations/...
+          fi
         env:
+          DOTENV_PRIVATE_KEY_CI: ${{ secrets.DOTENV_PRIVATE_KEY_CI }}
           TESTCONTAINERS_RYUK_DISABLED: "true"
 
       - uses: codecov/codecov-action@v6
