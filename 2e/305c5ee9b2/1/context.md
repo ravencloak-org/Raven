@@ -36,3 +36,11 @@ https://github.REDACTED?pr=288
 
 https://github.com/ravencloak-org/Raven/pull/288#discussion_r3073034657
 
+### Prompt 8
+
+use cf cli to deploy and point
+
+### Prompt 9
+
+fix  all the comments right now in the PR
+

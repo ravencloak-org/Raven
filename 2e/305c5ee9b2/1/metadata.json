@@ -3,44 +3,45 @@
   "checkpoint_id": "2e305c5ee9b2",
   "session_id": "c9ce9215-d1ba-4965-83fd-eba9b611dad2",
   "strategy": "manual-commit",
-  "created_at": "2026-04-13T13:03:30.805339Z",
+  "created_at": "2026-04-13T13:28:04.50943Z",
   "branch": "feat/zitadel-migration",
   "checkpoints_count": 1,
   "files_touched": [
     ".env.example",
     ".github/workflows/pages.yml",
+    "bun.lock",
     "deploy/cloudflare-pages.json",
     "deploy/zitadel/zitadel-init-steps.yaml",
     "docker-compose.yml",
     "frontend/e2e/auth.spec.ts",
     "frontend/e2e/mobile/login.spec.ts",
     "frontend/e2e/orgs.spec.ts",
-    "frontend/playwright-report/index.html",
     "frontend/src/pages/LoginPage.vue",
     "frontend/src/pages/callback/CallbackPage.vue",
     "frontend/src/pages/onboarding/OnboardingWizard.vue",
     "frontend/src/router/index.ts",
     "frontend/src/stores/auth.spec.ts",
-    "frontend/src/stores/auth.ts"
+    "frontend/src/stores/auth.ts",
+    "package.json"
   ],
   "agent": "Claude Code",
-  "transcript_identifier_at_start": "fe481425-5cb5-4873-b972-c3c65586708b",
-  "checkpoint_transcript_start": 494,
-  "transcript_lines_at_start": 494,
+  "transcript_identifier_at_start": "7c5a90de-687a-4078-b1d8-42cccd113c87",
+  "checkpoint_transcript_start": 707,
+  "transcript_lines_at_start": 707,
   "token_usage": {
-    "input_tokens": 49,
-    "cache_creation_tokens": 258895,
-    "cache_read_tokens": 7823824,
-    "output_tokens": 16718,
-    "api_call_count": 37
+    "input_tokens": 52,
+    "cache_creation_tokens": 275201,
+    "cache_read_tokens": 9703446,
+    "output_tokens": 11857,
+    "api_call_count": 40
   },
   "initial_attribution": {
-    "calculated_at": "2026-04-13T13:03:30.604413Z",
-    "agent_lines": 19,
+    "calculated_at": "2026-04-13T13:28:04.341165Z",
+    "agent_lines": 12,
     "human_added": 0,
-    "human_modified": 61,
-    "human_removed": 36,
-    "total_committed": 80,
-    "agent_percentage": 23.75
+    "human_modified": 21,
+    "human_removed": 177,
+    "total_committed": 33,
+    "agent_percentage": 36.36363636363637
   }
 }
