@@ -12,8 +12,13 @@ RUN pip install --no-cache-dir --prefix=/install .
 FROM python:3.14-slim
 
 ARG DOTENVX_VERSION=1.61.0
+ARG DOTENVX_SHA256=58fe4a5f84af835dce71e9e09bda47e7d54f0dc5b302bbf4f50224cc906646d3
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
-    && curl -sfS "https://dotenvx.sh/install.sh?version=${DOTENVX_VERSION}" | sh \
+    && curl -sL -o /tmp/dotenvx.tar.gz "https://github.com/dotenvx/dotenvx/releases/download/v${DOTENVX_VERSION}/dotenvx-${DOTENVX_VERSION}-linux-amd64.tar.gz" \
+    && echo "${DOTENVX_SHA256}  /tmp/dotenvx.tar.gz" | sha256sum -c - \
+    && tar -xzf /tmp/dotenvx.tar.gz -C /usr/local/bin dotenvx \
+    && chmod 755 /usr/local/bin/dotenvx \
+    && rm /tmp/dotenvx.tar.gz \
     && apt-get purge -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 1000 raven \
     && useradd --uid 1000 --gid raven --create-home raven
