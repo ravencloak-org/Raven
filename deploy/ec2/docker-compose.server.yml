@@ -103,6 +103,24 @@ services:
       - raven-net
     restart: unless-stopped
 
+  # ─── Zitadel PostgreSQL (separate PG16 — Zitadel needs UNLOGGED partitioned tables) ─
+  zitadel-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: zitadel
+      POSTGRES_USER: zitadel
+      POSTGRES_PASSWORD: ${ZITADEL_DB_PASSWORD:-zitadel}
+    volumes:
+      - zitadel-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zitadel -d zitadel"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - raven-net
+    restart: unless-stopped
+
   # ─── Zitadel IAM ──────────────────────────────────────────────────────────
   zitadel:
     image: ghcr.io/zitadel/zitadel:v2.71.12
@@ -119,7 +137,7 @@ services:
       - ../../deploy/zitadel/zitadel-config.yaml:/zitadel-config.yaml:ro
       - ../../deploy/zitadel/zitadel-init-steps.yaml:/zitadel-init-steps.yaml:ro
     depends_on:
-      postgres:
+      zitadel-db:
         condition: service_healthy
     networks:
       - raven-net
@@ -128,15 +146,15 @@ services:
       - ZITADEL_EXTERNALDOMAIN=${ZITADEL_EXTERNALDOMAIN:-auth.ravencloak.org}
       - ZITADEL_EXTERNALPORT=${ZITADEL_EXTERNALPORT:-443}
       - ZITADEL_EXTERNALSECURE=${ZITADEL_EXTERNALSECURE:-true}
-      - ZITADEL_DATABASE_POSTGRES_HOST=postgres
+      - ZITADEL_DATABASE_POSTGRES_HOST=zitadel-db
       - ZITADEL_DATABASE_POSTGRES_PORT=5432
       - ZITADEL_DATABASE_POSTGRES_DATABASE=zitadel
       - ZITADEL_DATABASE_POSTGRES_USER_USERNAME=zitadel
       - ZITADEL_DATABASE_POSTGRES_USER_PASSWORD=${ZITADEL_DB_PASSWORD:-zitadel}
-      - ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME=${POSTGRES_USER:-raven}
-      - ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD=${POSTGRES_PASSWORD}
+      - ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME=zitadel
+      - ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD=${ZITADEL_DB_PASSWORD:-zitadel}
     healthcheck:
-      test: ["CMD", "sh", "-c", "cat < /dev/tcp/localhost/8080"]
+      test: ["CMD", "/app/zitadel", "ready"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -189,6 +207,7 @@ services:
 # ─── Volumes ──────────────────────────────────────────────────────────────────
 volumes:
   pg-data:
+  zitadel-pg-data:
   seaweedfs-data:
   valkey-data:
   openobserve-data:
