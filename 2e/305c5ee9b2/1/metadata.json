@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "2e305c5ee9b2",
+  "session_id": "c9ce9215-d1ba-4965-83fd-eba9b611dad2",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-13T12:30:48.754228Z",
+  "branch": "feat/zitadel-migration",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "frontend/src/router/index.ts",
+    "internal/handler/auth.go"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 559,
+    "cache_creation_tokens": 207536,
+    "cache_read_tokens": 5837324,
+    "output_tokens": 43378,
+    "api_call_count": 54
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-13T12:30:48.592787Z",
+    "agent_lines": 95,
+    "human_added": 661,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 756,
+    "agent_percentage": 12.566137566137566
+  }
+}
