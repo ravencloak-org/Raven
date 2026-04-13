@@ -27,17 +27,21 @@ services:
     image: ${GO_API_IMAGE:-ghcr.io/ravencloak-org/go-api:latest}
     # Bind to loopback only — cloudflared reaches it, internet cannot.
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8081:8081"
     env_file: .env.server
+    environment:
+      ZITADEL_EXTERNALDOMAIN: ${ZITADEL_EXTERNALDOMAIN:-auth.ravencloak.org}
+      ZITADEL_CLIENT_ID: ${ZITADEL_CLIENT_ID}
+      ZITADEL_EXTERNALSECURE: "true"
     depends_on:
       postgres:
         condition: service_healthy
       valkey:
         condition: service_healthy
-      keycloak:
-        condition: service_started
+      zitadel:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/healthz"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -99,40 +103,44 @@ services:
       - raven-net
     restart: unless-stopped
 
-  # ─── Keycloak IAM ─────────────────────────────────────────────────────────
-  keycloak:
-    image: quay.io/keycloak/keycloak:26.2
-    # start-dev is fine for staging; switch to 'start --optimized' for hardened prod
-    command: start-dev --import-realm
-    environment:
-      KC_DB: postgres
-      KC_DB_URL: ${KC_DB_URL:-jdbc:postgresql://postgres:5432/keycloak}
-      KC_DB_USERNAME: ${KC_DB_USERNAME:-raven}
-      KC_DB_PASSWORD: ${KC_DB_PASSWORD:?KC_DB_PASSWORD is required}
-      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?KEYCLOAK_ADMIN_PASSWORD is required}
-      # Cloudflare Tunnel terminates TLS — Keycloak is behind a proxy.
-      # KC_HOSTNAME accepts a full URL in KC 26 so the issuer, auth
-      # endpoints and redirect URIs all use https:// without port leakage.
-      KC_PROXY_HEADERS: xforwarded
-      KC_HTTP_ENABLED: "true"
-      KC_HOSTNAME: https://${KC_HOSTNAME}
-      KC_HOSTNAME_ADMIN: https://${KC_HOSTNAME}
-      # HOSTNAME_STRICT=false is safe here: Cloudflare Tunnel is the only ingress
-      # (no ports are exposed to the public internet), so hostname spoofing is not possible.
-      KC_HOSTNAME_STRICT: "false"
-    # Bind to loopback — cloudflared reaches it at /auth path
+  # ─── Zitadel IAM ──────────────────────────────────────────────────────────
+  zitadel:
+    image: ghcr.io/zitadel/zitadel:v2.71.12
+    restart: always
+    command: >
+      start-from-init
+      --config /zitadel-config.yaml
+      --steps /zitadel-init-steps.yaml
+      --masterkey "${ZITADEL_MASTERKEY}"
+      --tlsMode disabled
     ports:
       - "127.0.0.1:8180:8080"
     volumes:
-      - ../../deploy/keycloak:/opt/keycloak/data/import:ro
-      - kc-data:/opt/keycloak/data
+      - ../../deploy/zitadel/zitadel-config.yaml:/zitadel-config.yaml:ro
+      - ../../deploy/zitadel/zitadel-init-steps.yaml:/zitadel-init-steps.yaml:ro
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - raven-net
-    restart: unless-stopped
+    environment:
+      - ZITADEL_MASTERKEY=${ZITADEL_MASTERKEY}
+      - ZITADEL_EXTERNALDOMAIN=${ZITADEL_EXTERNALDOMAIN:-auth.ravencloak.org}
+      - ZITADEL_EXTERNALPORT=${ZITADEL_EXTERNALPORT:-443}
+      - ZITADEL_EXTERNALSECURE=${ZITADEL_EXTERNALSECURE:-true}
+      - ZITADEL_DATABASE_POSTGRES_HOST=postgres
+      - ZITADEL_DATABASE_POSTGRES_PORT=5432
+      - ZITADEL_DATABASE_POSTGRES_DATABASE=zitadel
+      - ZITADEL_DATABASE_POSTGRES_USER_USERNAME=zitadel
+      - ZITADEL_DATABASE_POSTGRES_USER_PASSWORD=${ZITADEL_DB_PASSWORD:-zitadel}
+      - ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME=${POSTGRES_USER:-raven}
+      - ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD=${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD", "/app/zitadel", "ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # ─── SeaweedFS (object storage) ───────────────────────────────────────────
   seaweedfs-master:
@@ -181,7 +189,6 @@ services:
 # ─── Volumes ──────────────────────────────────────────────────────────────────
 volumes:
   pg-data:
-  kc-data:
   seaweedfs-data:
   valkey-data:
   openobserve-data:
