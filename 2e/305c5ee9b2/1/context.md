@@ -192,3 +192,19 @@ https://github.com/ravencloak-org/Raven/pull/288#discussion_r3073459071
 
 https://github.com/ravencloak-org/Raven/pull/288#discussion_r3073459081
 
+### Prompt 32
+
+fix cf
+
+### Prompt 33
+
+check if it's working
+
+### Prompt 34
+
+is backend up as well? is the demo pages functioning?
+
+### Prompt 35
+
+https://github.com/ravencloak-org/Raven/pull/288#discussion_r3074766619
+
