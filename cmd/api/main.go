@@ -728,15 +728,6 @@ func main() {
 		authGroup.POST("/callback", authHandler.Callback)
 	}
 
-	// Realm auto-provisioning — internal only, requires bearer token auth.
-	provisionHandler := handler.NewProvisionHandler(
-		cfg.Keycloak.AdminURL,
-		cfg.Keycloak.AdminClientID,
-		cfg.Keycloak.AdminClientSecret,
-		cfg.Keycloak.InternalSecret,
-	)
-	router.POST("/internal/provision-realm", provisionHandler.RequireInternalAuth, provisionHandler.ProvisionRealm)
-
 	// Create HTTP server
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	srv := &http.Server{
