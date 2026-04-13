@@ -169,13 +169,13 @@ func TestRLS_MigrationVersion_AllApplied(t *testing.T) {
 	pool := testutil.NewTestDB(t)
 	ctx := context.Background()
 
-	// All 32 SQL migrations must be applied.
+	// All 34 SQL migrations must be applied.
 	var maxVersion int64
 	err := pool.QueryRow(ctx,
 		"SELECT MAX(version_id) FROM goose_db_version WHERE is_applied = true",
 	).Scan(&maxVersion)
 	require.NoError(t, err)
-	assert.EqualValues(t, 33, maxVersion, "all 33 migrations must be applied cleanly")
+	assert.EqualValues(t, 34, maxVersion, "all 34 migrations must be applied cleanly")
 
 	// Spot-check critical tables exist.
 	for _, table := range []string{
