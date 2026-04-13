@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import { useAuthStore } from './auth'
 
-const mockUser = {
+const mockUser = vi.hoisted(() => ({
   access_token: 'mock-access-token',
   expired: false,
   profile: {
@@ -11,17 +10,23 @@ const mockUser = {
     preferred_username: 'testuser',
     name: 'Test User',
   },
-}
-
-vi.mock('oidc-client-ts', () => ({
-  UserManager: vi.fn().mockImplementation(() => ({
-    getUser: vi.fn().mockResolvedValue(mockUser),
-    signinRedirect: vi.fn(),
-    signinRedirectCallback: vi.fn().mockResolvedValue(mockUser),
-    signoutRedirect: vi.fn(),
-  })),
-  WebStorageStateStore: vi.fn().mockImplementation(() => ({})),
 }))
+
+vi.mock('oidc-client-ts', () => {
+  class MockWebStorageStateStore {}
+  class MockUserManager {
+    getUser = vi.fn().mockResolvedValue(mockUser)
+    signinRedirect = vi.fn()
+    signinRedirectCallback = vi.fn().mockResolvedValue(mockUser)
+    signoutRedirect = vi.fn()
+  }
+  return {
+    UserManager: MockUserManager,
+    WebStorageStateStore: MockWebStorageStateStore,
+  }
+})
+
+import { useAuthStore } from './auth'
 
 describe('useAuthStore', () => {
   beforeEach(() => {
