@@ -5,11 +5,25 @@
   "branch": "feat/zitadel-migration",
   "checkpoints_count": 2,
   "files_touched": [
+    ".env.example",
     ".env.keys",
+    ".github/workflows/pages.yml",
     ".serena/memories/codebase_structure.md",
     ".serena/memories/services_and_ports.md",
     ".serena/memories/task_completion_checklist.md",
-    "frontend/src/stores/auth.spec.ts"
+    "deploy/cloudflare-pages.json",
+    "deploy/zitadel/zitadel-init-steps.yaml",
+    "docker-compose.yml",
+    "frontend/e2e/auth.spec.ts",
+    "frontend/e2e/mobile/login.spec.ts",
+    "frontend/e2e/orgs.spec.ts",
+    "frontend/playwright-report/index.html",
+    "frontend/src/pages/LoginPage.vue",
+    "frontend/src/pages/callback/CallbackPage.vue",
+    "frontend/src/pages/onboarding/OnboardingWizard.vue",
+    "frontend/src/router/index.ts",
+    "frontend/src/stores/auth.spec.ts",
+    "frontend/src/stores/auth.ts"
   ],
   "sessions": [
     {
@@ -28,10 +42,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 15,
-    "cache_creation_tokens": 8976,
-    "cache_read_tokens": 2378776,
-    "output_tokens": 3536,
-    "api_call_count": 11
+    "input_tokens": 54,
+    "cache_creation_tokens": 259931,
+    "cache_read_tokens": 8715824,
+    "output_tokens": 17342,
+    "api_call_count": 40
   }
 }
