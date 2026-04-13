@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "99c828c3003a",
+  "session_id": "96f59fa8-7d26-4db6-b7a5-188ef7c09257",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-13T11:21:11.879886Z",
+  "branch": "feat/landing-page-redesign",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".claude/settings.local.json",
+    ".mcp.json",
+    ".superpowers/brainstorm/16951-1776004641/hero-layout.html",
+    ".superpowers/brainstorm/27124-1776011353/hero-layout.html",
+    "docs/superpowers/plans/2026-04-13-raven-landing-page.md",
+    "docs/superpowers/specs/2026-04-13-raven-landing-page-design.md",
+    "docs/superpowers/specs/2026-04-13-zitadel-migration-design.md",
+    "landing/src/input.css"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "79c260e1-6311-469d-bcc3-18eac174b6e2",
+  "checkpoint_transcript_start": 880,
+  "transcript_lines_at_start": 880,
+  "token_usage": {
+    "input_tokens": 109,
+    "cache_creation_tokens": 282631,
+    "cache_read_tokens": 18773023,
+    "output_tokens": 28344,
+    "api_call_count": 76
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-13T11:21:11.66921Z",
+    "agent_lines": 370,
+    "human_added": 0,
+    "human_modified": 87,
+    "human_removed": 426,
+    "total_committed": 457,
+    "agent_percentage": 80.96280087527352
+  }
+}

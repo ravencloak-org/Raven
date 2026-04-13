@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "99c828c3003a",
+  "strategy": "manual-commit",
+  "branch": "feat/landing-page-redesign",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".claude/settings.local.json",
+    ".mcp.json",
+    ".superpowers/brainstorm/16951-1776004641/hero-layout.html",
+    ".superpowers/brainstorm/27124-1776011353/hero-layout.html",
+    "docs/superpowers/plans/2026-04-13-raven-landing-page.md",
+    "docs/superpowers/specs/2026-04-13-raven-landing-page-design.md",
+    "docs/superpowers/specs/2026-04-13-zitadel-migration-design.md",
+    "landing/src/input.css"
+  ],
+  "sessions": [
+    {
+      "metadata": "/99/c828c3003a/0/metadata.json",
+      "transcript": "/99/c828c3003a/0/full.jsonl",
+      "context": "/99/c828c3003a/0/context.md",
+      "content_hash": "/99/c828c3003a/0/content_hash.txt",
+      "prompt": "/99/c828c3003a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 109,
+    "cache_creation_tokens": 282631,
+    "cache_read_tokens": 18773023,
+    "output_tokens": 28344,
+    "api_call_count": 76
+  }
+}
