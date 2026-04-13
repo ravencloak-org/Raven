@@ -28,7 +28,9 @@ swagger:
 	swag init -g cmd/api/main.go --output docs/swagger --parseDependency --parseInternal
 
 compose:
+	@if [ -f ./.env.keys ]; then set -a; . ./.env.keys; set +a; fi; \
 	dotenvx run -- docker compose up --build
 
 compose-down:
+	@if [ -f ./.env.keys ]; then set -a; . ./.env.keys; set +a; fi; \
 	docker compose down

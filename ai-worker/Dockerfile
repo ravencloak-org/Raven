@@ -11,8 +11,9 @@ RUN pip install --no-cache-dir --prefix=/install .
 # ---------------------------------------------------------------------------
 FROM python:3.14-slim
 
+ARG DOTENVX_VERSION=1.61.0
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
-    && curl -sfS https://dotenvx.sh | sh \
+    && curl -sfS "https://dotenvx.sh/install.sh?version=v${DOTENVX_VERSION}" | sh \
     && apt-get purge -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 1000 raven \
     && useradd --uid 1000 --gid raven --create-home raven

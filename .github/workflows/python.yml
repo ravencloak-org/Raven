@@ -41,9 +41,16 @@ jobs:
       - run: mypy raven_worker
 
       - name: Install dotenvx
-        run: curl -sfS https://dotenvx.sh/install.sh | sh
+        run: curl -sfS "https://dotenvx.sh/install.sh?version=v1.61.0" | sh
 
-      - run: dotenvx run -f ${{ github.workspace }}/.env.ci -- pytest -v --cov=raven_worker --cov-report=xml --cov-report=term-missing
+      - name: Run tests
+        run: |
+          if [ -n "$DOTENV_PRIVATE_KEY_CI" ]; then
+            dotenvx run -f ${{ github.workspace }}/.env.ci -- pytest -v --cov=raven_worker --cov-report=xml --cov-report=term-missing
+          else
+            echo "::warning::DOTENV_PRIVATE_KEY_CI not set (fork PR?) — running tests without dotenvx"
+            pytest -v --cov=raven_worker --cov-report=xml --cov-report=term-missing
+          fi
         env:
           DOTENV_PRIVATE_KEY_CI: ${{ secrets.DOTENV_PRIVATE_KEY_CI }}
 
@@ -70,9 +77,15 @@ jobs:
       - run: pip install -e ".[dev]"
 
       - name: Install dotenvx
-        run: curl -sfS https://dotenvx.sh/install.sh | sh
+        run: curl -sfS "https://dotenvx.sh/install.sh?version=v1.61.0" | sh
 
       - name: Run LLM provider smoke tests
         env:
           DOTENV_PRIVATE_KEY_CI: ${{ secrets.DOTENV_PRIVATE_KEY_CI }}
-        run: dotenvx run -f ${{ github.workspace }}/.env.ci -- python -m pytest tests/smoke/ -v --tb=short
+        run: |
+          if [ -n "$DOTENV_PRIVATE_KEY_CI" ]; then
+            dotenvx run -f ${{ github.workspace }}/.env.ci -- python -m pytest tests/smoke/ -v --tb=short
+          else
+            echo "::warning::DOTENV_PRIVATE_KEY_CI not set — skipping smoke tests"
+            exit 0
+          fi

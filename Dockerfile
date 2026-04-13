@@ -17,8 +17,9 @@ RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w -extldflags '-static'" -o 
 # ── Stage 2: Runtime ─────────────────────────────────────────────────────────
 FROM alpine:3.23
 
+ARG DOTENVX_VERSION=1.61.0
 RUN apk add --no-cache ca-certificates tzdata curl \
-    && curl -sfS https://dotenvx.sh | sh \
+    && curl -sfS "https://dotenvx.sh/install.sh?version=v${DOTENVX_VERSION}" | sh \
     && addgroup -g 1000 raven \
     && adduser -u 1000 -G raven -D raven
 

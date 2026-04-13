@@ -10,7 +10,7 @@ services:
       - ./.env:/app/.env:ro
     environment:
       # dotenvx decryption — pass private key as env var, never mount .env.keys
-      DOTENV_PRIVATE_KEY: ${DOTENV_PRIVATE_KEY}
+      DOTENV_PRIVATE_KEY: ${DOTENV_PRIVATE_KEY:?DOTENV_PRIVATE_KEY is required — see .env.keys}
       # OpenTelemetry — ship traces, metrics and logs to OpenObserve.
       RAVEN_OTEL_ENABLED: "true"
       RAVEN_OTEL_ENDPOINT: "openobserve:5081"
@@ -54,7 +54,7 @@ services:
       - ./.env:/app/.env:ro
       - raven-memories:/var/raven/memories
     environment:
-      DOTENV_PRIVATE_KEY: ${DOTENV_PRIVATE_KEY}
+      DOTENV_PRIVATE_KEY: ${DOTENV_PRIVATE_KEY:?DOTENV_PRIVATE_KEY is required — see .env.keys}
       RAVEN_MEMORY_DIR: /var/raven/memories
     depends_on:
       postgres:
@@ -73,7 +73,7 @@ services:
     volumes:
       - ./.env:/app/.env:ro
     environment:
-      DOTENV_PRIVATE_KEY: ${DOTENV_PRIVATE_KEY}
+      DOTENV_PRIVATE_KEY: ${DOTENV_PRIVATE_KEY:?DOTENV_PRIVATE_KEY is required — see .env.keys}
       RAVEN_LIVEKIT_URL: ws://livekit-server:7880
       RAVEN_LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-devkey}
       RAVEN_LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-devsecret}
