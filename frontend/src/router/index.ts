@@ -157,10 +157,8 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
 
-  // If the URL contains a Keycloak callback code, let keycloak.init() finish
-  // processing it before we evaluate auth state. Without this guard the router
-  // fires before the token exchange completes and triggers another redirect.
-  if (window.location.href.includes('code=') && window.location.href.includes('state=')) {
+  // The /callback route handles the OIDC redirect; skip auth checks for it.
+  if (to.name === 'callback') {
     return
   }
 
