@@ -82,30 +82,37 @@ func startJWKSServer(t *testing.T, kp *rsaKeyPair) *httptest.Server {
 	return srv
 }
 
-// keycloakCfg returns a KeycloakConfig whose IssuerURL points at the given
-// httptest server, using the server URL directly as issuer.
-func keycloakCfg(issuerURL string) *config.KeycloakConfig {
-	return &config.KeycloakConfig{IssuerURL: issuerURL, Audience: "raven", APIKeyEnabled: true}
+// zitadelCfg returns a ZitadelConfig pointing at the given httptest server.
+// The server URL is used as the domain with Secure=false so the issuer URL
+// resolves to "http://<host>:<port>".
+func zitadelCfg(srv *httptest.Server) *config.ZitadelConfig {
+	// Strip the "http://" scheme — ZitadelConfig.Domain holds host:port only.
+	domain := srv.URL[len("http://"):]
+	return &config.ZitadelConfig{
+		Domain:   domain,
+		ClientID: "raven",
+		Secure:   false,
+	}
 }
 
 // setupRouter wires a test Gin router with the JWT middleware and a simple
-// 200 OK handler at GET /protected.
-func setupRouter(cfg *config.KeycloakConfig) *gin.Engine {
+// 200 OK handler at GET /protected that echoes external_id and email.
+func setupRouter(cfg *config.ZitadelConfig) *gin.Engine {
 	r := gin.New()
 	protected := r.Group("/protected")
 	protected.Use(JWTMiddleware(cfg))
 	protected.GET("", func(c *gin.Context) {
-		userID, _ := c.Get(string(ContextKeyUserID))
-		orgID, _ := c.Get(string(ContextKeyOrgID))
+		externalID, _ := c.Get(string(ContextKeyExternalID))
+		email, _ := c.Get(string(ContextKeyEmail))
 		c.JSON(http.StatusOK, gin.H{
-			"user_id": userID,
-			"org_id":  orgID,
+			"external_id": externalID,
+			"email":       email,
 		})
 	})
 	return r
 }
 
-// validClaims builds a full Claims struct that should pass validation.
+// validClaims builds a Claims struct that should pass validation.
 func validClaims(issuerURL, subject string) *Claims {
 	now := time.Now()
 	return &Claims{
@@ -117,11 +124,8 @@ func validClaims(issuerURL, subject string) *Claims {
 			NotBefore: jwt.NewNumericDate(now.Add(-5 * time.Second)),
 			IssuedAt:  jwt.NewNumericDate(now),
 		},
-		OrgID:         "org-abc-123",
-		OrgRole:       "admin",
-		WorkspaceIDs:  []string{"ws-1", "ws-2"},
-		KBPermissions: []string{"read", "write"},
-		Email:         "user@example.com",
+		Email: "user@example.com",
+		Name:  "Test User",
 	}
 }
 
@@ -133,34 +137,33 @@ func TestJWTMiddleware(t *testing.T) {
 	kp := newTestKeyPair(t)
 	jwksSrv := startJWKSServer(t, kp)
 
-	// The issuer URL is the JWKS server URL itself for test purposes; the
-	// middleware appends /protocol/openid-connect/certs to it when fetching
-	// JWKS, so we need the server to handle any path.
-	issuerURL := jwksSrv.URL
-
-	cfg := keycloakCfg(issuerURL)
+	// The JWKS server serves keys at any path; JWTMiddleware will hit
+	// <issuerURL>/oauth/v2/keys which the test server handles with the same
+	// handler regardless of path.
+	cfg := zitadelCfg(jwksSrv)
+	issuerURL := jwksSrv.URL // http://<host>:<port>
 	router := setupRouter(cfg)
 
 	tests := []struct {
-		name           string
-		buildRequest   func() *http.Request
-		wantStatus     int
-		wantErrCode    string // expected value of {"error": "<code>"}
-		wantUserID     string // only checked on 200
-		wantOrgID      string // only checked on 200
+		name        string
+		buildRequest func() *http.Request
+		wantStatus  int
+		wantErrCode string // expected value of {"error": "<code>"}
+		wantExtID   string // only checked on 200
+		wantEmail   string // only checked on 200
 	}{
 		{
 			name: "valid JWT grants access",
 			buildRequest: func() *http.Request {
-				claims := validClaims(issuerURL, "user-sub-42")
+				claims := validClaims(issuerURL, "zitadel-sub-42")
 				tok := kp.sign(t, claims)
 				req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 				req.Header.Set("Authorization", "Bearer "+tok)
 				return req
 			},
 			wantStatus: http.StatusOK,
-			wantUserID: "user-sub-42",
-			wantOrgID:  "org-abc-123",
+			wantExtID:  "zitadel-sub-42",
+			wantEmail:  "user@example.com",
 		},
 		{
 			name: "missing Authorization header returns missing_token",
@@ -212,7 +215,7 @@ func TestJWTMiddleware(t *testing.T) {
 		{
 			name: "wrong issuer returns invalid_token",
 			buildRequest: func() *http.Request {
-				claims := validClaims("https://evil.example.com/realms/raven", "user-bad-iss")
+				claims := validClaims("https://evil.example.com", "user-bad-iss")
 				tok := kp.sign(t, claims)
 				req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 				req.Header.Set("Authorization", "Bearer "+tok)
@@ -220,16 +223,6 @@ func TestJWTMiddleware(t *testing.T) {
 			},
 			wantStatus:  http.StatusUnauthorized,
 			wantErrCode: "invalid_token",
-		},
-		{
-			name: "API key path stubs through with 200",
-			buildRequest: func() *http.Request {
-				req := httptest.NewRequest(http.MethodGet, "/protected", nil)
-				req.Header.Set("X-API-Key", "raven_test_key_abc")
-				return req
-			},
-			wantStatus: http.StatusOK,
-			wantUserID: "api-key-subject-placeholder",
 		},
 		{
 			name: "wrong audience returns invalid_token",
@@ -273,11 +266,11 @@ func TestJWTMiddleware(t *testing.T) {
 			if tc.wantStatus == http.StatusOK {
 				var body map[string]string
 				require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
-				if tc.wantUserID != "" {
-					assert.Equal(t, tc.wantUserID, body["user_id"])
+				if tc.wantExtID != "" {
+					assert.Equal(t, tc.wantExtID, body["external_id"])
 				}
-				if tc.wantOrgID != "" {
-					assert.Equal(t, tc.wantOrgID, body["org_id"])
+				if tc.wantEmail != "" {
+					assert.Equal(t, tc.wantEmail, body["email"])
 				}
 			}
 		})
@@ -289,28 +282,28 @@ func TestJWTMiddleware(t *testing.T) {
 func TestContextKeys(t *testing.T) {
 	kp := newTestKeyPair(t)
 	jwksSrv := startJWKSServer(t, kp)
+	cfg := zitadelCfg(jwksSrv)
 	issuerURL := jwksSrv.URL
-	cfg := keycloakCfg(issuerURL)
 
 	r := gin.New()
 	protected := r.Group("/protected")
 	protected.Use(JWTMiddleware(cfg))
 	protected.GET("", func(c *gin.Context) {
-		userID, _ := c.Get(string(ContextKeyUserID))
-		orgID, _ := c.Get(string(ContextKeyOrgID))
-		orgRole, _ := c.Get(string(ContextKeyOrgRole))
-		wsIDs, _ := c.Get(string(ContextKeyWorkspaceIDs))
-		kbPerms, _ := c.Get(string(ContextKeyKBPermissions))
+		externalID, _ := c.Get(string(ContextKeyExternalID))
 		email, _ := c.Get(string(ContextKeyEmail))
+		userName, _ := c.Get(string(ContextKeyUserName))
 		claimsVal, _ := c.Get(string(ContextKeyClaims))
 
-		assert.Equal(t, "sub-ctx-test", userID)
-		assert.Equal(t, "org-xyz", orgID)
-		assert.Equal(t, "editor", orgRole)
-		assert.Equal(t, []string{"ws-a"}, wsIDs)
-		assert.Equal(t, []string{"read"}, kbPerms)
+		assert.Equal(t, "sub-ctx-test", externalID)
 		assert.Equal(t, "ctx@example.com", email)
+		assert.Equal(t, "Context User", userName)
 		assert.NotNil(t, claimsVal)
+
+		// ContextKeyUserID and ContextKeyOrgID are NOT set by JWTMiddleware;
+		// they are populated by downstream auth handlers after a DB lookup.
+		userID, exists := c.Get(string(ContextKeyUserID))
+		assert.False(t, exists, "user_id should not be set by JWTMiddleware")
+		assert.Nil(t, userID)
 
 		c.Status(http.StatusOK)
 	})
@@ -324,11 +317,8 @@ func TestContextKeys(t *testing.T) {
 			NotBefore: jwt.NewNumericDate(time.Now().Add(-5 * time.Second)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
-		OrgID:         "org-xyz",
-		OrgRole:       "editor",
-		WorkspaceIDs:  []string{"ws-a"},
-		KBPermissions: []string{"read"},
-		Email:         "ctx@example.com",
+		Email: "ctx@example.com",
+		Name:  "Context User",
 	}
 	tok := kp.sign(t, claims)
 
@@ -338,4 +328,31 @@ func TestContextKeys(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+// TestRequireOrg verifies that RequireOrg allows requests with an org ID set
+// and blocks those without one.
+func TestRequireOrg(t *testing.T) {
+	r := gin.New()
+	r.GET("/with-org", func(c *gin.Context) {
+		c.Set(string(ContextKeyOrgID), "org-abc")
+		c.Next()
+	}, RequireOrg(), func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+	r.GET("/without-org", RequireOrg(), func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	t.Run("org present returns 200", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/with-org", nil))
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("org absent returns 403", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/without-org", nil))
+		assert.Equal(t, http.StatusForbidden, w.Code)
+	})
 }

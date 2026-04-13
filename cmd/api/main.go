@@ -431,7 +431,7 @@ func main() {
 	//   SET LOCAL app.current_org_id = '<uuid>'
 	// using the org_id stored in the Gin context key middleware.ContextKeyOrgID.
 	api := router.Group("/api/v1")
-	api.Use(middleware.JWTMiddleware(&cfg.Keycloak))
+	api.Use(middleware.JWTMiddleware(&cfg.Zitadel))
 	// Per-user and per-org flat rate limits (config-driven defaults).
 	api.Use(middleware.ByUserID(rl, cfg.RateLimit.DefaultUserLimit))
 	api.Use(middleware.ByOrgID(rl, cfg.RateLimit.DefaultOrgLimit))
