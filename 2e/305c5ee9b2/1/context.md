@@ -208,3 +208,15 @@ is backend up as well? is the demo pages functioning?
 
 https://github.com/ravencloak-org/Raven/pull/288#discussion_r3074766619
 
+### Prompt 36
+
+done
+
+### Prompt 37
+
+yes
+
+### Prompt 38
+
+deploy this, I need to setup and test the auth flow
+
