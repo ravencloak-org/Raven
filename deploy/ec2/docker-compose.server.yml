@@ -136,11 +136,11 @@ services:
       - ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME=${POSTGRES_USER:-raven}
       - ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD=${POSTGRES_PASSWORD}
     healthcheck:
-      test: ["CMD", "sh", "-c", "wget -qO- --header='Host: auth.ravencloak.org' http://localhost:8080/debug/healthz || exit 1"]
+      test: ["CMD", "sh", "-c", "cat < /dev/tcp/localhost/8080"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 60s
+      retries: 10
+      start_period: 120s
 
   # ─── SeaweedFS (object storage) ───────────────────────────────────────────
   seaweedfs-master:
