@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "4541d59d9a08",
+  "strategy": "manual-commit",
+  "branch": "feat/landing-page-redesign",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".claude/settings.local.json",
+    ".env.keys",
+    ".mcp.json",
+    ".serena/memories/codebase_structure.md",
+    ".serena/memories/services_and_ports.md",
+    ".serena/memories/task_completion_checklist.md",
+    ".superpowers/brainstorm/16951-1776004641/hero-layout.html",
+    ".superpowers/brainstorm/27124-1776011353/hero-layout.html",
+    "docs/superpowers/plans/2026-04-13-raven-landing-page.md",
+    "docs/superpowers/specs/2026-04-13-raven-landing-page-design.md",
+    "landing/package-lock.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/45/41d59d9a08/0/metadata.json",
+      "transcript": "/45/41d59d9a08/0/full.jsonl",
+      "context": "/45/41d59d9a08/0/context.md",
+      "content_hash": "/45/41d59d9a08/0/content_hash.txt",
+      "prompt": "/45/41d59d9a08/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 114,
+    "cache_creation_tokens": 384376,
+    "cache_read_tokens": 12873282,
+    "output_tokens": 31599,
+    "api_call_count": 69
+  }
+}
