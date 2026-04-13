@@ -14,14 +14,13 @@ const (
 
 // Organization is the top-level tenant entity.
 type Organization struct {
-	ID            string         `json:"id"`
-	Name          string         `json:"name"`
-	Slug          string         `json:"slug"`
-	Status        OrgStatus      `json:"status"`
-	Settings      map[string]any `json:"settings"`
-	KeycloakRealm string         `json:"keycloak_realm,omitempty"`
-	CreatedAt     time.Time      `json:"created_at"`
-	UpdatedAt     time.Time      `json:"updated_at"`
+	ID        string         `json:"id"`
+	Name      string         `json:"name"`
+	Slug      string         `json:"slug"`
+	Status    OrgStatus      `json:"status"`
+	Settings  map[string]any `json:"settings"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
 }
 
 // CreateOrgRequest is the payload for POST /api/v1/orgs.
