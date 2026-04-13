@@ -6,11 +6,12 @@ SELECT 'CREATE DATABASE zitadel'
 WHERE NOT EXISTS (SELECT FROM pg_database
                   WHERE datname = 'zitadel')\gexec
 
+-- Default dev password; production deployments should override via
+-- ZITADEL_DATABASE_POSTGRES_USER_PASSWORD in docker-compose environment.
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'zitadel') THEN
-    -- Password injected via psql -v ZITADEL_DB_PASSWORD=... at deploy time
-    CREATE USER zitadel WITH PASSWORD :'ZITADEL_DB_PASSWORD';
+    CREATE USER zitadel WITH PASSWORD 'zitadel';
   END IF;
 END
 $$;
