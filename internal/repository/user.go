@@ -20,7 +20,8 @@ func NewUserRepository(pool *pgxpool.Pool) *UserRepository {
 }
 
 const userColumns = `id, org_id, email, COALESCE(display_name, '') AS display_name,
-	COALESCE(keycloak_sub, '') AS keycloak_sub, status, last_login_at, created_at, updated_at`
+	COALESCE(external_id, '') AS external_id, COALESCE(auth_provider, 'zitadel') AS auth_provider,
+	status, last_login_at, created_at, updated_at`
 
 func scanUser(row pgx.Row) (*model.User, error) {
 	var u model.User
@@ -29,7 +30,8 @@ func scanUser(row pgx.Row) (*model.User, error) {
 		&u.OrgID,
 		&u.Email,
 		&u.DisplayName,
-		&u.KeycloakSub,
+		&u.ExternalID,
+		&u.AuthProvider,
 		&u.Status,
 		&u.LastLoginAt,
 		&u.CreatedAt,
@@ -41,22 +43,21 @@ func scanUser(row pgx.Row) (*model.User, error) {
 	return &u, nil
 }
 
-// UpsertByKeycloakSub creates or updates a user based on Keycloak subject claim.
-// This is the primary sync path called from the Keycloak webhook handler.
-func (r *UserRepository) UpsertByKeycloakSub(ctx context.Context, orgID, keycloakSub, email, displayName string) (*model.User, error) {
+// UpsertByExternalID creates or updates a user based on their external IdP identifier.
+func (r *UserRepository) UpsertByExternalID(ctx context.Context, externalID, email, displayName string) (*model.User, error) {
 	row := r.pool.QueryRow(ctx,
-		`INSERT INTO users (org_id, email, display_name, keycloak_sub)
-		 VALUES ($1, $2, $3, $4)
-		 ON CONFLICT (keycloak_sub) DO UPDATE
+		`INSERT INTO users (external_id, email, display_name, auth_provider)
+		 VALUES ($1, $2, $3, 'zitadel')
+		 ON CONFLICT (external_id) WHERE external_id IS NOT NULL DO UPDATE
 		   SET email        = EXCLUDED.email,
 		       display_name = COALESCE(EXCLUDED.display_name, users.display_name),
 		       updated_at   = NOW()
 		 RETURNING `+userColumns,
-		orgID, email, displayName, keycloakSub,
+		externalID, email, displayName,
 	)
 	u, err := scanUser(row)
 	if err != nil {
-		return nil, fmt.Errorf("UserRepository.UpsertByKeycloakSub: %w", err)
+		return nil, fmt.Errorf("UserRepository.UpsertByExternalID: %w", err)
 	}
 	return u, nil
 }
@@ -74,15 +75,15 @@ func (r *UserRepository) GetByID(ctx context.Context, userID string) (*model.Use
 	return u, nil
 }
 
-// GetByKeycloakSub fetches a user by their Keycloak subject identifier.
-func (r *UserRepository) GetByKeycloakSub(ctx context.Context, sub string) (*model.User, error) {
+// GetByExternalID fetches a user by their external IdP identifier.
+func (r *UserRepository) GetByExternalID(ctx context.Context, externalID string) (*model.User, error) {
 	row := r.pool.QueryRow(ctx,
-		`SELECT `+userColumns+` FROM users WHERE keycloak_sub = $1 AND status = 'active'`,
-		sub,
+		`SELECT `+userColumns+` FROM users WHERE external_id = $1 AND status = 'active'`,
+		externalID,
 	)
 	u, err := scanUser(row)
 	if err != nil {
-		return nil, fmt.Errorf("UserRepository.GetByKeycloakSub: %w", err)
+		return nil, fmt.Errorf("UserRepository.GetByExternalID: %w", err)
 	}
 	return u, nil
 }
@@ -101,6 +102,21 @@ func (r *UserRepository) UpdateDisplayName(ctx context.Context, userID string, d
 		return nil, fmt.Errorf("UserRepository.UpdateDisplayName: %w", err)
 	}
 	return u, nil
+}
+
+// SetOrgID assigns an organisation to a user (used during onboarding).
+func (r *UserRepository) SetOrgID(ctx context.Context, userID, orgID string) error {
+	tag, err := r.pool.Exec(ctx,
+		`UPDATE users SET org_id = $2, updated_at = NOW() WHERE id = $1`,
+		userID, orgID,
+	)
+	if err != nil {
+		return fmt.Errorf("UserRepository.SetOrgID: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("UserRepository.SetOrgID: user %s not found", userID)
+	}
+	return nil
 }
 
 // SoftDelete sets user status to 'disabled' (GDPR-safe — no data purge).

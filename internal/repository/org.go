@@ -21,7 +21,7 @@ func NewOrgRepository(pool *pgxpool.Pool) *OrgRepository {
 	return &OrgRepository{pool: pool}
 }
 
-const orgColumns = `id, name, slug, status, settings, COALESCE(keycloak_realm, '') AS keycloak_realm, created_at, updated_at`
+const orgColumns = `id, name, slug, status, settings, created_at, updated_at`
 
 func scanOrg(row pgx.Row) (*model.Organization, error) {
 	var org model.Organization
@@ -31,7 +31,6 @@ func scanOrg(row pgx.Row) (*model.Organization, error) {
 		&org.Slug,
 		&org.Status,
 		&org.Settings,
-		&org.KeycloakRealm,
 		&org.CreatedAt,
 		&org.UpdatedAt,
 	)
