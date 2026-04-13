@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "0684a406c31a",
+  "strategy": "manual-commit",
+  "branch": "feat/ops/dotenvx-ci-docker",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".dockerignore",
+    ".github/workflows/docker.yml",
+    ".github/workflows/go.yml",
+    ".github/workflows/python.yml",
+    "Dockerfile",
+    "Makefile",
+    "ai-worker/.dockerignore",
+    "ai-worker/Dockerfile",
+    "docker-compose.yml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/06/84a406c31a/0/metadata.json",
+      "transcript": "/06/84a406c31a/0/full.jsonl",
+      "context": "/06/84a406c31a/0/context.md",
+      "content_hash": "/06/84a406c31a/0/content_hash.txt",
+      "prompt": "/06/84a406c31a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 49,
+    "cache_creation_tokens": 29494,
+    "cache_read_tokens": 5226444,
+    "output_tokens": 11891,
+    "api_call_count": 41
+  }
+}
