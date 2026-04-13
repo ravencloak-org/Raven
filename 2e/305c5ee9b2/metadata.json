@@ -9,7 +9,8 @@
     ".serena/memories/codebase_structure.md",
     ".serena/memories/services_and_ports.md",
     ".serena/memories/task_completion_checklist.md",
-    "docker-compose.yml"
+    "frontend/src/pages/LoginPage.vue",
+    "frontend/src/pages/onboarding/OnboardingWizard.vue"
   ],
   "sessions": [
     {
@@ -28,10 +29,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 22,
-    "cache_creation_tokens": 166323,
-    "cache_read_tokens": 3014308,
-    "output_tokens": 2487,
-    "api_call_count": 16
+    "input_tokens": 15,
+    "cache_creation_tokens": 6096,
+    "cache_read_tokens": 2326120,
+    "output_tokens": 2068,
+    "api_call_count": 11
   }
 }
