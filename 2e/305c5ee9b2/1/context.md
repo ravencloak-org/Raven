@@ -172,3 +172,19 @@ What about the actual demo page?
 
 Fix PR issues
 
+### Prompt 27
+
+https://github.com/ravencloak-org/Raven/pull/288#discussion_r3073034715
+
+### Prompt 28
+
+https://github.com/ravencloak-org/Raven/pull/288#discussion_r3073034860
+
+### Prompt 29
+
+https://github.com/ravencloak-org/Raven/pull/288#discussion_r3073034864
+
+### Prompt 30
+
+https://github.com/ravencloak-org/Raven/pull/288#discussion_r3073459071
+
