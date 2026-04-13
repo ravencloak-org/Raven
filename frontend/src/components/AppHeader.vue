@@ -23,7 +23,7 @@
         class="absolute right-0 top-10 z-50 w-56 rounded-md border border-gray-200 bg-white py-1 shadow-lg"
       >
         <div class="border-b border-gray-100 px-4 py-2">
-          <p class="text-sm font-medium text-gray-900">{{ user?.profile.preferred_username ?? user?.profile.name ?? '' }}</p>
+          <p class="text-sm font-medium text-gray-900">{{ user?.profile.preferred_username || user?.profile.name || '' }}</p>
           <p class="truncate text-xs text-gray-500">{{ user?.profile.email ?? '' }}</p>
         </div>
         <button
@@ -58,7 +58,7 @@ onMounted(() => window.addEventListener('keydown', onEscape))
 onUnmounted(() => window.removeEventListener('keydown', onEscape))
 
 const userInitial = computed(() => {
-  const name = user.value?.profile.preferred_username ?? user.value?.profile.name
+  const name = user.value?.profile.preferred_username || user.value?.profile.name
   if (name) {
     return name.charAt(0).toUpperCase()
   }

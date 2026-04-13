@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"math/bits"
 	"strings"
 
@@ -318,6 +319,7 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("zitadel.domain", "ZITADEL_EXTERNALDOMAIN")
 	_ = v.BindEnv("zitadel.client_id", "ZITADEL_CLIENT_ID")
 	_ = v.BindEnv("zitadel.secure", "ZITADEL_EXTERNALSECURE")
+	_ = v.BindEnv("zitadel.key_path", "ZITADEL_KEY_PATH")
 	_ = v.BindEnv("server.port", "RAVEN_SERVER_PORT")
 	_ = v.BindEnv("server.mode", "RAVEN_SERVER_MODE")
 	_ = v.BindEnv("clickhouse.host", "RAVEN_CLICKHOUSE_HOST")
@@ -391,6 +393,10 @@ func Load() (*Config, error) {
 		if size <= 0 || bits.OnesCount(uint(size)) != 1 {
 			return nil, fmt.Errorf("ebpf.audit_ring_buffer_size must be a power of 2 > 0, got %d", size)
 		}
+	}
+
+	if cfg.Zitadel.ClientID == "" {
+		log.Printf("[WARN] zitadel.client_id is empty — JWT audience validation will reject all tokens until configured")
 	}
 
 	return &cfg, nil

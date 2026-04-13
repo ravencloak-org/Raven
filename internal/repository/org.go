@@ -21,8 +21,6 @@ func NewOrgRepository(pool *pgxpool.Pool) *OrgRepository {
 	return &OrgRepository{pool: pool}
 }
 
-const orgColumns = `id, name, slug, status, settings, created_at, updated_at`
-
 func scanOrg(row pgx.Row) (*model.Organization, error) {
 	var org model.Organization
 	err := row.Scan(
@@ -45,7 +43,7 @@ func (r *OrgRepository) Create(ctx context.Context, name, slug string) (*model.O
 	row := r.pool.QueryRow(ctx,
 		`INSERT INTO organizations (name, slug)
 		 VALUES ($1, $2)
-		 RETURNING `+orgColumns,
+		 RETURNING id, name, slug, status, settings, created_at, updated_at`,
 		name, slug,
 	)
 	org, err := scanOrg(row)
@@ -58,7 +56,7 @@ func (r *OrgRepository) Create(ctx context.Context, name, slug string) (*model.O
 // GetByID fetches a non-deactivated organisation by its UUID.
 func (r *OrgRepository) GetByID(ctx context.Context, orgID string) (*model.Organization, error) {
 	row := r.pool.QueryRow(ctx,
-		`SELECT `+orgColumns+`
+		`SELECT id, name, slug, status, settings, created_at, updated_at
 		 FROM organizations
 		 WHERE id = $1 AND status != 'deactivated'`,
 		orgID,
@@ -78,7 +76,7 @@ func (r *OrgRepository) Update(ctx context.Context, orgID string, name *string, 
 		   name     = COALESCE($2, name),
 		   settings = CASE WHEN $3::jsonb IS NOT NULL THEN $3::jsonb ELSE settings END
 		 WHERE id = $1 AND status != 'deactivated'
-		 RETURNING `+orgColumns,
+		 RETURNING id, name, slug, status, settings, created_at, updated_at`,
 		orgID, name, settings,
 	)
 	org, err := scanOrg(row)

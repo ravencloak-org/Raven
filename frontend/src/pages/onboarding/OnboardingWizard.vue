@@ -15,11 +15,14 @@
       <div v-if="currentStep === 1">
         <h2 class="text-2xl font-bold text-neutral-900 dark:text-white mb-2">Name your organization</h2>
         <p class="text-neutral-500 text-sm mb-6">This will be your team's workspace on Raven.</p>
+        <label for="org-name" class="sr-only">Organization name</label>
         <input
+          id="org-name"
           v-model="orgName"
           type="text"
           placeholder="e.g. Acme Corp"
           class="w-full rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white placeholder-neutral-400 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 mb-6"
+          aria-describedby="org-error"
           @keyup.enter="createOrg"
         />
         <button
@@ -29,18 +32,21 @@
         >
           {{ loading ? 'Creating...' : 'Continue' }}
         </button>
-        <p v-if="error" class="text-red-500 text-sm mt-3">{{ error }}</p>
+        <p v-if="error" id="org-error" class="text-red-500 text-sm mt-3">{{ error }}</p>
       </div>
 
       <!-- Step 2: Create first knowledge base -->
       <div v-else-if="currentStep === 2">
         <h2 class="text-2xl font-bold text-neutral-900 dark:text-white mb-2">Create your first knowledge base</h2>
         <p class="text-neutral-500 text-sm mb-6">A knowledge base holds the documents your AI will learn from.</p>
+        <label for="kb-name" class="sr-only">Knowledge base name</label>
         <input
+          id="kb-name"
           v-model="kbName"
           type="text"
           placeholder="e.g. Product Docs"
           class="w-full rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white placeholder-neutral-400 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 mb-4"
+          aria-describedby="kb-error"
           @keyup.enter="createKB"
         />
 
@@ -57,7 +63,7 @@
         >
           {{ loading ? 'Setting up...' : 'Get Started' }}
         </button>
-        <p v-if="error" class="text-red-500 text-sm mt-3">{{ error }}</p>
+        <p v-if="error" id="kb-error" class="text-red-500 text-sm mt-3">{{ error }}</p>
       </div>
     </div>
   </div>
@@ -106,7 +112,6 @@ async function createOrg() {
   try {
     const data = await apiFetch('/orgs', { name: orgName.value })
     orgId = data.id
-    auth.setOrgId(orgId)
     currentStep.value = 2
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : 'Something went wrong'
@@ -124,7 +129,8 @@ async function createKB() {
     const ws = await apiFetch(`/orgs/${orgId}/workspaces`, { name: 'Default' })
     // Create knowledge base
     await apiFetch(`/orgs/${orgId}/workspaces/${ws.id}/knowledge-bases`, { name: kbName.value })
-    // Navigate to dashboard
+    // Set org in auth store and navigate to dashboard
+    auth.setOrgId(orgId)
     router.push('/dashboard')
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : 'Something went wrong'

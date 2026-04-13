@@ -172,7 +172,7 @@ router.beforeEach(async (to) => {
   }
 
   // Redirect to login if auth required but not authenticated
-  if (to.meta.requiresAuth !== false && !auth.isAuthenticated) {
+  if (to.meta.requiresAuth === true && !auth.isAuthenticated) {
     return '/login'
   }
 

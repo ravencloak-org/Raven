@@ -6,6 +6,7 @@
 ALTER TABLE users RENAME COLUMN keycloak_sub TO external_id;
 ALTER TABLE users ADD COLUMN auth_provider TEXT NOT NULL DEFAULT 'zitadel';
 DROP INDEX IF EXISTS idx_users_keycloak_sub;
+-- Table is small during migration; CONCURRENTLY not needed.
 CREATE UNIQUE INDEX idx_users_external_id ON users(external_id) WHERE external_id IS NOT NULL;
 
 -- Make org_id nullable for pre-onboarding users
@@ -19,7 +20,11 @@ ALTER TABLE organizations DROP COLUMN IF EXISTS keycloak_realm;
 -- +goose Down
 -- +goose StatementBegin
 
+-- NOTE: keycloak_realm data cannot be restored; column is re-created empty.
 ALTER TABLE organizations ADD COLUMN keycloak_realm TEXT;
+-- Delete pre-onboarding users (org_id IS NULL) so NOT NULL can be restored.
+-- In production, coordinate with application shutdown before rollback.
+DELETE FROM users WHERE org_id IS NULL;
 ALTER TABLE users ALTER COLUMN org_id SET NOT NULL;
 DROP INDEX IF EXISTS idx_users_external_id;
 ALTER TABLE users DROP COLUMN IF EXISTS auth_provider;

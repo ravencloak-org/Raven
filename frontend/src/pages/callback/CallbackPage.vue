@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen flex items-center justify-center bg-white dark:bg-black">
     <div class="text-center">
-      <p class="text-neutral-500">Completing sign in...</p>
+      <p class="text-neutral-500" role="status" aria-live="polite">Completing sign in...</p>
     </div>
   </div>
 </template>

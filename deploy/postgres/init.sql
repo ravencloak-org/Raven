@@ -3,12 +3,14 @@
 
 -- Zitadel needs its own database + user
 SELECT 'CREATE DATABASE zitadel'
-WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'zitadel')\gexec
+WHERE NOT EXISTS (SELECT FROM pg_database
+                  WHERE datname = 'zitadel')\gexec
 
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'zitadel') THEN
-    CREATE USER zitadel WITH PASSWORD 'zitadel';
+    -- Password injected via psql -v ZITADEL_DB_PASSWORD=... at deploy time
+    CREATE USER zitadel WITH PASSWORD :'ZITADEL_DB_PASSWORD';
   END IF;
 END
 $$;

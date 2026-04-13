@@ -47,10 +47,10 @@ export const useAuthStore = defineStore('auth', () => {
   async function logout() {
     const { reset: resetPostHog } = usePostHog()
     resetPostHog()
-    await userManager.signoutRedirect()
     user.value = null
     orgId.value = null
     sessionStorage.removeItem('raven_org_id')
+    await userManager.signoutRedirect()
   }
 
   function setOrgId(id: string) {
