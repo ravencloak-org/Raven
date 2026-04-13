@@ -6,13 +6,13 @@
   "checkpoints_count": 2,
   "files_touched": [
     ".claude/settings.local.json",
-    ".github/workflows/go.yml",
     ".github/workflows/python.yml",
     ".mcp.json",
     ".superpowers/brainstorm/16951-1776004641/hero-layout.html",
     ".superpowers/brainstorm/27124-1776011353/hero-layout.html",
     "Dockerfile",
     "ai-worker/Dockerfile",
+    "docker-compose.yml",
     "docs/superpowers/plans/2026-04-13-raven-landing-page.md",
     "docs/superpowers/specs/2026-04-13-raven-landing-page-design.md"
   ],
@@ -33,10 +33,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 34,
-    "cache_creation_tokens": 36014,
-    "cache_read_tokens": 4244427,
-    "output_tokens": 14839,
-    "api_call_count": 27
+    "input_tokens": 35,
+    "cache_creation_tokens": 185113,
+    "cache_read_tokens": 4327426,
+    "output_tokens": 15713,
+    "api_call_count": 28
   }
 }
