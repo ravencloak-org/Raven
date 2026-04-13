@@ -615,3 +615,22 @@ not working,  raven git:(feat/zitadel-migration) ✗ npx wrangler dev
 
 
 🪵  Logs were written to "/Users/jobinlawrance/Library/Preferences/.wrangler/logs/wrangler-2026-04-13_13-51-34_861.log"
+
+---
+
+✘ [ERROR] ENOENT: no such file or directory, scandir '/Users/jobinlawrance/Project/raven/dist'
+
+---
+
+zsh: no matches found: [ERROR]
+➜  frontend git:(feat/zitadel-migration) ✗ npx wrangler pages deploy dist --project-name=raven-frontend
+
+ ⛅️ wrangler 4.82.0
+───────────────────
+
+✘ [ERROR] Running configuration file validation for Pages:
+
+    - Configuration file for Pages projects does not support "assets"
+
+
+🪵  Logs were written to "/Users/jobinlawrance/Library/Preferences/.wrangler/logs/wrangler-2026-04-13_14-01-04_100.log"

@@ -3,30 +3,30 @@
   "checkpoint_id": "2e305c5ee9b2",
   "session_id": "c9ce9215-d1ba-4965-83fd-eba9b611dad2",
   "strategy": "manual-commit",
-  "created_at": "2026-04-13T13:59:58.356937Z",
+  "created_at": "2026-04-13T14:03:30.413214Z",
   "branch": "feat/zitadel-migration",
   "checkpoints_count": 1,
   "files_touched": [
     "frontend/wrangler.toml"
   ],
   "agent": "Claude Code",
-  "transcript_identifier_at_start": "f7ceebea-ebfb-4c96-b2c3-a269735996a8",
-  "checkpoint_transcript_start": 905,
-  "transcript_lines_at_start": 905,
+  "transcript_identifier_at_start": "8f595e2f-8807-4832-b792-059d18dfa1d8",
+  "checkpoint_transcript_start": 928,
+  "transcript_lines_at_start": 928,
   "token_usage": {
-    "input_tokens": 10,
-    "cache_creation_tokens": 546778,
-    "cache_read_tokens": 1165096,
-    "output_tokens": 623,
-    "api_call_count": 6
+    "input_tokens": 9,
+    "cache_creation_tokens": 274534,
+    "cache_read_tokens": 1158521,
+    "output_tokens": 575,
+    "api_call_count": 5
   },
   "initial_attribution": {
-    "calculated_at": "2026-04-13T13:59:58.11286Z",
+    "calculated_at": "2026-04-13T14:03:30.183502Z",
     "agent_lines": 0,
     "human_added": 0,
-    "human_modified": 5,
-    "human_removed": 1,
-    "total_committed": 5,
+    "human_modified": 3,
+    "human_removed": 4,
+    "total_committed": 1,
     "agent_percentage": 0
   }
 }
