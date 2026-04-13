@@ -38,7 +38,7 @@ jobs:
       - run: go mod download
 
       - name: Install dotenvx
-        run: curl -sfS "https://dotenvx.sh/install.sh?version=v1.61.0" | sh
+        run: curl -sfS "https://dotenvx.sh/install.sh?version=1.61.0" | sh
 
       - name: Install eBPF build tools
         run: sudo apt-get install -y clang llvm libbpf-dev linux-tools-$(uname -r) || sudo apt-get install -y clang llvm libbpf-dev
