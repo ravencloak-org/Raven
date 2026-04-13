@@ -1,0 +1,11 @@
+{
+  "name": "raven-landing",
+  "private": true,
+  "scripts": {
+    "dev": "npx @tailwindcss/cli -i src/input.css -o dist/output.css --watch",
+    "build": "npx @tailwindcss/cli -i src/input.css -o dist/output.css --minify"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.2.2"
+  }
+}
