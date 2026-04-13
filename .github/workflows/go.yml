@@ -38,12 +38,7 @@ jobs:
       - run: go mod download
 
       - name: Install dotenvx
-        run: |
-          curl -sL -o /tmp/dotenvx.tar.gz https://github.com/dotenvx/dotenvx/releases/download/v1.61.0/dotenvx-1.61.0-linux-amd64.tar.gz
-          echo "58fe4a5f84af835dce71e9e09bda47e7d54f0dc5b302bbf4f50224cc906646d3  /tmp/dotenvx.tar.gz" | sha256sum -c -
-          mkdir -p /tmp/dotenvx-extract && tar -xzf /tmp/dotenvx.tar.gz -C /tmp/dotenvx-extract
-          sudo install -m 755 /tmp/dotenvx-extract/dotenvx /usr/local/bin/dotenvx
-          rm -rf /tmp/dotenvx.tar.gz /tmp/dotenvx-extract
+        run: curl -sfS https://dotenvx.sh | sh
 
       - name: Install eBPF build tools
         run: sudo apt-get install -y clang llvm libbpf-dev linux-tools-$(uname -r) || sudo apt-get install -y clang llvm libbpf-dev
