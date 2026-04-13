@@ -2,24 +2,25 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useAuthStore } from './auth'
 
-// Mock keycloak-js with a real class so `new Keycloak(...)` works
-vi.mock('keycloak-js', () => ({
-  default: class MockKeycloak {
-    init = vi.fn().mockResolvedValue(true)
-    login = vi.fn()
-    logout = vi.fn()
-    updateToken = vi.fn().mockResolvedValue(true)
-    token = 'mock-access-token'
-    tokenParsed = {
-      sub: 'user-123',
-      email: 'test@example.com',
-      preferred_username: 'testuser',
-      org_id: 'org-456',
-      org_role: 'org_admin',
-    }
-    authenticated = true
-    isTokenExpired = vi.fn().mockReturnValue(false)
+const mockUser = {
+  access_token: 'mock-access-token',
+  expired: false,
+  profile: {
+    sub: 'user-123',
+    email: 'test@example.com',
+    preferred_username: 'testuser',
+    name: 'Test User',
   },
+}
+
+vi.mock('oidc-client-ts', () => ({
+  UserManager: vi.fn().mockImplementation(() => ({
+    getUser: vi.fn().mockResolvedValue(mockUser),
+    signinRedirect: vi.fn(),
+    signinRedirectCallback: vi.fn().mockResolvedValue(mockUser),
+    signoutRedirect: vi.fn(),
+  })),
+  WebStorageStateStore: vi.fn().mockImplementation(() => ({})),
 }))
 
 describe('useAuthStore', () => {
@@ -42,7 +43,14 @@ describe('useAuthStore', () => {
   it('exposes user claims after init', async () => {
     const store = useAuthStore()
     await store.init()
-    expect(store.user?.email).toBe('test@example.com')
-    expect(store.user?.orgId).toBe('org-456')
+    expect(store.user?.profile.email).toBe('test@example.com')
+    expect(store.user?.profile.sub).toBe('user-123')
+  })
+
+  it('exposes orgId after setOrgId', async () => {
+    const store = useAuthStore()
+    await store.init()
+    store.setOrgId('org-456')
+    expect(store.orgId).toBe('org-456')
   })
 })
