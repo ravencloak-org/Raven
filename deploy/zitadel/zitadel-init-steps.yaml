@@ -15,7 +15,9 @@ FirstInstance:
     Name: "raven-app"
     RedirectURIs:
       - "https://app.ravencloak.org/callback"
+      - "https://app.ravencloak.org/silent-renew.html"
       - "http://localhost:5173/callback"
+      - "http://localhost:5173/silent-renew.html"
     PostLogoutRedirectURIs:
       - "https://app.ravencloak.org"
       - "http://localhost:5173"

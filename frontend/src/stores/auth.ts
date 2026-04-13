@@ -18,7 +18,7 @@ const userManager = new UserManager({
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
-  const orgId = ref<string | null>(null)
+  const orgId = ref<string | null>(sessionStorage.getItem('raven_org_id'))
   const isAuthenticated = computed(() => !!user.value && !user.value.expired)
   const hasOrg = computed(() => !!orgId.value)
   const accessToken = computed(() => user.value?.access_token ?? null)
@@ -50,10 +50,12 @@ export const useAuthStore = defineStore('auth', () => {
     await userManager.signoutRedirect()
     user.value = null
     orgId.value = null
+    sessionStorage.removeItem('raven_org_id')
   }
 
   function setOrgId(id: string) {
     orgId.value = id
+    sessionStorage.setItem('raven_org_id', id)
   }
 
   function _identify(u: User) {

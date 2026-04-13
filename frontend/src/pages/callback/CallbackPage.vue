@@ -27,6 +27,9 @@ onMounted(async () => {
         'Content-Type': 'application/json',
       },
     })
+    if (!res.ok) {
+      throw new Error(`Auth callback failed (${res.status})`)
+    }
     const data = await res.json()
 
     if (data.isNewUser) {
