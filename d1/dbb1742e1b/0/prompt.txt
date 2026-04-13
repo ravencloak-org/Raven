@@ -1,0 +1,78 @@
+where are we with the dotenvx integration in the go code?
+
+---
+
+but to access it you need to add it in the library https://dotenvx.com/docs/secrets-in-go
+
+---
+
+what about this? https://dotenvx.com/docs/secrets-in-go#3-inject
+
+---
+
+main should be something like this package main
+
+import (
+  "fmt"
+  "os"
+)
+
+func main() {
+  fmt.Printf("HELLO: %s\n", os.Getenv("HELLO"))
+} dotenvx run -- go run main.go
+
+---
+
+add  these in our docker compose and github maybe to make it production ready https://dotenvx.com/docs/cis/github-actions
+
+---
+
+https://dotenvx.com/docs/platforms/docker-compose
+
+---
+
+rebase from origin main and commit on feature/ops/... branch
+
+---
+
+yes
+
+---
+
+use gh cli to the repo's github secrets
+
+---
+
+why is .env.ci file uploaded which is unencrypted https://github.REDACTED
+
+---
+
+is it cool, is it all added to action config files? can we have an action suceed?
+
+---
+
+https://github.REDACTED?pr=286
+
+---
+
+https://github.com/ravencloak-org/Raven/pull/286#discussion_r3070358229  https://github.com/ravencloak-org/Raven/pull/286#discussion_r3070358233  https://github.com/ravencloak-org/Raven/pull/286#discussion_r3070358234  https://github.com/ravencloak-org/Raven/pull/286#discussion_r3070358237  https://github.com/ravencloak-org/Raven/pull/286#discussion_r3070358245 https://github.com/ravencloak-org/Raven/pull/286#discussion_r3070358247 https://github.com/ravencloak-org/Raven/pull/286#discussion_r3070358254 https://github.com/ravencloak-org/Raven/pull/286#discussion_r3070358263
+
+---
+
+https://github.com/ravencloak-org/Raven/pull/286#discussion_r3070358234
+
+---
+
+https://github.com/ravencloak-org/Raven/pull/286#discussion_r3070358234
+
+---
+
+https://github.com/ravencloak-org/Raven/pull/286#discussion_r3070394140 https://github.com/ravencloak-org/Raven/pull/286#discussion_r3070394144 https://github.com/ravencloak-org/Raven/pull/286#discussion_r3070394145 https://github.com/ravencloak-org/Raven/pull/286#discussion_r3070394159
+
+---
+
+https://github.com/ravencloak-org/Raven/pull/286#discussion_r3070394159
+
+---
+
+https://github.REDACTED?pr=286
