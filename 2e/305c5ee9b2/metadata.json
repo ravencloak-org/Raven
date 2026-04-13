@@ -9,8 +9,7 @@
     ".serena/memories/codebase_structure.md",
     ".serena/memories/services_and_ports.md",
     ".serena/memories/task_completion_checklist.md",
-    "frontend/src/router/index.ts",
-    "internal/handler/auth.go"
+    "docker-compose.yml"
   ],
   "sessions": [
     {
@@ -29,10 +28,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 564,
-    "cache_creation_tokens": 208572,
-    "cache_read_tokens": 6729324,
-    "output_tokens": 44002,
-    "api_call_count": 57
+    "input_tokens": 22,
+    "cache_creation_tokens": 166323,
+    "cache_read_tokens": 3014308,
+    "output_tokens": 2487,
+    "api_call_count": 16
   }
 }

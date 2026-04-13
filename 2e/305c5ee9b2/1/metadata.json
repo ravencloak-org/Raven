@@ -3,28 +3,30 @@
   "checkpoint_id": "2e305c5ee9b2",
   "session_id": "c9ce9215-d1ba-4965-83fd-eba9b611dad2",
   "strategy": "manual-commit",
-  "created_at": "2026-04-13T12:30:48.754228Z",
+  "created_at": "2026-04-13T12:35:52.718921Z",
   "branch": "feat/zitadel-migration",
   "checkpoints_count": 1,
   "files_touched": [
-    "frontend/src/router/index.ts",
-    "internal/handler/auth.go"
+    "docker-compose.yml"
   ],
   "agent": "Claude Code",
+  "transcript_identifier_at_start": "f7f9f177-01b2-4c43-bfee-f0064b072461",
+  "checkpoint_transcript_start": 392,
+  "transcript_lines_at_start": 392,
   "token_usage": {
-    "input_tokens": 559,
-    "cache_creation_tokens": 207536,
-    "cache_read_tokens": 5837324,
-    "output_tokens": 43378,
-    "api_call_count": 54
+    "input_tokens": 17,
+    "cache_creation_tokens": 165287,
+    "cache_read_tokens": 2122308,
+    "output_tokens": 1863,
+    "api_call_count": 13
   },
   "initial_attribution": {
-    "calculated_at": "2026-04-13T12:30:48.592787Z",
-    "agent_lines": 95,
-    "human_added": 661,
-    "human_modified": 0,
+    "calculated_at": "2026-04-13T12:35:52.582885Z",
+    "agent_lines": 7,
+    "human_added": 2968,
+    "human_modified": 33,
     "human_removed": 0,
-    "total_committed": 756,
-    "agent_percentage": 12.566137566137566
+    "total_committed": 3008,
+    "agent_percentage": 0.2327127659574468
   }
 }

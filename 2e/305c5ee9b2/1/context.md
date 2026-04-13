@@ -16,3 +16,11 @@ Execute plan by dispatching fresh subagent per task, with two-stage review after
 
 **Why subagents:** You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions and context, you ensure they stay focused and suc...
 
+### Prompt 3
+
+go for it
+
+### Prompt 4
+
+resolve conflicts
+
