@@ -94,7 +94,12 @@ jobs:
           DOTENV_PRIVATE_KEY_CI: ${{ secrets.DOTENV_PRIVATE_KEY_CI }}
         run: |
           if [ -n "$DOTENV_PRIVATE_KEY_CI" ]; then
-            dotenvx run -f ${{ github.workspace }}/.env.ci -- python -m pytest tests/smoke/ -v --tb=short
+            dotenvx run -f ${{ github.workspace }}/.env.ci -- bash -euo pipefail -c '
+              : "${OPENAI_API_KEY:?OPENAI_API_KEY missing from .env.ci}"
+              : "${COHERE_API_KEY:?COHERE_API_KEY missing from .env.ci}"
+              : "${ANTHROPIC_API_KEY:?ANTHROPIC_API_KEY missing from .env.ci}"
+              python -m pytest tests/smoke/ -v --tb=short
+            '
           else
             echo "::warning::DOTENV_PRIVATE_KEY_CI not set — skipping smoke tests"
             exit 0
