@@ -325,9 +325,142 @@
         </div>
       </div>
     </section>
-    <section id="how-it-works" aria-label="How it works"></section>
-    <section id="deploy" aria-label="Deployment options"></section>
-    <section id="enterprise" aria-label="Enterprise features"></section>
+    <section id="how-it-works" aria-label="How it works" class="py-24 sm:py-32">
+      <div class="mx-auto max-w-7xl px-6 lg:px-8">
+        <h2 class="text-3xl sm:text-4xl font-bold text-center text-neutral-900 dark:text-white">Simple by design.</h2>
+        <p class="mt-4 text-center text-neutral-500 max-w-xl mx-auto">Three steps from scattered docs to instant answers.</p>
+
+        <div class="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+          <!-- Connecting line (desktop only) -->
+          <div class="hidden md:block absolute top-12 left-[calc(16.67%+1rem)] right-[calc(16.67%+1rem)] h-px bg-neutral-200 dark:bg-neutral-800" aria-hidden="true"></div>
+
+          <!-- Step 1 -->
+          <div class="relative text-center">
+            <div class="mx-auto flex items-center justify-center w-12 h-12 rounded-full bg-amber-400 text-black font-bold text-lg relative z-10">1</div>
+            <h3 class="mt-6 text-xl font-semibold text-neutral-900 dark:text-white">Ingest</h3>
+            <p class="mt-2 text-neutral-600 dark:text-neutral-400">Upload PDFs, DOCX, Markdown, HTML, or paste URLs. Raven chunks, embeds, and indexes everything automatically.</p>
+            <p class="mt-2 text-sm text-neutral-500">Automatic chunking &amp; embedding</p>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="relative text-center">
+            <div class="mx-auto flex items-center justify-center w-12 h-12 rounded-full bg-amber-400 text-black font-bold text-lg relative z-10">2</div>
+            <h3 class="mt-6 text-xl font-semibold text-neutral-900 dark:text-white">Search</h3>
+            <p class="mt-2 text-neutral-600 dark:text-neutral-400">Hybrid retrieval — pgvector cosine similarity + BM25 full-text ranking fused with Reciprocal Rank Fusion. No keyword guessing.</p>
+            <p class="mt-2 text-sm text-neutral-500">Vector + BM25 hybrid ranking</p>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="relative text-center">
+            <div class="mx-auto flex items-center justify-center w-12 h-12 rounded-full bg-amber-400 text-black font-bold text-lg relative z-10">3</div>
+            <h3 class="mt-6 text-xl font-semibold text-neutral-900 dark:text-white">Answer</h3>
+            <p class="mt-2 text-neutral-600 dark:text-neutral-400">Your team asks in natural language. Raven responds with accurate, cited answers — via chat, voice, or WhatsApp.</p>
+            <p class="mt-2 text-sm text-neutral-500">Cited answers across 3 channels</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="deploy" aria-label="Deployment options" class="py-24 sm:py-32 bg-neutral-50 dark:bg-neutral-950">
+      <div class="mx-auto max-w-7xl px-6 lg:px-8">
+        <h2 class="text-3xl sm:text-4xl font-bold text-center text-neutral-900 dark:text-white">Your infrastructure. Your rules.</h2>
+        <p class="mt-4 text-center text-neutral-500 max-w-xl mx-auto">Deploy Raven anywhere — from a Raspberry Pi to a Kubernetes cluster.</p>
+
+        <div class="mt-16 grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          <!-- Docker Compose -->
+          <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black p-6 hover:-translate-y-1 hover:border-amber-400/50 transition-all duration-200">
+            <div class="text-3xl mb-3">🐳</div>
+            <h3 class="text-xl font-semibold text-neutral-900 dark:text-white">Docker Compose</h3>
+            <p class="mt-2 text-neutral-600 dark:text-neutral-400">One command. Full stack. Perfect for getting started and small teams.</p>
+          </div>
+
+          <!-- Kubernetes -->
+          <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black p-6 hover:-translate-y-1 hover:border-amber-400/50 transition-all duration-200">
+            <div class="text-3xl mb-3">☸️</div>
+            <h3 class="text-xl font-semibold text-neutral-900 dark:text-white">Kubernetes</h3>
+            <p class="mt-2 text-neutral-600 dark:text-neutral-400">Production-grade, multi-region, auto-scaling.</p>
+          </div>
+
+          <!-- EC2 + Ansible -->
+          <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black p-6 hover:-translate-y-1 hover:border-amber-400/50 transition-all duration-200">
+            <div class="text-3xl mb-3">🖥️</div>
+            <h3 class="text-xl font-semibold text-neutral-900 dark:text-white">EC2 + Ansible</h3>
+            <p class="mt-2 text-neutral-600 dark:text-neutral-400">Cloud VM with auto-TLS via Traefik. Playbooks ready to go.</p>
+          </div>
+
+          <!-- Edge / Raspberry Pi -->
+          <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black p-6 hover:-translate-y-1 hover:border-amber-400/50 transition-all duration-200">
+            <div class="text-3xl mb-3">📡</div>
+            <h3 class="text-xl font-semibold text-neutral-900 dark:text-white">Edge / Raspberry Pi</h3>
+            <p class="mt-2 text-neutral-600 dark:text-neutral-400">25MB ARM64 binary. Run the API on a Pi, connect a remote AI worker via gRPC.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="enterprise" aria-label="Enterprise features" class="py-24 sm:py-32">
+      <div class="mx-auto max-w-7xl px-6 lg:px-8">
+        <h2 class="text-3xl sm:text-4xl font-bold text-center text-neutral-900 dark:text-white">Built for teams that don't compromise.</h2>
+        <p class="mt-4 text-center text-neutral-500 max-w-xl mx-auto">Enterprise-grade security, compliance, and control — out of the box.</p>
+
+        <div class="mt-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+
+          <!-- Multi-Tenant Isolation -->
+          <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 p-6 hover:-translate-y-1 hover:border-amber-400/50 transition-all duration-200">
+            <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-amber-400/10 text-amber-500 mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z"/></svg>
+            </div>
+            <h3 class="text-xl font-semibold text-neutral-900 dark:text-white">Multi-Tenant Isolation</h3>
+            <p class="mt-2 text-neutral-600 dark:text-neutral-400">Full Row-Level Security per tenant in PostgreSQL. Your data never crosses boundaries.</p>
+          </div>
+
+          <!-- SSO / SCIM -->
+          <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 p-6 hover:-translate-y-1 hover:border-amber-400/50 transition-all duration-200">
+            <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-amber-400/10 text-amber-500 mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z"/></svg>
+            </div>
+            <h3 class="text-xl font-semibold text-neutral-900 dark:text-white">SSO / SCIM</h3>
+            <p class="mt-2 text-neutral-600 dark:text-neutral-400">Keycloak-powered OIDC and SAML out of the box. <span class="text-xs text-amber-400">SCIM coming soon</span></p>
+          </div>
+
+          <!-- Audit Logs -->
+          <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 p-6 hover:-translate-y-1 hover:border-amber-400/50 transition-all duration-200">
+            <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-amber-400/10 text-amber-500 mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25Z"/></svg>
+            </div>
+            <h3 class="text-xl font-semibold text-neutral-900 dark:text-white">Audit Logs <span class="text-xs text-amber-400 ml-2">Coming soon</span></h3>
+            <p class="mt-2 text-neutral-600 dark:text-neutral-400">Timestamped audit trail for every action. Compliance-ready.</p>
+          </div>
+
+          <!-- BYOK -->
+          <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 p-6 hover:-translate-y-1 hover:border-amber-400/50 transition-all duration-200">
+            <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-amber-400/10 text-amber-500 mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z"/></svg>
+            </div>
+            <h3 class="text-xl font-semibold text-neutral-900 dark:text-white">BYOK</h3>
+            <p class="mt-2 text-neutral-600 dark:text-neutral-400">Bring your own LLM keys — Anthropic, OpenAI, Cohere, or self-hosted models. Zero vendor lock-in.</p>
+          </div>
+
+          <!-- eBPF WAF -->
+          <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 p-6 hover:-translate-y-1 hover:border-amber-400/50 transition-all duration-200">
+            <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-amber-400/10 text-amber-500 mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.75c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.623 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Zm0 13.036h.008v.008H12v-.008Z"/></svg>
+            </div>
+            <h3 class="text-xl font-semibold text-neutral-900 dark:text-white">eBPF WAF</h3>
+            <p class="mt-2 text-neutral-600 dark:text-neutral-400">Kernel-level XDP pre-filtering and observability at the edge.</p>
+          </div>
+
+          <!-- GDPR / SOC2 -->
+          <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 p-6 hover:-translate-y-1 hover:border-amber-400/50 transition-all duration-200">
+            <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-amber-400/10 text-amber-500 mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.745 3.745 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z"/></svg>
+            </div>
+            <h3 class="text-xl font-semibold text-neutral-900 dark:text-white">GDPR / SOC2</h3>
+            <p class="mt-2 text-neutral-600 dark:text-neutral-400">Built for compliance. Self-host for full data sovereignty.</p>
+          </div>
+        </div>
+      </div>
+    </section>
     <section id="pricing" aria-label="Pricing"></section>
     <section id="cta" aria-label="Call to action"></section>
   </main>
