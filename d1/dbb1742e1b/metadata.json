@@ -6,7 +6,9 @@
   "checkpoints_count": 1,
   "files_touched": [
     ".github/workflows/go.yml",
-    ".github/workflows/python.yml"
+    ".github/workflows/python.yml",
+    "Dockerfile",
+    "ai-worker/Dockerfile"
   ],
   "sessions": [
     {
@@ -18,10 +20,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 39,
-    "cache_creation_tokens": 15565,
-    "cache_read_tokens": 5760548,
-    "output_tokens": 6004,
-    "api_call_count": 33
+    "input_tokens": 15,
+    "cache_creation_tokens": 6113,
+    "cache_read_tokens": 2398144,
+    "output_tokens": 3190,
+    "api_call_count": 13
   }
 }

@@ -83,3 +83,7 @@ https://github.com/ravencloak-org/Raven/pull/286#discussion_r3070394159
 
 https://github.REDACTED?pr=286
 
+### Prompt 19
+
+https://dotenvx.com/docs/secrets-with-cli Using this for installation instead
+
