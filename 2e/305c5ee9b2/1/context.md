@@ -44,3 +44,45 @@ use cf cli to deploy and point
 
 fix  all the comments right now in the PR
 
+### Prompt 10
+
+i'm setting up on the cloudflare worker dashboard, what's the build command for cf to build before running npx wrangler deploy
+
+### Prompt 11
+
+Initializing build environment...
+18:59:43.639    Success: Finished initializing build environment
+18:59:44.871    Cloning repository...
+18:59:47.925    No build output detected to cache. Skipping.
+18:59:47.925    No dependencies detected to cache. Skipping.
+18:59:47.926    Detected the following tools from environment: 
+18:59:48.124    Executing user build command: npm run build
+18:59:48.654    npm error code ENOENT
+18:59:48.656    npm error syscall open
+18:59:48.656    npm error path /opt/buil...
+
+### Prompt 12
+
+2026-04-13T13:32:54.298Z    Initializing build environment...
+2026-04-13T13:32:56.512Z    Success: Finished initializing build environment
+2026-04-13T13:32:57.571Z    Cloning repository...
+2026-04-13T13:33:00.256Z    Restoring from dependencies cache
+2026-04-13T13:33:00.258Z    Restoring from build output cache
+2026-04-13T13:33:00.262Z    Detected the following tools from environment: npm@10.9.2, nodejs@22.16.0
+2026-04-13T13:33:00.415Z    Installing project dependencies: npm clean-install --prog...
+
+### Prompt 13
+
+2026-04-13T13:36:37.942Z    Initializing build environment...
+2026-04-13T13:36:37.942Z    Initializing build environment...
+2026-04-13T13:36:39.654Z    Success: Finished initializing build environment
+2026-04-13T13:36:40.501Z    Cloning repository...
+2026-04-13T13:36:42.432Z    Restoring from dependencies cache
+2026-04-13T13:36:42.434Z    Restoring from build output cache
+2026-04-13T13:36:42.438Z    Detected the following tools from environment: npm@10.9.2, nodejs@22.16.0
+2026-04-13T13:36:42.515...
+
+### Prompt 14
+
+it doesn't allow to be kept empty
+
