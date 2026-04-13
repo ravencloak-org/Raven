@@ -1,9 +1,20 @@
 -- Raven PostgreSQL initialisation
 -- Runs once when the data volume is first created.
 
--- Keycloak needs its own database
-SELECT 'CREATE DATABASE keycloak'
-WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'keycloak')\gexec
+-- Zitadel needs its own database + user
+SELECT 'CREATE DATABASE zitadel'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'zitadel')\gexec
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'zitadel') THEN
+    CREATE USER zitadel WITH PASSWORD 'zitadel';
+  END IF;
+END
+$$;
+
+GRANT ALL PRIVILEGES ON DATABASE zitadel TO zitadel;
+ALTER USER zitadel CREATEDB;
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "vector";
