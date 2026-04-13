@@ -219,7 +219,112 @@
         </p>
       </div>
     </section>
-    <section id="features" aria-label="Features"></section>
+    <section id="features" aria-label="Features" class="py-24 sm:py-32 bg-neutral-50 dark:bg-neutral-950">
+      <div class="mx-auto max-w-7xl px-6 lg:px-8">
+        <h2 class="text-3xl sm:text-4xl font-bold text-center text-neutral-900 dark:text-white">
+          Three channels. One knowledge base.
+        </h2>
+        <p class="mt-4 text-center text-neutral-500 max-w-xl mx-auto">
+          Your team gets answers where they already work — chat, voice, or WhatsApp.
+        </p>
+
+        <!-- DESKTOP TABS (hidden on mobile) -->
+        <div class="hidden md:block mt-16">
+          <!-- Tab bar -->
+          <div class="flex justify-center border-b border-neutral-200 dark:border-neutral-800 gap-8">
+            <button data-tab-trigger="chat" class="pb-4 text-sm font-semibold border-b-2 border-amber-400 text-amber-400 transition-colors">AI Chat</button>
+            <button data-tab-trigger="voice" class="pb-4 text-sm font-semibold border-b-2 border-transparent text-neutral-500 hover:text-neutral-300 transition-colors">Voice Agent</button>
+            <button data-tab-trigger="whatsapp" class="pb-4 text-sm font-semibold border-b-2 border-transparent text-neutral-500 hover:text-neutral-300 transition-colors">WhatsApp</button>
+          </div>
+
+          <!-- Tab panels -->
+          <!-- Chat panel (visible by default) -->
+          <div data-tab-panel="chat" class="mt-12">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+              <div>
+                <h3 class="text-2xl font-bold text-neutral-900 dark:text-white">Ask your docs anything</h3>
+                <p class="mt-4 text-neutral-600 dark:text-neutral-400 leading-relaxed">Semantic search powered by hybrid vector + BM25 ranking. Every answer comes with source citations you can verify. Embed the chatbot widget on your site with a single <code class="text-amber-500 bg-neutral-100 dark:bg-neutral-900 px-1.5 py-0.5 rounded text-sm">&lt;raven-chat&gt;</code> tag.</p>
+                <a href="#demo-widget" class="mt-6 inline-flex items-center text-sm font-semibold text-amber-500 hover:text-amber-400 transition-colors">Try the demo above ↑</a>
+              </div>
+              <div class="rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 aspect-video flex items-center justify-center text-neutral-400">
+                <span class="text-sm">Screenshot: AI Chat Interface</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Voice panel (hidden) -->
+          <div data-tab-panel="voice" class="mt-12 hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+              <div class="lg:order-2">
+                <h3 class="text-2xl font-bold text-neutral-900 dark:text-white">Talk to your knowledge base</h3>
+                <p class="mt-4 text-neutral-600 dark:text-neutral-400 leading-relaxed">Real-time voice calls via WebRTC. Hands-free access to your entire knowledge base — powered by LiveKit with speech-to-text, LLM processing, and text-to-speech pipeline. Perfect for field teams and mobile workers.</p>
+              </div>
+              <div class="rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 aspect-video flex items-center justify-center text-neutral-400 lg:order-1">
+                <span class="text-sm">Screenshot: Voice Agent UI</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- WhatsApp panel (hidden) -->
+          <div data-tab-panel="whatsapp" class="mt-12 hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+              <div>
+                <h3 class="text-2xl font-bold text-neutral-900 dark:text-white">Meet your team where they already are</h3>
+                <p class="mt-4 text-neutral-600 dark:text-neutral-400 leading-relaxed">Connect via WhatsApp Business API. Zero app installs, zero training. Your team asks questions in the chat they already use every day.</p>
+              </div>
+              <div class="rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 aspect-video flex items-center justify-center text-neutral-400">
+                <span class="text-sm">Screenshot: WhatsApp Conversation</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MOBILE ACCORDION (hidden on desktop) -->
+        <div class="md:hidden mt-12 space-y-4">
+          <details open class="group rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden">
+            <summary class="cursor-pointer flex items-center justify-between px-6 py-4 text-lg font-semibold text-neutral-900 dark:text-white bg-neutral-50 dark:bg-neutral-950 hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors">
+              AI Chat
+              <svg class="size-5 text-neutral-400 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg>
+            </summary>
+            <div class="px-6 py-4 bg-white dark:bg-black">
+              <h3 class="text-xl font-bold text-neutral-900 dark:text-white">Ask your docs anything</h3>
+              <p class="mt-2 text-neutral-600 dark:text-neutral-400 leading-relaxed">Semantic search powered by hybrid vector + BM25 ranking. Every answer comes with source citations.</p>
+              <div class="mt-4 rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 aspect-video flex items-center justify-center text-neutral-400">
+                <span class="text-sm">Screenshot: AI Chat Interface</span>
+              </div>
+            </div>
+          </details>
+
+          <details class="group rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden">
+            <summary class="cursor-pointer flex items-center justify-between px-6 py-4 text-lg font-semibold text-neutral-900 dark:text-white bg-neutral-50 dark:bg-neutral-950 hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors">
+              Voice Agent
+              <svg class="size-5 text-neutral-400 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg>
+            </summary>
+            <div class="px-6 py-4 bg-white dark:bg-black">
+              <h3 class="text-xl font-bold text-neutral-900 dark:text-white">Talk to your knowledge base</h3>
+              <p class="mt-2 text-neutral-600 dark:text-neutral-400 leading-relaxed">Real-time voice calls via WebRTC. Hands-free access powered by LiveKit.</p>
+              <div class="mt-4 rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 aspect-video flex items-center justify-center text-neutral-400">
+                <span class="text-sm">Screenshot: Voice Agent UI</span>
+              </div>
+            </div>
+          </details>
+
+          <details class="group rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden">
+            <summary class="cursor-pointer flex items-center justify-between px-6 py-4 text-lg font-semibold text-neutral-900 dark:text-white bg-neutral-50 dark:bg-neutral-950 hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors">
+              WhatsApp
+              <svg class="size-5 text-neutral-400 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg>
+            </summary>
+            <div class="px-6 py-4 bg-white dark:bg-black">
+              <h3 class="text-xl font-bold text-neutral-900 dark:text-white">Meet your team where they already are</h3>
+              <p class="mt-2 text-neutral-600 dark:text-neutral-400 leading-relaxed">Connect via WhatsApp Business API. Zero app installs, zero training.</p>
+              <div class="mt-4 rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 aspect-video flex items-center justify-center text-neutral-400">
+                <span class="text-sm">Screenshot: WhatsApp Conversation</span>
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
     <section id="how-it-works" aria-label="How it works"></section>
     <section id="deploy" aria-label="Deployment options"></section>
     <section id="enterprise" aria-label="Enterprise features"></section>
@@ -270,6 +375,25 @@
           e.preventDefault()
           target.scrollIntoView({ behavior: 'smooth', block: 'start' })
         }
+      })
+    })
+
+    // Tab switching
+    document.querySelectorAll('[data-tab-trigger]').forEach(tab => {
+      tab.addEventListener('click', () => {
+        // Remove active from all triggers
+        document.querySelectorAll('[data-tab-trigger]').forEach(t => {
+          t.classList.remove('border-amber-400', 'text-amber-400')
+          t.classList.add('border-transparent', 'text-neutral-500')
+        })
+        // Add active to clicked
+        tab.classList.add('border-amber-400', 'text-amber-400')
+        tab.classList.remove('border-transparent', 'text-neutral-500')
+        // Show matching panel, hide others
+        const target = tab.dataset.tabTrigger
+        document.querySelectorAll('[data-tab-panel]').forEach(p => {
+          p.classList.toggle('hidden', p.dataset.tabPanel !== target)
+        })
       })
     })
   </script>
