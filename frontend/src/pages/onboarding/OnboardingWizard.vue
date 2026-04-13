@@ -108,8 +108,8 @@ async function createOrg() {
     orgId = data.id
     auth.setOrgId(orgId)
     currentStep.value = 2
-  } catch (e: any) {
-    error.value = e.message
+  } catch (e: unknown) {
+    error.value = e instanceof Error ? e.message : 'Something went wrong'
   } finally {
     loading.value = false
   }
@@ -126,8 +126,8 @@ async function createKB() {
     await apiFetch(`/orgs/${orgId}/workspaces/${ws.id}/knowledge-bases`, { name: kbName.value })
     // Navigate to dashboard
     router.push('/dashboard')
-  } catch (e: any) {
-    error.value = e.message
+  } catch (e: unknown) {
+    error.value = e instanceof Error ? e.message : 'Something went wrong'
   } finally {
     loading.value = false
   }
