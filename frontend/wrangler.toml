@@ -1,2 +1,6 @@
 name = "raven-frontend"
+compatibility_date = "2026-04-13"
 pages_build_output_dir = "./dist"
+
+[assets]
+directory = "./dist"
