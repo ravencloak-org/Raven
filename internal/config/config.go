@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"math/bits"
 	"strings"
 
@@ -15,7 +16,7 @@ type Config struct {
 	Valkey     ValkeyConfig
 	GRPC       GRPCConfig
 	OTel       OTelConfig
-	Keycloak   KeycloakConfig
+	Zitadel    ZitadelConfig
 	CORS       CORSConfig
 	RateLimit  RateLimitConfig
 	Queue      QueueConfig
@@ -148,25 +149,12 @@ type UploadConfig struct {
 	AllowedTypes []string `mapstructure:"allowed_types"`
 }
 
-// KeycloakConfig holds Keycloak/OIDC settings for JWT validation.
-type KeycloakConfig struct {
-	IssuerURL string `mapstructure:"issuer_url"`
-	Audience  string `mapstructure:"audience"`
-	// APIKeyEnabled enables the unvalidated API-key stub (see issue-24).
-	// Disabled by default; set RAVEN_KEYCLOAK_APIKEYENABLED=true only in
-	// development environments until the real DB-backed lookup is implemented.
-	APIKeyEnabled bool `mapstructure:"api_key_enabled"`
-
-	// Admin REST API credentials for realm auto-provisioning.
-	// AdminURL is the base URL of the Keycloak admin REST API,
-	// e.g. http://keycloak:8080.
-	AdminURL           string `mapstructure:"admin_url"`
-	AdminClientID      string `mapstructure:"admin_client_id"`
-	AdminClientSecret  string `mapstructure:"admin_client_secret"`
-
-	// InternalSecret is a shared secret for authenticating internal API
-	// endpoints such as realm provisioning. Set via RAVEN_KEYCLOAK_INTERNAL_SECRET.
-	InternalSecret string `mapstructure:"internal_secret"`
+// ZitadelConfig holds Zitadel OIDC settings for JWT validation.
+type ZitadelConfig struct {
+	Domain   string `mapstructure:"domain"`
+	ClientID string `mapstructure:"client_id"`
+	Secure   bool   `mapstructure:"secure"`
+	KeyPath  string `mapstructure:"key_path"` // path to machine user key JSON (optional)
 }
 
 // CORSConfig holds Cross-Origin Resource Sharing settings.
@@ -224,17 +212,15 @@ func Load() (*Config, error) {
 	v := viper.New()
 
 	// Set defaults
-	v.SetDefault("server.port", 8080)
+	v.SetDefault("server.port", 8081)
 	v.SetDefault("server.mode", "debug")
 	v.SetDefault("grpc.worker_addr", "localhost:50051")
 	v.SetDefault("otel.endpoint", "")
 	v.SetDefault("otel.service_name", "raven-api")
 	v.SetDefault("otel.enabled", false)
-	v.SetDefault("keycloak.issuer_url", "http://localhost:8080/auth/realms/raven")
-	v.SetDefault("keycloak.audience", "raven")
-	v.SetDefault("keycloak.admin_url", "http://localhost:8080")
-	v.SetDefault("keycloak.admin_client_id", "admin-cli")
-	v.SetDefault("keycloak.admin_client_secret", "")
+	v.SetDefault("zitadel.domain", "localhost:8080")
+	v.SetDefault("zitadel.client_id", "")
+	v.SetDefault("zitadel.secure", false)
 	// CORS allowed origins can be overridden via the RAVEN_CORS_ALLOWED_ORIGINS
 	// environment variable as a comma-separated list.
 	// Example: RAVEN_CORS_ALLOWED_ORIGINS=https://app1.com,https://app2.com
@@ -330,12 +316,10 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("database.url", "RAVEN_DATABASE_URL")
 	_ = v.BindEnv("valkey.url", "RAVEN_VALKEY_URL")
 	_ = v.BindEnv("grpc.worker_addr", "RAVEN_GRPC_WORKER_ADDR")
-	_ = v.BindEnv("keycloak.issuer_url", "RAVEN_KEYCLOAK_ISSUER_URL")
-	_ = v.BindEnv("keycloak.audience", "RAVEN_KEYCLOAK_AUDIENCE")
-	_ = v.BindEnv("keycloak.admin_url", "RAVEN_KEYCLOAK_ADMIN_URL")
-	_ = v.BindEnv("keycloak.admin_client_id", "RAVEN_KEYCLOAK_ADMIN_CLIENT_ID")
-	_ = v.BindEnv("keycloak.admin_client_secret", "RAVEN_KEYCLOAK_ADMIN_CLIENT_SECRET")
-	_ = v.BindEnv("keycloak.internal_secret", "RAVEN_KEYCLOAK_INTERNAL_SECRET")
+	_ = v.BindEnv("zitadel.domain", "ZITADEL_EXTERNALDOMAIN")
+	_ = v.BindEnv("zitadel.client_id", "ZITADEL_CLIENT_ID")
+	_ = v.BindEnv("zitadel.secure", "ZITADEL_EXTERNALSECURE")
+	_ = v.BindEnv("zitadel.key_path", "ZITADEL_KEY_PATH")
 	_ = v.BindEnv("server.port", "RAVEN_SERVER_PORT")
 	_ = v.BindEnv("server.mode", "RAVEN_SERVER_MODE")
 	_ = v.BindEnv("clickhouse.host", "RAVEN_CLICKHOUSE_HOST")
@@ -409,6 +393,10 @@ func Load() (*Config, error) {
 		if size <= 0 || bits.OnesCount(uint(size)) != 1 {
 			return nil, fmt.Errorf("ebpf.audit_ring_buffer_size must be a power of 2 > 0, got %d", size)
 		}
+	}
+
+	if cfg.Zitadel.ClientID == "" {
+		log.Printf("[WARN] zitadel.client_id is empty — JWT audience validation will reject all tokens until configured")
 	}
 
 	return &cfg, nil

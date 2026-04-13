@@ -27,6 +27,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -90,6 +91,23 @@ func (a *apiKeyLookupAdapter) LookupByHash(ctx context.Context, keyHash string) 
 		return nil, err
 	}
 	return apiKeyToLookupResult(ak), nil
+}
+
+// userLookupAdapter bridges UserRepository to the middleware.UserResolver interface.
+type userLookupAdapter struct {
+	repo *repository.UserRepository
+}
+
+func (a *userLookupAdapter) GetByExternalID(ctx context.Context, externalID string) (string, *string, error) {
+	u, err := a.repo.GetByExternalID(ctx, externalID)
+	if err != nil {
+		// Not found → return empty (first login); real DB errors propagate
+		if strings.Contains(err.Error(), "no rows") {
+			return "", nil, nil
+		}
+		return "", nil, err
+	}
+	return u.ID, u.OrgID, nil
 }
 
 func apiKeyToLookupResult(ak *model.APIKey) *middleware.APIKeyLookupResult {
@@ -431,7 +449,8 @@ func main() {
 	//   SET LOCAL app.current_org_id = '<uuid>'
 	// using the org_id stored in the Gin context key middleware.ContextKeyOrgID.
 	api := router.Group("/api/v1")
-	api.Use(middleware.JWTMiddleware(&cfg.Keycloak))
+	api.Use(middleware.JWTMiddleware(&cfg.Zitadel))
+	api.Use(middleware.UserLookup(&userLookupAdapter{repo: userRepo}))
 	// Per-user and per-org flat rate limits (config-driven defaults).
 	api.Use(middleware.ByUserID(rl, cfg.RateLimit.DefaultUserLimit))
 	api.Use(middleware.ByOrgID(rl, cfg.RateLimit.DefaultOrgLimit))
@@ -721,21 +740,12 @@ func main() {
 	router.GET("/webhooks/meta", metaWebhookHandler.VerifyWebhook)
 	router.POST("/webhooks/meta", metaWebhookHandler.HandleEvent)
 
-	// Internal routes — no JWT, no rate limiting.
-	// Must only be reachable from the compose-internal network (enforce via firewall/network policy).
-	internal := router.Group("/api/v1/internal")
+	// Auth routes (authenticated via JWT but org not required — pre-onboarding users).
+	authHandler := handler.NewAuthHandler(userSvc)
+	authGroup := api.Group("/auth")
 	{
-		internal.POST("/keycloak-webhook", userHandler.KeycloakWebhook)
+		authGroup.POST("/callback", authHandler.Callback)
 	}
-
-	// Realm auto-provisioning — internal only, requires bearer token auth.
-	provisionHandler := handler.NewProvisionHandler(
-		cfg.Keycloak.AdminURL,
-		cfg.Keycloak.AdminClientID,
-		cfg.Keycloak.AdminClientSecret,
-		cfg.Keycloak.InternalSecret,
-	)
-	router.POST("/internal/provision-realm", provisionHandler.RequireInternalAuth, provisionHandler.ProvisionRealm)
 
 	// Create HTTP server
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)

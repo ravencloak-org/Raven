@@ -21,37 +21,39 @@ import (
 type contextKey string
 
 const (
-	// ContextKeyUserID is the context key for the JWT subject (user ID).
+	// ContextKeyUserID is the context key for the internal database user ID.
+	// Set by auth handlers after a DB lookup; not set by JWTMiddleware directly.
 	ContextKeyUserID contextKey = "user_id"
-	// ContextKeyOrgID is the context key for the organisation ID claim.
+	// ContextKeyOrgID is the context key for the organisation ID.
+	// Set by auth handlers or org-scoped middleware after a DB lookup.
 	ContextKeyOrgID contextKey = "org_id"
-	// ContextKeyOrgRole is the context key for the organisation role claim.
+	// ContextKeyOrgRole is the context key for the organisation role.
+	// Set by org-scoped middleware after a DB lookup.
 	ContextKeyOrgRole contextKey = "org_role"
-	// ContextKeyWorkspaceIDs is the context key for the workspace IDs claim.
-	ContextKeyWorkspaceIDs contextKey = "workspace_ids"
-	// ContextKeyKBPermissions is the context key for the knowledge-base permissions claim.
-	ContextKeyKBPermissions contextKey = "kb_permissions"
-	// ContextKeyEmail is the context key for the user email claim.
-	ContextKeyEmail contextKey = "email"
-	// ContextKeyClaims is the context key for the full parsed Claims struct.
-	ContextKeyClaims contextKey = "claims"
 	// ContextKeyWorkspaceRole is the context key for the resolved workspace role,
 	// set by workspace-scoped middleware after a membership DB lookup.
 	ContextKeyWorkspaceRole contextKey = "workspace_role"
+	// ContextKeyEmail is the context key for the user email claim from the JWT.
+	ContextKeyEmail contextKey = "email"
+	// ContextKeyExternalID is the context key for the Zitadel subject (external user ID).
+	// Set by JWTMiddleware from the JWT sub claim.
+	ContextKeyExternalID contextKey = "external_id"
+	// ContextKeyUserName is the context key for the user's display name from the JWT.
+	// Set by JWTMiddleware from the JWT name claim.
+	ContextKeyUserName contextKey = "user_name"
+	// ContextKeyClaims is the context key for the full parsed Claims struct.
+	ContextKeyClaims contextKey = "claims"
 
 	jwksCacheTTL = time.Hour
 )
 
-// Claims holds the standard JWT registered claims plus custom Raven/Keycloak claims.
+// Claims holds the standard JWT registered claims from Zitadel.
+// Org and workspace context is derived from the database after JWT validation,
+// not from custom JWT claims.
 type Claims struct {
 	jwt.RegisteredClaims
-
-	// Custom Keycloak / Raven claims.
-	OrgID          string   `json:"org_id"`
-	OrgRole        string   `json:"org_role"`
-	WorkspaceIDs   []string `json:"workspace_ids"`
-	KBPermissions  []string `json:"kb_permissions"`
-	Email          string   `json:"email"`
+	Email string `json:"email"`
+	Name  string `json:"name"`
 }
 
 // authError represents a structured 401 response body.
@@ -115,25 +117,26 @@ func (c *jwksCache) keyFunc(forceRefresh bool) jwt.Keyfunc {
 }
 
 // JWTMiddleware returns a Gin handler that validates Bearer JWTs against the
-// Keycloak JWKS endpoint, or stubs through API-key requests.
+// Zitadel JWKS endpoint.
 //
 // The middleware is intended to be applied per route-group, not globally.
 //
 // On success, the following values are stored in the Gin context:
 //
-//	ContextKeyUserID        → string (JWT sub)
-//	ContextKeyOrgID         → string
-//	ContextKeyOrgRole       → string
-//	ContextKeyWorkspaceIDs  → []string
-//	ContextKeyKBPermissions → []string
-//	ContextKeyEmail         → string
-//	ContextKeyClaims        → *Claims
+//	ContextKeyExternalID → string (JWT sub — Zitadel user ID)
+//	ContextKeyEmail      → string
+//	ContextKeyUserName   → string
+//	ContextKeyClaims     → *Claims
 //
-// NOTE: RLS enforcement (`SET LOCAL app.current_org_id`) must be applied by
-// the repository layer after retrieving ContextKeyOrgID from the context,
-// because the DB connection is not accessible here.
-func JWTMiddleware(cfg *config.KeycloakConfig) gin.HandlerFunc {
-	jwksURL := cfg.IssuerURL + "/protocol/openid-connect/certs"
+// NOTE: ContextKeyUserID and ContextKeyOrgID are populated by downstream
+// auth handlers after a database lookup, not by this middleware.
+func JWTMiddleware(cfg *config.ZitadelConfig) gin.HandlerFunc {
+	scheme := "https"
+	if !cfg.Secure {
+		scheme = "http"
+	}
+	issuerURL := fmt.Sprintf("%s://%s", scheme, cfg.Domain)
+	jwksURL := issuerURL + "/oauth/v2/keys"
 
 	const maxAttempts = 3
 	var (
@@ -159,16 +162,6 @@ func JWTMiddleware(cfg *config.KeycloakConfig) gin.HandlerFunc {
 	}
 
 	return func(c *gin.Context) {
-		// --- Detect auth method ---
-		if apiKey := c.GetHeader("X-API-Key"); apiKey != "" {
-			if !cfg.APIKeyEnabled {
-				abortUnauthorized(c, "api_key_auth_disabled")
-				return
-			}
-			handleAPIKey(c, apiKey)
-			return
-		}
-
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			abortUnauthorized(c, "missing_token")
@@ -183,12 +176,12 @@ func JWTMiddleware(cfg *config.KeycloakConfig) gin.HandlerFunc {
 		rawToken := parts[1]
 
 		// --- Parse & validate JWT ---
-		claims, err := parseJWT(rawToken, cfg.IssuerURL, cfg.Audience, cache, false)
+		claims, err := parseJWT(rawToken, issuerURL, cfg.ClientID, cache, false)
 		if err != nil {
 			// On any key-related error, retry once with a forced JWKS refresh
 			// (handles key rotation / cache staleness).
 			if isKeyError(err) {
-				claims, err = parseJWT(rawToken, cfg.IssuerURL, cfg.Audience, cache, true)
+				claims, err = parseJWT(rawToken, issuerURL, cfg.ClientID, cache, true)
 			}
 			if err != nil {
 				abortWithTokenError(c, err)
@@ -197,14 +190,64 @@ func JWTMiddleware(cfg *config.KeycloakConfig) gin.HandlerFunc {
 		}
 
 		// --- Store claims in Gin context ---
-		c.Set(string(ContextKeyUserID), claims.Subject)
-		c.Set(string(ContextKeyOrgID), claims.OrgID)
-		c.Set(string(ContextKeyOrgRole), claims.OrgRole)
-		c.Set(string(ContextKeyWorkspaceIDs), claims.WorkspaceIDs)
-		c.Set(string(ContextKeyKBPermissions), claims.KBPermissions)
+		c.Set(string(ContextKeyExternalID), claims.Subject)
 		c.Set(string(ContextKeyEmail), claims.Email)
+		c.Set(string(ContextKeyUserName), claims.Name)
 		c.Set(string(ContextKeyClaims), claims)
 
+		c.Next()
+	}
+}
+
+// UserResolver is the interface for looking up users by external ID.
+// Returns empty userID when the user is not found (not an error).
+type UserResolver interface {
+	GetByExternalID(ctx context.Context, externalID string) (userID string, orgID *string, err error)
+}
+
+// UserLookup returns middleware that resolves the JWT external ID to internal
+// user and org IDs via a database lookup. Apply after JWTMiddleware on routes
+// that need ContextKeyUserID or ContextKeyOrgID.
+//
+// If the user is not found (first login), the middleware continues without
+// setting these keys — the /auth/callback handler handles user creation.
+// Real DB errors abort with 503 to avoid masking infra failures.
+func UserLookup(resolver UserResolver) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		externalID := c.GetString(string(ContextKeyExternalID))
+		if externalID == "" {
+			c.Next()
+			return
+		}
+		userID, orgID, err := resolver.GetByExternalID(c.Request.Context(), externalID)
+		if err != nil {
+			// Real DB error — abort so infra failures don't silently degrade auth
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "user_lookup_failed"})
+			return
+		}
+		if userID == "" {
+			// User not found = first login, let auth callback handle creation
+			c.Next()
+			return
+		}
+		c.Set(string(ContextKeyUserID), userID)
+		if orgID != nil {
+			c.Set(string(ContextKeyOrgID), *orgID)
+		}
+		c.Next()
+	}
+}
+
+// RequireOrg returns middleware that aborts with 403 if the request context
+// does not contain a valid organisation ID. Apply after JWTMiddleware on
+// routes that require an onboarded user.
+func RequireOrg() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		orgID := c.GetString(string(ContextKeyOrgID))
+		if orgID == "" {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "organization required"})
+			return
+		}
 		c.Next()
 	}
 }
@@ -251,34 +294,4 @@ func abortWithTokenError(c *gin.Context, err error) {
 // abortUnauthorized aborts the request with a structured 401 JSON body.
 func abortUnauthorized(c *gin.Context, code string) {
 	c.AbortWithStatusJSON(http.StatusUnauthorized, authError{Error: code})
-}
-
-// apiKeyWarnOnce ensures the stub warning is logged at most once per process
-// to avoid flooding structured log sinks.
-var apiKeyWarnOnce sync.Once
-
-// handleAPIKey stubs the API-key authentication path.
-// The lookup against the database is not yet implemented; a placeholder
-// Claims struct is stored in the context so downstream handlers can read it.
-//
-// WARNING: This stub accepts ANY non-empty X-API-Key value without validation.
-// It MUST be replaced before production use.
-//
-// TODO(issue-24): replace stub with real DB lookup and key hashing.
-func handleAPIKey(c *gin.Context, _ string) {
-	apiKeyWarnOnce.Do(func() {
-		log.Printf("[WARN] API key authentication is not yet validated — stub in use (see issue-24)")
-	})
-	stub := &Claims{}
-	stub.Subject = "api-key-subject-placeholder"
-
-	c.Set(string(ContextKeyUserID), stub.Subject)
-	c.Set(string(ContextKeyOrgID), stub.OrgID)
-	c.Set(string(ContextKeyOrgRole), stub.OrgRole)
-	c.Set(string(ContextKeyWorkspaceIDs), stub.WorkspaceIDs)
-	c.Set(string(ContextKeyKBPermissions), stub.KBPermissions)
-	c.Set(string(ContextKeyEmail), stub.Email)
-	c.Set(string(ContextKeyClaims), stub)
-
-	c.Next()
 }

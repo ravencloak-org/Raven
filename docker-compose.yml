@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8080:8080"
+      - "8081:8081"
     volumes:
       - ./.env:/app/.env:ro
     environment:
@@ -15,17 +15,19 @@ services:
       RAVEN_OTEL_ENABLED: "true"
       RAVEN_OTEL_ENDPOINT: "openobserve:5081"
       RAVEN_OTEL_SERVICE_NAME: "raven-api"
+      ZITADEL_EXTERNALDOMAIN: ${ZITADEL_EXTERNALDOMAIN:-localhost}
+      ZITADEL_CLIENT_ID: ${ZITADEL_CLIENT_ID}
     depends_on:
       postgres:
         condition: service_healthy
       valkey:
         condition: service_healthy
-      keycloak:
-        condition: service_started
+      zitadel:
+        condition: service_healthy
       openobserve:
         condition: service_started
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/healthz"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -41,7 +43,7 @@ services:
       - "traefik.http.routers.api.tls=true"
       - "traefik.http.routers.api.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-letsencrypt}"
       - "traefik.http.routers.api.middlewares=security-headers@file"
-      - "traefik.http.services.api.loadbalancer.server.port=8080"
+      - "traefik.http.services.api.loadbalancer.server.port=8081"
     restart: unless-stopped
     # eBPF capabilities (CAP_BPF, CAP_NET_ADMIN) are in docker-compose.ebpf.yml overlay
 
@@ -184,36 +186,56 @@ services:
       - raven-internal
     restart: unless-stopped
 
-  # ─── Keycloak IAM ─────────────────────────────────────────────────────────
-  keycloak:
-    image: quay.io/keycloak/keycloak:26
-    command: start-dev --import-realm
-    environment:
-      KC_DB: postgres
-      KC_DB_URL: ${KC_DB_URL:-jdbc:postgresql://postgres:5432/keycloak}
-      KC_DB_USERNAME: ${KC_DB_USERNAME:-raven}
-      KC_DB_PASSWORD: ${KC_DB_PASSWORD:?KC_DB_PASSWORD is required}
-      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?KEYCLOAK_ADMIN_PASSWORD is required}
+  # ─── Zitadel IAM ──────────────────────────────────────────────────────────
+  zitadel:
+    image: ghcr.io/zitadel/zitadel:v2.71.12
+    restart: always
+    command: >
+      start-from-init
+      --config /zitadel-config.yaml
+      --steps /zitadel-init-steps.yaml
+      --masterkey "${ZITADEL_MASTERKEY}"
+      --tlsMode disabled
     ports:
-      - "8443:8080"
+      - "8080:8080"
     volumes:
-      - ./deploy/keycloak:/opt/keycloak/data/import
-      - kc-data:/opt/keycloak/data
+      - ./deploy/zitadel/zitadel-config.yaml:/zitadel-config.yaml:ro
+      - ./deploy/zitadel/zitadel-init-steps.yaml:/zitadel-init-steps.yaml:ro
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - raven-internal
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.keycloak.rule=Host(`${RAVEN_DOMAIN:-localhost}`) && PathPrefix(`/auth`)"
-      - "traefik.http.routers.keycloak.entrypoints=websecure"
-      - "traefik.http.routers.keycloak.tls=true"
-      - "traefik.http.routers.keycloak.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-letsencrypt}"
-      - "traefik.http.routers.keycloak.middlewares=security-headers@file"
-      - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
-    restart: unless-stopped
+    environment:
+      - ZITADEL_MASTERKEY=${ZITADEL_MASTERKEY}
+      - ZITADEL_EXTERNALDOMAIN=${ZITADEL_EXTERNALDOMAIN:-localhost}
+      - ZITADEL_EXTERNALPORT=${ZITADEL_EXTERNALPORT:-8080}
+      - ZITADEL_EXTERNALSECURE=${ZITADEL_EXTERNALSECURE:-false}
+      - ZITADEL_DATABASE_POSTGRES_HOST=postgres
+      - ZITADEL_DATABASE_POSTGRES_PORT=5432
+      - ZITADEL_DATABASE_POSTGRES_DATABASE=zitadel
+      - ZITADEL_DATABASE_POSTGRES_USER_USERNAME=zitadel
+      - ZITADEL_DATABASE_POSTGRES_USER_PASSWORD=${ZITADEL_DB_PASSWORD:-zitadel}
+      - ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME=${POSTGRES_USER:-raven}
+      - ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD=${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD", "/app/zitadel", "ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ─── Cloudflare Tunnel (production only) ──────────────────────────────────
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: always
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${CF_TUNNEL_TOKEN}
+    networks:
+      - raven-internal
+    profiles:
+      - production
 
   # ─── SeaweedFS Master ──────────────────────────────────────────────────────
   seaweedfs-master:
@@ -316,7 +338,6 @@ services:
 # ─── Volumes ──────────────────────────────────────────────────────────────────
 volumes:
   pg-data:
-  kc-data:
   seaweedfs-data:
   valkey-data:
   clickhouse-data:

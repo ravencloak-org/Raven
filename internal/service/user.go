@@ -19,14 +19,23 @@ func NewUserService(repo *repository.UserRepository) *UserService {
 	return &UserService{repo: repo}
 }
 
-// GetMe fetches the current user by their Keycloak subject (from JWT).
-func (s *UserService) GetMe(ctx context.Context, keycloakSub string) (*model.User, error) {
-	u, err := s.repo.GetByKeycloakSub(ctx, keycloakSub)
+// GetByExternalID fetches a user by their external IdP identifier.
+func (s *UserService) GetByExternalID(ctx context.Context, externalID string) (*model.User, error) {
+	u, err := s.repo.GetByExternalID(ctx, externalID)
 	if err != nil {
 		if strings.Contains(err.Error(), "no rows") {
 			return nil, apierror.NewNotFound("user not found")
 		}
 		return nil, apierror.NewInternal("failed to fetch user: " + err.Error())
+	}
+	return u, nil
+}
+
+// Create creates a new user from external IdP data (called during first login).
+func (s *UserService) Create(ctx context.Context, externalID, email, displayName string) (*model.User, error) {
+	u, err := s.repo.UpsertByExternalID(ctx, externalID, email, displayName)
+	if err != nil {
+		return nil, apierror.NewInternal("failed to create user: " + err.Error())
 	}
 	return u, nil
 }
@@ -53,37 +62,6 @@ func (s *UserService) GetByID(ctx context.Context, userID string) (*model.User, 
 		return nil, apierror.NewInternal("failed to fetch user: " + err.Error())
 	}
 	return u, nil
-}
-
-// HandleKeycloakEvent processes an incoming Keycloak webhook event.
-// Supported event types: REGISTER, UPDATE_PROFILE, DELETE_ACCOUNT.
-// Unknown event types are silently ignored (future-proof).
-func (s *UserService) HandleKeycloakEvent(ctx context.Context, event model.KeycloakWebhookEvent) error {
-	switch event.Type {
-	case "REGISTER", "UPDATE_PROFILE":
-		displayName := event.Attributes["firstName"] + " " + event.Attributes["lastName"]
-		displayName = strings.TrimSpace(displayName)
-		_, err := s.repo.UpsertByKeycloakSub(ctx, event.OrgID, event.UserID, event.Email, displayName)
-		if err != nil {
-			return apierror.NewInternal("keycloak sync failed: " + err.Error())
-		}
-	case "DELETE_ACCOUNT":
-		// Soft-delete: find user by keycloak_sub first, then disable.
-		u, err := s.repo.GetByKeycloakSub(ctx, event.UserID)
-		if err != nil {
-			// If not found, treat as idempotent success.
-			if strings.Contains(err.Error(), "no rows") {
-				return nil
-			}
-			return apierror.NewInternal("user lookup failed: " + err.Error())
-		}
-		if err := s.repo.SoftDelete(ctx, u.ID); err != nil {
-			return apierror.NewInternal("user delete failed: " + err.Error())
-		}
-	default:
-		// Ignore unknown event types — forward compatibility.
-	}
-	return nil
 }
 
 // DeleteMe soft-deletes the current user (GDPR right to erasure).

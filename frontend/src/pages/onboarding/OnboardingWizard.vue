@@ -1,145 +1,69 @@
 <template>
-  <div class="fixed inset-0 z-50 bg-slate-900 flex items-center justify-center p-4">
-    <div class="w-full max-w-lg bg-slate-800 rounded-2xl shadow-2xl overflow-hidden">
+  <div class="min-h-screen flex items-center justify-center bg-white dark:bg-black p-4">
+    <div class="w-full max-w-md">
       <!-- Progress dots -->
-      <div class="flex justify-center gap-2 pt-6 pb-4">
-        <button
-          v-for="step in TOTAL_STEPS"
+      <div class="flex justify-center gap-2 mb-8">
+        <div
+          v-for="step in 2"
           :key="step"
           class="w-2.5 h-2.5 rounded-full transition-colors duration-200"
-          :class="step === currentStep ? 'bg-indigo-500' : 'bg-slate-600'"
-          :aria-label="`Step ${step}`"
-          @click="currentStep = step"
+          :class="step <= currentStep ? 'bg-amber-500' : 'bg-neutral-300 dark:bg-neutral-700'"
         />
       </div>
 
-      <!-- Step content -->
-      <div class="px-8 pb-6">
-        <!-- Step 1: Name your org -->
-        <div v-if="currentStep === 1">
-          <h2 class="text-2xl font-semibold text-white mb-2">Name your organisation</h2>
-          <p class="text-slate-400 text-sm mb-6">
-            Give your workspace a memorable name. You can change it later.
-          </p>
-          <label class="block text-sm text-slate-300 mb-1" for="org-name">Organisation name</label>
-          <input
-            id="org-name"
-            v-model="orgName"
-            type="text"
-            placeholder="e.g. Acme Corp"
-            class="w-full rounded-lg bg-slate-700 text-white placeholder-slate-500 border border-slate-600 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-
-        <!-- Step 2: Create first Knowledge Base -->
-        <div v-else-if="currentStep === 2">
-          <h2 class="text-2xl font-semibold text-white mb-2">Create your first Knowledge Base</h2>
-          <p class="text-slate-400 text-sm mb-6">
-            A Knowledge Base holds the documents your AI will learn from.
-          </p>
-          <label class="block text-sm text-slate-300 mb-1" for="kb-name">Knowledge Base name</label>
-          <input
-            id="kb-name"
-            v-model="kbName"
-            type="text"
-            placeholder="e.g. Product Docs"
-            class="w-full rounded-lg bg-slate-700 text-white placeholder-slate-500 border border-slate-600 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-
-        <!-- Step 3: Configure LLM provider -->
-        <div v-else-if="currentStep === 3">
-          <h2 class="text-2xl font-semibold text-white mb-2">Configure your LLM provider</h2>
-          <p class="text-slate-400 text-sm mb-6">
-            Raven uses your own API key (BYOK) — your data never leaves your control.
-          </p>
-          <label class="block text-sm text-slate-300 mb-1" for="llm-provider">Provider</label>
-          <select
-            id="llm-provider"
-            v-model="llmProvider"
-            class="w-full rounded-lg bg-slate-700 text-white border border-slate-600 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4"
-          >
-            <option value="openai">OpenAI</option>
-            <option value="anthropic">Anthropic</option>
-            <option value="gemini">Gemini</option>
-          </select>
-          <label class="block text-sm text-slate-300 mb-1" for="api-key">API Key</label>
-          <input
-            id="api-key"
-            v-model="apiKey"
-            type="password"
-            placeholder="sk-..."
-            class="w-full rounded-lg bg-slate-700 text-white placeholder-slate-500 border border-slate-600 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            autocomplete="off"
-          />
-        </div>
-
-        <!-- Step 4: Test chatbot -->
-        <div v-else-if="currentStep === 4">
-          <h2 class="text-2xl font-semibold text-white mb-2">Test your chatbot</h2>
-          <p class="text-slate-400 text-sm mb-6">
-            Send a quick message to make sure everything is connected.
-          </p>
-          <div class="bg-slate-700 rounded-xl p-4 min-h-24 mb-4 text-sm text-slate-300 space-y-2">
-            <p v-if="chatResponse" class="text-indigo-300">{{ chatResponse }}</p>
-            <p v-else class="text-slate-500 italic">Responses will appear here…</p>
-          </div>
-          <div class="flex gap-2">
-            <input
-              v-model="chatInput"
-              type="text"
-              placeholder="Type a message…"
-              class="flex-1 rounded-lg bg-slate-700 text-white placeholder-slate-500 border border-slate-600 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              @keydown.enter="sendTestMessage"
-            />
-            <button
-              class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-4 rounded-lg transition-colors"
-              @click="sendTestMessage"
-            >
-              Send
-            </button>
-          </div>
-        </div>
-
-        <!-- Step 5: Done -->
-        <div v-else-if="currentStep === 5" class="text-center py-4">
-          <div class="text-5xl mb-4">🎉</div>
-          <h2 class="text-2xl font-semibold text-white mb-2">You're all set!</h2>
-          <p class="text-slate-400 text-sm mb-8">
-            Raven is ready. Head to your dashboard to start uploading documents and chatting.
-          </p>
-          <button
-            class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-xl transition-colors"
-            @click="finish"
-          >
-            Go to Dashboard
-          </button>
-        </div>
+      <!-- Step 1: Name your organization -->
+      <div v-if="currentStep === 1">
+        <h2 class="text-2xl font-bold text-neutral-900 dark:text-white mb-2">Name your organization</h2>
+        <p class="text-neutral-500 text-sm mb-6">This will be your team's workspace on Raven.</p>
+        <label for="org-name" class="sr-only">Organization name</label>
+        <input
+          id="org-name"
+          v-model="orgName"
+          type="text"
+          placeholder="e.g. Acme Corp"
+          class="w-full rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white placeholder-neutral-400 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 mb-6"
+          aria-describedby="org-error"
+          @keyup.enter="createOrg"
+        />
+        <button
+          :disabled="orgName.length < 3 || loading"
+          class="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors"
+          @click="createOrg"
+        >
+          {{ loading ? 'Creating...' : 'Continue' }}
+        </button>
+        <p v-if="error" id="org-error" class="text-red-500 text-sm mt-3">{{ error }}</p>
       </div>
 
-      <!-- Navigation buttons -->
-      <div v-if="currentStep < TOTAL_STEPS" class="flex items-center justify-between px-8 pb-8">
-        <button
-          class="text-slate-400 hover:text-white text-sm transition-colors"
-          @click="skip"
-        >
-          Skip
-        </button>
-        <div class="flex gap-3">
-          <button
-            v-if="currentStep > 1"
-            class="px-5 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-sm transition-colors"
-            @click="currentStep--"
-          >
-            Back
-          </button>
-          <button
-            class="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors"
-            @click="next"
-          >
-            {{ currentStep === TOTAL_STEPS - 1 ? 'Finish' : 'Next' }}
-          </button>
+      <!-- Step 2: Create first knowledge base -->
+      <div v-else-if="currentStep === 2">
+        <h2 class="text-2xl font-bold text-neutral-900 dark:text-white mb-2">Create your first knowledge base</h2>
+        <p class="text-neutral-500 text-sm mb-6">A knowledge base holds the documents your AI will learn from.</p>
+        <label for="kb-name" class="sr-only">Knowledge base name</label>
+        <input
+          id="kb-name"
+          v-model="kbName"
+          type="text"
+          placeholder="e.g. Product Docs"
+          class="w-full rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white placeholder-neutral-400 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 mb-4"
+          aria-describedby="kb-error"
+          @keyup.enter="createKB"
+        />
+
+        <!-- Drop zone (visual placeholder) -->
+        <div class="border-2 border-dashed border-neutral-300 dark:border-neutral-700 rounded-lg p-6 text-center mb-6">
+          <p class="text-neutral-400 text-sm">Drag &amp; drop files here (optional)</p>
+          <p class="text-neutral-400 text-xs mt-1">PDF, DOCX, TXT, MD — up to 50 MB</p>
         </div>
+
+        <button
+          :disabled="kbName.length < 1 || loading"
+          class="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors"
+          @click="createKB"
+        >
+          {{ loading ? 'Setting up...' : 'Get Started' }}
+        </button>
+        <p v-if="error" id="kb-error" class="text-red-500 text-sm mt-3">{{ error }}</p>
       </div>
     </div>
   </div>
@@ -147,49 +71,71 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useOnboardingStore } from '../../stores/onboarding'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '../../stores/auth'
 
-const TOTAL_STEPS = 5
+const router = useRouter()
+const auth = useAuthStore()
+const apiUrl = import.meta.env.VITE_API_BASE_URL
 
-const onboarding = useOnboardingStore()
-const currentStep = ref<number>(1)
+const currentStep = ref(1)
+const loading = ref(false)
+const error = ref('')
 
 // Step 1
 const orgName = ref('')
+let orgId = ''
+
 // Step 2
 const kbName = ref('')
-// Step 3
-const llmProvider = ref<'openai' | 'anthropic' | 'gemini'>('openai')
-const apiKey = ref('')
-// Step 4
-const chatInput = ref('')
-const chatResponse = ref('')
 
-function next(): void {
-  if (currentStep.value < TOTAL_STEPS) {
-    // TODO: Wire step submissions to backend APIs:
-    // Step 1 → POST /api/v1/orgs (create org with orgName.value)
-    // Step 2 → POST /api/v1/orgs/:orgId/knowledge-bases (create KB with kbName.value)
-    // Step 3 → POST /api/v1/orgs/:orgId/llm-providers (save provider config)
-    currentStep.value++
+async function apiFetch(path: string, body: Record<string, unknown>) {
+  const res = await fetch(`${apiUrl}${path}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${auth.accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.message || data.error || `Request failed (${res.status})`)
+  }
+  return res.json()
+}
+
+async function createOrg() {
+  if (orgName.value.length < 3) return
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await apiFetch('/orgs', { name: orgName.value })
+    orgId = data.id
+    currentStep.value = 2
+  } catch (e: unknown) {
+    error.value = e instanceof Error ? e.message : 'Something went wrong'
+  } finally {
+    loading.value = false
   }
 }
 
-function skip(): void {
-  if (currentStep.value < TOTAL_STEPS) {
-    currentStep.value++
+async function createKB() {
+  if (!kbName.value) return
+  loading.value = true
+  error.value = ''
+  try {
+    // Create default workspace
+    const ws = await apiFetch(`/orgs/${orgId}/workspaces`, { name: 'Default' })
+    // Create knowledge base
+    await apiFetch(`/orgs/${orgId}/workspaces/${ws.id}/knowledge-bases`, { name: kbName.value })
+    // Set org in auth store and navigate to dashboard
+    auth.setOrgId(orgId)
+    router.push('/dashboard')
+  } catch (e: unknown) {
+    error.value = e instanceof Error ? e.message : 'Something went wrong'
+  } finally {
+    loading.value = false
   }
-}
-
-function finish(): void {
-  // TODO: Validate all resources were created before marking complete
-  onboarding.markComplete()
-}
-
-function sendTestMessage(): void {
-  if (!chatInput.value.trim()) return
-  // TODO: Wire to POST /api/v1/chat/:kb_id/completions once KB is created in step 2
-  chatResponse.value = 'This is a preview — the chatbot will respond once setup is complete.'
-  chatInput.value = ''
 }
 </script>

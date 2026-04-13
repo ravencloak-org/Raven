@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test'
 
-// Abort Keycloak requests so keycloak.init() resolves fast as unauthenticated
+// Abort Zitadel OIDC requests so pages render without auth redirect
 test.beforeEach(async ({ page }) => {
-  await page.route('**/realms/**', (route) => route.abort())
+  await page.route('**/oauth/**', (route) => route.abort())
+  await page.route('**/.well-known/**', (route) => route.abort())
 })
 
 test('privacy policy page renders', async ({ page }) => {

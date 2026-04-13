@@ -1,16 +1,17 @@
 import { test, expect } from '@playwright/test'
 
-// Abort Keycloak requests so keycloak.init() resolves fast as unauthenticated
+// Abort Zitadel OIDC requests so the login page renders without redirecting
 test.beforeEach(async ({ page }) => {
-  await page.route('**/realms/**', (route) => route.abort())
+  await page.route('**/oauth/**', (route) => route.abort())
+  await page.route('**/.well-known/**', (route) => route.abort())
 })
 
-test('login page shows sign in button', async ({ page }) => {
+test('login page shows redirect message', async ({ page }) => {
   await page.goto('/login')
-  await expect(page.getByRole('button', { name: 'Login' })).toBeVisible({ timeout: 15000 })
+  await expect(page.getByText('Redirecting to Google...')).toBeVisible({ timeout: 15000 })
 })
 
-test('login page shows Raven branding', async ({ page }) => {
+test('login page shows fallback click here button', async ({ page }) => {
   await page.goto('/login')
-  await expect(page.getByRole('heading', { name: 'Sign in to Raven' })).toBeVisible({ timeout: 15000 })
+  await expect(page.getByRole('button', { name: 'click here' })).toBeVisible({ timeout: 15000 })
 })

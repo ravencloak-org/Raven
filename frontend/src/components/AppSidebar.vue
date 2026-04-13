@@ -199,7 +199,7 @@ import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
 const orgPrefix = computed(() =>
-  auth.user?.orgId ? `/orgs/${auth.user.orgId}` : null,
+  auth.orgId ? `/orgs/${auth.orgId}` : null,
 )
 
 defineProps<{

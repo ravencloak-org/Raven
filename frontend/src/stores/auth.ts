@@ -1,108 +1,70 @@
 import { defineStore } from 'pinia'
+import { UserManager, WebStorageStateStore } from 'oidc-client-ts'
+import type { User } from 'oidc-client-ts'
 import { ref, computed } from 'vue'
-import Keycloak from 'keycloak-js'
 import { usePostHog } from '../plugins/posthog'
 
-export interface AuthUser {
-  id: string
-  email: string
-  username: string
-  orgId: string
-  orgRole: string
-}
-
-const keycloak = new Keycloak({
-  url: import.meta.env.VITE_KEYCLOAK_URL ?? 'http://localhost:8080',
-  realm: import.meta.env.VITE_KEYCLOAK_REALM ?? 'raven',
-  clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID ?? 'raven-admin',
+const userManager = new UserManager({
+  authority: import.meta.env.VITE_ZITADEL_URL,
+  client_id: import.meta.env.VITE_ZITADEL_CLIENT_ID,
+  redirect_uri: `${window.location.origin}/callback`,
+  post_logout_redirect_uri: window.location.origin,
+  silent_redirect_uri: `${window.location.origin}/silent-renew.html`,
+  scope: 'openid profile email',
+  response_type: 'code',
+  automaticSilentRenew: true,
+  userStore: new WebStorageStateStore({ store: window.sessionStorage }),
 })
 
 export const useAuthStore = defineStore('auth', () => {
-  const user = ref<AuthUser | null>(null)
-  const accessToken = ref<string | null>(null)
-  const initialized = ref(false)
+  const user = ref<User | null>(null)
+  const orgId = ref<string | null>(sessionStorage.getItem('raven_org_id'))
+  const isAuthenticated = computed(() => !!user.value && !user.value.expired)
+  const hasOrg = computed(() => !!orgId.value)
+  const accessToken = computed(() => user.value?.access_token ?? null)
 
-  const isAuthenticated = computed(() => initialized.value && !!accessToken.value)
-
-  async function init(): Promise<void> {
-    try {
-      const authenticated = await keycloak.init({
-        onLoad: 'check-sso',
-        pkceMethod: 'S256',
-        silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
-        // Must be false behind Cloudflare — the iframe-based session check uses
-        // third-party cookies that CF strips, causing an infinite redirect loop.
-        checkLoginIframe: false,
-      })
-      if (authenticated) {
-        await _syncFromKeycloak()
-        setInterval(async () => {
-          const refreshed = await keycloak.updateToken(30)
-          if (refreshed) await _syncFromKeycloak()
-        }, 60_000)
-      }
-    } catch {
-      // Keycloak unavailable — proceed as unauthenticated
-    } finally {
-      initialized.value = true
+  async function init() {
+    const existingUser = await userManager.getUser()
+    if (existingUser && !existingUser.expired) {
+      user.value = existingUser
+      _identify(existingUser)
     }
   }
 
-  function login(): void {
-    keycloak.login({ redirectUri: window.location.href })
+  async function login(idpHint?: string) {
+    const extraParams: Record<string, string> = {}
+    if (idpHint) extraParams.idp_hint = idpHint
+    await userManager.signinRedirect({ extraQueryParams: extraParams })
   }
 
-  function logout(): void {
-    // Reset PostHog identity before logging out.
+  async function handleCallback(): Promise<User> {
+    const callbackUser = await userManager.signinRedirectCallback()
+    user.value = callbackUser
+    _identify(callbackUser)
+    return callbackUser
+  }
+
+  async function logout() {
     const { reset: resetPostHog } = usePostHog()
     resetPostHog()
-    keycloak.logout({ redirectUri: window.location.origin + '/' })
+    user.value = null
+    orgId.value = null
+    sessionStorage.removeItem('raven_org_id')
+    await userManager.signoutRedirect()
   }
 
-  async function _syncFromKeycloak(): Promise<void> {
-    accessToken.value = keycloak.token ?? null
-
-    // Prefer ID token for standard OIDC claims (sub, email, preferred_username).
-    // Access token for custom claims (org_id, org_role).
-    const idClaims = (keycloak.idTokenParsed ?? {}) as Record<string, unknown>
-    const atClaims = (keycloak.tokenParsed ?? {}) as Record<string, unknown>
-
-    let id = (idClaims['sub'] ?? atClaims['sub']) as string | undefined
-    let email = (idClaims['email'] ?? atClaims['email']) as string | undefined
-    let username = (idClaims['preferred_username'] ?? atClaims['preferred_username']) as string | undefined
-    const orgId = (atClaims['org_id'] ?? idClaims['org_id']) as string | undefined
-    const orgRole = (atClaims['org_role'] ?? idClaims['org_role']) as string | undefined
-
-    // Fallback: fetch from Keycloak account API when tokens lack user claims.
-    if (!id || !email) {
-      try {
-        const profile = await keycloak.loadUserProfile()
-        id = id ?? profile.id
-        email = email ?? profile.email
-        username = username ?? profile.username
-      } catch {
-        // Profile endpoint unavailable — continue with what we have
-      }
-    }
-
-    if (id) {
-      user.value = {
-        id,
-        email: email ?? '',
-        username: username ?? '',
-        orgId: orgId ?? '',
-        orgRole: orgRole ?? '',
-      }
-
-      const { identify } = usePostHog()
-      identify(user.value.id, {
-        email: user.value.email,
-        username: user.value.username,
-        org_id: user.value.orgId,
-        org_role: user.value.orgRole,
-      })
-    }
+  function setOrgId(id: string) {
+    orgId.value = id
+    sessionStorage.setItem('raven_org_id', id)
   }
 
-  return { user, accessToken, isAuthenticated, initialized, init, login, logout }
+  function _identify(u: User) {
+    const { identify } = usePostHog()
+    identify(u.profile.sub, {
+      email: u.profile.email,
+      name: u.profile.name,
+    })
+  }
+
+  return { user, orgId, isAuthenticated, hasOrg, accessToken, init, login, handleCallback, logout, setOrgId }
 })

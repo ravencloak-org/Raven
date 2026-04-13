@@ -12,10 +12,9 @@ import (
 
 // UserServicer is the interface the handler requires from the service layer.
 type UserServicer interface {
-	GetMe(ctx context.Context, keycloakSub string) (*model.User, error)
+	GetByExternalID(ctx context.Context, externalID string) (*model.User, error)
 	UpdateMe(ctx context.Context, userID string, req model.UpdateUserRequest) (*model.User, error)
 	GetByID(ctx context.Context, userID string) (*model.User, error)
-	HandleKeycloakEvent(ctx context.Context, event model.KeycloakWebhookEvent) error
 	DeleteMe(ctx context.Context, userID string) error
 }
 
@@ -40,14 +39,14 @@ func NewUserHandler(svc UserServicer) *UserHandler {
 // @Failure     404 {object} apierror.AppError
 // @Router      /me [get]
 func (h *UserHandler) GetMe(c *gin.Context) {
-	sub, _ := c.Get(string(middleware.ContextKeyUserID))
-	subStr, _ := sub.(string)
-	if subStr == "" {
+	externalID, _ := c.Get(string(middleware.ContextKeyExternalID))
+	externalIDStr, _ := externalID.(string)
+	if externalIDStr == "" {
 		_ = c.Error(apierror.NewUnauthorized("missing user identity"))
 		c.Abort()
 		return
 	}
-	user, err := h.svc.GetMe(c.Request.Context(), subStr)
+	user, err := h.svc.GetByExternalID(c.Request.Context(), externalIDStr)
 	if err != nil {
 		_ = c.Error(err)
 		c.Abort()
@@ -132,28 +131,4 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
-// KeycloakWebhook handles POST /api/v1/internal/keycloak-webhook.
-// This endpoint is internal-only and must only be reachable from the
-// compose-network (not externally). Enforce via network policy / firewall,
-// NOT by authentication header — the SPI does not send a Bearer token.
-//
-// NOTE: Live integration test deferred until Keycloak SPI emits events in the
-// local environment. Unit tests use mocked payloads (see user_test.go).
-func (h *UserHandler) KeycloakWebhook(c *gin.Context) {
-	var event model.KeycloakWebhookEvent
-	if err := c.ShouldBindJSON(&event); err != nil {
-		_ = c.Error(&apierror.AppError{
-			Code:    http.StatusBadRequest,
-			Message: "Bad Request",
-			Detail:  "invalid webhook payload: " + err.Error(),
-		})
-		c.Abort()
-		return
-	}
-	if err := h.svc.HandleKeycloakEvent(c.Request.Context(), event); err != nil {
-		_ = c.Error(err)
-		c.Abort()
-		return
-	}
-	c.Status(http.StatusNoContent)
-}
+

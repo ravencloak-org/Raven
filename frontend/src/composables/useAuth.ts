@@ -6,7 +6,9 @@ export function useAuth() {
   return {
     user: computed(() => store.user),
     isAuthenticated: computed(() => store.isAuthenticated),
-    login: () => store.login(),
+    hasOrg: computed(() => store.hasOrg),
+    accessToken: computed(() => store.accessToken),
+    login: (idpHint?: string) => store.login(idpHint),
     logout: () => store.logout(),
   }
 }

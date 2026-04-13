@@ -1,0 +1,11 @@
+# deploy/zitadel/zitadel-config.yaml
+# Static defaults — dynamic values (domain, DB creds) come from env vars
+Log:
+  Level: info
+
+Database:
+  postgres:
+    MaxOpenConns: 10
+    MaxIdleConns: 5
+    MaxConnLifetime: 30m
+    MaxConnIdleTime: 5m

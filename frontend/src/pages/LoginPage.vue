@@ -1,30 +1,32 @@
 <template>
-  <div>
-    <h1 class="mb-1 text-center text-2xl font-bold text-gray-900">Sign in to Raven</h1>
-    <p class="mb-6 text-center text-sm text-gray-500">
-      Click below to sign in via Keycloak
-    </p>
-
-    <button
-      type="button"
-      class="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none"
-      @click="handleLogin"
-    >
-      Login
-    </button>
-
-    <p class="mt-4 text-center text-xs text-gray-400">
-      Authentication uses Keycloak OIDC with PKCE
-    </p>
+  <div class="min-h-screen flex items-center justify-center bg-white dark:bg-black">
+    <div class="text-center">
+      <h1 class="text-2xl font-bold text-neutral-900 dark:text-white mb-4">Redirecting to Google...</h1>
+      <p class="text-neutral-500">If you are not redirected, <button class="text-amber-500 underline min-h-[44px] min-w-[44px] px-1" @click="login">click here</button>.</p>
+      <p v-if="error" class="text-red-500 text-sm mt-4">{{ error }}</p>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useAuth } from '../composables/useAuth'
+import { onMounted, ref } from 'vue'
+import { useAuthStore } from '../stores/auth'
 
-const { login } = useAuth()
+const auth = useAuthStore()
+const googleIdpId = import.meta.env.VITE_GOOGLE_IDP_ID
+const error = ref('')
 
-function handleLogin() {
-  login()
+async function login() {
+  try {
+    error.value = ''
+    await auth.login(googleIdpId)
+  } catch (e: unknown) {
+    console.error('Login redirect failed:', e)
+    error.value = 'Unable to start sign-in. Please try again.'
+  }
 }
+
+onMounted(() => {
+  login()
+})
 </script>
