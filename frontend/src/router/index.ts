@@ -28,6 +28,12 @@ const router = createRouter({
       component: () => import('../pages/callback/CallbackPage.vue'),
     },
     {
+      path: '/onboarding',
+      name: 'onboarding',
+      component: () => import('../pages/onboarding/OnboardingWizard.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/',
       component: () => import('../layouts/DefaultLayout.vue'),
       meta: { requiresAuth: true },
@@ -157,18 +163,22 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
 
-  // The /callback route handles the OIDC redirect; skip auth checks for it.
-  if (to.name === 'callback') {
-    return
+  // Skip auth check for public routes
+  if (to.path === '/login' || to.path === '/callback') return
+
+  // Initialize auth if not done
+  if (!auth.isAuthenticated) {
+    await auth.init()
   }
 
-  if (to.meta.requiresAuth && !auth.isAuthenticated) {
-    auth.login()
-    return false
+  // Redirect to login if auth required but not authenticated
+  if (to.meta.requiresAuth !== false && !auth.isAuthenticated) {
+    return '/login'
   }
 
-  if (to.name === 'login' && auth.isAuthenticated) {
-    return { name: 'dashboard' }
+  // Redirect to onboarding if authenticated but no org
+  if (auth.isAuthenticated && !auth.hasOrg && to.path !== '/onboarding') {
+    return '/onboarding'
   }
 })
 
