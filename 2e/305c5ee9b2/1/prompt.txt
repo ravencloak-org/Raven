@@ -634,3 +634,35 @@ zsh: no matches found: [ERROR]
 
 
 🪵  Logs were written to "/Users/jobinlawrance/Library/Preferences/.wrangler/logs/wrangler-2026-04-13_14-01-04_100.log"
+
+---
+
+the preview page doesn't work, check yourself
+
+---
+
+deploy it using ssh
+
+---
+
+[Request interrupted by user]
+
+---
+
+deploy it using ssh ssh ubuntu@ec2-65-0-85-115.ap-south-1.compute.amazonaws.com
+
+---
+
+use cf cli to create the record
+
+---
+
+it's not showing css
+
+---
+
+What about the actual demo page?
+
+---
+
+Fix PR issues

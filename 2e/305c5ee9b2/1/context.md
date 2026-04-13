@@ -140,3 +140,35 @@ zsh: no matches found: [ERROR]
 
 🪵  Logs were written to "/Users/jobinlawrance/Library/Preferences/.wrangler/logs/wrangler-2026-04-13_14-01-04_100.log"
 
+### Prompt 19
+
+the preview page doesn't work, check yourself
+
+### Prompt 20
+
+deploy it using ssh
+
+### Prompt 21
+
+[Request interrupted by user]
+
+### Prompt 22
+
+deploy it using ssh ssh ubuntu@ec2-65-0-85-115.ap-south-1.compute.amazonaws.com
+
+### Prompt 23
+
+use cf cli to create the record
+
+### Prompt 24
+
+it's not showing css
+
+### Prompt 25
+
+What about the actual demo page?
+
+### Prompt 26
+
+Fix PR issues
+
