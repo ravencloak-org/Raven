@@ -199,6 +199,38 @@ func JWTMiddleware(cfg *config.ZitadelConfig) gin.HandlerFunc {
 	}
 }
 
+// UserResolver is the interface for looking up users by external ID.
+type UserResolver interface {
+	GetByExternalID(ctx context.Context, externalID string) (userID string, orgID *string, err error)
+}
+
+// UserLookup returns middleware that resolves the JWT external ID to internal
+// user and org IDs via a database lookup. Apply after JWTMiddleware on routes
+// that need ContextKeyUserID or ContextKeyOrgID.
+//
+// If the user is not found (first login), the middleware continues without
+// setting these keys — the /auth/callback handler handles user creation.
+func UserLookup(resolver UserResolver) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		externalID := c.GetString(string(ContextKeyExternalID))
+		if externalID == "" {
+			c.Next()
+			return
+		}
+		userID, orgID, err := resolver.GetByExternalID(c.Request.Context(), externalID)
+		if err != nil {
+			// User not found = first login, let auth callback handle creation
+			c.Next()
+			return
+		}
+		c.Set(string(ContextKeyUserID), userID)
+		if orgID != nil {
+			c.Set(string(ContextKeyOrgID), *orgID)
+		}
+		c.Next()
+	}
+}
+
 // RequireOrg returns middleware that aborts with 403 if the request context
 // does not contain a valid organisation ID. Apply after JWTMiddleware on
 // routes that require an onboarded user.

@@ -92,6 +92,19 @@ func (a *apiKeyLookupAdapter) LookupByHash(ctx context.Context, keyHash string) 
 	return apiKeyToLookupResult(ak), nil
 }
 
+// userLookupAdapter bridges UserRepository to the middleware.UserResolver interface.
+type userLookupAdapter struct {
+	repo *repository.UserRepository
+}
+
+func (a *userLookupAdapter) GetByExternalID(ctx context.Context, externalID string) (string, *string, error) {
+	u, err := a.repo.GetByExternalID(ctx, externalID)
+	if err != nil {
+		return "", nil, err
+	}
+	return u.ID, u.OrgID, nil
+}
+
 func apiKeyToLookupResult(ak *model.APIKey) *middleware.APIKeyLookupResult {
 	return &middleware.APIKeyLookupResult{
 		ID:              ak.ID,
@@ -432,6 +445,7 @@ func main() {
 	// using the org_id stored in the Gin context key middleware.ContextKeyOrgID.
 	api := router.Group("/api/v1")
 	api.Use(middleware.JWTMiddleware(&cfg.Zitadel))
+	api.Use(middleware.UserLookup(&userLookupAdapter{repo: userRepo}))
 	// Per-user and per-org flat rate limits (config-driven defaults).
 	api.Use(middleware.ByUserID(rl, cfg.RateLimit.DefaultUserLimit))
 	api.Use(middleware.ByOrgID(rl, cfg.RateLimit.DefaultOrgLimit))

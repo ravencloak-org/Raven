@@ -2,9 +2,11 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 	"github.com/ravencloak-org/Raven/internal/middleware"
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
@@ -46,7 +48,13 @@ func (h *AuthHandler) Callback(c *gin.Context) {
 	// Check if user exists
 	user, err := h.svc.GetByExternalID(c.Request.Context(), externalIDStr)
 	if err != nil {
-		// New user — create record with nil org_id
+		if !errors.Is(err, pgx.ErrNoRows) {
+			// Unexpected error — do not silently create a duplicate user
+			_ = c.Error(apierror.NewInternal("failed to look up user: " + err.Error()))
+			c.Abort()
+			return
+		}
+		// User not found — first login, create record with nil org_id
 		user, err = h.svc.Create(c.Request.Context(), externalIDStr, emailStr, nameStr)
 		if err != nil {
 			_ = c.Error(apierror.NewInternal("failed to create user: " + err.Error()))
