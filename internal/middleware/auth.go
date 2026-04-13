@@ -200,6 +200,7 @@ func JWTMiddleware(cfg *config.ZitadelConfig) gin.HandlerFunc {
 }
 
 // UserResolver is the interface for looking up users by external ID.
+// Returns empty userID when the user is not found (not an error).
 type UserResolver interface {
 	GetByExternalID(ctx context.Context, externalID string) (userID string, orgID *string, err error)
 }
@@ -210,6 +211,7 @@ type UserResolver interface {
 //
 // If the user is not found (first login), the middleware continues without
 // setting these keys — the /auth/callback handler handles user creation.
+// Real DB errors abort with 503 to avoid masking infra failures.
 func UserLookup(resolver UserResolver) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		externalID := c.GetString(string(ContextKeyExternalID))
@@ -219,6 +221,11 @@ func UserLookup(resolver UserResolver) gin.HandlerFunc {
 		}
 		userID, orgID, err := resolver.GetByExternalID(c.Request.Context(), externalID)
 		if err != nil {
+			// Real DB error — abort so infra failures don't silently degrade auth
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "user_lookup_failed"})
+			return
+		}
+		if userID == "" {
 			// User not found = first login, let auth callback handle creation
 			c.Next()
 			return

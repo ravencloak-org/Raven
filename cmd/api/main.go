@@ -27,6 +27,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -100,6 +101,10 @@ type userLookupAdapter struct {
 func (a *userLookupAdapter) GetByExternalID(ctx context.Context, externalID string) (string, *string, error) {
 	u, err := a.repo.GetByExternalID(ctx, externalID)
 	if err != nil {
+		// Not found → return empty (first login); real DB errors propagate
+		if strings.Contains(err.Error(), "no rows") {
+			return "", nil, nil
+		}
 		return "", nil, err
 	}
 	return u.ID, u.OrgID, nil
