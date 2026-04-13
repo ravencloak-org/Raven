@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "b67da916ef2d",
+  "session_id": "96f59fa8-7d26-4db6-b7a5-188ef7c09257",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-13T10:33:37.695978Z",
+  "branch": "feat/landing-page-redesign",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "landing/src/input.css"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "0b9e4397-6df8-4eeb-8b94-8bfd2005d0bb",
+  "checkpoint_transcript_start": 810,
+  "transcript_lines_at_start": 810,
+  "token_usage": {
+    "input_tokens": 31,
+    "cache_creation_tokens": 221101,
+    "cache_read_tokens": 5408855,
+    "output_tokens": 3502,
+    "api_call_count": 25
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-13T10:33:37.525277Z",
+    "agent_lines": 0,
+    "human_added": 33,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 33,
+    "agent_percentage": 0
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "b67da916ef2d",
+  "strategy": "manual-commit",
+  "branch": "feat/landing-page-redesign",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "landing/src/input.css"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b6/7da916ef2d/0/metadata.json",
+      "transcript": "/b6/7da916ef2d/0/full.jsonl",
+      "context": "/b6/7da916ef2d/0/context.md",
+      "content_hash": "/b6/7da916ef2d/0/content_hash.txt",
+      "prompt": "/b6/7da916ef2d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 31,
+    "cache_creation_tokens": 221101,
+    "cache_read_tokens": 5408855,
+    "output_tokens": 3502,
+    "api_call_count": 25
+  }
+}
