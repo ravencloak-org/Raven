@@ -26,7 +26,81 @@
 </head>
 <body class="bg-white dark:bg-black text-neutral-900 dark:text-white font-sans antialiased">
   <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:bg-amber-400 focus:text-black focus:px-4 focus:py-2 focus:rounded-lg focus:font-medium">Skip to content</a>
-  <nav id="navbar"></nav>
+  <nav id="navbar" class="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-white/80 dark:bg-black/80 border-b border-neutral-200 dark:border-neutral-800">
+    <div class="max-w-7xl mx-auto px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <!-- Left: Logo -->
+        <div class="flex-shrink-0">
+          <a href="/" class="focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black rounded-lg">
+            <span class="text-xl font-bold">Raven</span>
+          </a>
+        </div>
+
+        <!-- Center: Desktop Links -->
+        <div class="hidden lg:flex items-center gap-8">
+          <a href="#features" class="text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black rounded-lg">Features</a>
+          <a href="#pricing" class="text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black rounded-lg">Pricing</a>
+          <a href="https://docs.ravencloak.org" target="_blank" class="text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black rounded-lg">Docs</a>
+          <a href="https://github.com/ravencloak-org/Raven" target="_blank" class="inline-flex items-center gap-1.5 text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black rounded-lg">GitHub <span class="text-xs text-neutral-400 dark:text-neutral-500">&#11088; 0</span></a>
+        </div>
+
+        <!-- Right: Actions -->
+        <div class="flex items-center gap-4">
+          <!-- Theme toggle -->
+          <button id="theme-toggle" aria-label="Toggle theme" class="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 hidden dark:block"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 dark:hidden"><path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z"/></svg>
+          </button>
+
+          <!-- Sign in (hidden on mobile) -->
+          <a href="https://app.ravencloak.org" class="hidden lg:inline-flex text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black rounded-lg">Sign in</a>
+
+          <!-- Get Started Free (hidden on mobile) -->
+          <a href="https://app.ravencloak.org/register" class="hidden lg:inline-flex rounded-lg bg-amber-400 hover:bg-amber-500 text-black text-sm font-semibold px-4 py-2 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black">Get Started Free</a>
+
+          <!-- Mobile menu toggle -->
+          <button id="mobile-menu-toggle" class="lg:hidden p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black" aria-label="Open menu">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Menu Overlay -->
+    <div id="mobile-menu" class="fixed inset-0 z-50 bg-white dark:bg-black hidden">
+      <div class="max-w-7xl mx-auto px-6">
+        <!-- Top row: Logo + Close -->
+        <div class="flex items-center justify-between h-16">
+          <a href="/">
+            <span class="text-xl font-bold">Raven</span>
+          </a>
+          <button id="mobile-menu-close" class="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black" aria-label="Close menu">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <!-- Stacked links -->
+        <nav class="mt-6">
+          <a href="#features" class="block py-3 text-lg font-medium border-b border-neutral-200 dark:border-neutral-800 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black">Features</a>
+          <a href="#pricing" class="block py-3 text-lg font-medium border-b border-neutral-200 dark:border-neutral-800 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black">Pricing</a>
+          <a href="https://docs.ravencloak.org" target="_blank" class="block py-3 text-lg font-medium border-b border-neutral-200 dark:border-neutral-800 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black">Docs</a>
+          <a href="https://github.com/ravencloak-org/Raven" target="_blank" class="block py-3 text-lg font-medium border-b border-neutral-200 dark:border-neutral-800 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black">GitHub</a>
+          <a href="https://app.ravencloak.org" class="block py-3 text-lg font-medium border-b border-neutral-200 dark:border-neutral-800 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black">Sign in</a>
+        </nav>
+
+        <!-- CTA + Theme toggle -->
+        <div class="mt-8 flex flex-col gap-4">
+          <a href="https://app.ravencloak.org/register" class="block w-full text-center rounded-lg bg-amber-400 hover:bg-amber-500 text-black text-sm font-semibold px-4 py-3 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black">Get Started Free</a>
+          <button id="mobile-theme-toggle" aria-label="Toggle theme" class="flex items-center gap-2 py-3 text-sm font-medium text-neutral-600 dark:text-neutral-400 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black rounded-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 hidden dark:block"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 dark:hidden"><path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z"/></svg>
+            <span class="dark:hidden">Dark mode</span>
+            <span class="hidden dark:inline">Light mode</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
   <main id="main-content">
     <section id="hero" aria-label="Hero"></section>
     <section id="problem" aria-label="Problem statement"></section>
@@ -38,5 +112,40 @@
     <section id="cta" aria-label="Call to action"></section>
   </main>
   <footer id="footer" aria-label="Footer"></footer>
+
+  <script>
+    // Theme toggle (desktop + mobile)
+    function toggleTheme() {
+      const html = document.documentElement
+      html.classList.toggle('dark')
+      localStorage.theme = html.classList.contains('dark') ? 'dark' : 'light'
+    }
+
+    document.getElementById('theme-toggle').addEventListener('click', toggleTheme)
+    document.getElementById('mobile-theme-toggle').addEventListener('click', toggleTheme)
+
+    // Mobile menu
+    const mobileMenuToggle = document.getElementById('mobile-menu-toggle')
+    const mobileMenu = document.getElementById('mobile-menu')
+    const mobileMenuClose = document.getElementById('mobile-menu-close')
+
+    mobileMenuToggle.addEventListener('click', () => {
+      mobileMenu.classList.remove('hidden')
+      document.body.style.overflow = 'hidden'
+    })
+
+    mobileMenuClose.addEventListener('click', () => {
+      mobileMenu.classList.add('hidden')
+      document.body.style.overflow = ''
+    })
+
+    // Close mobile menu when clicking a nav link
+    mobileMenu.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', () => {
+        mobileMenu.classList.add('hidden')
+        document.body.style.overflow = ''
+      })
+    })
+  </script>
 </body>
 </html>
