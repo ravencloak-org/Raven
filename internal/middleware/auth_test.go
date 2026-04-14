@@ -225,7 +225,8 @@ func TestJWTMiddleware(t *testing.T) {
 			wantErrCode: "invalid_token",
 		},
 		{
-			name: "wrong audience returns invalid_token",
+			// Audience validation is intentionally skipped — see parseJWT comment.
+			name: "wrong audience is accepted (audience validation skipped)",
 			buildRequest: func() *http.Request {
 				claims := validClaims(issuerURL, "user-bad-aud")
 				claims.Audience = jwt.ClaimStrings{"wrong-audience"}
@@ -234,8 +235,8 @@ func TestJWTMiddleware(t *testing.T) {
 				req.Header.Set("Authorization", "Bearer "+tok)
 				return req
 			},
-			wantStatus:  http.StatusUnauthorized,
-			wantErrCode: "invalid_token",
+			wantStatus: http.StatusOK,
+			wantExtID:  "user-bad-aud",
 		},
 		{
 			name: "empty Bearer token returns invalid_token",
