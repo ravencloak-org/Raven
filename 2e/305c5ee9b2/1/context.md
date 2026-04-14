@@ -266,3 +266,11 @@ nope
 
 clear everything in my browser
 
+### Prompt 49
+
+test first and then ask me to check
+
+### Prompt 50
+
+still looping in completing sign in
+

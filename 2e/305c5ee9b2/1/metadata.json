@@ -3,31 +3,34 @@
   "checkpoint_id": "2e305c5ee9b2",
   "session_id": "c9ce9215-d1ba-4965-83fd-eba9b611dad2",
   "strategy": "manual-commit",
-  "created_at": "2026-04-14T15:05:02.897995Z",
-  "branch": "feat/integration-tests",
-  "checkpoints_count": 1,
+  "created_at": "2026-04-14T15:21:08.379956Z",
+  "branch": "main",
+  "checkpoints_count": 2,
   "files_touched": [
-    "internal/integration/testdata/sample_markdown.md",
-    "internal/middleware/auth.go"
+    "internal/handler/auth.go",
+    "internal/integration/testdata/embeddings.json",
+    "internal/integration/testdata/expected_chunks.json",
+    "internal/integration/testdata/gen_embeddings.go",
+    "internal/integration/testdata/sample_technical.md"
   ],
   "agent": "Claude Code",
-  "transcript_identifier_at_start": "1d513e2f-a61f-4449-b1bf-a33297ae0d5e",
-  "checkpoint_transcript_start": 2126,
-  "transcript_lines_at_start": 2126,
+  "transcript_identifier_at_start": "82d68c81-bcdb-40c3-959a-fdb70346827a",
+  "checkpoint_transcript_start": 2215,
+  "transcript_lines_at_start": 2215,
   "token_usage": {
-    "input_tokens": 35,
-    "cache_creation_tokens": 13834,
-    "cache_read_tokens": 15024188,
-    "output_tokens": 7051,
-    "api_call_count": 29
+    "input_tokens": 62,
+    "cache_creation_tokens": 23442,
+    "cache_read_tokens": 27881497,
+    "output_tokens": 10951,
+    "api_call_count": 52
   },
   "initial_attribution": {
-    "calculated_at": "2026-04-14T15:05:02.58339Z",
-    "agent_lines": 0,
+    "calculated_at": "2026-04-14T15:21:08.048659Z",
+    "agent_lines": 2,
     "human_added": 0,
-    "human_modified": 111,
-    "human_removed": 2,
-    "total_committed": 108,
-    "agent_percentage": 0
+    "human_modified": 32,
+    "human_removed": 48083,
+    "total_committed": 34,
+    "agent_percentage": 5.88235294117647
   }
 }
