@@ -180,24 +180,28 @@ async function createKB() {
       wsId = existing.id
     }
 
-    // Create knowledge base
-    const kb = await apiFetch(`/orgs/${orgId}/workspaces/${wsId}/knowledge-bases`, { body: { name: kbName.value } })
+    // Create knowledge base (ignore "already exists" — proceed to upload/dashboard)
+    try {
+      const kb = await apiFetch(`/orgs/${orgId}/workspaces/${wsId}/knowledge-bases`, { body: { name: kbName.value } })
 
-    // Upload files if any
-    const failedUploads: string[] = []
-    for (const file of files.value) {
-      const formData = new FormData()
-      formData.append('file', file)
-      await apiFetch(`/orgs/${orgId}/workspaces/${wsId}/knowledge-bases/${kb.id}/documents/upload`, {
-        body: formData,
-      }).catch(() => {
-        failedUploads.push(file.name)
-      })
-    }
+      // Upload files if any
+      const failedUploads: string[] = []
+      for (const file of files.value) {
+        const formData = new FormData()
+        formData.append('file', file)
+        await apiFetch(`/orgs/${orgId}/workspaces/${wsId}/knowledge-bases/${kb.id}/documents/upload`, {
+          body: formData,
+        }).catch(() => {
+          failedUploads.push(file.name)
+        })
+      }
 
-    if (failedUploads.length) {
-      error.value = `Knowledge base created, but these files failed to upload: ${failedUploads.join(', ')}`
-      return
+      if (failedUploads.length) {
+        error.value = `Knowledge base created, but these files failed to upload: ${failedUploads.join(', ')}`
+        return
+      }
+    } catch {
+      // KB may already exist from a previous attempt — that's fine
     }
 
     // Set org in auth store and navigate to dashboard

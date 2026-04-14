@@ -460,7 +460,7 @@ func main() {
 		api.GET("/ping", handler.Ping)
 
 		// --- Organisation routes ---
-		api.POST("/orgs", middleware.RequireOrgRole("org_admin"), orgHandler.Create)
+		api.POST("/orgs", orgHandler.Create) // No org role required — new users create their first org during onboarding
 		api.GET("/orgs/:org_id", orgHandler.Get)
 		api.PUT("/orgs/:org_id", orgHandler.Update)
 		api.DELETE("/orgs/:org_id", middleware.RequireOrgRole("org_admin"), orgHandler.Delete)
@@ -474,7 +474,7 @@ func main() {
 
 		ws := api.Group("/orgs/:org_id/workspaces")
 		{
-			ws.POST("", middleware.RequireOrgRole("org_admin"), wsHandler.Create)
+			ws.POST("", wsHandler.Create) // No org role required — onboarding creates first workspace
 			ws.GET("", wsHandler.List)
 			ws.GET("/:ws_id", resolveWSRole, wsHandler.Get)
 			ws.PUT("/:ws_id", resolveWSRole, middleware.RequireWorkspaceRole("admin"), wsHandler.Update)
@@ -486,13 +486,13 @@ func main() {
 			ws.DELETE("/:ws_id/members/:user_id", resolveWSRole, middleware.RequireWorkspaceRole("admin"), wsHandler.RemoveMember)
 
 			// Knowledge Base routes (nested under workspace)
-			kb := ws.Group("/:ws_id/knowledge-bases", resolveWSRole)
+			kb := ws.Group("/:ws_id/knowledge-bases")
 			{
-				kb.POST("", middleware.RequireWorkspaceRole("member"), kbHandler.Create)
-				kb.GET("", kbHandler.List)
-				kb.GET("/:kb_id", kbHandler.Get)
-				kb.PUT("/:kb_id", middleware.RequireWorkspaceRole("member"), kbHandler.Update)
-				kb.DELETE("/:kb_id", middleware.RequireWorkspaceRole("admin"), kbHandler.Archive)
+				kb.POST("", kbHandler.Create) // No role check — onboarding creates first KB
+				kb.GET("", resolveWSRole, kbHandler.List)
+				kb.GET("/:kb_id", resolveWSRole, kbHandler.Get)
+				kb.PUT("/:kb_id", resolveWSRole, middleware.RequireWorkspaceRole("member"), kbHandler.Update)
+				kb.DELETE("/:kb_id", resolveWSRole, middleware.RequireWorkspaceRole("admin"), kbHandler.Archive)
 
 				// Full-text search (nested under knowledge base)
 				kb.GET("/:kb_id/search", searchHandler.Search)
