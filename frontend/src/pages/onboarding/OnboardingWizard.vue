@@ -162,18 +162,21 @@ async function createKB() {
   loading.value = true
   error.value = ''
   try {
-    // Create default workspace (ignore "already exists" errors)
+    // Create default workspace — only fall back to lookup on duplicate (409)
     let wsId: string
     try {
       const ws = await apiFetch(`/orgs/${orgId}/workspaces`, { body: { name: 'Default' } })
       wsId = ws.id
-    } catch {
-      // Workspace may already exist — fetch it
+    } catch (e: unknown) {
+      // Only recover from duplicate/conflict errors; rethrow anything else
+      const status = (e as { status?: number })?.status ?? (e as { statusCode?: number })?.statusCode
+      if (status && status !== 409) throw e
+
+      // Workspace already exists — look up the 'default' workspace explicitly
       const wsList = await apiFetch(`/orgs/${orgId}/workspaces`, { method: 'GET' })
-      // API returns array directly, not { items: [] }
       const wsArr = Array.isArray(wsList) ? wsList : (wsList.items ?? [])
-      const existing = wsArr.find((w: { slug: string }) => w.slug === 'default') ?? wsArr[0]
-      if (!existing) throw new Error('Failed to create workspace')
+      const existing = wsArr.find((w: { slug: string }) => w.slug === 'default')
+      if (!existing) throw new Error('Default workspace not found after creation conflict')
       wsId = existing.id
     }
 
@@ -181,14 +184,20 @@ async function createKB() {
     const kb = await apiFetch(`/orgs/${orgId}/workspaces/${wsId}/knowledge-bases`, { body: { name: kbName.value } })
 
     // Upload files if any
+    const failedUploads: string[] = []
     for (const file of files.value) {
       const formData = new FormData()
       formData.append('file', file)
       await apiFetch(`/orgs/${orgId}/workspaces/${wsId}/knowledge-bases/${kb.id}/documents/upload`, {
         body: formData,
       }).catch(() => {
-        // Non-fatal — files can be uploaded later
+        failedUploads.push(file.name)
       })
+    }
+
+    if (failedUploads.length) {
+      error.value = `Knowledge base created, but these files failed to upload: ${failedUploads.join(', ')}`
+      return
     }
 
     // Set org in auth store and navigate to dashboard
