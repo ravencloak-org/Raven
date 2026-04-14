@@ -1,5 +1,3 @@
-import { useAuthStore } from '../stores/auth'
-
 export type VoiceSessionState = 'created' | 'active' | 'ended'
 export type VoiceSpeaker = 'agent' | 'user'
 
@@ -59,17 +57,13 @@ export interface AppendVoiceTurnRequest {
 }
 
 async function authFetch(path: string, init?: RequestInit): Promise<Response> {
-  const auth = useAuthStore()
-  if (!auth.accessToken) {
-    throw new Error('Not authenticated')
-  }
   const base = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
   return fetch(base + path, {
     ...init,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...init?.headers,
-      Authorization: `Bearer ${auth.accessToken}`,
     },
   })
 }

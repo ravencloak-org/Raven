@@ -1,15 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { useAuthStore } from './auth'
 
 export const useOnboardingStore = defineStore('onboarding', () => {
   const currentStep = ref<number>(1)
   const storageVersion = ref(0)
 
   function storageKey(): string {
-    const auth = useAuthStore()
-    const userId = auth.user?.profile.sub ?? 'anonymous'
-    return `onboarding_completed_${userId}`
+    return `onboarding_completed`
   }
 
   const completed = computed<boolean>(() => {

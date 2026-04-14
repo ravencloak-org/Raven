@@ -18,9 +18,9 @@
     "@tailwindcss/typography": "^0.5.19",
     "@vueuse/core": "^14.2.1",
     "livekit-client": "^2.18.1",
-    "oidc-client-ts": "^3.5.0",
     "pinia": "^3.0.4",
     "remeda": "^2.33.7",
+    "supertokens-web-js": "^0.16.0",
     "vue": "^3.5.32",
     "vue-router": "^5.0.4"
   },

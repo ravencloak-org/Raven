@@ -110,7 +110,6 @@ const isDragging = ref(false)
 async function apiFetch(path: string, options: { method?: string; body?: Record<string, unknown> | FormData; headers?: Record<string, string> } = {}) {
   const method = options.method || 'POST'
   const headers: Record<string, string> = {
-    'Authorization': `Bearer ${auth.accessToken}`,
     ...options.headers,
   }
   let body: string | FormData | undefined
@@ -120,7 +119,7 @@ async function apiFetch(path: string, options: { method?: string; body?: Record<
     headers['Content-Type'] = 'application/json'
     body = JSON.stringify(options.body)
   }
-  const res = await fetch(`${apiUrl}${path}`, { method, headers, body })
+  const res = await fetch(`${apiUrl}${path}`, { method, credentials: 'include', headers, body })
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
     throw new Error(data.message || data.error || `Request failed (${res.status})`)

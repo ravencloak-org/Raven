@@ -1,5 +1,3 @@
-import { useAuthStore } from '../stores/auth'
-
 // --- Phone number types ---
 
 export interface WhatsAppPhoneNumber {
@@ -87,12 +85,11 @@ export interface BridgeStatusResponse {
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
 async function authFetch(path: string, init?: RequestInit): Promise<Response> {
-  const auth = useAuthStore()
   return fetch(API_BASE + path, {
     ...init,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${auth.accessToken ?? ''}`,
       ...init?.headers,
     },
   })
