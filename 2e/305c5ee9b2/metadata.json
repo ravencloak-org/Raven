@@ -3,17 +3,13 @@
   "checkpoint_id": "2e305c5ee9b2",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 3,
+  "checkpoints_count": 2,
   "files_touched": [
     ".env.keys",
     ".serena/memories/codebase_structure.md",
     ".serena/memories/services_and_ports.md",
     ".serena/memories/task_completion_checklist.md",
-    "internal/handler/auth.go",
-    "internal/integration/testdata/embeddings.json",
-    "internal/integration/testdata/expected_chunks.json",
-    "internal/integration/testdata/gen_embeddings.go",
-    "internal/integration/testdata/sample_technical.md"
+    "cmd/api/main.go"
   ],
   "sessions": [
     {
@@ -32,10 +28,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 67,
-    "cache_creation_tokens": 24478,
-    "cache_read_tokens": 28773497,
-    "output_tokens": 11575,
-    "api_call_count": 55
+    "input_tokens": 15,
+    "cache_creation_tokens": 4094,
+    "cache_read_tokens": 5286225,
+    "output_tokens": 2068,
+    "api_call_count": 11
   }
 }
