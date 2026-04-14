@@ -176,7 +176,7 @@ async function createKB() {
       const wsList = await apiFetch(`/orgs/${orgId}/workspaces`, { method: 'GET' })
       const wsArr = Array.isArray(wsList) ? wsList : (wsList.items ?? [])
       const existing = wsArr.find((w: { slug: string }) => w.slug === 'default')
-      if (!existing) throw new Error('Default workspace not found after creation conflict')
+      if (!existing) throw new Error('Default workspace not found after creation conflict', { cause: e })
       wsId = existing.id
     }
 
