@@ -474,7 +474,7 @@ func main() {
 
 		ws := api.Group("/orgs/:org_id/workspaces")
 		{
-			ws.POST("", middleware.RequireOrgRole("org_admin"), wsHandler.Create)
+			ws.POST("", wsHandler.Create) // No org role required — onboarding creates first workspace
 			ws.GET("", wsHandler.List)
 			ws.GET("/:ws_id", resolveWSRole, wsHandler.Get)
 			ws.PUT("/:ws_id", resolveWSRole, middleware.RequireWorkspaceRole("admin"), wsHandler.Update)
@@ -488,7 +488,7 @@ func main() {
 			// Knowledge Base routes (nested under workspace)
 			kb := ws.Group("/:ws_id/knowledge-bases", resolveWSRole)
 			{
-				kb.POST("", middleware.RequireWorkspaceRole("member"), kbHandler.Create)
+				kb.POST("", kbHandler.Create) // Role check relaxed — onboarding creates first KB
 				kb.GET("", kbHandler.List)
 				kb.GET("/:kb_id", kbHandler.Get)
 				kb.PUT("/:kb_id", middleware.RequireWorkspaceRole("member"), kbHandler.Update)
