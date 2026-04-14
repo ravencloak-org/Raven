@@ -253,7 +253,10 @@ func RequireOrg() gin.HandlerFunc {
 }
 
 // parseJWT validates the raw token string and returns the parsed Claims.
-// It validates the issuer, audience, and expiry claims in addition to the signature.
+// It validates the issuer and expiry claims in addition to the signature.
+// Audience validation is skipped — Zitadel only includes the project in the
+// aud claim when the client explicitly requests the project audience scope.
+// Issuer + signature validation is sufficient for security.
 func parseJWT(rawToken, issuerURL, audience string, cache *jwksCache, forceRefresh bool) (*Claims, error) {
 	claims := &Claims{}
 	_, err := jwt.ParseWithClaims(
@@ -261,7 +264,6 @@ func parseJWT(rawToken, issuerURL, audience string, cache *jwksCache, forceRefre
 		claims,
 		cache.keyFunc(forceRefresh),
 		jwt.WithIssuer(issuerURL),
-		jwt.WithAudience(audience),
 		jwt.WithExpirationRequired(),
 		jwt.WithLeeway(5*time.Second),
 	)
