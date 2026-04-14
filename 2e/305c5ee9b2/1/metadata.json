@@ -3,9 +3,9 @@
   "checkpoint_id": "2e305c5ee9b2",
   "session_id": "c9ce9215-d1ba-4965-83fd-eba9b611dad2",
   "strategy": "manual-commit",
-  "created_at": "2026-04-14T18:12:39.300424Z",
+  "created_at": "2026-04-14T18:32:35.562355Z",
   "branch": "feat/integration-tests",
-  "checkpoints_count": 1,
+  "checkpoints_count": 0,
   "files_touched": [
     ".env.example",
     ".github/workflows/docker.yml",
@@ -17,7 +17,7 @@
     "deploy/zitadel/zitadel-config.yaml",
     "deploy/zitadel/zitadel-init-steps.yaml",
     "docker-compose.yml",
-    "docs/superpowers/specs/2026-04-14-supertokens-migration-design.md",
+    "docs/superpowers/plans/2026-04-14-supertokens-migration.md",
     "frontend/Dockerfile",
     "frontend/e2e/auth.spec.ts",
     "frontend/e2e/mobile/login.spec.ts",
@@ -30,31 +30,26 @@
     "frontend/src/stores/auth.ts",
     "frontend/wrangler.toml",
     "internal/handler/auth.go",
-    "internal/integration/benchmark_test.go",
-    "internal/integration/cache_test.go",
-    "internal/integration/ingestion_test.go",
-    "internal/integration/rls_test.go",
-    "internal/integration/search_test.go",
     "internal/middleware/auth.go"
   ],
   "agent": "Claude Code",
   "transcript_identifier_at_start": "90f5a732-4692-482b-85ed-bcfb2be73d26",
-  "checkpoint_transcript_start": 2624,
-  "transcript_lines_at_start": 2624,
+  "checkpoint_transcript_start": 2773,
+  "transcript_lines_at_start": 2773,
   "token_usage": {
-    "input_tokens": 56,
-    "cache_creation_tokens": 36755,
-    "cache_read_tokens": 23710068,
-    "output_tokens": 20207,
-    "api_call_count": 41
+    "input_tokens": 11,
+    "cache_creation_tokens": 15282,
+    "cache_read_tokens": 5069284,
+    "output_tokens": 2035,
+    "api_call_count": 8
   },
   "initial_attribution": {
-    "calculated_at": "2026-04-14T18:12:38.880759Z",
-    "agent_lines": 937,
-    "human_added": 46631,
-    "human_modified": 1877,
+    "calculated_at": "2026-04-14T18:32:35.17644Z",
+    "agent_lines": 2171,
+    "human_added": 1904,
+    "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 49445,
-    "agent_percentage": 1.895034887248458
+    "total_committed": 4075,
+    "agent_percentage": 53.2760736196319
   }
 }
