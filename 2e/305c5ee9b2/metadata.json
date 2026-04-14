@@ -9,7 +9,10 @@
     ".serena/memories/codebase_structure.md",
     ".serena/memories/services_and_ports.md",
     ".serena/memories/task_completion_checklist.md",
-    "cmd/api/main.go"
+    "frontend/src/pages/onboarding/OnboardingWizard.vue",
+    "internal/integration/helpers_test.go",
+    "internal/integration/mock_aiworker_test.go",
+    "internal/integration/setup_test.go"
   ],
   "sessions": [
     {
@@ -28,10 +31,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 14,
-    "cache_creation_tokens": 4826,
-    "cache_read_tokens": 4912957,
-    "output_tokens": 2171,
-    "api_call_count": 10
+    "input_tokens": 31,
+    "cache_creation_tokens": 15957,
+    "cache_read_tokens": 13730863,
+    "output_tokens": 7680,
+    "api_call_count": 25
   }
 }

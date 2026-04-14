@@ -800,3 +800,11 @@ Failed to create workspace
 ---
 
 Forbidden
+
+---
+
+Bad Request
+
+---
+
+Can you fucking test it yourself? Everything, nothing has been happening there.
