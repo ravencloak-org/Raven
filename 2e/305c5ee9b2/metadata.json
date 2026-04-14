@@ -2,17 +2,42 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "2e305c5ee9b2",
   "strategy": "manual-commit",
-  "branch": "main",
+  "branch": "feat/integration-tests",
   "checkpoints_count": 2,
   "files_touched": [
+    ".env.example",
     ".env.keys",
+    ".github/workflows/docker.yml",
+    ".github/workflows/pages.yml",
     ".serena/memories/codebase_structure.md",
     ".serena/memories/services_and_ports.md",
     ".serena/memories/task_completion_checklist.md",
+    "cmd/api/main.go",
+    "deploy/cloudflare-pages.json",
+    "deploy/ec2/docker-compose.server.yml",
+    "deploy/postgres/init.sql",
+    "deploy/zitadel/zitadel-config.yaml",
+    "deploy/zitadel/zitadel-init-steps.yaml",
+    "docker-compose.yml",
+    "docs/superpowers/specs/2026-04-14-supertokens-migration-design.md",
+    "frontend/Dockerfile",
+    "frontend/e2e/auth.spec.ts",
+    "frontend/e2e/mobile/login.spec.ts",
+    "frontend/e2e/orgs.spec.ts",
+    "frontend/src/pages/LoginPage.vue",
+    "frontend/src/pages/callback/CallbackPage.vue",
     "frontend/src/pages/onboarding/OnboardingWizard.vue",
-    "internal/integration/helpers_test.go",
-    "internal/integration/mock_aiworker_test.go",
-    "internal/integration/setup_test.go"
+    "frontend/src/router/index.ts",
+    "frontend/src/stores/auth.spec.ts",
+    "frontend/src/stores/auth.ts",
+    "frontend/wrangler.toml",
+    "internal/handler/auth.go",
+    "internal/integration/benchmark_test.go",
+    "internal/integration/cache_test.go",
+    "internal/integration/ingestion_test.go",
+    "internal/integration/rls_test.go",
+    "internal/integration/search_test.go",
+    "internal/middleware/auth.go"
   ],
   "sessions": [
     {
@@ -31,10 +56,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 31,
-    "cache_creation_tokens": 15957,
-    "cache_read_tokens": 13730863,
-    "output_tokens": 7680,
-    "api_call_count": 25
+    "input_tokens": 61,
+    "cache_creation_tokens": 37791,
+    "cache_read_tokens": 24602068,
+    "output_tokens": 20831,
+    "api_call_count": 44
   }
 }
