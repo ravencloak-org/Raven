@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5"
 	"github.com/ravencloak-org/Raven/internal/middleware"
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
@@ -48,8 +47,10 @@ func (h *AuthHandler) Callback(c *gin.Context) {
 	// Check if user exists
 	user, err := h.svc.GetByExternalID(c.Request.Context(), externalIDStr)
 	if err != nil {
-		if !errors.Is(err, pgx.ErrNoRows) {
-			// Unexpected error — do not silently create a duplicate user
+		// Check if it's a not-found error (service wraps as apierror)
+		var appErr *apierror.AppError
+		isNotFound := errors.As(err, &appErr) && appErr.Code == http.StatusNotFound
+		if !isNotFound {
 			_ = c.Error(apierror.NewInternal("failed to look up user: " + err.Error()))
 			c.Abort()
 			return
