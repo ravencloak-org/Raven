@@ -282,3 +282,11 @@ got 403 in https://app.ravencloak.org/onboarding
 
 Space creation is giving a 403.
 
+### Prompt 53
+
+getting bad request
+
+### Prompt 54
+
+Directing to the same onboarding flow and not allowing me to create my knowledge base because it is giving a bad request.
+

@@ -3,30 +3,30 @@
   "checkpoint_id": "2e305c5ee9b2",
   "session_id": "c9ce9215-d1ba-4965-83fd-eba9b611dad2",
   "strategy": "manual-commit",
-  "created_at": "2026-04-14T15:29:42.865375Z",
-  "branch": "feat/integration-tests",
+  "created_at": "2026-04-14T15:46:52.688096Z",
+  "branch": "main",
   "checkpoints_count": 1,
   "files_touched": [
-    "cmd/api/main.go"
+    "frontend/src/pages/onboarding/OnboardingWizard.vue"
   ],
   "agent": "Claude Code",
-  "transcript_identifier_at_start": "86690717-e1ed-4ed6-84b5-aa56e4d560a7",
-  "checkpoint_transcript_start": 2392,
-  "transcript_lines_at_start": 2392,
+  "transcript_identifier_at_start": "0840cac5-8d78-4079-ae7f-d9eb3ec41dc5",
+  "checkpoint_transcript_start": 2419,
+  "transcript_lines_at_start": 2419,
   "token_usage": {
-    "input_tokens": 10,
-    "cache_creation_tokens": 3723,
-    "cache_read_tokens": 4421174,
-    "output_tokens": 1707,
-    "api_call_count": 8
+    "input_tokens": 19,
+    "cache_creation_tokens": 9731,
+    "cache_read_tokens": 8389343,
+    "output_tokens": 5343,
+    "api_call_count": 15
   },
   "initial_attribution": {
-    "calculated_at": "2026-04-14T15:29:42.514672Z",
-    "agent_lines": 0,
-    "human_added": 336,
+    "calculated_at": "2026-04-14T15:46:52.315486Z",
+    "agent_lines": 76,
+    "human_added": 622,
     "human_modified": 1,
     "human_removed": 0,
-    "total_committed": 336,
-    "agent_percentage": 0
+    "total_committed": 699,
+    "agent_percentage": 10.872675250357654
   }
 }
