@@ -66,6 +66,27 @@ func seedOrg(t *testing.T, ctx context.Context, name string) testOrg {
 	return org
 }
 
+// seedKB creates an additional knowledge base within an existing org/workspace.
+func seedKB(t *testing.T, ctx context.Context, orgID, workspaceID, name string) string {
+	t.Helper()
+	kbID := uuid.NewString()
+	conn, err := testPool.Acquire(ctx)
+	require.NoError(t, err)
+	defer conn.Release()
+
+	_, err = conn.Exec(ctx, "SET ROLE raven_admin")
+	require.NoError(t, err)
+
+	_, err = conn.Exec(ctx, `INSERT INTO knowledge_bases (id, org_id, workspace_id, name, slug) VALUES ($1, $2, $3, $4, $5)`,
+		kbID, orgID, workspaceID, name, name)
+	require.NoError(t, err)
+
+	_, err = conn.Exec(ctx, "RESET ROLE")
+	require.NoError(t, err)
+
+	return kbID
+}
+
 func insertDocument(t *testing.T, ctx context.Context, orgID, kbID, userID, fileName, status string) string {
 	t.Helper()
 	docID := uuid.NewString()
