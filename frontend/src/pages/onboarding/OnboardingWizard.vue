@@ -50,10 +50,25 @@
           @keyup.enter="createKB"
         />
 
-        <!-- Drop zone (visual placeholder) -->
-        <div class="border-2 border-dashed border-neutral-300 dark:border-neutral-700 rounded-lg p-6 text-center mb-6">
-          <p class="text-neutral-400 text-sm">Drag &amp; drop files here (optional)</p>
-          <p class="text-neutral-400 text-xs mt-1">PDF, DOCX, TXT, MD — up to 50 MB</p>
+        <!-- Drop zone -->
+        <div
+          class="border-2 border-dashed rounded-lg p-6 text-center mb-6 transition-colors"
+          :class="isDragging ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/10' : 'border-neutral-300 dark:border-neutral-700'"
+          @dragover.prevent="isDragging = true"
+          @dragleave.prevent="isDragging = false"
+          @drop.prevent="handleDrop"
+        >
+          <input ref="fileInput" type="file" multiple accept=".pdf,.docx,.txt,.md,.csv,.html" class="hidden" @change="handleFileSelect" />
+          <p v-if="files.length === 0" class="text-neutral-400 text-sm">
+            Drag &amp; drop files here or <button class="text-amber-500 underline" @click="($refs.fileInput as HTMLInputElement).click()">browse</button>
+          </p>
+          <p v-if="files.length === 0" class="text-neutral-400 text-xs mt-1">PDF, DOCX, TXT, MD — up to 50 MB</p>
+          <div v-if="files.length > 0">
+            <p class="text-neutral-900 dark:text-white text-sm font-medium mb-2">{{ files.length }} file{{ files.length > 1 ? 's' : '' }} selected</p>
+            <ul class="text-neutral-500 text-xs space-y-1">
+              <li v-for="f in files" :key="f.name">{{ f.name }} ({{ (f.size / 1024).toFixed(0) }} KB)</li>
+            </ul>
+          </div>
         </div>
 
         <button
@@ -88,16 +103,24 @@ let orgId = ''
 
 // Step 2
 const kbName = ref('')
+const files = ref<File[]>([])
+const isDragging = ref(false)
+// Template uses $refs.fileInput directly
 
-async function apiFetch(path: string, body: Record<string, unknown>) {
-  const res = await fetch(`${apiUrl}${path}`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${auth.accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  })
+async function apiFetch(path: string, options: { method?: string; body?: Record<string, unknown> | FormData; headers?: Record<string, string> } = {}) {
+  const method = options.method || 'POST'
+  const headers: Record<string, string> = {
+    'Authorization': `Bearer ${auth.accessToken}`,
+    ...options.headers,
+  }
+  let body: string | FormData | undefined
+  if (options.body instanceof FormData) {
+    body = options.body
+  } else if (options.body) {
+    headers['Content-Type'] = 'application/json'
+    body = JSON.stringify(options.body)
+  }
+  const res = await fetch(`${apiUrl}${path}`, { method, headers, body })
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
     throw new Error(data.message || data.error || `Request failed (${res.status})`)
@@ -105,12 +128,26 @@ async function apiFetch(path: string, body: Record<string, unknown>) {
   return res.json()
 }
 
+function handleDrop(e: DragEvent) {
+  isDragging.value = false
+  if (e.dataTransfer?.files) {
+    files.value = [...files.value, ...Array.from(e.dataTransfer.files)]
+  }
+}
+
+function handleFileSelect(e: Event) {
+  const input = e.target as HTMLInputElement
+  if (input.files) {
+    files.value = [...files.value, ...Array.from(input.files)]
+  }
+}
+
 async function createOrg() {
   if (orgName.value.length < 3) return
   loading.value = true
   error.value = ''
   try {
-    const data = await apiFetch('/orgs', { name: orgName.value })
+    const data = await apiFetch('/orgs', { body: { name: orgName.value } })
     orgId = data.id
     currentStep.value = 2
   } catch (e: unknown) {
@@ -125,10 +162,33 @@ async function createKB() {
   loading.value = true
   error.value = ''
   try {
-    // Create default workspace
-    const ws = await apiFetch(`/orgs/${orgId}/workspaces`, { name: 'Default' })
+    // Create default workspace (ignore "already exists" errors)
+    let wsId: string
+    try {
+      const ws = await apiFetch(`/orgs/${orgId}/workspaces`, { body: { name: 'Default' } })
+      wsId = ws.id
+    } catch {
+      // Workspace may already exist — fetch it
+      const wsList = await apiFetch(`/orgs/${orgId}/workspaces`, { method: 'GET' })
+      const existing = wsList.items?.find((w: { slug: string }) => w.slug === 'default') || wsList.items?.[0]
+      if (!existing) throw new Error('Failed to create workspace')
+      wsId = existing.id
+    }
+
     // Create knowledge base
-    await apiFetch(`/orgs/${orgId}/workspaces/${ws.id}/knowledge-bases`, { name: kbName.value })
+    const kb = await apiFetch(`/orgs/${orgId}/workspaces/${wsId}/knowledge-bases`, { body: { name: kbName.value } })
+
+    // Upload files if any
+    for (const file of files.value) {
+      const formData = new FormData()
+      formData.append('file', file)
+      await apiFetch(`/orgs/${orgId}/workspaces/${wsId}/knowledge-bases/${kb.id}/documents/upload`, {
+        body: formData,
+      }).catch(() => {
+        // Non-fatal — files can be uploaded later
+      })
+    }
+
     // Set org in auth store and navigate to dashboard
     auth.setOrgId(orgId)
     router.push('/dashboard')
