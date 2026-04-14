@@ -1,56 +1,56 @@
 import { defineStore } from 'pinia'
-import { UserManager, WebStorageStateStore } from 'oidc-client-ts'
-import type { User } from 'oidc-client-ts'
 import { ref, computed } from 'vue'
+import Session from 'supertokens-web-js/recipe/session'
+import {
+  getAuthorisationURLWithQueryParamsAndSetState,
+  signInAndUp,
+} from 'supertokens-web-js/recipe/thirdparty'
 import { usePostHog } from '../plugins/posthog'
 
-const userManager = new UserManager({
-  authority: import.meta.env.VITE_ZITADEL_URL,
-  client_id: import.meta.env.VITE_ZITADEL_CLIENT_ID,
-  redirect_uri: `${window.location.origin}/callback`,
-  post_logout_redirect_uri: window.location.origin,
-  silent_redirect_uri: `${window.location.origin}/silent-renew.html`,
-  scope: 'openid profile email',
-  response_type: 'code',
-  automaticSilentRenew: true,
-  userStore: new WebStorageStateStore({ store: window.sessionStorage }),
-})
-
 export const useAuthStore = defineStore('auth', () => {
-  const user = ref<User | null>(null)
+  const sessionExists = ref(false)
   const orgId = ref<string | null>(sessionStorage.getItem('raven_org_id'))
-  const isAuthenticated = computed(() => !!user.value && !user.value.expired)
+  const isAuthenticated = computed(() => sessionExists.value)
   const hasOrg = computed(() => !!orgId.value)
-  const accessToken = computed(() => user.value?.access_token ?? null)
 
   async function init() {
-    const existingUser = await userManager.getUser()
-    if (existingUser && !existingUser.expired) {
-      user.value = existingUser
-      _identify(existingUser)
+    sessionExists.value = await Session.doesSessionExist()
+  }
+
+  async function loginWithGoogle() {
+    const authUrl = await getAuthorisationURLWithQueryParamsAndSetState({
+      thirdPartyId: 'google',
+      frontendRedirectURI: `${window.location.origin}/callback`,
+    })
+    window.location.assign(authUrl)
+  }
+
+  async function handleCallback(): Promise<{ isNewUser: boolean; orgId?: string }> {
+    const response = await signInAndUp()
+    if (response.status !== 'OK') {
+      throw new Error('Sign-in failed: ' + response.status)
     }
-  }
+    sessionExists.value = true
 
-  async function login(idpHint?: string) {
-    const extraParams: Record<string, string> = {}
-    if (idpHint) extraParams.idp_hint = idpHint
-    await userManager.signinRedirect({ extraQueryParams: extraParams })
-  }
-
-  async function handleCallback(): Promise<User> {
-    const callbackUser = await userManager.signinRedirectCallback()
-    user.value = callbackUser
-    _identify(callbackUser)
-    return callbackUser
+    // Call backend to create/find internal user
+    const res = await fetch(
+      `${import.meta.env.VITE_API_BASE_URL}/auth/callback`,
+      { method: 'POST', credentials: 'include' },
+    )
+    if (!res.ok) {
+      throw new Error(`Auth callback failed (${res.status})`)
+    }
+    return res.json()
   }
 
   async function logout() {
     const { reset: resetPostHog } = usePostHog()
     resetPostHog()
-    user.value = null
+    sessionExists.value = false
     orgId.value = null
     sessionStorage.removeItem('raven_org_id')
-    await userManager.signoutRedirect()
+    await Session.signOut()
+    window.location.href = '/login'
   }
 
   function setOrgId(id: string) {
@@ -58,13 +58,15 @@ export const useAuthStore = defineStore('auth', () => {
     sessionStorage.setItem('raven_org_id', id)
   }
 
-  function _identify(u: User) {
-    const { identify } = usePostHog()
-    identify(u.profile.sub, {
-      email: u.profile.email,
-      name: u.profile.name,
-    })
+  return {
+    sessionExists,
+    orgId,
+    isAuthenticated,
+    hasOrg,
+    init,
+    loginWithGoogle,
+    handleCallback,
+    logout,
+    setOrgId,
   }
-
-  return { user, orgId, isAuthenticated, hasOrg, accessToken, init, login, handleCallback, logout, setOrgId }
 })

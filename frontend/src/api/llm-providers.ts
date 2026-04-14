@@ -1,4 +1,3 @@
-import { useAuthStore } from '../stores/auth'
 import { isDefined, find, findIndex } from 'remeda'
 
 // --- Types ---
@@ -74,13 +73,12 @@ export const PROVIDER_MODELS: Record<ProviderType, ProviderModelOption[]> = {
 // --- Helpers ---
 
 async function authFetch(path: string, init?: RequestInit): Promise<Response> {
-  const auth = useAuthStore()
   const base = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
   return fetch(base + path, {
     ...init,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${auth.accessToken ?? ''}`,
       ...init?.headers,
     },
   })

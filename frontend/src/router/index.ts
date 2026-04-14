@@ -163,20 +163,17 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
 
-  // Skip auth check for public routes
   if (to.path === '/login' || to.path === '/callback') return
+  if (to.path.startsWith('/legal/')) return
 
-  // Initialize auth if not done
   if (!auth.isAuthenticated) {
     await auth.init()
   }
 
-  // Redirect to login if auth required but not authenticated
   if (to.meta.requiresAuth === true && !auth.isAuthenticated) {
     return '/login'
   }
 
-  // Redirect to onboarding if authenticated but no org
   if (auth.isAuthenticated && !auth.hasOrg && to.path !== '/onboarding') {
     return '/onboarding'
   }

@@ -1,5 +1,3 @@
-import { useAuthStore } from '../stores/auth'
-
 // --- Interfaces ---
 
 export interface ConversationVolumePoint {
@@ -32,13 +30,12 @@ export type DateRange = '7d' | '30d' | '90d'
 // --- Auth helper (follows orgs.ts pattern) ---
 
 async function authFetch(path: string, init?: RequestInit): Promise<Response> {
-  const auth = useAuthStore()
   const base = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
   return fetch(base + path, {
     ...init,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${auth.accessToken ?? ''}`,
       ...init?.headers,
     },
   })

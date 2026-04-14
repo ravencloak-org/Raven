@@ -15,14 +15,16 @@ services:
       RAVEN_OTEL_ENABLED: "true"
       RAVEN_OTEL_ENDPOINT: "openobserve:5081"
       RAVEN_OTEL_SERVICE_NAME: "raven-api"
-      ZITADEL_EXTERNALDOMAIN: ${ZITADEL_EXTERNALDOMAIN:-localhost}
-      ZITADEL_CLIENT_ID: ${ZITADEL_CLIENT_ID}
+      RAVEN_SUPERTOKENS_CONNECTION_URI: "http://supertokens:3567"
+      RAVEN_SUPERTOKENS_API_KEY: "${SUPERTOKENS_API_KEY:-supertokens-dev-key-replace-me}"
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}"
+      GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET}"
     depends_on:
       postgres:
         condition: service_healthy
       valkey:
         condition: service_healthy
-      zitadel:
+      supertokens:
         condition: service_healthy
       openobserve:
         condition: service_started
@@ -186,56 +188,25 @@ services:
       - raven-internal
     restart: unless-stopped
 
-  # ─── Zitadel IAM ──────────────────────────────────────────────────────────
-  zitadel:
-    image: ghcr.io/zitadel/zitadel:v2.71.12
-    restart: always
-    command: >
-      start-from-init
-      --config /zitadel-config.yaml
-      --steps /zitadel-init-steps.yaml
-      --masterkey "${ZITADEL_MASTERKEY}"
-      --tlsMode disabled
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./deploy/zitadel/zitadel-config.yaml:/zitadel-config.yaml:ro
-      - ./deploy/zitadel/zitadel-init-steps.yaml:/zitadel-init-steps.yaml:ro
+  # ─── SuperTokens Auth Backend ─────────────────────────────────────────────
+  supertokens:
+    image: registry.supertokens.io/supertokens/supertokens-postgresql
+    environment:
+      POSTGRESQL_CONNECTION_URI: "postgresql://${POSTGRES_USER:-raven}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-raven}"
+      API_KEYS: "${SUPERTOKENS_API_KEY:-supertokens-dev-key-replace-me}"
+      DISABLE_TELEMETRY: "true"
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - raven-internal
-    environment:
-      - ZITADEL_MASTERKEY=${ZITADEL_MASTERKEY}
-      - ZITADEL_EXTERNALDOMAIN=${ZITADEL_EXTERNALDOMAIN:-localhost}
-      - ZITADEL_EXTERNALPORT=${ZITADEL_EXTERNALPORT:-8080}
-      - ZITADEL_EXTERNALSECURE=${ZITADEL_EXTERNALSECURE:-false}
-      - ZITADEL_DATABASE_POSTGRES_HOST=postgres
-      - ZITADEL_DATABASE_POSTGRES_PORT=5432
-      - ZITADEL_DATABASE_POSTGRES_DATABASE=zitadel
-      - ZITADEL_DATABASE_POSTGRES_USER_USERNAME=zitadel
-      - ZITADEL_DATABASE_POSTGRES_USER_PASSWORD=${ZITADEL_DB_PASSWORD:-zitadel}
-      - ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME=${POSTGRES_USER:-raven}
-      - ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD=${POSTGRES_PASSWORD}
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "/app/zitadel", "ready"]
+      test: ["CMD", "sh", "-c", "curl -sf http://localhost:3567/hello || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
-
-  # ─── Cloudflare Tunnel (production only) ──────────────────────────────────
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    restart: always
-    command: tunnel run
-    environment:
-      - TUNNEL_TOKEN=${CF_TUNNEL_TOKEN}
-    networks:
-      - raven-internal
-    profiles:
-      - production
+      start_period: 10s
 
   # ─── SeaweedFS Master ──────────────────────────────────────────────────────
   seaweedfs-master:
