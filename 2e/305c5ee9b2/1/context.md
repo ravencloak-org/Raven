@@ -234,3 +234,19 @@ deploy this, I need to setup and test the auth flow
 
 password is invalid
 
+### Prompt 41
+
+yes
+
+### Prompt 42
+
+how to add google as an Idp?
+
+### Prompt 43
+
+yeah
+
+### Prompt 44
+
+yes
+

@@ -9,8 +9,7 @@
     ".serena/memories/codebase_structure.md",
     ".serena/memories/services_and_ports.md",
     ".serena/memories/task_completion_checklist.md",
-    "deploy/ec2/docker-compose.server.yml",
-    "deploy/zitadel/zitadel-init-steps.yaml"
+    "frontend/Dockerfile"
   ],
   "sessions": [
     {
@@ -29,10 +28,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 124,
-    "cache_creation_tokens": 844076,
-    "cache_read_tokens": 40310133,
-    "output_tokens": 18752,
-    "api_call_count": 96
+    "input_tokens": 115,
+    "cache_creation_tokens": 47302,
+    "cache_read_tokens": 42556979,
+    "output_tokens": 19609,
+    "api_call_count": 91
   }
 }

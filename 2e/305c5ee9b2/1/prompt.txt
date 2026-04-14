@@ -728,3 +728,19 @@ deploy this, I need to setup and test the auth flow
 ---
 
 password is invalid
+
+---
+
+yes
+
+---
+
+how to add google as an Idp?
+
+---
+
+yeah
+
+---
+
+yes
