@@ -2,8 +2,8 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "2e305c5ee9b2",
   "strategy": "manual-commit",
-  "branch": "feat/integration-tests",
-  "checkpoints_count": 1,
+  "branch": "feat/supertokens-migration",
+  "checkpoints_count": 2,
   "files_touched": [
     ".env.example",
     ".env.keys",
@@ -19,7 +19,6 @@
     "deploy/zitadel/zitadel-config.yaml",
     "deploy/zitadel/zitadel-init-steps.yaml",
     "docker-compose.yml",
-    "docs/superpowers/plans/2026-04-14-supertokens-migration.md",
     "frontend/Dockerfile",
     "frontend/e2e/auth.spec.ts",
     "frontend/e2e/mobile/login.spec.ts",
@@ -32,7 +31,8 @@
     "frontend/src/stores/auth.ts",
     "frontend/wrangler.toml",
     "internal/handler/auth.go",
-    "internal/middleware/auth.go"
+    "internal/middleware/auth.go",
+    "internal/middleware/cors.go"
   ],
   "sessions": [
     {
@@ -51,10 +51,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 16,
-    "cache_creation_tokens": 16318,
-    "cache_read_tokens": 5961284,
-    "output_tokens": 2659,
-    "api_call_count": 11
+    "input_tokens": 66,
+    "cache_creation_tokens": 685107,
+    "cache_read_tokens": 33675268,
+    "output_tokens": 23486,
+    "api_call_count": 53
   }
 }

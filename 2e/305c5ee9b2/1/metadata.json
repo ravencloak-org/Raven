@@ -3,9 +3,9 @@
   "checkpoint_id": "2e305c5ee9b2",
   "session_id": "c9ce9215-d1ba-4965-83fd-eba9b611dad2",
   "strategy": "manual-commit",
-  "created_at": "2026-04-14T18:32:35.562355Z",
-  "branch": "feat/integration-tests",
-  "checkpoints_count": 0,
+  "created_at": "2026-04-14T19:52:31.578314Z",
+  "branch": "feat/supertokens-migration",
+  "checkpoints_count": 1,
   "files_touched": [
     ".env.example",
     ".github/workflows/docker.yml",
@@ -17,7 +17,6 @@
     "deploy/zitadel/zitadel-config.yaml",
     "deploy/zitadel/zitadel-init-steps.yaml",
     "docker-compose.yml",
-    "docs/superpowers/plans/2026-04-14-supertokens-migration.md",
     "frontend/Dockerfile",
     "frontend/e2e/auth.spec.ts",
     "frontend/e2e/mobile/login.spec.ts",
@@ -30,26 +29,27 @@
     "frontend/src/stores/auth.ts",
     "frontend/wrangler.toml",
     "internal/handler/auth.go",
-    "internal/middleware/auth.go"
+    "internal/middleware/auth.go",
+    "internal/middleware/cors.go"
   ],
   "agent": "Claude Code",
-  "transcript_identifier_at_start": "90f5a732-4692-482b-85ed-bcfb2be73d26",
-  "checkpoint_transcript_start": 2773,
-  "transcript_lines_at_start": 2773,
+  "transcript_identifier_at_start": "6c9d51dd-07d9-4c5c-889a-6149e34aa5cd",
+  "checkpoint_transcript_start": 2803,
+  "transcript_lines_at_start": 2803,
   "token_usage": {
-    "input_tokens": 11,
-    "cache_creation_tokens": 15282,
-    "cache_read_tokens": 5069284,
-    "output_tokens": 2035,
-    "api_call_count": 8
+    "input_tokens": 61,
+    "cache_creation_tokens": 684071,
+    "cache_read_tokens": 32783268,
+    "output_tokens": 22862,
+    "api_call_count": 50
   },
   "initial_attribution": {
-    "calculated_at": "2026-04-14T18:32:35.17644Z",
-    "agent_lines": 2171,
-    "human_added": 1904,
+    "calculated_at": "2026-04-14T19:52:31.150456Z",
+    "agent_lines": 206,
+    "human_added": 760,
     "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 4075,
-    "agent_percentage": 53.2760736196319
+    "total_committed": 966,
+    "agent_percentage": 21.325051759834366
   }
 }
