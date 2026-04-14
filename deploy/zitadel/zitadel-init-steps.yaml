@@ -5,7 +5,7 @@ FirstInstance:
       UserName: "admin@ravencloak.org"
       FirstName: "Raven"
       LastName: "Admin"
-      Password: "${ZITADEL_ADMIN_PASSWORD:-RavenAdmin1!}"
+      Password: "RavenAdmin1!"  # Change on first login
     Machine:
       UserName: "raven-api"
       Name: "Raven API Service User"
