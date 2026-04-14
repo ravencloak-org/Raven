@@ -10,8 +10,7 @@
     ".serena/memories/services_and_ports.md",
     ".serena/memories/task_completion_checklist.md",
     "deploy/ec2/docker-compose.server.yml",
-    "deploy/zitadel/zitadel-config.yaml",
-    "frontend/.claude/settings.local.json"
+    "deploy/zitadel/zitadel-init-steps.yaml"
   ],
   "sessions": [
     {
@@ -30,10 +29,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 66,
-    "cache_creation_tokens": 49113,
-    "cache_read_tokens": 22247365,
-    "output_tokens": 20873,
-    "api_call_count": 58
+    "input_tokens": 124,
+    "cache_creation_tokens": 844076,
+    "cache_read_tokens": 40310133,
+    "output_tokens": 18752,
+    "api_call_count": 96
   }
 }
