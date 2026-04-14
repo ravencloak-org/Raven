@@ -14,7 +14,7 @@ Integration tests for Raven's core features: data ingestion (file uploads, URL/w
 
 ### Test Database Lifecycle
 
-- **testcontainers-go** spins up a `pgvector/pgvector:0.8.0-pg17` container per test package in `TestMain`
+- **testcontainers-go** spins up a `pgvector/pgvector:0.8.0-pg18` container per test package in `TestMain`
 - Goose migrations run on startup to create the full schema
 - Each test suite seeds a fresh org/workspace/KB
 - Cleanup between test functions via `DELETE FROM` scoped to the test org
@@ -168,7 +168,7 @@ Setup: Two orgs (Org-A, Org-B), each with own KB, documents, chunks, embeddings,
 | Dependency | Purpose |
 |------------|---------|
 | `testcontainers-go` | Programmatic Postgres container lifecycle |
-| `pgvector/pgvector:0.8.0-pg17` | Docker image with pgvector extension (pinned version for reproducible CI) |
+| `pgvector/pgvector:0.8.0-pg18` | Docker image with pgvector extension (pinned version for reproducible CI) |
 | `pressly/goose` | Migration runner (already in use) |
 | `google.golang.org/grpc` | gRPC mock server (already in use) |
 | `miniredis` or testcontainer Redis | Valkey mock for cache subsystem A tests |
@@ -217,4 +217,4 @@ go test -tags=integration ./internal/integration/ -run TestRLS -v
 4. **Pre-computed embeddings** — avoids calling real embedding APIs in tests, makes assertions deterministic
 5. **RRF fusion tested at service layer** — the `fuseRRF` function is pure logic, but we test it through the full `HybridSearch` path to also exercise the repository queries
 6. **ClickHouse/QBit path excluded** — `HybridRetrievalService` supports a ClickHouse backend but this suite is PostgreSQL-only. A separate test suite can cover the ClickHouse path when needed.
-7. **Image version pinned** — `pgvector/pgvector:0.8.0-pg17` for reproducible CI. Update intentionally, not via `:latest` drift.
+7. **Image version pinned** — `pgvector/pgvector:0.8.0-pg18` for reproducible CI. Update intentionally, not via `:latest` drift.
