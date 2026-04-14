@@ -9,9 +9,9 @@ type SessionInfo struct {
 	Name       string
 }
 
-// AuthProvider abstracts authentication session verification.
+// Provider abstracts authentication session verification.
 // Implementations may call external services (SuperTokens, etc.) to verify sessions.
-type AuthProvider interface {
+type Provider interface {
 	// VerifySession validates the session from the HTTP request (cookies or headers)
 	// and returns the authenticated user's identity.
 	// Returns an error if the session is invalid, expired, or missing.

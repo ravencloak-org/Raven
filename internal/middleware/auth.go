@@ -39,7 +39,7 @@ type authError struct {
 // SessionMiddleware returns a Gin handler that verifies the session using
 // the provided AuthProvider. On success, it stores identity data in the
 // Gin context using the same context keys as the old JWTMiddleware.
-func SessionMiddleware(provider auth.AuthProvider) gin.HandlerFunc {
+func SessionMiddleware(provider auth.Provider) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		info, err := provider.VerifySession(c.Request)
 		if err != nil {

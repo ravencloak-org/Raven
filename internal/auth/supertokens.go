@@ -140,7 +140,7 @@ func (p *SuperTokensProvider) verifyAccessToken(accessToken string) (*sessionDat
 	if err != nil {
 		return nil, fmt.Errorf("SuperTokens Core unreachable: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -176,7 +176,7 @@ func (p *SuperTokensProvider) getUserInfo(userID string) (*SessionInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("SuperTokens Core unreachable: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -228,7 +228,7 @@ func (p *SuperTokensProvider) removeSession(sessionHandle string) error {
 	if err != nil {
 		return fmt.Errorf("SuperTokens Core unreachable: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)

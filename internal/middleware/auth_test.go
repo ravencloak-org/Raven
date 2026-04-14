@@ -24,7 +24,7 @@ func (m *mockAuthProvider) RevokeSession(r *http.Request) error {
 	return m.err
 }
 
-func setupRouter(provider auth.AuthProvider) *gin.Engine {
+func setupRouter(provider auth.Provider) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.Use(middleware.SessionMiddleware(provider))
