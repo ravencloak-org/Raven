@@ -302,3 +302,7 @@ https://app.ravencloak.org/dashboard access yourself and try it out
 
 Failed to create workspace
 
+### Prompt 58
+
+Forbidden
+
