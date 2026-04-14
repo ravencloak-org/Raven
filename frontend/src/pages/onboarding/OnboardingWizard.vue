@@ -168,9 +168,10 @@ async function createKB() {
       const ws = await apiFetch(`/orgs/${orgId}/workspaces`, { body: { name: 'Default' } })
       wsId = ws.id
     } catch {
-      // Workspace may already exist — fetch it
+      // Workspace may already exist — fetch the list (returns array directly)
       const wsList = await apiFetch(`/orgs/${orgId}/workspaces`, { method: 'GET' })
-      const existing = wsList.items?.find((w: { slug: string }) => w.slug === 'default') || wsList.items?.[0]
+      const arr = Array.isArray(wsList) ? wsList : (wsList.items || [])
+      const existing = arr.find((w: { slug: string }) => w.slug === 'default') || arr[0]
       if (!existing) throw new Error('Failed to create workspace')
       wsId = existing.id
     }
