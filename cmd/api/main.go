@@ -36,6 +36,7 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
+	"github.com/ravencloak-org/Raven/internal/auth"
 	"github.com/ravencloak-org/Raven/internal/cache"
 	"github.com/ravencloak-org/Raven/internal/config"
 	"github.com/ravencloak-org/Raven/internal/db"
@@ -442,14 +443,22 @@ func main() {
 	// Swagger UI — served at /api/docs (unauthenticated; disable in prod via env).
 	router.GET("/api/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	// Protected API routes — JWT validation applied per-group, not globally.
+	// SuperTokens auth proxy — must be outside /api/v1 (no session verification).
+	// Forwards all /auth/* requests to the SuperTokens Core unchanged.
+	authProvider := auth.NewSuperTokensProvider(
+		cfg.SuperTokens.ConnectionURI,
+		cfg.SuperTokens.APIKey,
+	)
+	router.Any("/auth/*path", handler.NewSuperTokensProxy(cfg.SuperTokens.ConnectionURI))
+
+	// Protected API routes — session validation applied per-group, not globally.
 	// This allows health checks and other public endpoints to remain unauthenticated.
 	//
 	// NOTE: The repository layer is responsible for applying RLS by executing
 	//   SET LOCAL app.current_org_id = '<uuid>'
 	// using the org_id stored in the Gin context key middleware.ContextKeyOrgID.
 	api := router.Group("/api/v1")
-	api.Use(middleware.JWTMiddleware(&cfg.Zitadel))
+	api.Use(middleware.SessionMiddleware(authProvider))
 	api.Use(middleware.UserLookup(&userLookupAdapter{repo: userRepo}))
 	// Per-user and per-org flat rate limits (config-driven defaults).
 	api.Use(middleware.ByUserID(rl, cfg.RateLimit.DefaultUserLimit))
