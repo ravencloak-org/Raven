@@ -258,3 +258,11 @@ it's stuck in loop, check
 
 still redirect loop
 
+### Prompt 47
+
+nope
+
+### Prompt 48
+
+clear everything in my browser
+

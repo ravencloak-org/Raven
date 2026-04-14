@@ -2,14 +2,15 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "2e305c5ee9b2",
   "strategy": "manual-commit",
-  "branch": "main",
+  "branch": "feat/integration-tests",
   "checkpoints_count": 2,
   "files_touched": [
     ".env.keys",
     ".serena/memories/codebase_structure.md",
     ".serena/memories/services_and_ports.md",
     ".serena/memories/task_completion_checklist.md",
-    "docs/superpowers/plans/2026-04-13-integration-tests.md"
+    "internal/integration/testdata/sample_markdown.md",
+    "internal/middleware/auth.go"
   ],
   "sessions": [
     {
@@ -28,10 +29,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 32,
-    "cache_creation_tokens": 11516,
-    "cache_read_tokens": 10496924,
-    "output_tokens": 5006,
-    "api_call_count": 22
+    "input_tokens": 40,
+    "cache_creation_tokens": 14870,
+    "cache_read_tokens": 15916188,
+    "output_tokens": 7675,
+    "api_call_count": 32
   }
 }

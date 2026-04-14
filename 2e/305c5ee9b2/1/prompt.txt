@@ -752,3 +752,11 @@ it's stuck in loop, check
 ---
 
 still redirect loop
+
+---
+
+nope
+
+---
+
+clear everything in my browser
