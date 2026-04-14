@@ -316,20 +316,25 @@ func TestSearch(t *testing.T) {
 
 		docID := insertDocument(t, ctx, org.OrgID, org.KBID, org.UserID, "unicode.md", "ready")
 
-		// CJK characters
+		// CJK characters (Chinese: "knowledge management system documentation")
 		insertChunk(t, ctx, org.OrgID, org.KBID, docID, 0,
-			"Chinese characters example text in documentation.", "CJK", 12)
-		// Emoji
+			"知識管理系統的文檔資料 knowledge documentation for the platform.", "知識管理", 15)
+		// Emoji content
 		insertChunk(t, ctx, org.OrgID, org.KBID, docID, 1,
-			"Emoji content with symbols in documentation context.", "Emoji", 10)
-		// RTL (Arabic)
+			"🚀 Deployment guide 📚 documentation with 🔍 search and 💾 storage features.", "🚀 Deployment", 14)
+		// RTL (Arabic: "search system documentation")
 		insertChunk(t, ctx, org.OrgID, org.KBID, docID, 2,
-			"Arabic text content for testing documentation search.", "RTL", 10)
+			"وثائق نظام البحث documentation for retrieval systems.", "وثائق البحث", 12)
 
-		// BM25 search for the common term should not error.
+		// BM25 search for the English term present in all chunks should not error.
 		resp, err := testSearchSvc.TextSearch(ctx, org.OrgID, org.KBID, "documentation", 10)
 		require.NoError(t, err, "BM25 search with unicode content should not error")
-		assert.GreaterOrEqual(t, resp.Total, 1, "should find at least one result with the shared keyword")
+		assert.GreaterOrEqual(t, resp.Total, 1, "should find at least one result with the shared English keyword")
+
+		// Search for a CJK term — may return 0 results with English tsvector config, but must not error.
+		resp2, err := testSearchSvc.TextSearch(ctx, org.OrgID, org.KBID, "知識管理", 10)
+		require.NoError(t, err, "BM25 search for CJK term should not error")
+		_ = resp2 // result count depends on tsvector config
 	})
 
 	t.Run("Edge/duplicate_embeddings", func(t *testing.T) {

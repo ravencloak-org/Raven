@@ -57,8 +57,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(fmt.Sprintf("failed to start container: %v", err))
 	}
-	defer func() { _ = container.Terminate(ctx) }()
-
 	host, err := container.Host(ctx)
 	if err != nil {
 		panic(fmt.Sprintf("failed to get container host: %v", err))
@@ -93,7 +91,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(fmt.Sprintf("failed to create pool: %v", err))
 	}
-	defer testPool.Close()
 
 	// Initialize repositories
 	testSearchRepo = repository.NewSearchRepository(testPool)
@@ -106,5 +103,11 @@ func TestMain(m *testing.M) {
 	testDocSvc = service.NewDocumentService(testDocRepo, testPool)
 	testSourceSvc = service.NewSourceService(testSourceRepo, testPool)
 
-	os.Exit(m.Run())
+	// Run tests, then clean up explicitly (os.Exit skips defers).
+	code := m.Run()
+
+	testPool.Close()
+	_ = container.Terminate(ctx)
+
+	os.Exit(code)
 }

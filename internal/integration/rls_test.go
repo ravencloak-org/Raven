@@ -233,6 +233,7 @@ func TestRLS(t *testing.T) {
 
 		_, err = conn.Exec(ctx, "SET ROLE raven_admin")
 		require.NoError(t, err)
+		defer func() { _, _ = conn.Exec(ctx, "RESET ROLE") }()
 
 		// Count documents for both orgs (admin sees all).
 		var totalDocs int
@@ -269,9 +270,6 @@ func TestRLS(t *testing.T) {
 		).Scan(&totalSources)
 		require.NoError(t, err)
 		assert.Equal(t, 2, totalSources, "Admin must see all 2 sources across both orgs")
-
-		_, err = conn.Exec(ctx, "RESET ROLE")
-		require.NoError(t, err)
 	})
 }
 

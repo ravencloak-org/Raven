@@ -201,6 +201,7 @@ func ensureBench1K(tb testing.TB) testOrg {
 			bench1KErr = fmt.Errorf("set role: %w", err)
 			return
 		}
+		defer func() { _, _ = conn.Exec(ctx, "RESET ROLE") }()
 
 		bench1KOrg, bench1KErr = seedOrgRaw(ctx, conn, "bench-1k")
 		if bench1KErr != nil {
@@ -208,10 +209,6 @@ func ensureBench1K(tb testing.TB) testOrg {
 		}
 
 		bench1KErr = seedBenchmarkDataRaw(ctx, conn, bench1KOrg.OrgID, bench1KOrg.KBID, bench1KOrg.UserID, 50, 20)
-
-		if _, err := conn.Exec(ctx, "RESET ROLE"); err != nil && bench1KErr == nil {
-			bench1KErr = fmt.Errorf("reset role: %w", err)
-		}
 	})
 	require.NoError(tb, bench1KErr, "failed to seed 1K benchmark data")
 	return bench1KOrg
@@ -234,6 +231,7 @@ func ensureBench10K(tb testing.TB) testOrg {
 			bench10KErr = fmt.Errorf("set role: %w", err)
 			return
 		}
+		defer func() { _, _ = conn.Exec(ctx, "RESET ROLE") }()
 
 		bench10KOrg, bench10KErr = seedOrgRaw(ctx, conn, "bench-10k")
 		if bench10KErr != nil {
@@ -241,10 +239,6 @@ func ensureBench10K(tb testing.TB) testOrg {
 		}
 
 		bench10KErr = seedBenchmarkDataRaw(ctx, conn, bench10KOrg.OrgID, bench10KOrg.KBID, bench10KOrg.UserID, 500, 20)
-
-		if _, err := conn.Exec(ctx, "RESET ROLE"); err != nil && bench10KErr == nil {
-			bench10KErr = fmt.Errorf("reset role: %w", err)
-		}
 	})
 	require.NoError(tb, bench10KErr, "failed to seed 10K benchmark data")
 	return bench10KOrg

@@ -42,6 +42,7 @@ func seedOrg(t *testing.T, ctx context.Context, name string) testOrg {
 
 	_, err = conn.Exec(ctx, "SET ROLE raven_admin")
 	require.NoError(t, err)
+	defer func() { _, _ = conn.Exec(ctx, "RESET ROLE") }()
 
 	_, err = conn.Exec(ctx, `INSERT INTO organizations (id, name, slug) VALUES ($1, $2, $3)`,
 		org.OrgID, name, name)
@@ -60,9 +61,6 @@ func seedOrg(t *testing.T, ctx context.Context, name string) testOrg {
 		org.KBID, org.OrgID, org.WorkspaceID, name+"-kb", name+"-kb")
 	require.NoError(t, err)
 
-	_, err = conn.Exec(ctx, "RESET ROLE")
-	require.NoError(t, err)
-
 	return org
 }
 
@@ -76,12 +74,10 @@ func seedKB(t *testing.T, ctx context.Context, orgID, workspaceID, name string) 
 
 	_, err = conn.Exec(ctx, "SET ROLE raven_admin")
 	require.NoError(t, err)
+	defer func() { _, _ = conn.Exec(ctx, "RESET ROLE") }()
 
 	_, err = conn.Exec(ctx, `INSERT INTO knowledge_bases (id, org_id, workspace_id, name, slug) VALUES ($1, $2, $3, $4, $5)`,
 		kbID, orgID, workspaceID, name, name)
-	require.NoError(t, err)
-
-	_, err = conn.Exec(ctx, "RESET ROLE")
 	require.NoError(t, err)
 
 	return kbID
@@ -163,12 +159,10 @@ func cleanupOrg(t *testing.T, ctx context.Context, orgID string) {
 
 	_, err = conn.Exec(ctx, "SET ROLE raven_admin")
 	require.NoError(t, err)
+	defer func() { _, _ = conn.Exec(ctx, "RESET ROLE") }()
 
 	// CASCADE deletes handle dependent rows (users, workspaces, knowledge_bases, documents, etc.)
 	_, err = conn.Exec(ctx, "DELETE FROM organizations WHERE id = $1", orgID)
-	require.NoError(t, err)
-
-	_, err = conn.Exec(ctx, "RESET ROLE")
 	require.NoError(t, err)
 }
 

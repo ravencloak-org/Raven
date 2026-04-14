@@ -416,16 +416,33 @@ func TestIngestion(t *testing.T) {
 				fmt.Sprintf("concurrent-%d.md", i), "ready")
 		}
 
-		g, gCtx := errgroup.WithContext(ctx)
+		g, _ := errgroup.WithContext(ctx)
 
 		for docIdx := 0; docIdx < numDocs; docIdx++ {
 			docIdx := docIdx
 			g.Go(func() error {
 				for j := 0; j < chunksPerDoc; j++ {
-					chunkID := insertChunk(t, gCtx, org.OrgID, org.KBID, docIDs[docIdx], j,
-						fmt.Sprintf("Doc %d chunk %d content", docIdx, j),
-						fmt.Sprintf("Heading %d-%d", docIdx, j), 100)
-					insertEmbedding(t, gCtx, org.OrgID, chunkID, generateEmbedding(docIdx*100+j))
+					chunkID := uuid.NewString()
+					if err := db.WithOrgID(ctx, testPool, org.OrgID, func(tx pgx.Tx) error {
+						_, err := tx.Exec(ctx, `
+							INSERT INTO chunks (id, org_id, knowledge_base_id, document_id, content, chunk_index, token_count, page_number, heading, chunk_type)
+							VALUES ($1, $2, $3, $4, $5, $6, $7, 1, $8, 'text')`,
+							chunkID, org.OrgID, org.KBID, docIDs[docIdx],
+							fmt.Sprintf("Doc %d chunk %d content", docIdx, j),
+							j, 100, fmt.Sprintf("Heading %d-%d", docIdx, j))
+						return err
+					}); err != nil {
+						return fmt.Errorf("insert chunk doc=%d chunk=%d: %w", docIdx, j, err)
+					}
+					if err := db.WithOrgID(ctx, testPool, org.OrgID, func(tx pgx.Tx) error {
+						_, err := tx.Exec(ctx, `
+							INSERT INTO embeddings (id, org_id, chunk_id, embedding, model_name, dimensions)
+							VALUES ($1, $2, $3, $4, 'text-embedding-3-small', 1536)`,
+							uuid.NewString(), org.OrgID, chunkID, generateEmbedding(docIdx*100+j))
+						return err
+					}); err != nil {
+						return fmt.Errorf("insert embedding doc=%d chunk=%d: %w", docIdx, j, err)
+					}
 				}
 				return nil
 			})

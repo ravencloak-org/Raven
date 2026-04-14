@@ -19,7 +19,6 @@ type mockAIWorker struct {
 	mu             sync.Mutex
 	parseRequests  []*pb.ParseRequest
 	failParseEmbed bool
-	failFromStatus string
 	parseResponses map[string]*pb.ParseResponse
 	embeddings     map[string]*pb.EmbeddingResponse
 }
@@ -34,9 +33,10 @@ func newMockAIWorker() *mockAIWorker {
 func (m *mockAIWorker) ParseAndEmbed(_ context.Context, req *pb.ParseRequest) (*pb.ParseResponse, error) {
 	m.mu.Lock()
 	m.parseRequests = append(m.parseRequests, req)
+	shouldFail := m.failParseEmbed
 	m.mu.Unlock()
 
-	if m.failParseEmbed {
+	if shouldFail {
 		return nil, status.Errorf(codes.Internal, "mock: simulated parse failure")
 	}
 
