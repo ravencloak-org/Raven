@@ -2,7 +2,7 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "2e305c5ee9b2",
   "strategy": "manual-commit",
-  "branch": "main",
+  "branch": "feat/integration-tests",
   "checkpoints_count": 2,
   "files_touched": [
     ".env.keys",
@@ -29,9 +29,9 @@
   ],
   "token_usage": {
     "input_tokens": 15,
-    "cache_creation_tokens": 4094,
-    "cache_read_tokens": 5286225,
-    "output_tokens": 2068,
+    "cache_creation_tokens": 4759,
+    "cache_read_tokens": 5313174,
+    "output_tokens": 2331,
     "api_call_count": 11
   }
 }

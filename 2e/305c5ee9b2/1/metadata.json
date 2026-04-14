@@ -3,30 +3,30 @@
   "checkpoint_id": "2e305c5ee9b2",
   "session_id": "c9ce9215-d1ba-4965-83fd-eba9b611dad2",
   "strategy": "manual-commit",
-  "created_at": "2026-04-14T15:25:18.03375Z",
-  "branch": "main",
+  "created_at": "2026-04-14T15:29:42.865375Z",
+  "branch": "feat/integration-tests",
   "checkpoints_count": 1,
   "files_touched": [
     "cmd/api/main.go"
   ],
   "agent": "Claude Code",
-  "transcript_identifier_at_start": "78bfc850-333f-42fb-ad11-d5e6945ab587",
-  "checkpoint_transcript_start": 2368,
-  "transcript_lines_at_start": 2368,
+  "transcript_identifier_at_start": "86690717-e1ed-4ed6-84b5-aa56e4d560a7",
+  "checkpoint_transcript_start": 2392,
+  "transcript_lines_at_start": 2392,
   "token_usage": {
     "input_tokens": 10,
-    "cache_creation_tokens": 3058,
-    "cache_read_tokens": 4394225,
-    "output_tokens": 1444,
+    "cache_creation_tokens": 3723,
+    "cache_read_tokens": 4421174,
+    "output_tokens": 1707,
     "api_call_count": 8
   },
   "initial_attribution": {
-    "calculated_at": "2026-04-14T15:25:17.677351Z",
+    "calculated_at": "2026-04-14T15:29:42.514672Z",
     "agent_lines": 0,
-    "human_added": 48766,
+    "human_added": 336,
     "human_modified": 1,
     "human_removed": 0,
-    "total_committed": 48767,
+    "total_committed": 336,
     "agent_percentage": 0
   }
 }

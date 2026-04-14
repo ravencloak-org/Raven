@@ -772,3 +772,7 @@ still looping in completing sign in
 ---
 
 got 403 in https://app.ravencloak.org/onboarding
+
+---
+
+Space creation is giving a 403.
