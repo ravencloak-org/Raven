@@ -784,3 +784,15 @@ getting bad request
 ---
 
 Directing to the same onboarding flow and not allowing me to create my knowledge base because it is giving a bad request.
+
+---
+
+still bad rquest and everything is coming soon
+
+---
+
+https://app.ravencloak.org/dashboard access yourself and try it out
+
+---
+
+Failed to create workspace

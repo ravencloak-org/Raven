@@ -290,3 +290,15 @@ getting bad request
 
 Directing to the same onboarding flow and not allowing me to create my knowledge base because it is giving a bad request.
 
+### Prompt 55
+
+still bad rquest and everything is coming soon
+
+### Prompt 56
+
+https://app.ravencloak.org/dashboard access yourself and try it out
+
+### Prompt 57
+
+Failed to create workspace
+
