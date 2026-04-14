@@ -250,3 +250,11 @@ yeah
 
 yes
 
+### Prompt 45
+
+it's stuck in loop, check
+
+### Prompt 46
+
+still redirect loop
+

@@ -3,30 +3,30 @@
   "checkpoint_id": "2e305c5ee9b2",
   "session_id": "c9ce9215-d1ba-4965-83fd-eba9b611dad2",
   "strategy": "manual-commit",
-  "created_at": "2026-04-14T14:32:23.376114Z",
+  "created_at": "2026-04-14T14:45:18.986264Z",
   "branch": "main",
   "checkpoints_count": 1,
   "files_touched": [
-    "frontend/Dockerfile"
+    "docs/superpowers/plans/2026-04-13-integration-tests.md"
   ],
   "agent": "Claude Code",
-  "transcript_identifier_at_start": "a156cec8-a94a-494b-9400-cba5d7443d36",
-  "checkpoint_transcript_start": 1824,
-  "transcript_lines_at_start": 1824,
+  "transcript_identifier_at_start": "0c769b2d-e075-4300-a51a-02beee8eac76",
+  "checkpoint_transcript_start": 2066,
+  "transcript_lines_at_start": 2066,
   "token_usage": {
-    "input_tokens": 110,
-    "cache_creation_tokens": 46266,
-    "cache_read_tokens": 41664979,
-    "output_tokens": 18985,
-    "api_call_count": 88
+    "input_tokens": 27,
+    "cache_creation_tokens": 10480,
+    "cache_read_tokens": 9604924,
+    "output_tokens": 4382,
+    "api_call_count": 19
   },
   "initial_attribution": {
-    "calculated_at": "2026-04-14T14:32:23.032906Z",
-    "agent_lines": 0,
-    "human_added": 219,
-    "human_modified": 4,
+    "calculated_at": "2026-04-14T14:45:18.637863Z",
+    "agent_lines": 1053,
+    "human_added": 69,
+    "human_modified": 28,
     "human_removed": 0,
-    "total_committed": 219,
-    "agent_percentage": 0
+    "total_committed": 1150,
+    "agent_percentage": 91.56521739130434
   }
 }

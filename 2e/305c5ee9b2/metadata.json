@@ -9,7 +9,7 @@
     ".serena/memories/codebase_structure.md",
     ".serena/memories/services_and_ports.md",
     ".serena/memories/task_completion_checklist.md",
-    "frontend/Dockerfile"
+    "docs/superpowers/plans/2026-04-13-integration-tests.md"
   ],
   "sessions": [
     {
@@ -28,10 +28,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 115,
-    "cache_creation_tokens": 47302,
-    "cache_read_tokens": 42556979,
-    "output_tokens": 19609,
-    "api_call_count": 91
+    "input_tokens": 32,
+    "cache_creation_tokens": 11516,
+    "cache_read_tokens": 10496924,
+    "output_tokens": 5006,
+    "api_call_count": 22
   }
 }
