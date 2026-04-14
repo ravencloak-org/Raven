@@ -170,7 +170,9 @@ async function createKB() {
     } catch {
       // Workspace may already exist — fetch it
       const wsList = await apiFetch(`/orgs/${orgId}/workspaces`, { method: 'GET' })
-      const existing = wsList.items?.find((w: { slug: string }) => w.slug === 'default') || wsList.items?.[0]
+      // API returns array directly, not { items: [] }
+      const wsArr = Array.isArray(wsList) ? wsList : (wsList.items ?? [])
+      const existing = wsArr.find((w: { slug: string }) => w.slug === 'default') ?? wsArr[0]
       if (!existing) throw new Error('Failed to create workspace')
       wsId = existing.id
     }
