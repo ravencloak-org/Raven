@@ -42,7 +42,7 @@ type authError struct {
 func SessionMiddleware(provider auth.Provider) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		info, err := provider.VerifySession(c.Request)
-		if err != nil {
+		if err != nil || info == nil {
 			abortUnauthorized(c, "invalid_session")
 			return
 		}
