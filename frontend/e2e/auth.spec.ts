@@ -1,17 +1,16 @@
 import { test, expect } from '@playwright/test'
 
-// Abort Zitadel OIDC requests so the login page renders without redirecting
 test.beforeEach(async ({ page }) => {
-  await page.route('**/oauth/**', (route) => route.abort())
-  await page.route('**/.well-known/**', (route) => route.abort())
+  // Block SuperTokens API calls so login page renders without redirecting
+  await page.route('**/auth/**', (route) => route.abort())
 })
 
-test('login page shows redirect message', async ({ page }) => {
+test('login page shows sign in button', async ({ page }) => {
   await page.goto('/login')
-  await expect(page.getByText('Redirecting to Google...')).toBeVisible({ timeout: 15000 })
+  await expect(page.getByRole('button', { name: 'Sign in with Google' })).toBeVisible({ timeout: 15000 })
 })
 
-test('login page shows fallback click here button', async ({ page }) => {
+test('login page shows Raven branding', async ({ page }) => {
   await page.goto('/login')
-  await expect(page.getByRole('button', { name: 'click here' })).toBeVisible({ timeout: 15000 })
+  await expect(page.getByRole('heading', { name: 'Raven' })).toBeVisible({ timeout: 15000 })
 })

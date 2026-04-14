@@ -1,9 +1,8 @@
 import { test, expect } from '@playwright/test'
 
-// Abort Zitadel OIDC requests so pages render without auth redirect
+// Block SuperTokens API calls so pages render without auth redirect
 test.beforeEach(async ({ page }) => {
-  await page.route('**/oauth/**', (route) => route.abort())
-  await page.route('**/.well-known/**', (route) => route.abort())
+  await page.route('**/auth/**', (route) => route.abort())
 })
 
 test('privacy policy page renders', async ({ page }) => {
