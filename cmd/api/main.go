@@ -460,7 +460,7 @@ func main() {
 		api.GET("/ping", handler.Ping)
 
 		// --- Organisation routes ---
-		api.POST("/orgs", middleware.RequireOrgRole("org_admin"), orgHandler.Create)
+		api.POST("/orgs", orgHandler.Create) // No org role required — new users create their first org during onboarding
 		api.GET("/orgs/:org_id", orgHandler.Get)
 		api.PUT("/orgs/:org_id", orgHandler.Update)
 		api.DELETE("/orgs/:org_id", middleware.RequireOrgRole("org_admin"), orgHandler.Delete)
