@@ -33,17 +33,6 @@ func CORSMiddleware(cfg *config.CORSConfig) gin.HandlerFunc {
 			"Content-Type",
 			"X-API-Key",
 			"X-Request-ID",
-			// SuperTokens cookie-based auth headers
-			"anti-csrf",
-			"st-auth-mode",
-			"rid",
-			"fdi-version",
-		},
-		ExposeHeaders: []string{
-			"st-access-token",
-			"st-refresh-token",
-			"anti-csrf",
-			"front-token",
 		},
 		AllowCredentials: true,
 		MaxAge:           time.Duration(3600) * time.Second,

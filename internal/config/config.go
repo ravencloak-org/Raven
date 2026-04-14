@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"math/bits"
 	"strings"
 
@@ -15,8 +16,7 @@ type Config struct {
 	Valkey     ValkeyConfig
 	GRPC       GRPCConfig
 	OTel       OTelConfig
-	SuperTokens SuperTokensConfig
-	GoogleOAuth GoogleOAuthConfig
+	Zitadel    ZitadelConfig
 	CORS       CORSConfig
 	RateLimit  RateLimitConfig
 	Queue      QueueConfig
@@ -149,16 +149,12 @@ type UploadConfig struct {
 	AllowedTypes []string `mapstructure:"allowed_types"`
 }
 
-// SuperTokensConfig holds SuperTokens connection settings for session verification.
-type SuperTokensConfig struct {
-	ConnectionURI string `mapstructure:"connection_uri"` // e.g. http://supertokens:3567
-	APIKey        string `mapstructure:"api_key"`
-}
-
-// GoogleOAuthConfig holds Google OAuth credentials for social login via SuperTokens.
-type GoogleOAuthConfig struct {
-	ClientID     string `mapstructure:"client_id"`
-	ClientSecret string `mapstructure:"client_secret"`
+// ZitadelConfig holds Zitadel OIDC settings for JWT validation.
+type ZitadelConfig struct {
+	Domain   string `mapstructure:"domain"`
+	ClientID string `mapstructure:"client_id"`
+	Secure   bool   `mapstructure:"secure"`
+	KeyPath  string `mapstructure:"key_path"` // path to machine user key JSON (optional)
 }
 
 // CORSConfig holds Cross-Origin Resource Sharing settings.
@@ -222,10 +218,9 @@ func Load() (*Config, error) {
 	v.SetDefault("otel.endpoint", "")
 	v.SetDefault("otel.service_name", "raven-api")
 	v.SetDefault("otel.enabled", false)
-	v.SetDefault("supertokens.connection_uri", "http://supertokens:3567")
-	v.SetDefault("supertokens.api_key", "")
-	v.SetDefault("googleoauth.client_id", "")
-	v.SetDefault("googleoauth.client_secret", "")
+	v.SetDefault("zitadel.domain", "localhost:8080")
+	v.SetDefault("zitadel.client_id", "")
+	v.SetDefault("zitadel.secure", false)
 	// CORS allowed origins can be overridden via the RAVEN_CORS_ALLOWED_ORIGINS
 	// environment variable as a comma-separated list.
 	// Example: RAVEN_CORS_ALLOWED_ORIGINS=https://app1.com,https://app2.com
@@ -321,10 +316,10 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("database.url", "RAVEN_DATABASE_URL")
 	_ = v.BindEnv("valkey.url", "RAVEN_VALKEY_URL")
 	_ = v.BindEnv("grpc.worker_addr", "RAVEN_GRPC_WORKER_ADDR")
-	_ = v.BindEnv("supertokens.connection_uri", "RAVEN_SUPERTOKENS_CONNECTION_URI")
-	_ = v.BindEnv("supertokens.api_key", "RAVEN_SUPERTOKENS_API_KEY")
-	_ = v.BindEnv("googleoauth.client_id", "GOOGLE_CLIENT_ID")
-	_ = v.BindEnv("googleoauth.client_secret", "GOOGLE_CLIENT_SECRET")
+	_ = v.BindEnv("zitadel.domain", "ZITADEL_EXTERNALDOMAIN")
+	_ = v.BindEnv("zitadel.client_id", "ZITADEL_CLIENT_ID")
+	_ = v.BindEnv("zitadel.secure", "ZITADEL_EXTERNALSECURE")
+	_ = v.BindEnv("zitadel.key_path", "ZITADEL_KEY_PATH")
 	_ = v.BindEnv("server.port", "RAVEN_SERVER_PORT")
 	_ = v.BindEnv("server.mode", "RAVEN_SERVER_MODE")
 	_ = v.BindEnv("clickhouse.host", "RAVEN_CLICKHOUSE_HOST")
@@ -398,6 +393,10 @@ func Load() (*Config, error) {
 		if size <= 0 || bits.OnesCount(uint(size)) != 1 {
 			return nil, fmt.Errorf("ebpf.audit_ring_buffer_size must be a power of 2 > 0, got %d", size)
 		}
+	}
+
+	if cfg.Zitadel.ClientID == "" {
+		log.Printf("[WARN] zitadel.client_id is empty — JWT audience validation will reject all tokens until configured")
 	}
 
 	return &cfg, nil
