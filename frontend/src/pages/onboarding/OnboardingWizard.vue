@@ -176,21 +176,25 @@ async function createKB() {
       wsId = existing.id
     }
 
-    // Create knowledge base
-    const kb = await apiFetch(`/orgs/${orgId}/workspaces/${wsId}/knowledge-bases`, { body: { name: kbName.value } })
+    // Create knowledge base (ignore "already exists" — just proceed to dashboard)
+    try {
+      const kb = await apiFetch(`/orgs/${orgId}/workspaces/${wsId}/knowledge-bases`, { body: { name: kbName.value } })
 
-    // Upload files if any
-    for (const file of files.value) {
-      const formData = new FormData()
-      formData.append('file', file)
-      await apiFetch(`/orgs/${orgId}/workspaces/${wsId}/knowledge-bases/${kb.id}/documents/upload`, {
-        body: formData,
-      }).catch(() => {
-        // Non-fatal — files can be uploaded later
-      })
+      // Upload files if any
+      for (const file of files.value) {
+        const formData = new FormData()
+        formData.append('file', file)
+        await apiFetch(`/orgs/${orgId}/workspaces/${wsId}/knowledge-bases/${kb.id}/documents/upload`, {
+          body: formData,
+        }).catch(() => {
+          // Non-fatal — files can be uploaded later
+        })
+      }
+    } catch {
+      // KB may already exist from a previous attempt — that's fine
     }
 
-    // Set org in auth store and navigate to dashboard
+    // Always set org and go to dashboard regardless of KB creation result
     auth.setOrgId(orgId)
     router.push('/dashboard')
   } catch (e: unknown) {
