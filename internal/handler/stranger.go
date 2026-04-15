@@ -60,6 +60,12 @@ func (h *StrangerHandler) List(c *gin.Context) {
 	}
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if limit < 1 || limit > 200 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
 
 	var status *model.StrangerStatus
 	if s := c.Query("status"); s != "" {

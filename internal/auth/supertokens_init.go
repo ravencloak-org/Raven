@@ -12,12 +12,10 @@ import (
 // SuperTokens Go SDK. APIDomain and WebsiteDomain come from config so that
 // the same binary can run locally (localhost) or in production (ravencloak.org).
 type SuperTokensInitConfig struct {
-	ConnectionURI      string
-	APIKey             string
-	APIDomain          string // e.g. https://api.ravencloak.org
-	WebsiteDomain      string // e.g. https://app.ravencloak.org
-	GoogleClientID     string
-	GoogleClientSecret string
+	ConnectionURI string
+	APIKey        string
+	APIDomain     string // e.g. https://api.ravencloak.org
+	WebsiteDomain string // e.g. https://app.ravencloak.org
 }
 
 // InitSuperTokens initialises the SuperTokens Go SDK with the ThirdParty and
@@ -35,7 +33,9 @@ func InitSuperTokens(cfg SuperTokensInitConfig) error {
 	}
 
 	recipeList := []supertokens.Recipe{
-		thirdparty.Init(&tpmodels.TypeInput{}),
+		thirdparty.Init(&tpmodels.TypeInput{
+			// Provider list is managed via the SuperTokens Core multitenancy API.
+		}),
 		session.Init(&sessmodels.TypeInput{
 			CookieDomain: &cookieDomain,
 		}),

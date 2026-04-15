@@ -117,9 +117,16 @@ func (h *MetaWebhookHandler) VerifyWebhook(c *gin.Context) {
 // @Router      /webhooks/meta [post]
 func (h *MetaWebhookHandler) HandleEvent(c *gin.Context) {
 	// Read raw body — required for HMAC verification before JSON parsing.
-	body, err := io.ReadAll(c.Request.Body)
+	// Limit to 1 MB to prevent memory exhaustion from oversized payloads.
+	const maxWebhookBody = 1 << 20 // 1 MB
+	body, err := io.ReadAll(io.LimitReader(c.Request.Body, maxWebhookBody+1))
 	if err != nil {
 		_ = c.Error(apierror.NewBadRequest("failed to read request body"))
+		c.Abort()
+		return
+	}
+	if int64(len(body)) > maxWebhookBody {
+		_ = c.Error(&apierror.AppError{Code: http.StatusRequestEntityTooLarge, Message: "Payload Too Large", Detail: "webhook body exceeds 1 MB limit"})
 		c.Abort()
 		return
 	}
@@ -214,8 +221,8 @@ func (h *MetaWebhookHandler) routeChange(ctx context.Context, change model.MetaW
 // is returned so that the handler can still process events.
 func verifyHMAC(appSecret, body string, signature string) bool {
 	if appSecret == "" {
-		slog.Warn("meta webhook: HMAC verification skipped — META_APP_SECRET not configured")
-		return true
+		slog.Error("meta webhook: HMAC verification failed — META_APP_SECRET not configured")
+		return false
 	}
 
 	const prefix = "sha256="

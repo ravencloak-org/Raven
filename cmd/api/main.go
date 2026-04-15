@@ -167,8 +167,6 @@ func main() {
 		APIKey:        cfg.SuperTokens.APIKey,
 		APIDomain:     cfg.SuperTokens.APIDomain,
 		WebsiteDomain: cfg.SuperTokens.WebsiteDomain,
-		GoogleClientID:     cfg.GoogleOAuth.ClientID,
-		GoogleClientSecret: cfg.GoogleOAuth.ClientSecret,
 	}); err != nil {
 		log.Fatalf("failed to initialize SuperTokens: %v", err)
 	}

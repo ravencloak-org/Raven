@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -93,7 +94,7 @@ func (c *SeaweedFSClient) Upload(ctx context.Context, filename string, reader io
 	go func() {
 		defer func() { _ = pw.Close() }()
 		h := make(textproto.MIMEHeader)
-		h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`, filename))
+		h.Set("Content-Disposition", mime.FormatMediaType("form-data", map[string]string{"name": "file", "filename": filename}))
 		h.Set("Content-Type", "application/octet-stream")
 		part, err := writer.CreatePart(h)
 		if err != nil {

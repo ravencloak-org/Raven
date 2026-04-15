@@ -173,8 +173,8 @@ func TestHMAC_MissingSignaturePrefix_Returns401(t *testing.T) {
 	}
 }
 
-func TestHMAC_EmptySecret_SkipsVerification(t *testing.T) {
-	// When appSecret is empty, HMAC verification is skipped (dev mode).
+func TestHMAC_EmptySecret_RejectsRequest(t *testing.T) {
+	// When appSecret is empty, HMAC verification must reject (no bypass).
 	payload := `{"object":"whatsapp_business_account","entry":[]}`
 
 	r := newMetaWebhookRouter("", "token", nil)
@@ -184,9 +184,9 @@ func TestHMAC_EmptySecret_SkipsVerification(t *testing.T) {
 	req.Header.Set("X-Hub-Signature-256", "sha256=invalid")
 	r.ServeHTTP(w, req)
 
-	// Should pass even with a bad signature because secret is empty.
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200 (no secret), got %d: %s", w.Code, w.Body.String())
+	// Should reject because secret is empty — no HMAC bypass allowed.
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401 (empty secret must reject), got %d: %s", w.Code, w.Body.String())
 	}
 }
 
