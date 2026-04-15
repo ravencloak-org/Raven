@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -116,8 +118,8 @@ func insertEmbedding(t *testing.T, ctx context.Context, orgID, chunkID string, e
 	err := db.WithOrgID(ctx, testPool, orgID, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `
             INSERT INTO embeddings (id, org_id, chunk_id, embedding, model_name, dimensions)
-            VALUES ($1, $2, $3, $4, 'text-embedding-3-small', 1536)`,
-			uuid.NewString(), orgID, chunkID, embedding)
+            VALUES ($1, $2, $3, $4::vector, 'text-embedding-3-small', 1536)`,
+			uuid.NewString(), orgID, chunkID, vectorToString(embedding))
 		return err
 	})
 	require.NoError(t, err)
@@ -129,8 +131,8 @@ func insertCacheEntry(t *testing.T, ctx context.Context, orgID, kbID, queryText 
 	err := db.WithOrgID(ctx, testPool, orgID, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `
             INSERT INTO response_cache (id, org_id, kb_id, query_text, query_embedding, response_text, sources, model_name, hit_count, expires_at)
-            VALUES ($1, $2, $3, $4, $5, 'cached response for: ' || $4, '[]', 'gpt-4', $6, NOW() + INTERVAL '1 hour')`,
-			id, orgID, kbID, queryText, embedding, hitCount)
+            VALUES ($1, $2, $3, $4, $5::vector, 'cached response for: ' || $4, '[]', 'gpt-4', $6, NOW() + INTERVAL '1 hour')`,
+			id, orgID, kbID, queryText, vectorToString(embedding), hitCount)
 		return err
 	})
 	require.NoError(t, err)
@@ -143,8 +145,8 @@ func insertExpiredCacheEntry(t *testing.T, ctx context.Context, orgID, kbID, que
 	err := db.WithOrgID(ctx, testPool, orgID, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `
             INSERT INTO response_cache (id, org_id, kb_id, query_text, query_embedding, response_text, sources, model_name, hit_count, expires_at)
-            VALUES ($1, $2, $3, $4, $5, 'expired response', '[]', 'gpt-4', 0, NOW() - INTERVAL '1 second')`,
-			id, orgID, kbID, queryText, embedding)
+            VALUES ($1, $2, $3, $4, $5::vector, 'expired response', '[]', 'gpt-4', 0, NOW() - INTERVAL '1 second')`,
+			id, orgID, kbID, queryText, vectorToString(embedding))
 		return err
 	})
 	require.NoError(t, err)
@@ -188,4 +190,20 @@ func generateEmbedding(seed int) []float32 {
 		vec[j] = float32(math.Sin(float64(seed)*0.1 + float64(j)*0.01))
 	}
 	return vec
+}
+
+// vectorToString converts a []float32 to pgvector's text format: "[0.1,0.2,...]".
+// Use this when inserting via raw conn.Exec (outside db.WithOrgID which may handle
+// type registration automatically).
+func vectorToString(v []float32) string {
+	var b strings.Builder
+	b.WriteByte('[')
+	for i, f := range v {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteString(strconv.FormatFloat(float64(f), 'f', -1, 32))
+	}
+	b.WriteByte(']')
+	return b.String()
 }

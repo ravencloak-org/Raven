@@ -437,8 +437,8 @@ func TestIngestion(t *testing.T) {
 					if err := db.WithOrgID(ctx, testPool, org.OrgID, func(tx pgx.Tx) error {
 						_, err := tx.Exec(ctx, `
 							INSERT INTO embeddings (id, org_id, chunk_id, embedding, model_name, dimensions)
-							VALUES ($1, $2, $3, $4, 'text-embedding-3-small', 1536)`,
-							uuid.NewString(), org.OrgID, chunkID, generateEmbedding(docIdx*100+j))
+							VALUES ($1, $2, $3, $4::vector, 'text-embedding-3-small', 1536)`,
+							uuid.NewString(), org.OrgID, chunkID, vectorToString(generateEmbedding(docIdx*100+j)))
 						return err
 					}); err != nil {
 						return fmt.Errorf("insert embedding doc=%d chunk=%d: %w", docIdx, j, err)
