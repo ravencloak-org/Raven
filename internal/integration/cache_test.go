@@ -329,8 +329,12 @@ func TestCachePostgres(t *testing.T) {
 		insertCacheEntry(t, ctx, orgA.OrgID, orgA.KBID, "rls query", generateEmbedding(99), 0)
 
 		// Query as Org-B -- should see 0 rows.
+		// Must SET ROLE raven_app to drop superuser (which bypasses RLS).
 		var countB int
 		err := db.WithOrgID(ctx, testPool, orgB.OrgID, func(tx pgx.Tx) error {
+			if _, err := tx.Exec(ctx, "SET ROLE raven_app"); err != nil {
+				return err
+			}
 			return tx.QueryRow(ctx,
 				`SELECT COUNT(*) FROM response_cache`,
 			).Scan(&countB)
@@ -341,6 +345,9 @@ func TestCachePostgres(t *testing.T) {
 		// Query as Org-A -- should see 1 row.
 		var countA int
 		err = db.WithOrgID(ctx, testPool, orgA.OrgID, func(tx pgx.Tx) error {
+			if _, err := tx.Exec(ctx, "SET ROLE raven_app"); err != nil {
+				return err
+			}
 			return tx.QueryRow(ctx,
 				`SELECT COUNT(*) FROM response_cache`,
 			).Scan(&countA)

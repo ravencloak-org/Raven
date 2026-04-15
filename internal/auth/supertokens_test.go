@@ -6,10 +6,10 @@ import (
 
 func TestExtractSessionClaims(t *testing.T) {
 	tests := []struct {
-		name          string
-		payload       map[string]any
-		wantEmail     string
-		wantName      string
+		name      string
+		payload   map[string]any
+		wantEmail string
+		wantName  string
 	}{
 		{
 			name:      "both email and name present",

@@ -38,11 +38,12 @@ func (p *SuperTokensProvider) VerifySession(r *http.Request) (*SessionInfo, erro
 	}
 
 	userID := sessionContainer.GetUserID()
+	email, name := extractSessionClaims(sessionContainer.GetAccessTokenPayload())
 
 	return &SessionInfo{
 		ExternalID: userID,
-		// Email and Name are resolved by the UserLookup middleware via the
-		// internal database; they are not stored in the SuperTokens session.
+		Email:      email,
+		Name:       name,
 	}, nil
 }
 
