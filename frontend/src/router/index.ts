@@ -13,14 +13,8 @@ const router = createRouter({
     },
     {
       path: '/login',
-      component: () => import('../layouts/AuthLayout.vue'),
-      children: [
-        {
-          path: '',
-          name: 'login',
-          component: () => import('../pages/LoginPage.vue'),
-        },
-      ],
+      name: 'login',
+      component: () => import('../pages/LoginPage.vue'),
     },
     {
       path: '/callback',
