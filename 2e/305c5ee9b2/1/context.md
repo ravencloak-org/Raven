@@ -411,3 +411,33 @@ Failed to fetch
 
 Unable to start sign-in
 
+### Prompt 80
+
+e
+Access blocked: Authorization Error
+
+jobinlawrance@gmail.com
+Missing required parameter: client_id Learn more about this error
+If you are a developer of this app, see error details.
+Error 400: invalid_request
+
+### Prompt 81
+
+done, restart
+
+### Prompt 82
+
+026/04/15 09:02:24 OK   00030_voice_usage.sql (4.82ms)
+2026/04/15 09:02:24 OK   00031_whatsapp_calling.sql (10.4ms)
+2026/04/15 09:02:24 OK   00032_billing_rls_and_payment_events.sql (5.01ms)
+2026/04/15 09:02:24 OK   00033_payment_intents.sql (4.96ms)
+2026/04/15 09:02:24 OK   00034_zitadel_migration.sql (2.16ms)
+2026/04/15 09:02:24 goose: successfully migrated database to version: 34
+FAIL
+coverage: 2.5% of statements in ./internal/...
+FAIL    github.com/ravencloak-org/Raven/internal/integration  ...
+
+### Prompt 83
+
+fix that as well
+
