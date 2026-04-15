@@ -2,6 +2,7 @@ package auth
 
 import (
 	"github.com/supertokens/supertokens-golang/recipe/session"
+	"github.com/supertokens/supertokens-golang/recipe/session/sessmodels"
 	"github.com/supertokens/supertokens-golang/recipe/thirdparty"
 	"github.com/supertokens/supertokens-golang/recipe/thirdparty/tpmodels"
 	"github.com/supertokens/supertokens-golang/supertokens"
@@ -22,20 +23,22 @@ type SuperTokensInitConfig struct {
 // InitSuperTokens initialises the SuperTokens Go SDK with the ThirdParty and
 // Session recipes. The SDK must be initialised once, before any route
 // registration, so that supertokens.Middleware can intercept /auth/* paths.
-//
-// Google OAuth credentials are optional here: when multitenancy is used the
-// provider configuration lives in the Core and does not need to be repeated
-// in the SDK init. Pass them only for single-tenant / static setups.
 func InitSuperTokens(cfg SuperTokensInitConfig) error {
 	apiBasePath := "/auth"
 	websiteBasePath := "/auth"
 
+	// Cookie domain for cross-subdomain session sharing.
+	// api.ravencloak.org sets cookies, app.ravencloak.org reads them.
+	cookieDomain := ".ravencloak.org"
+	if cfg.APIDomain == "" || cfg.APIDomain == "http://localhost:8081" {
+		cookieDomain = "localhost"
+	}
+
 	recipeList := []supertokens.Recipe{
-		thirdparty.Init(&tpmodels.TypeInput{
-			// Provider list is managed via the SuperTokens Core multitenancy API.
-			// Static providers can be added here for single-tenant deployments.
+		thirdparty.Init(&tpmodels.TypeInput{}),
+		session.Init(&sessmodels.TypeInput{
+			CookieDomain: &cookieDomain,
 		}),
-		session.Init(nil),
 	}
 
 	return supertokens.Init(supertokens.TypeInput{
