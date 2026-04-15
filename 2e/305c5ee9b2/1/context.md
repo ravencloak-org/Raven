@@ -399,3 +399,11 @@ https://app.ravencloak.org/login why is the page like a mobile? very weird
 
 check the fucking css yourself
 
+### Prompt 77
+
+setup supertoken https://auth.ravencloak.org/ is giving 502, setup google idp in supertokens
+
+### Prompt 78
+
+Failed to fetch
+
