@@ -291,8 +291,7 @@ func TestIngestion(t *testing.T) {
 			stype model.SourceType
 			url   string
 		}{
-			// DB enum has: url, sitemap, rss_feed (not web_page/web_site).
-			// Use SourceType constants that match the actual DB enum.
+			// DB enum: url, sitemap, rss_feed (web_page/web_site not in enum yet)
 			{model.SourceTypeSitemap, "https://example.com/sitemap.xml"},
 			{model.SourceTypeRSSFeed, "https://example.com/feed.xml"},
 		}
