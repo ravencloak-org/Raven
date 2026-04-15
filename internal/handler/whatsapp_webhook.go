@@ -120,9 +120,16 @@ type webhookCallEvent struct {
 // @Router      /webhooks/whatsapp [post]
 func (h *WhatsAppWebhookHandler) Receive(c *gin.Context) {
 	// Read the raw body for signature verification.
-	body, err := io.ReadAll(c.Request.Body)
+	// Limit to 1 MB to prevent memory exhaustion from oversized payloads.
+	const maxWebhookBody = 1 << 20 // 1 MB
+	body, err := io.ReadAll(io.LimitReader(c.Request.Body, maxWebhookBody+1))
 	if err != nil {
 		_ = c.Error(apierror.NewBadRequest("failed to read request body"))
+		c.Abort()
+		return
+	}
+	if int64(len(body)) > maxWebhookBody {
+		_ = c.Error(&apierror.AppError{Code: http.StatusRequestEntityTooLarge, Message: "Payload Too Large", Detail: "webhook body exceeds 1 MB limit"})
 		c.Abort()
 		return
 	}
@@ -241,6 +248,12 @@ func (h *WhatsAppWebhookHandler) ListCalls(c *gin.Context) {
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if limit < 1 || limit > 100 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
 
 	resp, err := h.svc.ListCalls(c.Request.Context(), orgID, limit, offset)
 	if err != nil {

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"log/slog"
 	"sync"
 	"time"
 
@@ -28,8 +29,7 @@ func getSuperTokensCORSHeaders() []string {
 	stCORSOnce.Do(func() {
 		defer func() {
 			if r := recover(); r != nil {
-				// SDK not initialised (e.g. unit test context). Fall back to
-				// the well-known static set that SuperTokens always requires.
+				slog.Warn("supertokens.GetAllCORSHeaders() panicked, using static fallback", "recovered", r)
 				stCORSHeaders = []string{
 					"anti-csrf",
 					"st-auth-mode",
@@ -79,7 +79,7 @@ func CORSMiddleware(cfg *config.CORSConfig) gin.HandlerFunc {
 			"front-token",
 		},
 		AllowCredentials: true,
-		MaxAge:           time.Duration(3600) * time.Second,
+		MaxAge:           1 * time.Hour,
 		// AllowOriginFunc takes precedence over AllowOrigins when set.
 		// It checks the request origin against the configured allow-list.
 		// TODO(M2): also check api_keys.allowed_domains from the database.

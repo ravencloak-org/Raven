@@ -390,6 +390,10 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
+	if cfg.Database.URL == "" {
+		return nil, fmt.Errorf("database.url is required")
+	}
+
 	if cfg.RateLimit.DefaultUserLimit <= 0 {
 		return nil, fmt.Errorf("ratelimit.default_user_limit must be > 0, got %d", cfg.RateLimit.DefaultUserLimit)
 	}

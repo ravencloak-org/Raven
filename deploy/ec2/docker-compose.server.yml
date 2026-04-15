@@ -12,12 +12,12 @@ services:
   frontend:
     image: ${FRONTEND_IMAGE:-ghcr.io/ravencloak-org/frontend:latest}
     ports:
-      - "127.0.0.1:3080:80"
+      - "127.0.0.1:3080:8080"
     networks:
       - raven-net
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/healthz"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz"]
       interval: 10s
       timeout: 5s
       retries: 3
