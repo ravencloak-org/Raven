@@ -38,17 +38,7 @@ func (p *SuperTokensProvider) VerifySession(r *http.Request) (*SessionInfo, erro
 	}
 
 	userID := sessionContainer.GetUserID()
-
-	// Extract email and name from the access token payload if present.
-	// SuperTokens stores these when configured with session claims.
-	var email, name string
-	payload := sessionContainer.GetAccessTokenPayload()
-	if e, ok := payload["email"].(string); ok {
-		email = e
-	}
-	if n, ok := payload["name"].(string); ok {
-		name = n
-	}
+	email, name := extractSessionClaims(sessionContainer.GetAccessTokenPayload())
 
 	return &SessionInfo{
 		ExternalID: userID,
