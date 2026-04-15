@@ -72,6 +72,34 @@ The admin dashboard is available at `http://localhost:3000` once all containers 
 
 For local development without Docker, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
+## Testing
+
+```bash
+# Unit tests
+make test
+
+# Integration tests (requires Docker — spins up pgvector via testcontainers)
+make test-integration
+
+# Benchmarks (BM25, hybrid search, cache, ingestion throughput)
+make bench-integration
+
+# Frontend E2E (Playwright)
+cd frontend && npm run test:e2e
+```
+
+**Integration test coverage** (47 test cases + 7 benchmarks across 5 suites):
+
+| Suite | Tests | What it covers |
+|-------|-------|----------------|
+| Ingestion | 20 | Document lifecycle (8-state machine), chunk/embedding storage, source creation, duplicates, concurrent ingestion, large docs (500 chunks), token accuracy |
+| Search | 14 | BM25 keyword/phrase/filter/clamping, vector nearest-neighbor, hybrid RRF fusion/fallbacks, Unicode (CJK/emoji/RTL), duplicate embeddings |
+| Cache | 10 | Valkey SHA256 exact-match, Postgres response_cache (hit_count, TTL, HNSW index, invalidation, Stats) |
+| Benchmarks | 7 | BM25 p95 <100ms, hybrid p95 <200ms, HNSW p95 <50ms, ingestion <2s, token consistency |
+| RLS | 8 | Document/chunk/embedding/cache/source tenant isolation, cross-org KB access, admin bypass |
+
+All integration tests run against a real PostgreSQL (pgvector) instance via testcontainers-go. Build tag `integration` keeps them out of `go test ./...`.
+
 ## Roadmap
 
 Development is organized into five phases. See the full [design specification](docs/superpowers/specs/2026-03-27-raven-platform-design-final.md) for details.
