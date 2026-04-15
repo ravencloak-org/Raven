@@ -39,10 +39,21 @@ func (p *SuperTokensProvider) VerifySession(r *http.Request) (*SessionInfo, erro
 
 	userID := sessionContainer.GetUserID()
 
+	// Extract email and name from the access token payload if present.
+	// SuperTokens stores these when configured with session claims.
+	var email, name string
+	payload := sessionContainer.GetAccessTokenPayload()
+	if e, ok := payload["email"].(string); ok {
+		email = e
+	}
+	if n, ok := payload["name"].(string); ok {
+		name = n
+	}
+
 	return &SessionInfo{
 		ExternalID: userID,
-		// Email and Name are resolved by the UserLookup middleware via the
-		// internal database; they are not stored in the SuperTokens session.
+		Email:      email,
+		Name:       name,
 	}, nil
 }
 
