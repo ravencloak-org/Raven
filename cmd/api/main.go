@@ -758,12 +758,21 @@ func main() {
 	router.GET("/webhooks/meta", metaWebhookHandler.VerifyWebhook)
 	router.POST("/webhooks/meta", metaWebhookHandler.HandleEvent)
 
-	// Auth routes (authenticated via JWT but org not required — pre-onboarding users).
+	// Auth callback — outside the session-protected /api/v1 group.
+	// We verify the session directly via the SuperTokens SDK rather than
+	// relying on SessionMiddleware (cookies may not be available yet).
 	authHandler := handler.NewAuthHandler(userSvc)
-	authGroup := api.Group("/auth")
-	{
-		authGroup.POST("/callback", authHandler.Callback)
-	}
+	router.POST("/api/v1/auth/callback", func(c *gin.Context) {
+		info, err := authProvider.VerifySession(c.Request)
+		if err != nil || info == nil {
+			c.AbortWithStatusJSON(401, gin.H{"error": "invalid_session"})
+			return
+		}
+		c.Set(string(middleware.ContextKeyExternalID), info.ExternalID)
+		c.Set(string(middleware.ContextKeyEmail), info.Email)
+		c.Set(string(middleware.ContextKeyUserName), info.Name)
+		authHandler.Callback(c)
+	})
 
 	// Create HTTP server
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
