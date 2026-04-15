@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "3a6af4e77742",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "internal/auth/supertokens_init.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3a/6af4e77742/0/metadata.json",
+      "transcript": "/3a/6af4e77742/0/full.jsonl",
+      "context": "/3a/6af4e77742/0/context.md",
+      "content_hash": "/3a/6af4e77742/0/content_hash.txt",
+      "prompt": "/3a/6af4e77742/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1763,
+    "cache_creation_tokens": 6038472,
+    "cache_read_tokens": 456645630,
+    "output_tokens": 290862,
+    "api_call_count": 993
+  }
+}
