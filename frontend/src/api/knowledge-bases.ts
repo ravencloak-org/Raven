@@ -1,4 +1,3 @@
-import { useAuthStore } from '../stores/auth'
 import { find, findIndex, filter } from 'remeda'
 
 export interface KnowledgeBase {
@@ -39,13 +38,12 @@ export interface KBSource {
 }
 
 async function authFetch(path: string, init?: RequestInit): Promise<Response> {
-  const auth = useAuthStore()
   const base = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
   return fetch(base + path, {
     ...init,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${auth.accessToken ?? ''}`,
       ...init?.headers,
     },
   })

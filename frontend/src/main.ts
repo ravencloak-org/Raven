@@ -2,9 +2,12 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { useAuthStore } from './stores/auth'
 import { posthogPlugin } from './plugins/posthog'
+import { initSuperTokens } from './plugins/supertokens'
 import App from './App.vue'
 import router from './router'
 import './assets/main.css'
+
+initSuperTokens()
 
 const app = createApp(App)
 const pinia = createPinia()

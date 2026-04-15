@@ -8,22 +8,14 @@ interface RequestOptions {
   headers?: Record<string, string>
 }
 
-function getAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem('auth_token')
-  if (token) {
-    return { Authorization: `Bearer ${token}` }
-  }
-  return {}
-}
-
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, headers = {} } = options
 
   const response = await fetch(`${BASE_URL}${endpoint}`, {
     method,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      ...getAuthHeaders(),
       ...headers,
     },
     body: body ? JSON.stringify(body) : undefined,

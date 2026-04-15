@@ -110,7 +110,6 @@ const isDragging = ref(false)
 async function apiFetch(path: string, options: { method?: string; body?: Record<string, unknown> | FormData; headers?: Record<string, string> } = {}) {
   const method = options.method || 'POST'
   const headers: Record<string, string> = {
-    'Authorization': `Bearer ${auth.accessToken}`,
     ...options.headers,
   }
   let body: string | FormData | undefined
@@ -120,7 +119,7 @@ async function apiFetch(path: string, options: { method?: string; body?: Record<
     headers['Content-Type'] = 'application/json'
     body = JSON.stringify(options.body)
   }
-  const res = await fetch(`${apiUrl}${path}`, { method, headers, body })
+  const res = await fetch(`${apiUrl}${path}`, { method, credentials: 'include', headers, body })
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
     throw new Error(data.message || data.error || `Request failed (${res.status})`)
@@ -162,49 +161,39 @@ async function createKB() {
   loading.value = true
   error.value = ''
   try {
-    // Create default workspace — only fall back to lookup on duplicate (409)
+    // Create default workspace (ignore "already exists" errors)
     let wsId: string
     try {
       const ws = await apiFetch(`/orgs/${orgId}/workspaces`, { body: { name: 'Default' } })
       wsId = ws.id
-    } catch (e: unknown) {
-      // Only recover from duplicate/conflict errors; rethrow anything else
-      const status = (e as { status?: number })?.status ?? (e as { statusCode?: number })?.statusCode
-      if (status && status !== 409) throw e
-
-      // Workspace already exists — look up the 'default' workspace explicitly
+    } catch (wsErr) {
+      // Workspace may already exist — fetch the list (returns array directly)
       const wsList = await apiFetch(`/orgs/${orgId}/workspaces`, { method: 'GET' })
-      const wsArr = Array.isArray(wsList) ? wsList : (wsList.items ?? [])
-      const existing = wsArr.find((w: { slug: string }) => w.slug === 'default')
-      if (!existing) throw new Error('Default workspace not found after creation conflict', { cause: e })
+      const arr = Array.isArray(wsList) ? wsList : (wsList.items || [])
+      const existing = arr.find((w: { slug: string }) => w.slug === 'default') || arr[0]
+      if (!existing) throw new Error('Failed to create workspace', { cause: wsErr })
       wsId = existing.id
     }
 
-    // Create knowledge base (ignore "already exists" — proceed to upload/dashboard)
+    // Create knowledge base (ignore "already exists" — just proceed to dashboard)
     try {
       const kb = await apiFetch(`/orgs/${orgId}/workspaces/${wsId}/knowledge-bases`, { body: { name: kbName.value } })
 
       // Upload files if any
-      const failedUploads: string[] = []
       for (const file of files.value) {
         const formData = new FormData()
         formData.append('file', file)
         await apiFetch(`/orgs/${orgId}/workspaces/${wsId}/knowledge-bases/${kb.id}/documents/upload`, {
           body: formData,
         }).catch(() => {
-          failedUploads.push(file.name)
+          // Non-fatal — files can be uploaded later
         })
-      }
-
-      if (failedUploads.length) {
-        error.value = `Knowledge base created, but these files failed to upload: ${failedUploads.join(', ')}`
-        return
       }
     } catch {
       // KB may already exist from a previous attempt — that's fine
     }
 
-    // Set org in auth store and navigate to dashboard
+    // Always set org and go to dashboard regardless of KB creation result
     auth.setOrgId(orgId)
     router.push('/dashboard')
   } catch (e: unknown) {

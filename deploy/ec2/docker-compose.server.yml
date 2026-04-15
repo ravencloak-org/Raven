@@ -30,15 +30,14 @@ services:
       - "127.0.0.1:8081:8081"
     env_file: .env.server
     environment:
-      ZITADEL_EXTERNALDOMAIN: ${ZITADEL_EXTERNALDOMAIN:-auth.ravencloak.org}
-      ZITADEL_CLIENT_ID: ${ZITADEL_CLIENT_ID}
-      ZITADEL_EXTERNALSECURE: "true"
+      SUPERTOKENS_CONNECTION_URI: "http://supertokens:3567"
+      SUPERTOKENS_API_KEY: "${SUPERTOKENS_API_KEY}"
     depends_on:
       postgres:
         condition: service_healthy
       valkey:
         condition: service_healthy
-      zitadel:
+      supertokens:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/healthz"]
@@ -103,62 +102,25 @@ services:
       - raven-net
     restart: unless-stopped
 
-  # ─── Zitadel PostgreSQL (separate PG16 — Zitadel needs UNLOGGED partitioned tables) ─
-  zitadel-db:
-    image: postgres:16-alpine
+  # ─── SuperTokens Auth Backend ─────────────────────────────────────────────
+  supertokens:
+    image: registry.supertokens.io/supertokens/supertokens-postgresql
     environment:
-      POSTGRES_DB: zitadel
-      POSTGRES_USER: zitadel
-      POSTGRES_PASSWORD: ${ZITADEL_DB_PASSWORD:-zitadel}
-    volumes:
-      - zitadel-pg-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U zitadel -d zitadel"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - raven-net
-    restart: unless-stopped
-
-  # ─── Zitadel IAM ──────────────────────────────────────────────────────────
-  zitadel:
-    image: ghcr.io/zitadel/zitadel:v2.71.12
-    restart: always
-    command: >
-      start-from-init
-      --config /zitadel-config.yaml
-      --steps /zitadel-init-steps.yaml
-      --masterkey "${ZITADEL_MASTERKEY}"
-      --tlsMode external
-    ports:
-      - "127.0.0.1:8180:8080"
-    volumes:
-      - ../../deploy/zitadel/zitadel-config.yaml:/zitadel-config.yaml:ro
-      - ../../deploy/zitadel/zitadel-init-steps.yaml:/zitadel-init-steps.yaml:ro
+      POSTGRESQL_CONNECTION_URI: "postgresql://${POSTGRES_USER:-raven}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-raven}"
+      API_KEYS: "${SUPERTOKENS_API_KEY}"
+      DISABLE_TELEMETRY: "true"
     depends_on:
-      zitadel-db:
+      postgres:
         condition: service_healthy
     networks:
       - raven-net
-    environment:
-      - ZITADEL_MASTERKEY=${ZITADEL_MASTERKEY}
-      - ZITADEL_EXTERNALDOMAIN=${ZITADEL_EXTERNALDOMAIN:-auth.ravencloak.org}
-      - ZITADEL_EXTERNALPORT=${ZITADEL_EXTERNALPORT:-443}
-      - ZITADEL_EXTERNALSECURE=${ZITADEL_EXTERNALSECURE:-true}
-      - ZITADEL_DATABASE_POSTGRES_HOST=zitadel-db
-      - ZITADEL_DATABASE_POSTGRES_PORT=5432
-      - ZITADEL_DATABASE_POSTGRES_DATABASE=zitadel
-      - ZITADEL_DATABASE_POSTGRES_USER_USERNAME=zitadel
-      - ZITADEL_DATABASE_POSTGRES_USER_PASSWORD=${ZITADEL_DB_PASSWORD:-zitadel}
-      - ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME=zitadel
-      - ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD=${ZITADEL_DB_PASSWORD:-zitadel}
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "/app/zitadel", "ready"]
+      test: ["CMD", "sh", "-c", "curl -sf http://localhost:3567/hello || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 120s
+      retries: 5
+      start_period: 10s
 
   # ─── SeaweedFS (object storage) ───────────────────────────────────────────
   seaweedfs-master:
@@ -207,7 +169,6 @@ services:
 # ─── Volumes ──────────────────────────────────────────────────────────────────
 volumes:
   pg-data:
-  zitadel-pg-data:
   seaweedfs-data:
   valkey-data:
   openobserve-data:

@@ -36,6 +36,7 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
+	"github.com/ravencloak-org/Raven/internal/auth"
 	"github.com/ravencloak-org/Raven/internal/cache"
 	"github.com/ravencloak-org/Raven/internal/config"
 	"github.com/ravencloak-org/Raven/internal/db"
@@ -449,7 +450,14 @@ func main() {
 	//   SET LOCAL app.current_org_id = '<uuid>'
 	// using the org_id stored in the Gin context key middleware.ContextKeyOrgID.
 	api := router.Group("/api/v1")
-	api.Use(middleware.JWTMiddleware(&cfg.Zitadel))
+	// SuperTokens auth proxy — outside /api/v1 group (no session verification needed)
+	router.Any("/auth/*path", handler.NewSuperTokensProxy(cfg.SuperTokens.ConnectionURI))
+
+	authProvider := auth.NewSuperTokensProvider(
+		cfg.SuperTokens.ConnectionURI,
+		cfg.SuperTokens.APIKey,
+	)
+	api.Use(middleware.SessionMiddleware(authProvider))
 	api.Use(middleware.UserLookup(&userLookupAdapter{repo: userRepo}))
 	// Per-user and per-org flat rate limits (config-driven defaults).
 	api.Use(middleware.ByUserID(rl, cfg.RateLimit.DefaultUserLimit))
