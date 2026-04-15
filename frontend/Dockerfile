@@ -10,9 +10,7 @@ COPY . .
 
 ARG VITE_API_URL=https://api.ravencloak.org
 ARG VITE_API_BASE_URL=https://api.ravencloak.org/api/v1
-ARG VITE_ZITADEL_URL=https://auth.ravencloak.org
-ARG VITE_ZITADEL_CLIENT_ID=
-ARG VITE_GOOGLE_IDP_ID=
+ARG VITE_API_DOMAIN=https://api.ravencloak.org
 ARG VITE_LIVEKIT_URL=
 
 RUN npm run build
