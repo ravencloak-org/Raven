@@ -84,6 +84,21 @@ func TestMain(m *testing.M) {
 	if err := goose.Up(sqlDB, migDir); err != nil {
 		panic(fmt.Sprintf("failed to run migrations: %v", err))
 	}
+	// Grant table permissions to roles — migrations create RLS policies but
+	// don't grant table-level access. Without this, SET ROLE loses superuser
+	// privileges and gets "permission denied" on non-RLS tables like organizations.
+	for _, stmt := range []string{
+		"GRANT raven_admin TO raven_test",
+		"GRANT raven_app TO raven_test",
+		"GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO raven_admin",
+		"GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO raven_admin",
+		"GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO raven_app",
+		"GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO raven_app",
+	} {
+		if _, err := sqlDB.Exec(stmt); err != nil {
+			panic(fmt.Sprintf("failed to %s: %v", stmt, err))
+		}
+	}
 	sqlDB.Close()
 
 	// Create pgxpool for tests
