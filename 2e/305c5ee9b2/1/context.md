@@ -395,3 +395,7 @@ done
 
 https://app.ravencloak.org/login why is the page like a mobile? very weird
 
+### Prompt 76
+
+check the fucking css yourself
+

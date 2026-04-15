@@ -1442,3 +1442,7 @@ done
 ---
 
 https://app.ravencloak.org/login why is the page like a mobile? very weird
+
+---
+
+check the fucking css yourself
