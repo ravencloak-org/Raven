@@ -107,6 +107,14 @@ const files = ref<File[]>([])
 const isDragging = ref(false)
 // Template uses $refs.fileInput directly
 
+class ApiError extends Error {
+  status: number
+  constructor(message: string, status: number) {
+    super(message)
+    this.status = status
+  }
+}
+
 async function apiFetch(path: string, options: { method?: string; body?: Record<string, unknown> | FormData; headers?: Record<string, string> } = {}) {
   const method = options.method || 'POST'
   const headers: Record<string, string> = {
@@ -122,7 +130,7 @@ async function apiFetch(path: string, options: { method?: string; body?: Record<
   const res = await fetch(`${apiUrl}${path}`, { method, credentials: 'include', headers, body })
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
-    throw new Error(data.message || data.error || `Request failed (${res.status})`)
+    throw new ApiError(data.message || data.error || `Request failed (${res.status})`, res.status)
   }
   return res.json()
 }
@@ -150,7 +158,13 @@ async function createOrg() {
     orgId = data.id
     currentStep.value = 2
   } catch (e: unknown) {
-    error.value = e instanceof Error ? e.message : 'Something went wrong'
+    const msg = e instanceof Error ? e.message : 'Something went wrong'
+    const status = e instanceof ApiError ? e.status : 0
+    if (status === 400 || msg.toLowerCase().includes('slug already taken') || msg.toLowerCase().includes('already taken')) {
+      error.value = 'Organization name already taken. Try a different name.'
+    } else {
+      error.value = msg
+    }
   } finally {
     loading.value = false
   }
