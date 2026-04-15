@@ -21,10 +21,6 @@ type SuperTokensInitConfig struct {
 // InitSuperTokens initialises the SuperTokens Go SDK with the ThirdParty and
 // Session recipes. The SDK must be initialised once, before any route
 // registration, so that supertokens.Middleware can intercept /auth/* paths.
-//
-// Google OAuth credentials are optional here: when multitenancy is used the
-// provider configuration lives in the Core and does not need to be repeated
-// in the SDK init. Pass them only for single-tenant / static setups.
 func InitSuperTokens(cfg SuperTokensInitConfig) error {
 	apiBasePath := "/auth"
 	websiteBasePath := "/auth"
