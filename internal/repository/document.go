@@ -199,10 +199,11 @@ func (r *DocumentRepository) FindByHash(ctx context.Context, tx pgx.Tx, orgID, k
 	var doc model.Document
 	var fileSizeBytes *int64
 	var pageCount *int
+	var processingError *string
 	err := row.Scan(
 		&doc.ID, &doc.OrgID, &doc.KnowledgeBaseID, &doc.FileName, &doc.FileType,
 		&fileSizeBytes, &doc.FileHash, &doc.StoragePath, &doc.ProcessingStatus,
-		&doc.ProcessingError, &doc.Title, &pageCount, &doc.Metadata, &doc.UploadedBy,
+		&processingError, &doc.Title, &pageCount, &doc.Metadata, &doc.UploadedBy,
 		&doc.CreatedAt, &doc.UpdatedAt,
 	)
 	if err != nil {
@@ -213,5 +214,8 @@ func (r *DocumentRepository) FindByHash(ctx context.Context, tx pgx.Tx, orgID, k
 	}
 	doc.FileSizeBytes = fileSizeBytes
 	doc.PageCount = pageCount
+	if processingError != nil {
+		doc.ProcessingError = *processingError
+	}
 	return &doc, nil
 }
