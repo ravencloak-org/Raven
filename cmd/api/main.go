@@ -160,6 +160,19 @@ func main() {
 		defer ebpfManager.Stop()
 	}
 
+	// Initialise the SuperTokens Go SDK. This must happen before any route
+	// registration so that supertokens.Middleware can intercept /auth/* paths.
+	if err := auth.InitSuperTokens(auth.SuperTokensInitConfig{
+		ConnectionURI: cfg.SuperTokens.ConnectionURI,
+		APIKey:        cfg.SuperTokens.APIKey,
+		APIDomain:     cfg.SuperTokens.APIDomain,
+		WebsiteDomain: cfg.SuperTokens.WebsiteDomain,
+		GoogleClientID:     cfg.GoogleOAuth.ClientID,
+		GoogleClientSecret: cfg.GoogleOAuth.ClientSecret,
+	}); err != nil {
+		log.Fatalf("failed to initialize SuperTokens: %v", err)
+	}
+
 	// Set Gin mode
 	gin.SetMode(cfg.Server.Mode)
 
@@ -443,6 +456,10 @@ func main() {
 	// Swagger UI — served at /api/docs (unauthenticated; disable in prod via env).
 	router.GET("/api/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
+	// SuperTokens SDK middleware — must be registered before all other routes so
+	// the SDK can intercept /auth/* requests (signinup, session/refresh, etc.).
+	router.Use(handler.SuperTokensMiddleware())
+
 	// Protected API routes — JWT validation applied per-group, not globally.
 	// This allows health checks and other public endpoints to remain unauthenticated.
 	//
@@ -450,13 +467,8 @@ func main() {
 	//   SET LOCAL app.current_org_id = '<uuid>'
 	// using the org_id stored in the Gin context key middleware.ContextKeyOrgID.
 	api := router.Group("/api/v1")
-	// SuperTokens auth proxy — outside /api/v1 group (no session verification needed)
-	router.Any("/auth/*path", handler.NewSuperTokensProxy(cfg.SuperTokens.ConnectionURI))
 
-	authProvider := auth.NewSuperTokensProvider(
-		cfg.SuperTokens.ConnectionURI,
-		cfg.SuperTokens.APIKey,
-	)
+	authProvider := auth.NewSuperTokensProvider()
 	api.Use(middleware.SessionMiddleware(authProvider))
 	api.Use(middleware.UserLookup(&userLookupAdapter{repo: userRepo}))
 	// Per-user and per-org flat rate limits (config-driven defaults).

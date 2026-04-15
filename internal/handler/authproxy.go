@@ -2,35 +2,39 @@ package handler
 
 import (
 	"net/http"
-	"net/http/httputil"
-	"net/url"
-	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/supertokens/supertokens-golang/supertokens"
 )
 
-// NewSuperTokensProxy returns a Gin handler that reverse-proxies all
-// requests to the SuperTokens Core. Register on router.Any("/auth/*path", ...).
+// SuperTokensMiddleware returns a Gin middleware that delegates all SuperTokens
+// auth routes (e.g. /auth/signinup, /auth/session/refresh) to the SuperTokens
+// Go SDK. The SDK must be initialised via auth.InitSuperTokens before use.
 //
-// The proxy strips the /auth prefix before forwarding, so
-// POST /auth/signinup becomes POST /signinup on the SuperTokens Core.
-func NewSuperTokensProxy(superTokensURL string) gin.HandlerFunc {
-	target, _ := url.Parse(superTokensURL)
-	proxy := httputil.NewSingleHostReverseProxy(target)
-
-	// Preserve the original director but override the path
-	originalDirector := proxy.Director
-	proxy.Director = func(req *http.Request) {
-		originalDirector(req)
-		// Strip /auth prefix — SuperTokens Core endpoints don't have it
-		req.URL.Path = strings.TrimPrefix(req.URL.Path, "/auth")
-		if req.URL.Path == "" {
-			req.URL.Path = "/"
-		}
-		req.Host = target.Host
-	}
-
+// Register with router.Use(handler.SuperTokensMiddleware()) BEFORE other routes
+// so the SDK can intercept /auth/* requests before Gin processes them.
+func SuperTokensMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		proxy.ServeHTTP(c.Writer, c.Request)
+		handled := false
+
+		supertokens.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// This inner handler is only called when SuperTokens did NOT handle
+			// the request (i.e. the path is not an /auth/* SDK endpoint).
+			// Signal that control should pass to subsequent Gin handlers.
+			handled = false
+		})).ServeHTTP(c.Writer, c.Request)
+
+		// If the response was already written by the SDK, abort the Gin chain
+		// to prevent double-writing.
+		if c.Writer.Written() {
+			handled = true
+		}
+
+		if handled {
+			c.Abort()
+			return
+		}
+
+		c.Next()
 	}
 }

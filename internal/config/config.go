@@ -149,10 +149,13 @@ type UploadConfig struct {
 	AllowedTypes []string `mapstructure:"allowed_types"`
 }
 
-// SuperTokensConfig holds SuperTokens connection settings for session verification.
+// SuperTokensConfig holds SuperTokens connection settings for SDK initialisation
+// and session verification.
 type SuperTokensConfig struct {
 	ConnectionURI string `mapstructure:"connection_uri"` // e.g. http://supertokens:3567
 	APIKey        string `mapstructure:"api_key"`
+	APIDomain     string `mapstructure:"api_domain"`     // e.g. https://api.ravencloak.org
+	WebsiteDomain string `mapstructure:"website_domain"` // e.g. https://app.ravencloak.org
 }
 
 // GoogleOAuthConfig holds Google OAuth credentials for social login via SuperTokens.
@@ -224,6 +227,8 @@ func Load() (*Config, error) {
 	v.SetDefault("otel.enabled", false)
 	v.SetDefault("supertokens.connection_uri", "http://supertokens:3567")
 	v.SetDefault("supertokens.api_key", "")
+	v.SetDefault("supertokens.api_domain", "http://localhost:8081")
+	v.SetDefault("supertokens.website_domain", "http://localhost:5173")
 	v.SetDefault("googleoauth.client_id", "")
 	v.SetDefault("googleoauth.client_secret", "")
 	// CORS allowed origins can be overridden via the RAVEN_CORS_ALLOWED_ORIGINS
@@ -323,6 +328,8 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("grpc.worker_addr", "RAVEN_GRPC_WORKER_ADDR")
 	_ = v.BindEnv("supertokens.connection_uri", "RAVEN_SUPERTOKENS_CONNECTION_URI")
 	_ = v.BindEnv("supertokens.api_key", "RAVEN_SUPERTOKENS_API_KEY")
+	_ = v.BindEnv("supertokens.api_domain", "RAVEN_SUPERTOKENS_API_DOMAIN")
+	_ = v.BindEnv("supertokens.website_domain", "RAVEN_SUPERTOKENS_WEBSITE_DOMAIN")
 	_ = v.BindEnv("googleoauth.client_id", "GOOGLE_CLIENT_ID")
 	_ = v.BindEnv("googleoauth.client_secret", "GOOGLE_CLIENT_SECRET")
 	_ = v.BindEnv("server.port", "RAVEN_SERVER_PORT")
