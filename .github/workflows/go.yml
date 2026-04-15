@@ -44,7 +44,7 @@ jobs:
         run: sudo apt-get install -y clang llvm libbpf-dev linux-tools-$(uname -r) || sudo apt-get install -y clang llvm libbpf-dev
 
       - name: Pre-pull testcontainers image
-        run: docker pull pgvector/pgvector:pg17
+        run: docker pull pgvector/pgvector:pg18
 
       - run: CGO_ENABLED=1 go build ./cmd/api
 
@@ -71,9 +71,28 @@ jobs:
           DOTENV_PRIVATE_KEY_CI: ${{ secrets.DOTENV_PRIVATE_KEY_CI }}
           TESTCONTAINERS_RYUK_DISABLED: "true"
 
+      - name: Run integration tests with coverage
+        run: |
+          go test -tags=integration -race -timeout 5m \
+            -coverprofile=coverage-integration.txt \
+            -coverpkg=./internal/... \
+            ./internal/integration/
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+
+      - name: Merge coverage profiles
+        run: |
+          # Combine unit + integration coverage
+          if [ -f coverage-integration.txt ]; then
+            go tool covdata merge -i=coverage.txt,coverage-integration.txt -o=coverage-merged.txt 2>/dev/null || \
+            { head -1 coverage.txt > coverage-merged.txt; tail -n +2 coverage.txt >> coverage-merged.txt; tail -n +2 coverage-integration.txt >> coverage-merged.txt; }
+          else
+            cp coverage.txt coverage-merged.txt
+          fi
+
       - uses: codecov/codecov-action@v6
         with:
-          files: coverage.txt
+          files: coverage-merged.txt
           fail_ci_if_error: false
 
       - run: go vet ./...
