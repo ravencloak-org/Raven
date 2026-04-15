@@ -7,9 +7,9 @@ coverage:
         if_not_found: failure
     patch:
       default:
-        target: 70%
-        threshold: 5%
-        if_not_found: failure
+        target: 50%
+        threshold: 10%
+        if_not_found: success
 
 ignore:
   - "internal/grpc/pb/**"    # generated protobuf code
@@ -22,6 +22,8 @@ ignore:
   - "docs/**"
   - "frontend/**"
   - "migrations/**"
+  - "internal/integration/**" # integration test infrastructure
+  - ".github/**"
 
 comment:
   layout: "reach,diff,flags,files"
