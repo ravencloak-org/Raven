@@ -407,3 +407,7 @@ setup supertoken https://auth.ravencloak.org/ is giving 502, setup google idp in
 
 Failed to fetch
 
+### Prompt 79
+
+Unable to start sign-in
+
