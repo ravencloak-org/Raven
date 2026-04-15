@@ -1,9 +1,11 @@
 {
   "cli_version": "0.4.2",
   "checkpoint_id": "c4e7266b9e27",
+  "session_id": "30bae7da-9b26-4041-9dd0-7458662d72fb",
   "strategy": "manual-commit",
+  "created_at": "2026-04-15T14:35:29.524213Z",
   "branch": "fix/cr-security-hardening",
-  "checkpoints_count": 2,
+  "checkpoints_count": 1,
   "files_touched": [
     "Dockerfile",
     "cmd/api/main.go",
@@ -26,27 +28,21 @@
     "internal/middleware/cors.go",
     "internal/storage/seaweedfs.go"
   ],
-  "sessions": [
-    {
-      "metadata": "/c4/e7266b9e27/0/metadata.json",
-      "transcript": "/c4/e7266b9e27/0/full.jsonl",
-      "context": "/c4/e7266b9e27/0/context.md",
-      "content_hash": "/c4/e7266b9e27/0/content_hash.txt",
-      "prompt": "/c4/e7266b9e27/0/prompt.txt"
-    },
-    {
-      "metadata": "/c4/e7266b9e27/1/metadata.json",
-      "transcript": "/c4/e7266b9e27/1/full.jsonl",
-      "context": "/c4/e7266b9e27/1/context.md",
-      "content_hash": "/c4/e7266b9e27/1/content_hash.txt",
-      "prompt": "/c4/e7266b9e27/1/prompt.txt"
-    }
-  ],
+  "agent": "Claude Code",
   "token_usage": {
-    "input_tokens": 7582,
-    "cache_creation_tokens": 5414423,
-    "cache_read_tokens": 438997424,
-    "output_tokens": 308338,
-    "api_call_count": 1029
+    "input_tokens": 5857,
+    "cache_creation_tokens": 143025,
+    "cache_read_tokens": 6289975,
+    "output_tokens": 26269,
+    "api_call_count": 68
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-15T14:35:29.397851Z",
+    "agent_lines": 100,
+    "human_added": 548,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 648,
+    "agent_percentage": 15.432098765432098
   }
 }
