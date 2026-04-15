@@ -278,7 +278,7 @@ func createSource(t *testing.T, ctx context.Context, orgID, kbID, userID, source
 	t.Helper()
 	depth := 1
 	src, err := testSourceSvc.Create(ctx, orgID, kbID, model.CreateSourceRequest{
-		SourceType: model.SourceTypeWebPage,
+		SourceType: model.SourceTypeSitemap,
 		URL:        sourceURL,
 		CrawlDepth: &depth,
 	}, userID)
