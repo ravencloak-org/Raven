@@ -237,7 +237,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 - [ ] **2.9** Verify Go code compiles (this will fail until Task 3-7 are done — expected):
 
 ```bash
-cd /Users/jobinlawrance/Project/raven && go build ./internal/config/...
+cd "$(git rev-parse --show-toplevel)" && go build ./internal/config/...
 ```
 
 **Commit message:**
@@ -261,7 +261,7 @@ feat(config): replace ZitadelConfig with SuperTokensConfig and GoogleOAuthConfig
 - [ ] **3.1** Create the directory:
 
 ```bash
-mkdir -p /Users/jobinlawrance/Project/raven/internal/auth
+mkdir -p internal/auth
 ```
 
 - [ ] **3.2** Create `internal/auth/provider.go` with the following content:
@@ -293,7 +293,7 @@ type AuthProvider interface {
 - [ ] **3.3** Verify the package compiles:
 
 ```bash
-cd /Users/jobinlawrance/Project/raven && go build ./internal/auth/...
+cd "$(git rev-parse --show-toplevel)" && go build ./internal/auth/...
 ```
 
 **Commit message:**
@@ -567,7 +567,7 @@ func (p *SuperTokensProvider) coreRequest(method, path string, body interface{})
 - [ ] **4.2** Verify the package compiles:
 
 ```bash
-cd /Users/jobinlawrance/Project/raven && go build ./internal/auth/...
+cd "$(git rev-parse --show-toplevel)" && go build ./internal/auth/...
 ```
 
 **Commit message:**
@@ -664,7 +664,7 @@ ContextKeyUserName contextKey = "user_name"
 func SessionMiddleware(provider auth.AuthProvider) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		info, err := provider.VerifySession(c.Request)
-		if err != nil {
+		if err != nil || info == nil || info.ExternalID == "" {
 			abortUnauthorized(c, "invalid_session")
 			return
 		}
@@ -731,7 +731,7 @@ type authError struct {
 func SessionMiddleware(provider auth.AuthProvider) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		info, err := provider.VerifySession(c.Request)
-		if err != nil {
+		if err != nil || info == nil || info.ExternalID == "" {
 			abortUnauthorized(c, "invalid_session")
 			return
 		}
@@ -807,7 +807,7 @@ func abortUnauthorized(c *gin.Context, code string) {
 - [ ] **5.8** Verify compilation:
 
 ```bash
-cd /Users/jobinlawrance/Project/raven && go build ./internal/middleware/...
+cd "$(git rev-parse --show-toplevel)" && go build ./internal/middleware/...
 ```
 
 **Commit message:**
@@ -880,7 +880,7 @@ func NewSuperTokensProxy(superTokensURL, apiKey string) gin.HandlerFunc {
 - [ ] **6.2** Verify compilation:
 
 ```bash
-cd /Users/jobinlawrance/Project/raven && go build ./internal/handler/...
+cd "$(git rev-parse --show-toplevel)" && go build ./internal/handler/...
 ```
 
 **Commit message:**
@@ -931,8 +931,10 @@ router.Any("/auth/*path", handler.NewSuperTokensProxy(cfg.SuperTokens.Connection
 - [ ] **7.5** Add a SuperTokens recipe configuration call at startup. After the `authProvider` creation (step 7.3), add:
 
 ```go
-// Configure SuperTokens recipes on startup (idempotent).
-go configureSuperTokensRecipes(cfg)
+// Configure SuperTokens recipes on startup (idempotent) before serving traffic.
+if err := configureSuperTokensRecipes(cfg); err != nil {
+    slog.Error("failed to configure SuperTokens recipes", "error", err)
+}
 ```
 
 Then add this function at the bottom of main.go (before the closing of the main function, or as a separate function after main):
@@ -1059,7 +1061,7 @@ ExposeHeaders: []string{
 - [ ] **7.10** Remove the `keyfunc` and `golang-jwt` Go dependencies:
 
 ```bash
-cd /Users/jobinlawrance/Project/raven && go mod tidy
+cd "$(git rev-parse --show-toplevel)" && go mod tidy
 ```
 
 Verify these are no longer in `go.mod`:
@@ -1071,13 +1073,13 @@ github.com/golang-jwt/jwt/v5
 - [ ] **7.11** Verify the entire project compiles:
 
 ```bash
-cd /Users/jobinlawrance/Project/raven && go build ./...
+cd "$(git rev-parse --show-toplevel)" && go build ./...
 ```
 
 - [ ] **7.12** Run existing Go tests (some will fail until Task 14 updates them):
 
 ```bash
-cd /Users/jobinlawrance/Project/raven && go test ./internal/middleware/... 2>&1 | head -20
+cd "$(git rev-parse --show-toplevel)" && go test ./internal/middleware/... 2>&1 | head -20
 ```
 
 **Commit message:**
@@ -1101,7 +1103,7 @@ feat(api): wire SuperTokens auth provider, proxy, and recipe configuration
 - [ ] **8.1** Remove `oidc-client-ts` and add `supertokens-web-js`:
 
 ```bash
-cd /Users/jobinlawrance/Project/raven/frontend && npm uninstall oidc-client-ts && npm install supertokens-web-js
+cd "$(git rev-parse --show-toplevel)"/frontend && npm uninstall oidc-client-ts && npm install supertokens-web-js
 ```
 
 - [ ] **8.2** Verify `package.json` no longer contains `oidc-client-ts` and does contain `supertokens-web-js`.
@@ -1394,7 +1396,7 @@ Also remove any `import { useAuthStore }` that was only used for `accessToken`, 
 - [ ] **9.5** Verify TypeScript compiles:
 
 ```bash
-cd /Users/jobinlawrance/Project/raven/frontend && npx vue-tsc --noEmit 2>&1 | head -30
+cd "$(git rev-parse --show-toplevel)"/frontend && npx vue-tsc --noEmit 2>&1 | head -30
 ```
 
 **Commit message:**
@@ -1494,7 +1496,7 @@ async function signInWithGoogle() {
 - [ ] **10.2** Verify the login page renders correctly in dev:
 
 ```bash
-cd /Users/jobinlawrance/Project/raven/frontend && npx vue-tsc --noEmit 2>&1 | head -10
+cd "$(git rev-parse --show-toplevel)"/frontend && npx vue-tsc --noEmit 2>&1 | head -10
 ```
 
 **Commit message:**
@@ -1591,7 +1593,7 @@ Note: The current router guard on line 168 already has `if (to.path.startsWith('
 - [ ] **11.3** Verify frontend TypeScript compiles:
 
 ```bash
-cd /Users/jobinlawrance/Project/raven/frontend && npx vue-tsc --noEmit 2>&1 | head -20
+cd "$(git rev-parse --show-toplevel)"/frontend && npx vue-tsc --noEmit 2>&1 | head -20
 ```
 
 **Commit message:**
@@ -1620,13 +1622,13 @@ feat(frontend): simplify callback page for SuperTokens OAuth flow
 - [ ] **12.1** Delete the `deploy/zitadel/` directory:
 
 ```bash
-rm -rf /Users/jobinlawrance/Project/raven/deploy/zitadel
+rm -rf deploy/zitadel
 ```
 
 - [ ] **12.2** Delete the OIDC silent renew page:
 
 ```bash
-rm /Users/jobinlawrance/Project/raven/frontend/public/silent-renew.html
+rm frontend/public/silent-renew.html
 ```
 
 - [ ] **12.3** Create the migration file `migrations/00035_supertokens_migration.sql`:
@@ -1655,7 +1657,7 @@ ALTER TABLE users ALTER COLUMN auth_provider SET DEFAULT 'zitadel';
 - [ ] **12.4** Verify Go module is clean:
 
 ```bash
-cd /Users/jobinlawrance/Project/raven && go mod tidy
+cd "$(git rev-parse --show-toplevel)" && go mod tidy
 ```
 
 Confirm `github.com/MicahParks/keyfunc/v3` and `github.com/golang-jwt/jwt/v5` are no longer in `go.mod` (they should have been removed when `internal/middleware/auth.go` stopped importing them).
@@ -1663,7 +1665,7 @@ Confirm `github.com/MicahParks/keyfunc/v3` and `github.com/golang-jwt/jwt/v5` ar
 - [ ] **12.5** Verify nothing else imports the removed packages:
 
 ```bash
-cd /Users/jobinlawrance/Project/raven && grep -r "keyfunc\|golang-jwt" --include="*.go" .
+cd "$(git rev-parse --show-toplevel)" && grep -r "keyfunc\|golang-jwt" --include="*.go" .
 ```
 
 This should return no results. If any files still import these, update them.
@@ -1769,7 +1771,7 @@ Remove these lines:
 - [ ] **13.7** Verify compose config parses:
 
 ```bash
-cd /Users/jobinlawrance/Project/raven/deploy/ec2 && docker compose -f docker-compose.server.yml config --quiet 2>&1 || echo "Parse check (may need env vars)"
+cd "$(git rev-parse --show-toplevel)"/deploy/ec2 && docker compose -f docker-compose.server.yml config --quiet 2>&1 || echo "Parse check (may need env vars)"
 ```
 
 **Commit message:**
@@ -2042,38 +2044,38 @@ describe('useAuthStore', () => {
 - [ ] **14.3** Run the Go middleware tests:
 
 ```bash
-cd /Users/jobinlawrance/Project/raven && go test ./internal/middleware/... -v -run TestSessionMiddleware
+cd "$(git rev-parse --show-toplevel)" && go test ./internal/middleware/... -v -run TestSessionMiddleware
 ```
 
 - [ ] **14.4** Run the Go context key tests:
 
 ```bash
-cd /Users/jobinlawrance/Project/raven && go test ./internal/middleware/... -v -run TestContextKeys
+cd "$(git rev-parse --show-toplevel)" && go test ./internal/middleware/... -v -run TestContextKeys
 ```
 
 - [ ] **14.5** Run the frontend auth store tests:
 
 ```bash
-cd /Users/jobinlawrance/Project/raven/frontend && npx vitest run --reporter=verbose -- src/stores/auth.spec.ts
+cd "$(git rev-parse --show-toplevel)"/frontend && npx vitest run --reporter=verbose -- src/stores/auth.spec.ts
 ```
 
 - [ ] **14.6** Run the full Go test suite to verify nothing is broken:
 
 ```bash
-cd /Users/jobinlawrance/Project/raven && go test ./... 2>&1 | tail -30
+cd "$(git rev-parse --show-toplevel)" && go test ./... 2>&1 | tail -30
 ```
 
 - [ ] **14.7** Run the full frontend test suite:
 
 ```bash
-cd /Users/jobinlawrance/Project/raven/frontend && npx vitest run 2>&1 | tail -20
+cd "$(git rev-parse --show-toplevel)"/frontend && npx vitest run 2>&1 | tail -20
 ```
 
 - [ ] **14.8** Run all linters:
 
 ```bash
-cd /Users/jobinlawrance/Project/raven && golangci-lint run ./...
-cd /Users/jobinlawrance/Project/raven/frontend && npx vue-tsc --noEmit
+cd "$(git rev-parse --show-toplevel)" && golangci-lint run ./...
+cd "$(git rev-parse --show-toplevel)"/frontend && npx vue-tsc --noEmit
 ```
 
 **Commit message:**
