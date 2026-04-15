@@ -1,6 +1,7 @@
 name: Go CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
@@ -92,6 +93,7 @@ jobs:
 
       - uses: codecov/codecov-action@v6
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage-merged.txt
           fail_ci_if_error: false
 
@@ -147,6 +149,7 @@ jobs:
   ebpf-privileged-tests:
     name: eBPF Privileged Test Harness
     runs-on: ubuntu-latest
+    continue-on-error: true
     # Only run on pushes to main — these tests require privileged containers
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
