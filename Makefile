@@ -1,4 +1,4 @@
-.PHONY: build run dev test lint migrate-up migrate-down proto swagger compose compose-down
+.PHONY: build run dev test test-integration bench-integration lint migrate-up migrate-down proto swagger compose compose-down
 
 build:
 	go build -o bin/api ./cmd/api
@@ -11,6 +11,12 @@ dev:
 
 test:
 	dotenvx run -- go test ./...
+
+test-integration:
+	go test -tags=integration ./internal/integration/ -v -timeout 5m -count=1
+
+bench-integration:
+	go test -tags=integration ./internal/integration/ -bench=. -benchmem -timeout 10m
 
 lint:
 	golangci-lint run

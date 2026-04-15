@@ -1,0 +1,217 @@
+{
+  "sample_markdown.md": {
+    "total_chunks": 8,
+    "total_token_count": 446,
+    "chunks": [
+      {
+        "index": 0,
+        "heading": "Introduction to Raven Platform",
+        "page_number": 1,
+        "token_count": 46,
+        "unique_keyword": "retrieval-augmented"
+      },
+      {
+        "index": 1,
+        "heading": "Architecture Overview",
+        "page_number": 1,
+        "token_count": 55,
+        "unique_keyword": "microservices"
+      },
+      {
+        "index": 2,
+        "heading": "Data Ingestion Pipeline",
+        "page_number": 1,
+        "token_count": 57,
+        "unique_keyword": "ingested"
+      },
+      {
+        "index": 3,
+        "heading": "Chunk Processing",
+        "page_number": 1,
+        "token_count": 61,
+        "unique_keyword": "heading-aware"
+      },
+      {
+        "index": 4,
+        "heading": "Vector Embeddings",
+        "page_number": 1,
+        "token_count": 58,
+        "unique_keyword": "ada-002"
+      },
+      {
+        "index": 5,
+        "heading": "BM25 Full-Text Search",
+        "page_number": 1,
+        "token_count": 55,
+        "unique_keyword": "ts_rank_cd"
+      },
+      {
+        "index": 6,
+        "heading": "Response Caching",
+        "page_number": 1,
+        "token_count": 58,
+        "unique_keyword": "SHA256"
+      },
+      {
+        "index": 7,
+        "heading": "Tenant Isolation",
+        "page_number": 1,
+        "token_count": 56,
+        "unique_keyword": "row-level"
+      }
+    ]
+  },
+  "sample_technical.md": {
+    "total_chunks": 21,
+    "total_token_count": 2982,
+    "chunks": [
+      {
+        "index": 0,
+        "heading": "Raven Technical Reference Guide",
+        "page_number": 1,
+        "token_count": 34,
+        "unique_keyword": "comprehensive"
+      },
+      {
+        "index": 1,
+        "heading": "API Endpoints",
+        "page_number": 1,
+        "token_count": 161,
+        "unique_keyword": "OpenAPI"
+      },
+      {
+        "index": 2,
+        "heading": "Authentication",
+        "page_number": 1,
+        "token_count": 139,
+        "unique_keyword": "JWKS"
+      },
+      {
+        "index": 3,
+        "heading": "Rate Limiting",
+        "page_number": 1,
+        "token_count": 162,
+        "unique_keyword": "sliding window"
+      },
+      {
+        "index": 4,
+        "heading": "Webhooks",
+        "page_number": 1,
+        "token_count": 161,
+        "unique_keyword": "HMAC-SHA256"
+      },
+      {
+        "index": 5,
+        "heading": "Streaming Responses",
+        "page_number": 1,
+        "token_count": 153,
+        "unique_keyword": "server-sent events"
+      },
+      {
+        "index": 6,
+        "heading": "Error Handling",
+        "page_number": 1,
+        "token_count": 151,
+        "unique_keyword": "is_retryable"
+      },
+      {
+        "index": 7,
+        "heading": "SDK Libraries",
+        "page_number": 1,
+        "token_count": 156,
+        "unique_keyword": "Pydantic"
+      },
+      {
+        "index": 8,
+        "heading": "Deployment Architecture",
+        "page_number": 1,
+        "token_count": 142,
+        "unique_keyword": "twelve-factor"
+      },
+      {
+        "index": 9,
+        "heading": "Monitoring and Observability",
+        "page_number": 1,
+        "token_count": 138,
+        "unique_keyword": "OpenTelemetry"
+      },
+      {
+        "index": 10,
+        "heading": "Horizontal Scaling",
+        "page_number": 1,
+        "token_count": 138,
+        "unique_keyword": "PgBouncer"
+      },
+      {
+        "index": 11,
+        "heading": "Database Schema",
+        "page_number": 1,
+        "token_count": 139,
+        "unique_keyword": "partitioning"
+      },
+      {
+        "index": 12,
+        "heading": "Database Migrations",
+        "page_number": 1,
+        "token_count": 142,
+        "unique_keyword": "golang-migrate"
+      },
+      {
+        "index": 13,
+        "heading": "Testing Strategy",
+        "page_number": 1,
+        "token_count": 153,
+        "unique_keyword": "fuzz"
+      },
+      {
+        "index": 14,
+        "heading": "CI/CD Pipeline",
+        "page_number": 1,
+        "token_count": 148,
+        "unique_keyword": "golangci-lint"
+      },
+      {
+        "index": 15,
+        "heading": "Security Model",
+        "page_number": 1,
+        "token_count": 146,
+        "unique_keyword": "AES-256-GCM"
+      },
+      {
+        "index": 16,
+        "heading": "Structured Logging",
+        "page_number": 1,
+        "token_count": 150,
+        "unique_keyword": "slog"
+      },
+      {
+        "index": 17,
+        "heading": "Configuration Management",
+        "page_number": 1,
+        "token_count": 142,
+        "unique_keyword": "Viper"
+      },
+      {
+        "index": 18,
+        "heading": "Environment Variables",
+        "page_number": 1,
+        "token_count": 130,
+        "unique_keyword": "DATABASE_URL"
+      },
+      {
+        "index": 19,
+        "heading": "Docker Setup",
+        "page_number": 1,
+        "token_count": 146,
+        "unique_keyword": "shared_preload_libraries"
+      },
+      {
+        "index": 20,
+        "heading": "Kubernetes Deployment",
+        "page_number": 1,
+        "token_count": 151,
+        "unique_keyword": "Helm"
+      }
+    ]
+  }
+}
