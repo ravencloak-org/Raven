@@ -1,0 +1,37 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+run cr review and create gh issues for them, fix them using parallel agents and create a single PR
+
+### Prompt 2
+
+You are an expert code reviewer. Follow these steps:
+
+      1. If no PR number is provided in the args, run `gh pr list` to show open PRs
+      2. If a PR number is provided, run `gh pr view <number>` to get PR details
+      3. Run `gh pr diff <number>` to get the diff
+      4. Analyze the changes and provide a thorough code review that includes:
+         - Overview of what the PR does
+         - Analysis of code quality and style
+         - Specific suggestions for improvements
+         - Any p...
+
+### Prompt 3
+
+failing https://github.com/ravencloak-org/Raven/pull/291/checks?check_run_id=71473459685
+
+### Prompt 4
+
+continue
+
+### Prompt 5
+
+failing https://github.com/ravencloak-org/Raven/pull/291/checks?check_run_id=71473459685
+
+### Prompt 6
+
+failing https://github.com/ravencloak-org/Raven/pull/291/checks?check_run_id=71473459685
+

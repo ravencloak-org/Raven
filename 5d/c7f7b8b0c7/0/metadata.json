@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "5dc7f7b8b0c7",
+  "session_id": "30bae7da-9b26-4041-9dd0-7458662d72fb",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-15T15:14:14.306817Z",
+  "branch": "fix/ci-badges",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "internal/auth/claims.go",
+    "internal/auth/supertokens.go",
+    "internal/auth/supertokens_test.go"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "6c1b6cc6-0b0a-4500-a416-21f49a23bb26",
+  "checkpoint_transcript_start": 358,
+  "transcript_lines_at_start": 358,
+  "token_usage": {
+    "input_tokens": 64,
+    "cache_creation_tokens": 156297,
+    "cache_read_tokens": 7037630,
+    "output_tokens": 11178,
+    "api_call_count": 55
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-15T15:14:14.141925Z",
+    "agent_lines": 63,
+    "human_added": 567,
+    "human_modified": 6,
+    "human_removed": 0,
+    "total_committed": 636,
+    "agent_percentage": 9.90566037735849
+  }
+}
