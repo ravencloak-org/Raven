@@ -2,12 +2,38 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "5dc7f7b8b0c7",
   "strategy": "manual-commit",
-  "branch": "fix/ci-badges",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
+    ".env.example",
+    ".github/workflows/docker.yml",
+    ".github/workflows/pages.yml",
+    "cmd/api/main.go",
+    "deploy/cloudflare-pages.json",
+    "deploy/ec2/docker-compose.server.yml",
+    "deploy/postgres/init.sql",
+    "deploy/zitadel/zitadel-config.yaml",
+    "deploy/zitadel/zitadel-init-steps.yaml",
+    "docker-compose.yml",
+    "frontend/Dockerfile",
+    "frontend/e2e/auth.spec.ts",
+    "frontend/e2e/mobile/login.spec.ts",
+    "frontend/e2e/orgs.spec.ts",
+    "frontend/src/pages/LoginPage.vue",
+    "frontend/src/pages/callback/CallbackPage.vue",
+    "frontend/src/pages/onboarding/OnboardingWizard.vue",
+    "frontend/src/router/index.ts",
+    "frontend/src/stores/auth.spec.ts",
+    "frontend/src/stores/auth.ts",
+    "frontend/wrangler.toml",
     "internal/auth/claims.go",
+    "internal/auth/provider.go",
     "internal/auth/supertokens.go",
-    "internal/auth/supertokens_test.go"
+    "internal/auth/supertokens_init.go",
+    "internal/auth/supertokens_test.go",
+    "internal/handler/auth.go",
+    "internal/integration/setup_test.go",
+    "internal/middleware/auth.go",
+    "internal/middleware/cors.go"
   ],
   "sessions": [
     {
@@ -16,13 +42,20 @@
       "context": "/5d/c7f7b8b0c7/0/context.md",
       "content_hash": "/5d/c7f7b8b0c7/0/content_hash.txt",
       "prompt": "/5d/c7f7b8b0c7/0/prompt.txt"
+    },
+    {
+      "metadata": "/5d/c7f7b8b0c7/1/metadata.json",
+      "transcript": "/5d/c7f7b8b0c7/1/full.jsonl",
+      "context": "/5d/c7f7b8b0c7/1/context.md",
+      "content_hash": "/5d/c7f7b8b0c7/1/content_hash.txt",
+      "prompt": "/5d/c7f7b8b0c7/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 64,
-    "cache_creation_tokens": 156297,
-    "cache_read_tokens": 7037630,
-    "output_tokens": 11178,
-    "api_call_count": 55
+    "input_tokens": 82,
+    "cache_creation_tokens": 165322,
+    "cache_read_tokens": 17241371,
+    "output_tokens": 14696,
+    "api_call_count": 69
   }
 }
