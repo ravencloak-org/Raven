@@ -456,9 +456,9 @@ func main() {
 	// Swagger UI — served at /api/docs (unauthenticated; disable in prod via env).
 	router.GET("/api/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	// SuperTokens SDK middleware — must be registered before all other routes so
-	// the SDK can intercept /auth/* requests (signinup, session/refresh, etc.).
-	router.Use(handler.SuperTokensMiddleware())
+	// SuperTokens SDK routes — catch-all for /auth/* so the SDK middleware
+	// can intercept signinup, session/refresh, callback, etc.
+	router.Any("/auth/*path", handler.SuperTokensMiddleware())
 
 	// Protected API routes — JWT validation applied per-group, not globally.
 	// This allows health checks and other public endpoints to remain unauthenticated.
