@@ -99,27 +99,28 @@ func NewDocumentProcessHandler(
 			return e
 		})
 		if err != nil {
-			setFailed(ctx, pool, p.OrgID, p.DocumentID, docRepo, err)
+			setFailed(ctx, pool, p.OrgID, p.DocumentID, docRepo, logger, err)
 			return fmt.Errorf("get document: %w", err)
 		}
 
 		if doc.StoragePath == "" {
 			failErr := fmt.Errorf("document %s has no storage_path", p.DocumentID)
-			setFailed(ctx, pool, p.OrgID, p.DocumentID, docRepo, failErr)
+			setFailed(ctx, pool, p.OrgID, p.DocumentID, docRepo, logger, failErr)
 			return fmt.Errorf("%w: %w", asynq.SkipRetry, failErr)
 		}
 
 		// Download file content from SeaweedFS.
 		rc, err := store.Download(ctx, doc.StoragePath)
 		if err != nil {
-			setFailed(ctx, pool, p.OrgID, p.DocumentID, docRepo, err)
+			setFailed(ctx, pool, p.OrgID, p.DocumentID, docRepo, logger, err)
 			return fmt.Errorf("download from storage: %w", err)
 		}
 		defer func() { _ = rc.Close() }()
 
-		raw, err := io.ReadAll(rc)
+		const maxDocSize = 10 << 20 // 10 MB
+		raw, err := io.ReadAll(io.LimitReader(rc, maxDocSize))
 		if err != nil {
-			setFailed(ctx, pool, p.OrgID, p.DocumentID, docRepo, err)
+			setFailed(ctx, pool, p.OrgID, p.DocumentID, docRepo, logger, err)
 			return fmt.Errorf("read file content: %w", err)
 		}
 		content := string(raw)
@@ -168,7 +169,7 @@ func NewDocumentProcessHandler(
 			return docRepo.UpdateStatus(ctx, tx, p.OrgID, p.DocumentID, model.ProcessingStatusReady, "")
 		})
 		if err != nil {
-			setFailed(ctx, pool, p.OrgID, p.DocumentID, docRepo, err)
+			setFailed(ctx, pool, p.OrgID, p.DocumentID, docRepo, logger, err)
 			return fmt.Errorf("insert chunks: %w", err)
 		}
 
@@ -190,9 +191,9 @@ func updateDocStatus(ctx context.Context, pool *pgxpool.Pool, orgID, docID strin
 }
 
 // setFailed marks a document as failed, logging any secondary error.
-func setFailed(ctx context.Context, pool *pgxpool.Pool, orgID, docID string, docRepo *repository.DocumentRepository, cause error) {
+func setFailed(ctx context.Context, pool *pgxpool.Pool, orgID, docID string, docRepo *repository.DocumentRepository, logger *slog.Logger, cause error) {
 	if err := updateDocStatus(ctx, pool, orgID, docID, docRepo, model.ProcessingStatusFailed, cause.Error()); err != nil {
-		slog.Default().Warn("failed to mark document as failed",
+		logger.Warn("failed to mark document as failed",
 			"document_id", docID,
 			"cause", cause.Error(),
 			"error", err.Error(),
