@@ -456,13 +456,6 @@ func main() {
 	router.Use(middleware.CORSMiddleware(&cfg.CORS))
 	router.Use(apierror.ErrorHandler())
 
-	// Set seed key in context for X-Seed-Key header authentication.
-	if cfg.Seed.Key != "" {
-		router.Use(func(c *gin.Context) {
-			c.Set(string(middleware.ContextKeySeedKey), cfg.Seed.Key)
-			c.Next()
-		})
-	}
 
 	// Infrastructure endpoint — intentionally outside the versioned group.
 	// Excluded from rate limiting.
@@ -778,8 +771,16 @@ func main() {
 	router.GET("/webhooks/meta", metaWebhookHandler.VerifyWebhook)
 	router.POST("/webhooks/meta", metaWebhookHandler.HandleEvent)
 
-	// --- Admin routes (seed key or session auth) ---
+	// --- Admin routes (seed key auth required) ---
 	admin := router.Group("/api/v1/admin")
+	admin.Use(func(c *gin.Context) {
+		seedKey := c.GetHeader("X-Seed-Key")
+		if cfg.Seed.Key != "" && seedKey == cfg.Seed.Key {
+			c.Next()
+			return
+		}
+		c.AbortWithStatusJSON(401, gin.H{"error": "valid X-Seed-Key header required"})
+	})
 	admin.POST("/seed-demo", seedHandler.SeedDemo)
 
 	// Auth callback — outside the session-protected /api/v1 group.

@@ -96,6 +96,9 @@ func (s *SeedService) SeedDemo(ctx context.Context, size string) (*model.SeedRes
 	}
 
 	// 5. Fetch movies from TMDB.
+	if s.tmdbCli == nil {
+		return nil, apierror.NewInternal("TMDB client not configured — set TMDB_API_KEY")
+	}
 	movies, err := s.tmdbCli.FetchTopByGenres(ctx, size)
 	if err != nil {
 		return nil, fmt.Errorf("seed: fetch movies: %w", err)

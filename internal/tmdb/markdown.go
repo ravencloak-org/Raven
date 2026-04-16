@@ -81,13 +81,27 @@ func RenderMarkdown(movie MovieDetail) string {
 			limit = maxReviews
 		}
 		for _, r := range movie.Reviews.Results[:limit] {
-			content := r.Content
-			if len(content) > maxReviewLength {
-				content = content[:maxReviewLength] + "..."
-			}
-			fmt.Fprintf(&sb, "> \"%s\" — %s\n\n", content, r.Author)
+			content := sanitizeReview(r.Content, maxReviewLength)
+			fmt.Fprintf(&sb, "> %s — %s\n\n", content, r.Author)
 		}
 	}
 
 	return strings.TrimRight(sb.String(), "\n") + "\n"
+}
+
+// sanitizeReview truncates at a UTF-8 safe rune boundary, collapses newlines
+// into spaces so the content stays inside a single markdown blockquote, and
+// wraps the result in double quotes.
+func sanitizeReview(content string, maxLen int) string {
+	// Collapse newlines to spaces so multi-line reviews don't break the > quote.
+	content = strings.ReplaceAll(content, "\r\n", " ")
+	content = strings.ReplaceAll(content, "\n", " ")
+
+	// Truncate at rune boundary.
+	runes := []rune(content)
+	if len(runes) > maxLen {
+		content = string(runes[:maxLen]) + "..."
+	}
+
+	return `"` + content + `"`
 }
