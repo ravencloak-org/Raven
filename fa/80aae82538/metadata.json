@@ -5,11 +5,7 @@
   "branch": "feat/demo-kb",
   "checkpoints_count": 1,
   "files_touched": [
-    "internal/tmdb/client.go",
-    "internal/tmdb/client_test.go",
-    "internal/tmdb/markdown.go",
-    "internal/tmdb/markdown_test.go",
-    "internal/tmdb/models.go"
+    "internal/service/chat.go"
   ],
   "sessions": [
     {
@@ -21,10 +17,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 9,
-    "cache_creation_tokens": 4246,
-    "cache_read_tokens": 6258387,
-    "output_tokens": 2632,
-    "api_call_count": 7
+    "input_tokens": 22,
+    "cache_creation_tokens": 5847,
+    "cache_read_tokens": 14395193,
+    "output_tokens": 3189,
+    "api_call_count": 16
   }
 }

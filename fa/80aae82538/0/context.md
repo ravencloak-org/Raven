@@ -578,3 +578,16 @@ you try it, it's still throwing 500. use chrome extension or playwright and test
 
 Failed to fetch in login
 
+### Prompt 110
+
+rpc error: code = Internal desc = Unsupported embedding provider: ''. Supported providers: ['anthropic', 'cohere', 'openai']
+
+### Prompt 111
+
+where to create one? Also need a ui in frontend to add this. not just env. users will be creating multiple accounts, hence it should reside in db, hashed.
+
+### Prompt 112
+
+rpc error: code = Internal desc = Unsupported embedding provider: ''. Supported providers: ['anthropic', 'cohere', 'openai']
+ even after adding anthropic key
+
