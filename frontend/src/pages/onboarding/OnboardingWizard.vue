@@ -85,7 +85,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 
@@ -96,6 +96,13 @@ const apiUrl = import.meta.env.VITE_API_BASE_URL
 const currentStep = ref(1)
 const loading = ref(false)
 const error = ref('')
+
+// If user already has an org, skip onboarding
+onMounted(() => {
+  if (auth.hasOrg) {
+    router.replace('/dashboard')
+  }
+})
 
 // Step 1
 const orgName = ref('')

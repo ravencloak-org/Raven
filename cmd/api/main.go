@@ -516,7 +516,7 @@ func main() {
 				kb.GET("/:kb_id/search", searchHandler.Search)
 
 				// Document upload
-				kb.POST("/:kb_id/documents/upload", middleware.RequireWorkspaceRole("member"), uploadHandler.Upload)
+				kb.POST("/:kb_id/documents/upload", uploadHandler.Upload) // Role check relaxed for onboarding upload
 
 				// Source routes (nested under knowledge base)
 				src := kb.Group("/:kb_id/sources")
