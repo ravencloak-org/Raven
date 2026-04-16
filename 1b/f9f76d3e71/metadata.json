@@ -2,10 +2,11 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "1bf9f76d3e71",
   "strategy": "manual-commit",
-  "branch": "fix/purge-zitadel-references",
-  "checkpoints_count": 1,
+  "branch": "main",
+  "checkpoints_count": 2,
   "files_touched": [
-    "internal/handler/org.go"
+    "internal/handler/org.go",
+    "internal/middleware/auth.go"
   ],
   "sessions": [
     {
@@ -14,13 +15,20 @@
       "context": "/1b/f9f76d3e71/0/context.md",
       "content_hash": "/1b/f9f76d3e71/0/content_hash.txt",
       "prompt": "/1b/f9f76d3e71/0/prompt.txt"
+    },
+    {
+      "metadata": "/1b/f9f76d3e71/1/metadata.json",
+      "transcript": "/1b/f9f76d3e71/1/full.jsonl",
+      "context": "/1b/f9f76d3e71/1/context.md",
+      "content_hash": "/1b/f9f76d3e71/1/content_hash.txt",
+      "prompt": "/1b/f9f76d3e71/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 25,
-    "cache_creation_tokens": 10685,
-    "cache_read_tokens": 5195109,
-    "output_tokens": 4172,
-    "api_call_count": 21
+    "input_tokens": 1919,
+    "cache_creation_tokens": 6911200,
+    "cache_read_tokens": 550526635,
+    "output_tokens": 328346,
+    "api_call_count": 1125
   }
 }
