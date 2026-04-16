@@ -153,6 +153,10 @@ func (s *ChatService) StreamCompletion(ctx context.Context, orgID, kbID string, 
 		}
 	}
 
+	provider := req.Provider
+	if provider == "" {
+		provider = "anthropic"
+	}
 	ragReq := &pb.RAGRequest{
 		Query:     req.Query,
 		OrgId:     orgID,
@@ -160,7 +164,7 @@ func (s *ChatService) StreamCompletion(ctx context.Context, orgID, kbID string, 
 		SessionId: session.ID,
 		Filters:   filters,
 		Model:     req.Model,
-		Provider:  req.Provider,
+		Provider:  provider,
 	}
 
 	stream, err := s.grpcClient.Worker().QueryRAG(ctx, ragReq)
