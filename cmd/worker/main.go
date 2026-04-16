@@ -70,6 +70,6 @@ func main() {
 	}
 
 	srv.Shutdown()
-	pool.Close()
+	// pool.Close() is handled by defer above.
 	logger.Info("worker exited gracefully")
 }

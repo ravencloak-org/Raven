@@ -24,9 +24,13 @@ func NewSeedHandler(svc SeedServicer) *SeedHandler {
 }
 
 // SeedDemo handles POST /api/v1/admin/seed-demo.
-// Reads `size` query param (default "small").
+// Reads `size` query param (default "small"). Only "small" is supported.
 func (h *SeedHandler) SeedDemo(c *gin.Context) {
 	size := c.DefaultQuery("size", "small")
+	if size != "small" {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "only size=small is supported"})
+		return
+	}
 
 	result, err := h.svc.SeedDemo(c.Request.Context(), size)
 	if err != nil {

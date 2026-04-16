@@ -26,8 +26,11 @@ func (d *DemoOrgJoiner) JoinDemoOrg(ctx context.Context, userID string) {
 	// Look up demo org by slug.
 	demoOrg, err := d.orgSvc.GetBySlug(ctx, "raven-demo")
 	if err != nil {
-		// Demo org doesn't exist — nothing to join.
+		slog.WarnContext(ctx, "demo-join: failed to look up demo org", "error", err)
 		return
+	}
+	if demoOrg == nil {
+		return // Demo org not seeded yet.
 	}
 
 	// List workspaces in demo org.
