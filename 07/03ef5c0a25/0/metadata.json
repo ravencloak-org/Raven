@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "0703ef5c0a25",
+  "session_id": "30bae7da-9b26-4041-9dd0-7458662d72fb",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-16T07:45:17.505298Z",
+  "branch": "docs/demo-kb-spec",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/superpowers/specs/2026-04-16-demo-kb-design.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "fd90c665-54b7-447c-ba6e-24b07dd6fa5d",
+  "checkpoint_transcript_start": 1185,
+  "transcript_lines_at_start": 1185,
+  "token_usage": {
+    "input_tokens": 29,
+    "cache_creation_tokens": 10301,
+    "cache_read_tokens": 6220784,
+    "output_tokens": 6897,
+    "api_call_count": 23
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-16T07:45:17.322393Z",
+    "agent_lines": 0,
+    "human_added": 686,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 686,
+    "agent_percentage": 0
+  }
+}
