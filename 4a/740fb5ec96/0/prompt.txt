@@ -1697,3 +1697,7 @@ If they agree to the companion, read the detailed guide before proceeding:
 ---
 
 Sign-in failed. Please try again.
+
+---
+
+doesn't work, why don't you try. after google login I am getting Sign-in failed. Please try again.

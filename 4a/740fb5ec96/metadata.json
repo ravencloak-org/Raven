@@ -5,7 +5,8 @@
   "branch": "main",
   "checkpoints_count": 1,
   "files_touched": [
-    "cmd/api/main.go"
+    "cmd/api/main.go",
+    "frontend/src/stores/auth.ts"
   ],
   "sessions": [
     {
@@ -17,10 +18,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 28,
-    "cache_creation_tokens": 14749,
-    "cache_read_tokens": 20669809,
-    "output_tokens": 8197,
-    "api_call_count": 26
+    "input_tokens": 12,
+    "cache_creation_tokens": 797479,
+    "cache_read_tokens": 7274064,
+    "output_tokens": 2930,
+    "api_call_count": 10
   }
 }
