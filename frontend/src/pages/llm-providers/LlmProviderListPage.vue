@@ -1,18 +1,21 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useAuthStore } from "../../stores/auth"
 import { useLlmProvidersStore } from '../../stores/llm-providers'
 import { useMobile } from '../../composables/useMediaQuery'
 import { PROVIDER_MODELS, type ProviderType, type CreateLlmProviderRequest } from '../../api/llm-providers'
 
 const store = useLlmProvidersStore()
 const { isMobile } = useMobile()
-const orgId = 'org-456' // TODO: get from auth store / route
+const authStore = useAuthStore()
+const orgId = authStore.orgId ?? sessionStorage.getItem("raven_org_id") ?? ""
+
 
 const showCreateDialog = ref(false)
 const form = ref<CreateLlmProviderRequest>({
-  provider_type: 'openai',
+  provider: 'openai',
   display_name: '',
-  model: 'gpt-4o',
+
   base_url: null,
   api_key: '',
 })
@@ -38,9 +41,9 @@ function modelsForType(type: ProviderType) {
 }
 
 function onProviderTypeChange() {
-  const models = modelsForType(form.value.provider_type)
-  form.value.model = models[0]?.value ?? ''
-  form.value.base_url = form.value.provider_type === 'custom' || form.value.provider_type === 'ollama' ? '' : null
+  void modelsForType(form.value.provider)
+  
+  form.value.base_url = form.value.provider === 'custom' || form.value.provider === 'ollama' ? '' : null
 }
 
 async function handleCreate() {
@@ -48,7 +51,7 @@ async function handleCreate() {
   try {
     await store.addProvider(orgId, { ...form.value })
     showCreateDialog.value = false
-    form.value = { provider_type: 'openai', display_name: '', model: 'gpt-4o', base_url: null, api_key: '' }
+    form.value = { provider: 'openai', display_name: '', base_url: null, api_key: '' }
   } finally {
     creating.value = false
   }
@@ -120,7 +123,7 @@ onMounted(() => store.fetchProviders(orgId))
               <span :class="['rounded-full px-2 py-0.5 text-xs font-medium', statusColor(provider.status)]">{{ provider.status }}</span>
             </div>
             <p class="mt-1 text-sm text-gray-500">
-              {{ provider.provider_type.toUpperCase() }} &middot; {{ provider.model }}
+              {{ provider.provider.toUpperCase() }} &middot; {{ provider.model }}
               <span v-if="provider.base_url"> &middot; {{ provider.base_url }}</span>
             </p>
             <p class="mt-1 text-xs text-gray-400">
@@ -168,8 +171,8 @@ onMounted(() => store.fetchProviders(orgId))
 
         <!-- Subtitle: model count -->
         <p class="text-slate-400 text-xs mt-1">
-          {{ modelCountForProvider(provider.provider_type) }} model{{ modelCountForProvider(provider.provider_type) === 1 ? '' : 's' }}
-          &bull; {{ provider.provider_type.toUpperCase() }}
+          {{ modelCountForProvider(provider.provider) }} model{{ modelCountForProvider(provider.provider) === 1 ? '' : 's' }}
+          &bull; {{ provider.provider.toUpperCase() }}
         </p>
 
         <!-- Test result (if present) -->
@@ -204,7 +207,7 @@ onMounted(() => store.fetchProviders(orgId))
         <form class="space-y-4" @submit.prevent="handleCreate">
           <div>
             <label class="block text-sm font-medium text-gray-700">Provider Type</label>
-            <select v-model="form.provider_type" class="mt-1 block w-full rounded border-gray-300 shadow-sm" @change="onProviderTypeChange">
+            <select v-model="form.provider" class="mt-1 block w-full rounded border-gray-300 shadow-sm" @change="onProviderTypeChange">
               <option v-for="pt in providerTypes" :key="pt.value" :value="pt.value">{{ pt.label }}</option>
             </select>
           </div>
@@ -214,11 +217,11 @@ onMounted(() => store.fetchProviders(orgId))
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">Model</label>
-            <select v-model="form.model" class="mt-1 block w-full rounded border-gray-300 shadow-sm">
-              <option v-for="m in modelsForType(form.provider_type)" :key="m.value" :value="m.value">{{ m.label }}</option>
+            <select v-model="selectedModel" class="mt-1 block w-full rounded border-gray-300 shadow-sm">
+              <option v-for="m in modelsForType(form.provider)" :key="m.value" :value="m.value">{{ m.label }}</option>
             </select>
           </div>
-          <div v-if="form.provider_type === 'custom' || form.provider_type === 'ollama'">
+          <div v-if="form.provider === 'custom' || form.provider === 'ollama'">
             <label class="block text-sm font-medium text-gray-700">Base URL</label>
             <input v-model="form.base_url" type="url" class="mt-1 block w-full rounded border-gray-300 shadow-sm" placeholder="https://api.example.com/v1" />
           </div>

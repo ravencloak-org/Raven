@@ -6,11 +6,9 @@ import {
   createLlmProvider,
   updateLlmProvider,
   deleteLlmProvider,
-  testConnection,
   type LlmProvider,
   type CreateLlmProviderRequest,
   type UpdateLlmProviderRequest,
-  type TestConnectionResult,
 } from '../api/llm-providers'
 
 export const useLlmProvidersStore = defineStore('llmProviders', () => {
@@ -19,7 +17,6 @@ export const useLlmProvidersStore = defineStore('llmProviders', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
   const testingProviderId = ref<string | null>(null)
-  const lastTestResult = ref<TestConnectionResult | null>(null)
 
   // --- Getters ---
 
@@ -100,15 +97,12 @@ export const useLlmProvidersStore = defineStore('llmProviders', () => {
   async function testProviderConnection(
     orgId: string,
     providerId: string,
-  ): Promise<TestConnectionResult> {
     testingProviderId.value = providerId
     lastTestResult.value = null
     try {
-      const result = await testConnection(orgId, providerId)
       lastTestResult.value = result
       return result
     } catch (e) {
-      const failResult: TestConnectionResult = {
         success: false,
         message: (e as Error).message,
       }
