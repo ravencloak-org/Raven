@@ -16,6 +16,7 @@ import (
 	"github.com/ravencloak-org/Raven/internal/jobs"
 	"github.com/ravencloak-org/Raven/internal/queue"
 	"github.com/ravencloak-org/Raven/internal/repository"
+	"github.com/ravencloak-org/Raven/internal/storage"
 )
 
 func main() {
@@ -34,6 +35,9 @@ func main() {
 	defer pool.Close()
 
 	notifRepo := repository.NewNotificationRepository(pool)
+	docRepo := repository.NewDocumentRepository(pool)
+	chunkRepo := repository.NewChunkRepository(pool)
+	storageClient := storage.NewSeaweedFSClient(cfg.SeaweedFS.MasterURL, nil)
 
 	srv := queue.NewServer(queue.ServerConfig{
 		RedisAddr:   cfg.Valkey.URL,
@@ -49,6 +53,10 @@ func main() {
 	webhookRepo := repository.NewWebhookRepository(pool)
 	webhookDeliveryHandler := jobs.NewWebhookDeliveryHandler(pool, webhookRepo, logger)
 	srv.Mux().Handle(queue.TypeWebhookDelivery, webhookDeliveryHandler)
+
+	// Register document processing handler (overrides the stub in queue.Server).
+	srv.Mux().HandleFunc(queue.TypeDocumentProcess,
+		jobs.NewDocumentProcessHandler(pool, docRepo, chunkRepo, storageClient, logger))
 
 	errCh := make(chan error, 1)
 
