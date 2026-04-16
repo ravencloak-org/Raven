@@ -17,14 +17,28 @@ type AuthServicer interface {
 	Create(ctx context.Context, externalID, email, displayName string) (*model.User, error)
 }
 
+// DemoOrgJoiner is an optional interface that auto-joins new users to the demo
+// organisation as viewers. When nil, the auto-join step is skipped.
+type DemoOrgJoiner interface {
+	// JoinDemoOrg adds the user as a viewer to the first workspace of the demo org.
+	// Returns silently on any error (best-effort).
+	JoinDemoOrg(ctx context.Context, userID string)
+}
+
 // AuthHandler handles authentication callback endpoints.
 type AuthHandler struct {
-	svc AuthServicer
+	svc      AuthServicer
+	demoJoin DemoOrgJoiner
 }
 
 // NewAuthHandler creates a new AuthHandler.
-func NewAuthHandler(svc AuthServicer) *AuthHandler {
-	return &AuthHandler{svc: svc}
+// Pass optional DemoOrgJoiner instances (at most one) to enable auto-join on signup.
+func NewAuthHandler(svc AuthServicer, opts ...DemoOrgJoiner) *AuthHandler {
+	h := &AuthHandler{svc: svc}
+	if len(opts) > 0 {
+		h.demoJoin = opts[0]
+	}
+	return h
 }
 
 // Callback handles POST /api/v1/auth/callback.
@@ -62,13 +76,22 @@ func (h *AuthHandler) Callback(c *gin.Context) {
 			c.Abort()
 			return
 		}
+
+		// Auto-join demo org as viewer (best-effort, non-blocking).
+		if h.demoJoin != nil {
+			h.demoJoin.JoinDemoOrg(c.Request.Context(), user.ID)
+		}
+
 		c.JSON(http.StatusOK, gin.H{"isNewUser": true, "userId": user.ID})
 		return
 	}
 
 	// Existing user
 	if user.OrgID == nil {
-		// Abandoned onboarding — re-enter
+		// Abandoned onboarding — also try auto-join in case they missed it.
+		if h.demoJoin != nil {
+			h.demoJoin.JoinDemoOrg(c.Request.Context(), user.ID)
+		}
 		c.JSON(http.StatusOK, gin.H{"isNewUser": true, "userId": user.ID})
 		return
 	}

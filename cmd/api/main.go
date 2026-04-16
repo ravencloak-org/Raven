@@ -53,6 +53,7 @@ import (
 	"github.com/ravencloak-org/Raven/internal/storage"
 	"github.com/ravencloak-org/Raven/internal/stt"
 	"github.com/ravencloak-org/Raven/internal/telemetry"
+	"github.com/ravencloak-org/Raven/internal/tmdb"
 	"github.com/ravencloak-org/Raven/internal/tts"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 	lk "github.com/ravencloak-org/Raven/pkg/livekit"
@@ -169,6 +170,12 @@ func main() {
 		WebsiteDomain: cfg.SuperTokens.WebsiteDomain,
 	}); err != nil {
 		log.Fatalf("failed to initialize SuperTokens: %v", err)
+	}
+
+	// TMDB client for demo seed endpoint.
+	var tmdbClient *tmdb.Client
+	if cfg.TMDB.APIKey != "" {
+		tmdbClient = tmdb.NewClient(cfg.TMDB.BaseURL, cfg.TMDB.APIKey, nil)
 	}
 
 	// Set Gin mode
@@ -437,6 +444,8 @@ func main() {
 	leadHandler := handler.NewLeadHandler(leadSvc)
 	whatsappHandler := handler.NewWhatsAppHandler(whatsappSvc)
 	billingHandler := handler.NewBillingHandler(billingSvc)
+	seedSvc := service.NewSeedService(orgSvc, wsSvc, kbSvc, docRepo, pool, tmdbClient, seaweedClient, queueClient)
+	seedHandler := handler.NewSeedHandler(seedSvc)
 
 	// Create router
 	router := gin.Default()
@@ -446,6 +455,14 @@ func main() {
 	router.Use(middleware.SecurityHeadersMiddleware())
 	router.Use(middleware.CORSMiddleware(&cfg.CORS))
 	router.Use(apierror.ErrorHandler())
+
+	// Set seed key in context for X-Seed-Key header authentication.
+	if cfg.Seed.Key != "" {
+		router.Use(func(c *gin.Context) {
+			c.Set(string(middleware.ContextKeySeedKey), cfg.Seed.Key)
+			c.Next()
+		})
+	}
 
 	// Infrastructure endpoint — intentionally outside the versioned group.
 	// Excluded from rate limiting.
@@ -761,10 +778,15 @@ func main() {
 	router.GET("/webhooks/meta", metaWebhookHandler.VerifyWebhook)
 	router.POST("/webhooks/meta", metaWebhookHandler.HandleEvent)
 
+	// --- Admin routes (seed key or session auth) ---
+	admin := router.Group("/api/v1/admin")
+	admin.POST("/seed-demo", seedHandler.SeedDemo)
+
 	// Auth callback — outside the session-protected /api/v1 group.
 	// We verify the session directly via the SuperTokens SDK rather than
 	// relying on SessionMiddleware (cookies may not be available yet).
-	authHandler := handler.NewAuthHandler(userSvc)
+	demoJoiner := service.NewDemoOrgJoiner(orgSvc, wsSvc)
+	authHandler := handler.NewAuthHandler(userSvc, demoJoiner)
 	router.GET("/api/v1/auth/callback", func(c *gin.Context) {
 		info, err := authProvider.VerifySession(c.Request)
 		if err != nil || info == nil {
