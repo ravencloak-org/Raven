@@ -1909,3 +1909,15 @@ If they agree to the companion, read the detailed guide before proceeding:
 ---
 
 404 while chatting
+
+---
+
+Request failed: 500
+
+---
+
+[Image #1] why is there sidebar to create new org?
+
+---
+
+[Image: source: /Users/jobinlawrance/Downloads/app.ravencloak.REDACTED.png]

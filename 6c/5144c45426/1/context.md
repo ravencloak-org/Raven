@@ -558,3 +558,15 @@ Do NOT invoke any implementatio...
 
 404 while chatting
 
+### Prompt 105
+
+Request failed: 500
+
+### Prompt 106
+
+[Image #1] why is there sidebar to create new org?
+
+### Prompt 107
+
+[Image: source: /Users/jobinlawrance/Downloads/app.ravencloak.REDACTED.png]
+

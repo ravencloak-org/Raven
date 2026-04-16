@@ -16,7 +16,7 @@
     "docker-compose.yml",
     "frontend/Dockerfile",
     "frontend/nginx.conf",
-    "frontend/src/pages/knowledge-bases/KBDetailPage.vue",
+    "frontend/src/layouts/DefaultLayout.vue",
     "internal/auth/claims.go",
     "internal/auth/supertokens.go",
     "internal/auth/supertokens_init.go",
@@ -57,10 +57,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 60,
-    "cache_creation_tokens": 14866,
-    "cache_read_tokens": 17687778,
-    "output_tokens": 6927,
-    "api_call_count": 35
+    "input_tokens": 70,
+    "cache_creation_tokens": 19974,
+    "cache_read_tokens": 24826246,
+    "output_tokens": 8434,
+    "api_call_count": 43
   }
 }
