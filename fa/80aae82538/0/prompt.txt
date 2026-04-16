@@ -1,0 +1,1931 @@
+Execute the Zitadel migration plan at docs/superpowers/plans/2026-04-13-zitadel-migration.md using subagent-driven development. Branch: feat/zitadel-migration. Start from Task 1 in parallel
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.5/skills/subagent-driven-development
+
+# Subagent-Driven Development
+
+Execute plan by dispatching fresh subagent per task, with two-stage review after each: spec compliance review first, then code quality review.
+
+**Why subagents:** You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions and context, you ensure they stay focused and succeed at their task. They should never inherit your session's context or history — you construct exactly what they need. This also preserves your own context for coordination work.
+
+**Core principle:** Fresh subagent per task + two-stage review (spec then quality) = high quality, fast iteration
+
+## When to Use
+
+```dot
+digraph when_to_use {
+    "Have implementation plan?" [shape=diamond];
+    "Tasks mostly independent?" [shape=diamond];
+    "Stay in this session?" [shape=diamond];
+    "subagent-driven-development" [shape=box];
+    "executing-plans" [shape=box];
+    "Manual execution or brainstorm first" [shape=box];
+
+    "Have implementation plan?" -> "Tasks mostly independent?" [label="yes"];
+    "Have implementation plan?" -> "Manual execution or brainstorm first" [label="no"];
+    "Tasks mostly independent?" -> "Stay in this session?" [label="yes"];
+    "Tasks mostly independent?" -> "Manual execution or brainstorm first" [label="no - tightly coupled"];
+    "Stay in this session?" -> "subagent-driven-development" [label="yes"];
+    "Stay in this session?" -> "executing-plans" [label="no - parallel session"];
+}
+```
+
+**vs. Executing Plans (parallel session):**
+- Same session (no context switch)
+- Fresh subagent per task (no context pollution)
+- Two-stage review after each task: spec compliance first, then code quality
+- Faster iteration (no human-in-loop between tasks)
+
+## The Process
+
+```dot
+digraph process {
+    rankdir=TB;
+
+    subgraph cluster_per_task {
+        label="Per Task";
+        "Dispatch implementer subagent (./implementer-prompt.md)" [shape=box];
+        "Implementer subagent asks questions?" [shape=diamond];
+        "Answer questions, provide context" [shape=box];
+        "Implementer subagent implements, tests, commits, self-reviews" [shape=box];
+        "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [shape=box];
+        "Spec reviewer subagent confirms code matches spec?" [shape=diamond];
+        "Implementer subagent fixes spec gaps" [shape=box];
+        "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [shape=box];
+        "Code quality reviewer subagent approves?" [shape=diamond];
+        "Implementer subagent fixes quality issues" [shape=box];
+        "Mark task complete in TodoWrite" [shape=box];
+    }
+
+    "Read plan, extract all tasks with full text, note context, create TodoWrite" [shape=box];
+    "More tasks remain?" [shape=diamond];
+    "Dispatch final code reviewer subagent for entire implementation" [shape=box];
+    "Use superpowers:finishing-a-development-branch" [shape=box style=filled fillcolor=lightgreen];
+
+    "Read plan, extract all tasks with full text, note context, create TodoWrite" -> "Dispatch implementer subagent (./implementer-prompt.md)";
+    "Dispatch implementer subagent (./implementer-prompt.md)" -> "Implementer subagent asks questions?";
+    "Implementer subagent asks questions?" -> "Answer questions, provide context" [label="yes"];
+    "Answer questions, provide context" -> "Dispatch implementer subagent (./implementer-prompt.md)";
+    "Implementer subagent asks questions?" -> "Implementer subagent implements, tests, commits, self-reviews" [label="no"];
+    "Implementer subagent implements, tests, commits, self-reviews" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)";
+    "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" -> "Spec reviewer subagent confirms code matches spec?";
+    "Spec reviewer subagent confirms code matches spec?" -> "Implementer subagent fixes spec gaps" [label="no"];
+    "Implementer subagent fixes spec gaps" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [label="re-review"];
+    "Spec reviewer subagent confirms code matches spec?" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="yes"];
+    "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" -> "Code quality reviewer subagent approves?";
+    "Code quality reviewer subagent approves?" -> "Implementer subagent fixes quality issues" [label="no"];
+    "Implementer subagent fixes quality issues" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="re-review"];
+    "Code quality reviewer subagent approves?" -> "Mark task complete in TodoWrite" [label="yes"];
+    "Mark task complete in TodoWrite" -> "More tasks remain?";
+    "More tasks remain?" -> "Dispatch implementer subagent (./implementer-prompt.md)" [label="yes"];
+    "More tasks remain?" -> "Dispatch final code reviewer subagent for entire implementation" [label="no"];
+    "Dispatch final code reviewer subagent for entire implementation" -> "Use superpowers:finishing-a-development-branch";
+}
+```
+
+## Model Selection
+
+Use the least powerful model that can handle each role to conserve cost and increase speed.
+
+**Mechanical implementation tasks** (isolated functions, clear specs, 1-2 files): use a fast, cheap model. Most implementation tasks are mechanical when the plan is well-specified.
+
+**Integration and judgment tasks** (multi-file coordination, pattern matching, debugging): use a standard model.
+
+**Architecture, design, and review tasks**: use the most capable available model.
+
+**Task complexity signals:**
+- Touches 1-2 files with a complete spec → cheap model
+- Touches multiple files with integration concerns → standard model
+- Requires design judgment or broad codebase understanding → most capable model
+
+## Handling Implementer Status
+
+Implementer subagents report one of four statuses. Handle each appropriately:
+
+**DONE:** Proceed to spec compliance review.
+
+**DONE_WITH_CONCERNS:** The implementer completed the work but flagged doubts. Read the concerns before proceeding. If the concerns are about correctness or scope, address them before review. If they're observations (e.g., "this file is getting large"), note them and proceed to review.
+
+**NEEDS_CONTEXT:** The implementer needs information that wasn't provided. Provide the missing context and re-dispatch.
+
+**BLOCKED:** The implementer cannot complete the task. Assess the blocker:
+1. If it's a context problem, provide more context and re-dispatch with the same model
+2. If the task requires more reasoning, re-dispatch with a more capable model
+3. If the task is too large, break it into smaller pieces
+4. If the plan itself is wrong, escalate to the human
+
+**Never** ignore an escalation or force the same model to retry without changes. If the implementer said it's stuck, something needs to change.
+
+## Prompt Templates
+
+- `./implementer-prompt.md` - Dispatch implementer subagent
+- `./spec-reviewer-prompt.md` - Dispatch spec compliance reviewer subagent
+- `./code-quality-reviewer-prompt.md` - Dispatch code quality reviewer subagent
+
+## Example Workflow
+
+```
+You: I'm using Subagent-Driven Development to execute this plan.
+
+[Read plan file once: docs/superpowers/plans/feature-plan.md]
+[Extract all 5 tasks with full text and context]
+[Create TodoWrite with all tasks]
+
+Task 1: Hook installation script
+
+[Get Task 1 text and context (already extracted)]
+[Dispatch implementation subagent with full task text + context]
+
+Implementer: "Before I begin - should the hook be installed at user or system level?"
+
+You: "User level (~/.config/superpowers/hooks/)"
+
+Implementer: "Got it. Implementing now..."
+[Later] Implementer:
+  - Implemented install-hook command
+  - Added tests, 5/5 passing
+  - Self-review: Found I missed --force flag, added it
+  - Committed
+
+[Dispatch spec compliance reviewer]
+Spec reviewer: ✅ Spec compliant - all requirements met, nothing extra
+
+[Get git SHAs, dispatch code quality reviewer]
+Code reviewer: Strengths: Good test coverage, clean. Issues: None. Approved.
+
+[Mark Task 1 complete]
+
+Task 2: Recovery modes
+
+[Get Task 2 text and context (already extracted)]
+[Dispatch implementation subagent with full task text + context]
+
+Implementer: [No questions, proceeds]
+Implementer:
+  - Added verify/repair modes
+  - 8/8 tests passing
+  - Self-review: All good
+  - Committed
+
+[Dispatch spec compliance reviewer]
+Spec reviewer: ❌ Issues:
+  - Missing: Progress reporting (spec says "report every 100 items")
+  - Extra: Added --json flag (not requested)
+
+[Implementer fixes issues]
+Implementer: Removed --json flag, added progress reporting
+
+[Spec reviewer reviews again]
+Spec reviewer: ✅ Spec compliant now
+
+[Dispatch code quality reviewer]
+Code reviewer: Strengths: Solid. Issues (Important): Magic number (100)
+
+[Implementer fixes]
+Implementer: Extracted PROGRESS_INTERVAL constant
+
+[Code reviewer reviews again]
+Code reviewer: ✅ Approved
+
+[Mark Task 2 complete]
+
+...
+
+[After all tasks]
+[Dispatch final code-reviewer]
+Final reviewer: All requirements met, ready to merge
+
+Done!
+```
+
+## Advantages
+
+**vs. Manual execution:**
+- Subagents follow TDD naturally
+- Fresh context per task (no confusion)
+- Parallel-safe (subagents don't interfere)
+- Subagent can ask questions (before AND during work)
+
+**vs. Executing Plans:**
+- Same session (no handoff)
+- Continuous progress (no waiting)
+- Review checkpoints automatic
+
+**Efficiency gains:**
+- No file reading overhead (controller provides full text)
+- Controller curates exactly what context is needed
+- Subagent gets complete information upfront
+- Questions surfaced before work begins (not after)
+
+**Quality gates:**
+- Self-review catches issues before handoff
+- Two-stage review: spec compliance, then code quality
+- Review loops ensure fixes actually work
+- Spec compliance prevents over/under-building
+- Code quality ensures implementation is well-built
+
+**Cost:**
+- More subagent invocations (implementer + 2 reviewers per task)
+- Controller does more prep work (extracting all tasks upfront)
+- Review loops add iterations
+- But catches issues early (cheaper than debugging later)
+
+## Red Flags
+
+**Never:**
+- Start implementation on main/master branch without explicit user consent
+- Skip reviews (spec compliance OR code quality)
+- Proceed with unfixed issues
+- Dispatch multiple implementation subagents in parallel (conflicts)
+- Make subagent read plan file (provide full text instead)
+- Skip scene-setting context (subagent needs to understand where task fits)
+- Ignore subagent questions (answer before letting them proceed)
+- Accept "close enough" on spec compliance (spec reviewer found issues = not done)
+- Skip review loops (reviewer found issues = implementer fixes = review again)
+- Let implementer self-review replace actual review (both are needed)
+- **Start code quality review before spec compliance is ✅** (wrong order)
+- Move to next task while either review has open issues
+
+**If subagent asks questions:**
+- Answer clearly and completely
+- Provide additional context if needed
+- Don't rush them into implementation
+
+**If reviewer finds issues:**
+- Implementer (same subagent) fixes them
+- Reviewer reviews again
+- Repeat until approved
+- Don't skip the re-review
+
+**If subagent fails task:**
+- Dispatch fix subagent with specific instructions
+- Don't try to fix manually (context pollution)
+
+## Integration
+
+**Required workflow skills:**
+- **superpowers:using-git-worktrees** - REQUIRED: Set up isolated workspace before starting
+- **superpowers:writing-plans** - Creates the plan this skill executes
+- **superpowers:requesting-code-review** - Code review template for reviewer subagents
+- **superpowers:finishing-a-development-branch** - Complete development after all tasks
+
+**Subagents should use:**
+- **superpowers:test-driven-development** - Subagents follow TDD for each task
+
+**Alternative workflow:**
+- **superpowers:executing-plans** - Use for parallel session instead of same-session execution
+
+---
+
+go for it
+
+---
+
+resolve conflicts
+
+---
+
+https://github.REDACTED?pr=288
+
+---
+
+https://github.REDACTED?pr=288
+
+---
+
+https://github.com/ravencloak-org/Raven/pull/288#discussion_r3073034657
+
+---
+
+use cf cli to deploy and point
+
+---
+
+fix  all the comments right now in the PR
+
+---
+
+i'm setting up on the cloudflare worker dashboard, what's the build command for cf to build before running npx wrangler deploy
+
+---
+
+Initializing build environment...
+18:59:43.639    Success: Finished initializing build environment
+18:59:44.871    Cloning repository...
+18:59:47.925    No build output detected to cache. Skipping.
+18:59:47.925    No dependencies detected to cache. Skipping.
+18:59:47.926    Detected the following tools from environment: 
+18:59:48.124    Executing user build command: npm run build
+18:59:48.654    npm error code ENOENT
+18:59:48.656    npm error syscall open
+18:59:48.656    npm error path /opt/buildhome/repo/package.json
+18:59:48.656    npm error errno -2
+18:59:48.656    npm error enoent Could not read package.json: Error: ENOENT: no such file or directory, open '/opt/buildhome/repo/package.json'
+18:59:48.656    npm error enoent This is related to npm not being able to find a file.
+18:59:48.656    npm error enoent
+18:59:48.656    npm error A complete log of this run can be found in: /opt/buildhome/.npm/_logs/2026-04-13T13_29_48_555Z-debug-0.log
+18:59:48.674    Failed: error occurred while running build command
+
+---
+
+2026-04-13T13:32:54.298Z    Initializing build environment...
+2026-04-13T13:32:56.512Z    Success: Finished initializing build environment
+2026-04-13T13:32:57.571Z    Cloning repository...
+2026-04-13T13:33:00.256Z    Restoring from dependencies cache
+2026-04-13T13:33:00.258Z    Restoring from build output cache
+2026-04-13T13:33:00.262Z    Detected the following tools from environment: npm@10.9.2, nodejs@22.16.0
+2026-04-13T13:33:00.415Z    Installing project dependencies: npm clean-install --progress=false
+2026-04-13T13:33:06.472Z    npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-04-13T13:33:09.708Z    
+2026-04-13T13:33:09.708Z    added 311 packages, and audited 312 packages in 9s
+2026-04-13T13:33:09.710Z    
+2026-04-13T13:33:09.711Z    87 packages are looking for funding
+2026-04-13T13:33:09.711Z      run `npm fund` for details
+2026-04-13T13:33:09.711Z    
+2026-04-13T13:33:09.711Z    found 0 vulnerabilities
+2026-04-13T13:33:10.026Z    Executing user build command: npm run build
+2026-04-13T13:33:10.363Z    
+2026-04-13T13:33:10.364Z    > frontend@0.0.0 build
+2026-04-13T13:33:10.365Z    > vue-tsc -b && vite build
+2026-04-13T13:33:10.365Z    
+2026-04-13T13:33:21.072Z    vite v8.0.8 building client environment for production...
+2026-04-13T13:33:22.316Z    
+transforming...✓ 301 modules transformed.
+2026-04-13T13:33:22.359Z    rendering chunks...
+2026-04-13T13:33:22.431Z    computing gzip size...
+2026-04-13T13:33:22.439Z    dist/index.html                                     1.23 kB │ gzip:  0.55 kB
+2026-04-13T13:33:22.440Z    dist/assets/BottomSheet-B05-ZEKU.css                0.38 kB │ gzip:  0.16 kB
+2026-04-13T13:33:22.440Z    dist/assets/DefaultLayout-vnxiDs-_.css              0.39 kB │ gzip:  0.16 kB
+2026-04-13T13:33:22.440Z    dist/assets/index-Du8pvB9F.css                     55.71 kB │ gzip:  9.87 kB
+2026-04-13T13:33:22.440Z    dist/assets/isDefined-BuTrd9am.js                   0.04 kB │ gzip:  0.06 kB
+2026-04-13T13:33:22.440Z    dist/assets/_plugin-vue_export-helper-B67ILkmu.js   0.08 kB │ gzip:  0.09 kB
+2026-04-13T13:33:22.440Z    dist/assets/map-gg_Sod8E.js                         0.15 kB │ gzip:  0.15 kB
+2026-04-13T13:33:22.440Z    dist/assets/filter-BYYPtzXZ.js                      0.20 kB │ gzip:  0.16 kB
+2026-04-13T13:33:22.440Z    dist/assets/purry-CBXoOPXU.js                       0.23 kB │ gzip:  0.18 kB
+2026-04-13T13:33:22.440Z    dist/assets/useAuth-1BiDgGg0.js                     0.24 kB │ gzip:  0.18 kB
+2026-04-13T13:33:22.440Z    dist/assets/findIndex-M-4JrFvd.js                   0.31 kB │ gzip:  0.22 kB
+2026-04-13T13:33:22.440Z    dist/assets/useMediaQuery-BN72Xanz.js               0.34 kB │ gzip:  0.24 kB
+2026-04-13T13:33:22.440Z    dist/assets/AuthLayout-CCp8fyeI.js                  0.43 kB │ gzip:  0.32 kB
+2026-04-13T13:33:22.441Z    dist/assets/NotFoundPage-mLpeEMGX.js                0.68 kB │ gzip:  0.45 kB
+2026-04-13T13:33:22.441Z    dist/assets/LoginPage-DhFb6RfW.js                   0.82 kB │ gzip:  0.50 kB
+2026-04-13T13:33:22.441Z    dist/assets/DashboardPage-DR8Ndh03.js               1.27 kB │ gzip:  0.50 kB
+2026-04-13T13:33:22.444Z    dist/assets/BottomSheet-Dw3SJV3Z.js                 1.28 kB │ gzip:  0.72 kB
+2026-04-13T13:33:22.445Z    dist/assets/OrgDetailPage-BrxQJoDY.js               1.64 kB │ gzip:  0.88 kB
+2026-04-13T13:33:22.445Z    dist/assets/billing-CRn0VWmQ.js                     1.70 kB │ gzip:  0.76 kB
+2026-04-13T13:33:22.446Z    dist/assets/ResponsiveModal-CLxsRGhg.js             1.82 kB │ gzip:  0.93 kB
+2026-04-13T13:33:22.446Z    dist/assets/workspaces-BWP4mRw4.js                  1.95 kB │ gzip:  0.81 kB
+2026-04-13T13:33:22.446Z    dist/assets/knowledge-bases-BQbm4Iai.js             3.25 kB │ gzip:  1.23 kB
+2026-04-13T13:33:22.446Z    dist/assets/whatsapp-BovTLgpK.js                    3.35 kB │ gzip:  1.10 kB
+2026-04-13T13:33:22.446Z    dist/assets/WorkspaceDetailPage-5B8W1pLn.js         3.37 kB │ gzip:  1.48 kB
+2026-04-13T13:33:22.447Z    dist/assets/WorkspaceListPage-BEJFrP5i.js           3.63 kB │ gzip:  1.67 kB
+2026-04-13T13:33:22.450Z    dist/assets/VoiceStatusBadge-DTvAXL1n.js            3.70 kB │ gzip:  1.34 kB
+2026-04-13T13:33:22.450Z    dist/assets/VoiceSessionDetailPage-B_bhH_Ct.js      5.10 kB │ gzip:  2.05 kB
+2026-04-13T13:33:22.450Z    dist/assets/PhoneNumbersPage-CgoqAIa7.js            5.71 kB │ gzip:  1.94 kB
+2026-04-13T13:33:22.450Z    dist/assets/VoiceSessionListPage-CwUo9YZV.js        6.51 kB │ gzip:  2.47 kB
+2026-04-13T13:33:22.450Z    dist/assets/KBListPage-Cga-Ga49.js                  7.34 kB │ gzip:  2.76 kB
+2026-04-13T13:33:22.451Z    dist/assets/BillingPage-DcOQZzUB.js                 7.60 kB │ gzip:  2.35 kB
+2026-04-13T13:33:22.451Z    dist/assets/index-CZQgz0L6.js                       7.89 kB │ gzip:  2.69 kB
+2026-04-13T13:33:22.451Z    dist/assets/KBDetailPage-CHLB_SOh.js                8.21 kB │ gzip:  2.66 kB
+2026-04-13T13:33:22.451Z    dist/assets/PrivacyPolicyPage-BCrbX_st.js           8.29 kB │ gzip:  3.41 kB
+2026-04-13T13:33:22.451Z    dist/assets/TermsOfServicePage-DF3PqFRO.js          8.62 kB │ gzip:  3.45 kB
+2026-04-13T13:33:22.451Z    dist/assets/AnalyticsDashboardPage-Bdjistzj.js     10.23 kB │ gzip:  3.65 kB
+2026-04-13T13:33:22.452Z    dist/assets/TestSandboxPage-1zu3RKU2.js            10.55 kB │ gzip:  4.47 kB
+2026-04-13T13:33:22.452Z    dist/assets/runtime-dom.esm-bundler-BXcwcHwm.js    11.78 kB │ gzip:  5.19 kB
+2026-04-13T13:33:22.452Z    dist/assets/LlmProviderListPage-DiI0SChY.js        12.28 kB │ gzip:  3.85 kB
+2026-04-13T13:33:22.452Z    dist/assets/CallsPage-DJxJTgH-.js                  12.73 kB │ gzip:  3.91 kB
+2026-04-13T13:33:22.452Z    dist/assets/ChatbotConfiguratorPage-DMfN14oM.js    13.36 kB │ gzip:  4.25 kB
+2026-04-13T13:33:22.452Z    dist/assets/ApiKeyListPage-D26_A3ka.js             16.42 kB │ gzip:  5.34 kB
+2026-04-13T13:33:22.452Z    dist/assets/vue-router-C3SvtPhR.js                 24.79 kB │ gzip:  9.57 kB
+2026-04-13T13:33:22.452Z    dist/assets/DefaultLayout-BzWUojUt.js              25.75 kB │ gzip:  6.61 kB
+2026-04-13T13:33:22.453Z    dist/assets/auth-BplsYSr5.js                       33.49 kB │ gzip: 11.34 kB
+2026-04-13T13:33:22.453Z    dist/assets/runtime-core.esm-bundler-C1FkKo2-.js   62.53 kB │ gzip: 24.59 kB
+2026-04-13T13:33:22.453Z    
+2026-04-13T13:33:22.453Z    ✓ built in 1.36s
+2026-04-13T13:33:22.539Z    Success: Build command completed
+2026-04-13T13:33:23.330Z    Executing user deploy command: npx wrangler deploy
+2026-04-13T13:33:25.786Z    npm warn exec The following package was not found and will be installed: wrangler@4.82.0
+2026-04-13T13:33:38.067Z    
+2026-04-13T13:33:38.067Z     ⛅️ wrangler 4.82.0
+2026-04-13T13:33:38.067Z    ───────────────────
+2026-04-13T13:33:38.164Z    ▲ [WARNING] Multiple environments are defined in the Wrangler configuration file, but no target environment was specified for the deploy command.
+2026-04-13T13:33:38.165Z    
+2026-04-13T13:33:38.166Z      To avoid unintentional changes to the wrong environment, it is recommended to explicitly specify the target environment using the `-e|--env` flag.
+2026-04-13T13:33:38.167Z      If your intention is to use the top-level environment of your configuration simply pass an empty string to the flag to target such environment. For example `--env=""`.
+2026-04-13T13:33:38.167Z    
+2026-04-13T13:33:38.168Z    
+2026-04-13T13:33:38.338Z    ▲ [WARNING] It seems that you have run `wrangler deploy` on a Pages project, `wrangler pages deploy` should be used instead. Proceeding will likely produce unwanted results.
+2026-04-13T13:33:38.338Z    
+2026-04-13T13:33:38.339Z    
+2026-04-13T13:33:38.339Z    ? Are you sure that you want to proceed?
+2026-04-13T13:33:38.340Z    🤖 Using fallback value in non-interactive context: yes
+2026-04-13T13:33:38.347Z    
+2026-04-13T13:33:38.347Z    Cloudflare collects anonymous telemetry about your usage of Wrangler. Learn more at https://github.com/cloudflare/workers-sdk/tree/main/packages/wrangler/telemetry.md
+2026-04-13T13:33:38.349Z    
+2026-04-13T13:33:38.354Z    ✘ [ERROR] Missing entry-point to Worker script or to assets directory
+2026-04-13T13:33:38.354Z    
+2026-04-13T13:33:38.355Z      
+2026-04-13T13:33:38.355Z      If there is code to deploy, you can either:
+2026-04-13T13:33:38.355Z      - Specify an entry-point to your Worker script via the command line (ex: `npx wrangler deploy src/index.ts`)
+2026-04-13T13:33:38.355Z      - Or add the following to your "wrangler.toml" file:
+2026-04-13T13:33:38.355Z      
+2026-04-13T13:33:38.355Z      ```
+2026-04-13T13:33:38.355Z      compatibility_date = "2026-04-13"
+2026-04-13T13:33:38.355Z      main = "src/index.ts"
+2026-04-13T13:33:38.356Z      
+2026-04-13T13:33:38.356Z      ```
+2026-04-13T13:33:38.356Z      
+2026-04-13T13:33:38.356Z      
+2026-04-13T13:33:38.356Z      If are uploading a directory of assets, you can either:
+2026-04-13T13:33:38.356Z      - Specify the path to the directory of assets via the command line: (ex: `npx wrangler deploy --assets=./dist`)
+2026-04-13T13:33:38.356Z      - Or add the following to your "wrangler.toml" file:
+2026-04-13T13:33:38.357Z      
+2026-04-13T13:33:38.357Z      ```
+2026-04-13T13:33:38.357Z      compatibility_date = "2026-04-13"
+2026-04-13T13:33:38.357Z      
+2026-04-13T13:33:38.357Z      [assets]
+2026-04-13T13:33:38.357Z      directory = "./dist"
+2026-04-13T13:33:38.357Z      
+2026-04-13T13:33:38.358Z      ```
+2026-04-13T13:33:38.358Z      
+2026-04-13T13:33:38.358Z    
+2026-04-13T13:33:38.358Z    
+2026-04-13T13:33:38.395Z    🪵  Logs were written to "/opt/buildhome/.config/.wrangler/logs/wrangler-2026-04-13_13-33-36_942.log"
+2026-04-13T13:33:38.527Z    Failed: error occurred while running deploy command
+
+---
+
+2026-04-13T13:36:37.942Z    Initializing build environment...
+2026-04-13T13:36:37.942Z    Initializing build environment...
+2026-04-13T13:36:39.654Z    Success: Finished initializing build environment
+2026-04-13T13:36:40.501Z    Cloning repository...
+2026-04-13T13:36:42.432Z    Restoring from dependencies cache
+2026-04-13T13:36:42.434Z    Restoring from build output cache
+2026-04-13T13:36:42.438Z    Detected the following tools from environment: npm@10.9.2, nodejs@22.16.0
+2026-04-13T13:36:42.515Z    Installing project dependencies: npm clean-install --progress=false
+2026-04-13T13:36:46.675Z    npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-04-13T13:36:49.172Z    
+2026-04-13T13:36:49.172Z    added 311 packages, and audited 312 packages in 6s
+2026-04-13T13:36:49.172Z    
+2026-04-13T13:36:49.172Z    87 packages are looking for funding
+2026-04-13T13:36:49.172Z      run `npm fund` for details
+2026-04-13T13:36:49.173Z    
+2026-04-13T13:36:49.174Z    found 0 vulnerabilities
+2026-04-13T13:36:49.535Z    Executing user build command: npm run build
+2026-04-13T13:36:49.815Z    
+2026-04-13T13:36:49.815Z    > frontend@0.0.0 build
+2026-04-13T13:36:49.815Z    > vue-tsc -b && vite build
+2026-04-13T13:36:49.815Z    
+2026-04-13T13:36:57.787Z    vite v8.0.8 building client environment for production...
+2026-04-13T13:36:58.781Z    
+transforming...✓ 301 modules transformed.
+2026-04-13T13:36:58.812Z    rendering chunks...
+2026-04-13T13:36:58.864Z    computing gzip size...
+2026-04-13T13:36:58.867Z    dist/index.html                                     1.23 kB │ gzip:  0.55 kB
+2026-04-13T13:36:58.867Z    dist/assets/BottomSheet-B05-ZEKU.css                0.38 kB │ gzip:  0.16 kB
+2026-04-13T13:36:58.868Z    dist/assets/DefaultLayout-vnxiDs-_.css              0.39 kB │ gzip:  0.16 kB
+2026-04-13T13:36:58.868Z    dist/assets/index-Du8pvB9F.css                     55.71 kB │ gzip:  9.87 kB
+2026-04-13T13:36:58.868Z    dist/assets/isDefined-BuTrd9am.js                   0.04 kB │ gzip:  0.06 kB
+2026-04-13T13:36:58.868Z    dist/assets/_plugin-vue_export-helper-B67ILkmu.js   0.08 kB │ gzip:  0.09 kB
+2026-04-13T13:36:58.868Z    dist/assets/map-gg_Sod8E.js                         0.15 kB │ gzip:  0.15 kB
+2026-04-13T13:36:58.868Z    dist/assets/filter-BYYPtzXZ.js                      0.20 kB │ gzip:  0.16 kB
+2026-04-13T13:36:58.868Z    dist/assets/purry-CBXoOPXU.js                       0.23 kB │ gzip:  0.18 kB
+2026-04-13T13:36:58.868Z    dist/assets/useAuth-1BiDgGg0.js                     0.24 kB │ gzip:  0.18 kB
+2026-04-13T13:36:58.868Z    dist/assets/findIndex-M-4JrFvd.js                   0.31 kB │ gzip:  0.22 kB
+2026-04-13T13:36:58.868Z    dist/assets/useMediaQuery-BN72Xanz.js               0.34 kB │ gzip:  0.24 kB
+2026-04-13T13:36:58.868Z    dist/assets/AuthLayout-CCp8fyeI.js                  0.43 kB │ gzip:  0.32 kB
+2026-04-13T13:36:58.868Z    dist/assets/NotFoundPage-mLpeEMGX.js                0.68 kB │ gzip:  0.45 kB
+2026-04-13T13:36:58.869Z    dist/assets/LoginPage-DhFb6RfW.js                   0.82 kB │ gzip:  0.50 kB
+2026-04-13T13:36:58.869Z    dist/assets/DashboardPage-DR8Ndh03.js               1.27 kB │ gzip:  0.50 kB
+2026-04-13T13:36:58.869Z    dist/assets/BottomSheet-Dw3SJV3Z.js                 1.28 kB │ gzip:  0.72 kB
+2026-04-13T13:36:58.869Z    dist/assets/OrgDetailPage-BrxQJoDY.js               1.64 kB │ gzip:  0.88 kB
+2026-04-13T13:36:58.869Z    dist/assets/billing-CRn0VWmQ.js                     1.70 kB │ gzip:  0.76 kB
+2026-04-13T13:36:58.870Z    dist/assets/ResponsiveModal-CLxsRGhg.js             1.82 kB │ gzip:  0.93 kB
+2026-04-13T13:36:58.870Z    dist/assets/workspaces-BWP4mRw4.js                  1.95 kB │ gzip:  0.81 kB
+2026-04-13T13:36:58.870Z    dist/assets/knowledge-bases-BQbm4Iai.js             3.25 kB │ gzip:  1.23 kB
+2026-04-13T13:36:58.870Z    dist/assets/whatsapp-BovTLgpK.js                    3.35 kB │ gzip:  1.10 kB
+2026-04-13T13:36:58.870Z    dist/assets/WorkspaceDetailPage-5B8W1pLn.js         3.37 kB │ gzip:  1.48 kB
+2026-04-13T13:36:58.870Z    dist/assets/WorkspaceListPage-BEJFrP5i.js           3.63 kB │ gzip:  1.67 kB
+2026-04-13T13:36:58.871Z    dist/assets/VoiceStatusBadge-DTvAXL1n.js            3.70 kB │ gzip:  1.34 kB
+2026-04-13T13:36:58.871Z    dist/assets/VoiceSessionDetailPage-B_bhH_Ct.js      5.10 kB │ gzip:  2.05 kB
+2026-04-13T13:36:58.871Z    dist/assets/PhoneNumbersPage-CgoqAIa7.js            5.71 kB │ gzip:  1.94 kB
+2026-04-13T13:36:58.871Z    dist/assets/VoiceSessionListPage-CwUo9YZV.js        6.51 kB │ gzip:  2.47 kB
+2026-04-13T13:36:58.871Z    dist/assets/KBListPage-Cga-Ga49.js                  7.34 kB │ gzip:  2.76 kB
+2026-04-13T13:36:58.871Z    dist/assets/BillingPage-DcOQZzUB.js                 7.60 kB │ gzip:  2.35 kB
+2026-04-13T13:36:58.871Z    dist/assets/index-CZQgz0L6.js                       7.89 kB │ gzip:  2.69 kB
+2026-04-13T13:36:58.871Z    dist/assets/KBDetailPage-CHLB_SOh.js                8.21 kB │ gzip:  2.66 kB
+2026-04-13T13:36:58.871Z    dist/assets/PrivacyPolicyPage-BCrbX_st.js           8.29 kB │ gzip:  3.41 kB
+2026-04-13T13:36:58.871Z    dist/assets/TermsOfServicePage-DF3PqFRO.js          8.62 kB │ gzip:  3.45 kB
+2026-04-13T13:36:58.871Z    dist/assets/AnalyticsDashboardPage-Bdjistzj.js     10.23 kB │ gzip:  3.65 kB
+2026-04-13T13:36:58.871Z    dist/assets/TestSandboxPage-1zu3RKU2.js            10.55 kB │ gzip:  4.47 kB
+2026-04-13T13:36:58.871Z    dist/assets/runtime-dom.esm-bundler-BXcwcHwm.js    11.78 kB │ gzip:  5.19 kB
+2026-04-13T13:36:58.871Z    dist/assets/LlmProviderListPage-DiI0SChY.js        12.28 kB │ gzip:  3.85 kB
+2026-04-13T13:36:58.871Z    dist/assets/CallsPage-DJxJTgH-.js                  12.73 kB │ gzip:  3.91 kB
+2026-04-13T13:36:58.871Z    dist/assets/ChatbotConfiguratorPage-DMfN14oM.js    13.36 kB │ gzip:  4.25 kB
+2026-04-13T13:36:58.871Z    dist/assets/ApiKeyListPage-D26_A3ka.js             16.42 kB │ gzip:  5.34 kB
+2026-04-13T13:36:58.871Z    dist/assets/vue-router-C3SvtPhR.js                 24.79 kB │ gzip:  9.57 kB
+2026-04-13T13:36:58.872Z    dist/assets/DefaultLayout-BzWUojUt.js              25.75 kB │ gzip:  6.61 kB
+2026-04-13T13:36:58.872Z    dist/assets/auth-BplsYSr5.js                       33.49 kB │ gzip: 11.34 kB
+2026-04-13T13:36:58.872Z    dist/assets/runtime-core.esm-bundler-C1FkKo2-.js   62.53 kB │ gzip: 24.59 kB
+2026-04-13T13:36:58.872Z    
+2026-04-13T13:36:58.875Z    ✓ built in 1.08s
+2026-04-13T13:36:58.937Z    Success: Build command completed
+2026-04-13T13:36:59.149Z    Executing user deploy command: npx wrangler pages deploy dist --project-name=raven
+2026-04-13T13:37:00.426Z    npm warn exec The following package was not found and will be installed: wrangler@4.82.0
+2026-04-13T13:37:12.170Z    
+2026-04-13T13:37:12.170Z     ⛅️ wrangler 4.82.0
+2026-04-13T13:37:12.170Z    ───────────────────
+2026-04-13T13:37:12.201Z    
+2026-04-13T13:37:12.284Z    ✘ [ERROR] Running configuration file validation for Pages:
+2026-04-13T13:37:12.284Z    
+2026-04-13T13:37:12.284Z        - Configuration file for Pages projects does not support "build"
+2026-04-13T13:37:12.285Z    
+2026-04-13T13:37:12.285Z    
+2026-04-13T13:37:12.340Z    🪵  Logs were written to "/opt/buildhome/.config/.wrangler/logs/wrangler-2026-04-13_13-37-09_847.log"
+2026-04-13T13:37:12.514Z    Failed: error occurred while running deploy command
+
+---
+
+it doesn't allow to be kept empty
+
+---
+
+19:13:52.071      main = "src/index.ts"
+19:13:52.072      
+19:13:52.072      ```
+19:13:52.074      
+19:13:52.074      
+19:13:52.074      If are uploading a directory of assets, you can either:
+19:13:52.074      - Specify the path to the directory of assets via the command line: (ex: `npx wrangler versions upload --assets=./dist`)
+19:13:52.074      - Or add the following to your "wrangler.toml" file:
+19:13:52.075      
+19:13:52.075      ```
+19:13:52.075      compatibility_date = "2026-04-13"
+19:13:52.076      
+19:13:52.076      [assets]
+19:13:52.076      directory = "./dist"
+19:13:52.076      
+19:13:52.076      ```
+19:13:52.077      
+19:13:52.077    
+19:13:52.077    
+19:13:52.149    🪵  Logs were written to "/opt/buildhome/.config/.wrangler/logs/wrangler-2026-04-13_13-43-51_193.log"
+19:13:52.280    Failed: error occurred while running deploy command
+
+---
+
+not working,  raven git:(feat/zitadel-migration) ✗ npx wrangler dev
+
+ ⛅️ wrangler 4.82.0
+───────────────────
+
+✘ [ERROR] Missing entry-point to Worker script or to assets directory
+
+
+  If there is code to deploy, you can either:
+  - Specify an entry-point to your Worker script via the command line (ex: `npx wrangler dev
+  src/index.ts`)
+  - Or create a "wrangler.jsonc" file containing:
+
+  ```
+  {
+    "name": "worker-name",
+    "compatibility_date": "2026-04-13",
+    "main": "src/index.ts"
+  }
+  ```
+
+
+  If are uploading a directory of assets, you can either:
+  - Specify the path to the directory of assets via the command line: (ex: `npx wrangler dev
+  --assets=./dist`)
+  - Or create a "wrangler.jsonc" file containing:
+
+  ```
+  {
+    "name": "worker-name",
+    "compatibility_date": "2026-04-13",
+    "assets": {
+      "directory": "./dist"
+    }
+  }
+  ```
+
+
+
+🪵  Logs were written to "/Users/jobinlawrance/Library/Preferences/.wrangler/logs/wrangler-2026-04-13_13-51-34_861.log"
+
+---
+
+✘ [ERROR] ENOENT: no such file or directory, scandir '/Users/jobinlawrance/Project/raven/dist'
+
+---
+
+zsh: no matches found: [ERROR]
+➜  frontend git:(feat/zitadel-migration) ✗ npx wrangler pages deploy dist --project-name=raven-frontend
+
+ ⛅️ wrangler 4.82.0
+───────────────────
+
+✘ [ERROR] Running configuration file validation for Pages:
+
+    - Configuration file for Pages projects does not support "assets"
+
+
+🪵  Logs were written to "/Users/jobinlawrance/Library/Preferences/.wrangler/logs/wrangler-2026-04-13_14-01-04_100.log"
+
+---
+
+the preview page doesn't work, check yourself
+
+---
+
+deploy it using ssh
+
+---
+
+[Request interrupted by user]
+
+---
+
+deploy it using ssh ssh ubuntu@ec2-65-0-85-115.ap-south-1.compute.amazonaws.com
+
+---
+
+use cf cli to create the record
+
+---
+
+it's not showing css
+
+---
+
+What about the actual demo page?
+
+---
+
+Fix PR issues
+
+---
+
+https://github.com/ravencloak-org/Raven/pull/288#discussion_r3073034715
+
+---
+
+https://github.com/ravencloak-org/Raven/pull/288#discussion_r3073034860
+
+---
+
+https://github.com/ravencloak-org/Raven/pull/288#discussion_r3073034864
+
+---
+
+https://github.com/ravencloak-org/Raven/pull/288#discussion_r3073459071
+
+---
+
+https://github.com/ravencloak-org/Raven/pull/288#discussion_r3073459081
+
+---
+
+fix cf
+
+---
+
+check if it's working
+
+---
+
+is backend up as well? is the demo pages functioning?
+
+---
+
+https://github.com/ravencloak-org/Raven/pull/288#discussion_r3074766619
+
+---
+
+done
+
+---
+
+yes
+
+---
+
+deploy this, I need to setup and test the auth flow
+
+---
+
+<task-notification>
+<task-id>b0ajx7pxi</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>failed</status>
+<summary>Background command "Try Zitadel v2.63.5" failed with exit code 255</summary>
+</task-notification>
+
+---
+
+password is invalid
+
+---
+
+yes
+
+---
+
+how to add google as an Idp?
+
+---
+
+yeah
+
+---
+
+yes
+
+---
+
+it's stuck in loop, check
+
+---
+
+still redirect loop
+
+---
+
+nope
+
+---
+
+clear everything in my browser
+
+---
+
+test first and then ask me to check
+
+---
+
+still looping in completing sign in
+
+---
+
+got 403 in https://app.ravencloak.org/onboarding
+
+---
+
+Space creation is giving a 403.
+
+---
+
+getting bad request
+
+---
+
+Directing to the same onboarding flow and not allowing me to create my knowledge base because it is giving a bad request.
+
+---
+
+still bad rquest and everything is coming soon
+
+---
+
+https://app.ravencloak.org/dashboard access yourself and try it out
+
+---
+
+Failed to create workspace
+
+---
+
+Forbidden
+
+---
+
+Bad Request
+
+---
+
+Can you fucking test it yourself? Everything, nothing has been happening there.
+
+---
+
+nope  nothing
+
+---
+
+google + passkeys
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.5/skills/brainstorming
+
+# Brainstorming Ideas Into Designs
+
+Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
+
+Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design and get user approval.
+
+<HARD-GATE>
+Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
+</HARD-GATE>
+
+## Anti-Pattern: "This Is Too Simple To Need A Design"
+
+Every project goes through this process. A todo list, a single-function utility, a config change — all of them. "Simple" projects are where unexamined assumptions cause the most wasted work. The design can be short (a few sentences for truly simple projects), but you MUST present it and get approval.
+
+## Checklist
+
+You MUST create a task for each of these items and complete them in order:
+
+1. **Explore project context** — check files, docs, recent commits
+2. **Offer visual companion** (if topic will involve visual questions) — this is its own message, not combined with a clarifying question. See the Visual Companion section below.
+3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
+4. **Propose 2-3 approaches** — with trade-offs and your recommendation
+5. **Present design** — in sections scaled to their complexity, get user approval after each section
+6. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit
+7. **Spec review loop** — dispatch spec-document-reviewer subagent with precisely crafted review context (never your session history); fix issues and re-dispatch until approved (max 3 iterations, then surface to human)
+8. **User reviews written spec** — ask user to review the spec file before proceeding
+9. **Transition to implementation** — invoke writing-plans skill to create implementation plan
+
+## Process Flow
+
+```dot
+digraph brainstorming {
+    "Explore project context" [shape=box];
+    "Visual questions ahead?" [shape=diamond];
+    "Offer Visual Companion\n(own message, no other content)" [shape=box];
+    "Ask clarifying questions" [shape=box];
+    "Propose 2-3 approaches" [shape=box];
+    "Present design sections" [shape=box];
+    "User approves design?" [shape=diamond];
+    "Write design doc" [shape=box];
+    "Spec review loop" [shape=box];
+    "Spec review passed?" [shape=diamond];
+    "User reviews spec?" [shape=diamond];
+    "Invoke writing-plans skill" [shape=doublecircle];
+
+    "Explore project context" -> "Visual questions ahead?";
+    "Visual questions ahead?" -> "Offer Visual Companion\n(own message, no other content)" [label="yes"];
+    "Visual questions ahead?" -> "Ask clarifying questions" [label="no"];
+    "Offer Visual Companion\n(own message, no other content)" -> "Ask clarifying questions";
+    "Ask clarifying questions" -> "Propose 2-3 approaches";
+    "Propose 2-3 approaches" -> "Present design sections";
+    "Present design sections" -> "User approves design?";
+    "User approves design?" -> "Present design sections" [label="no, revise"];
+    "User approves design?" -> "Write design doc" [label="yes"];
+    "Write design doc" -> "Spec review loop";
+    "Spec review loop" -> "Spec review passed?";
+    "Spec review passed?" -> "Spec review loop" [label="issues found,\nfix and re-dispatch"];
+    "Spec review passed?" -> "User reviews spec?" [label="approved"];
+    "User reviews spec?" -> "Write design doc" [label="changes requested"];
+    "User reviews spec?" -> "Invoke writing-plans skill" [label="approved"];
+}
+```
+
+**The terminal state is invoking writing-plans.** Do NOT invoke frontend-design, mcp-builder, or any other implementation skill. The ONLY skill you invoke after brainstorming is writing-plans.
+
+## The Process
+
+**Understanding the idea:**
+
+- Check out the current project state first (files, docs, recent commits)
+- Before asking detailed questions, assess scope: if the request describes multiple independent subsystems (e.g., "build a platform with chat, file storage, billing, and analytics"), flag this immediately. Don't spend questions refining details of a project that needs to be decomposed first.
+- If the project is too large for a single spec, help the user decompose into sub-projects: what are the independent pieces, how do they relate, what order should they be built? Then brainstorm the first sub-project through the normal design flow. Each sub-project gets its own spec → plan → implementation cycle.
+- For appropriately-scoped projects, ask questions one at a time to refine the idea
+- Prefer multiple choice questions when possible, but open-ended is fine too
+- Only one question per message - if a topic needs more exploration, break it into multiple questions
+- Focus on understanding: purpose, constraints, success criteria
+
+**Exploring approaches:**
+
+- Propose 2-3 different approaches with trade-offs
+- Present options conversationally with your recommendation and reasoning
+- Lead with your recommended option and explain why
+
+**Presenting the design:**
+
+- Once you believe you understand what you're building, present the design
+- Scale each section to its complexity: a few sentences if straightforward, up to 200-300 words if nuanced
+- Ask after each section whether it looks right so far
+- Cover: architecture, components, data flow, error handling, testing
+- Be ready to go back and clarify if something doesn't make sense
+
+**Design for isolation and clarity:**
+
+- Break the system into smaller units that each have one clear purpose, communicate through well-defined interfaces, and can be understood and tested independently
+- For each unit, you should be able to answer: what does it do, how do you use it, and what does it depend on?
+- Can someone understand what a unit does without reading its internals? Can you change the internals without breaking consumers? If not, the boundaries need work.
+- Smaller, well-bounded units are also easier for you to work with - you reason better about code you can hold in context at once, and your edits are more reliable when files are focused. When a file grows large, that's often a signal that it's doing too much.
+
+**Working in existing codebases:**
+
+- Explore the current structure before proposing changes. Follow existing patterns.
+- Where existing code has problems that affect the work (e.g., a file that's grown too large, unclear boundaries, tangled responsibilities), include targeted improvements as part of the design - the way a good developer improves code they're working in.
+- Don't propose unrelated refactoring. Stay focused on what serves the current goal.
+
+## After the Design
+
+**Documentation:**
+
+- Write the validated design (spec) to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
+  - (User preferences for spec location override this default)
+- Use elements-of-style:writing-clearly-and-concisely skill if available
+- Commit the design document to git
+
+**Spec Review Loop:**
+After writing the spec document:
+
+1. Dispatch spec-document-reviewer subagent (see spec-document-reviewer-prompt.md)
+2. If Issues Found: fix, re-dispatch, repeat until Approved
+3. If loop exceeds 3 iterations, surface to human for guidance
+
+**User Review Gate:**
+After the spec review loop passes, ask the user to review the written spec before proceeding:
+
+> "Spec written and committed to `<path>`. Please review it and let me know if you want to make any changes before we start writing out the implementation plan."
+
+Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
+
+**Implementation:**
+
+- Invoke the writing-plans skill to create a detailed implementation plan
+- Do NOT invoke any other skill. writing-plans is the next step.
+
+## Key Principles
+
+- **One question at a time** - Don't overwhelm with multiple questions
+- **Multiple choice preferred** - Easier to answer than open-ended when possible
+- **YAGNI ruthlessly** - Remove unnecessary features from all designs
+- **Explore alternatives** - Always propose 2-3 approaches before settling
+- **Incremental validation** - Present design, get approval before moving on
+- **Be flexible** - Go back and clarify when something doesn't make sense
+
+## Visual Companion
+
+A browser-based companion for showing mockups, diagrams, and visual options during brainstorming. Available as a tool — not a mode. Accepting the companion means it's available for questions that benefit from visual treatment; it does NOT mean every question goes through the browser.
+
+**Offering the companion:** When you anticipate that upcoming questions will involve visual content (mockups, layouts, diagrams), offer it once for consent:
+> "Some of what we're working on might be easier to explain if I can show it to you in a web browser. I can put together mockups, diagrams, comparisons, and other visuals as we go. This feature is still new and can be token-intensive. Want to try it? (Requires opening a local URL)"
+
+**This offer MUST be its own message.** Do not combine it with clarifying questions, context summaries, or any other content. The message should contain ONLY the offer above and nothing else. Wait for the user's response before continuing. If they decline, proceed with text-only brainstorming.
+
+**Per-question decision:** Even after the user accepts, decide FOR EACH QUESTION whether to use the browser or the terminal. The test: **would the user understand this better by seeing it than reading it?**
+
+- **Use the browser** for content that IS visual — mockups, wireframes, layout comparisons, architecture diagrams, side-by-side visual designs
+- **Use the terminal** for content that is text — requirements questions, conceptual choices, tradeoff lists, A/B/C/D text options, scope decisions
+
+A question about a UI topic is not automatically a visual question. "What does personality mean in this context?" is a conceptual question — use the terminal. "Which wizard layout works better?" is a visual question — use the browser.
+
+If they agree to the companion, read the detailed guide before proceeding:
+`skills/brainstorming/visual-companion.md`
+
+---
+
+continue
+
+---
+
+continue
+
+---
+
+go ahead
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.5/skills/writing-plans
+
+# Writing Plans
+
+## Overview
+
+Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code, testing, docs they might need to check, how to test it. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD. Frequent commits.
+
+Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they don't know good test design very well.
+
+**Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
+
+**Context:** This should be run in a dedicated worktree (created by brainstorming skill).
+
+**Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`
+- (User preferences for plan location override this default)
+
+## Scope Check
+
+If the spec covers multiple independent subsystems, it should have been broken into sub-project specs during brainstorming. If it wasn't, suggest breaking this into separate plans — one per subsystem. Each plan should produce working, testable software on its own.
+
+## File Structure
+
+Before defining tasks, map out which files will be created or modified and what each one is responsible for. This is where decomposition decisions get locked in.
+
+- Design units with clear boundaries and well-defined interfaces. Each file should have one clear responsibility.
+- You reason best about code you can hold in context at once, and your edits are more reliable when files are focused. Prefer smaller, focused files over large ones that do too much.
+- Files that change together should live together. Split by responsibility, not by technical layer.
+- In existing codebases, follow established patterns. If the codebase uses large files, don't unilaterally restructure - but if a file you're modifying has grown unwieldy, including a split in the plan is reasonable.
+
+This structure informs the task decomposition. Each task should produce self-contained changes that make sense independently.
+
+## Bite-Sized Task Granularity
+
+**Each step is one action (2-5 minutes):**
+- "Write the failing test" - step
+- "Run it to make sure it fails" - step
+- "Implement the minimal code to make the test pass" - step
+- "Run the tests and make sure they pass" - step
+- "Commit" - step
+
+## Plan Document Header
+
+**Every plan MUST start with this header:**
+
+```markdown
+# [Feature Name] Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** [One sentence describing what this builds]
+
+**Architecture:** [2-3 sentences about approach]
+
+**Tech Stack:** [Key technologies/libraries]
+
+---
+```
+
+## Task Structure
+
+````markdown
+### Task N: [Component Name]
+
+**Files:**
+- Create: `exact/path/to/file.py`
+- Modify: `exact/path/to/existing.py:123-145`
+- Test: `tests/exact/path/to/test.py`
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+def test_specific_behavior():
+    result = function(input)
+    assert result == expected
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `pytest tests/path/test.py::test_name -v`
+Expected: FAIL with "function not defined"
+
+- [ ] **Step 3: Write minimal implementation**
+
+```python
+def function(input):
+    return expected
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `pytest tests/path/test.py::test_name -v`
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add tests/path/test.py src/path/file.py
+git commit -m "feat: add specific feature"
+```
+````
+
+## Remember
+- Exact file paths always
+- Complete code in plan (not "add validation")
+- Exact commands with expected output
+- Reference relevant skills with @ syntax
+- DRY, YAGNI, TDD, frequent commits
+
+## Plan Review Loop
+
+After writing the complete plan:
+
+1. Dispatch a single plan-document-reviewer subagent (see plan-document-reviewer-prompt.md) with precisely crafted review context — never your session history. This keeps the reviewer focused on the plan, not your thought process.
+   - Provide: path to the plan document, path to spec document
+2. If ❌ Issues Found: fix the issues, re-dispatch reviewer for the whole plan
+3. If ✅ Approved: proceed to execution handoff
+
+**Review loop guidance:**
+- Same agent that wrote the plan fixes it (preserves context)
+- If loop exceeds 3 iterations, surface to human for guidance
+- Reviewers are advisory — explain disagreements if you believe feedback is incorrect
+
+## Execution Handoff
+
+After saving the plan, offer execution choice:
+
+**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Two execution options:**
+
+**1. Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
+
+**2. Inline Execution** - Execute tasks in this session using executing-plans, batch execution with checkpoints
+
+**Which approach?"**
+
+**If Subagent-Driven chosen:**
+- **REQUIRED SUB-SKILL:** Use superpowers:subagent-driven-development
+- Fresh subagent per task + two-stage review
+
+**If Inline Execution chosen:**
+- **REQUIRED SUB-SKILL:** Use superpowers:executing-plans
+- Batch execution with checkpoints for review
+
+---
+
+1
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.5/skills/subagent-driven-development
+
+# Subagent-Driven Development
+
+Execute plan by dispatching fresh subagent per task, with two-stage review after each: spec compliance review first, then code quality review.
+
+**Why subagents:** You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions and context, you ensure they stay focused and succeed at their task. They should never inherit your session's context or history — you construct exactly what they need. This also preserves your own context for coordination work.
+
+**Core principle:** Fresh subagent per task + two-stage review (spec then quality) = high quality, fast iteration
+
+## When to Use
+
+```dot
+digraph when_to_use {
+    "Have implementation plan?" [shape=diamond];
+    "Tasks mostly independent?" [shape=diamond];
+    "Stay in this session?" [shape=diamond];
+    "subagent-driven-development" [shape=box];
+    "executing-plans" [shape=box];
+    "Manual execution or brainstorm first" [shape=box];
+
+    "Have implementation plan?" -> "Tasks mostly independent?" [label="yes"];
+    "Have implementation plan?" -> "Manual execution or brainstorm first" [label="no"];
+    "Tasks mostly independent?" -> "Stay in this session?" [label="yes"];
+    "Tasks mostly independent?" -> "Manual execution or brainstorm first" [label="no - tightly coupled"];
+    "Stay in this session?" -> "subagent-driven-development" [label="yes"];
+    "Stay in this session?" -> "executing-plans" [label="no - parallel session"];
+}
+```
+
+**vs. Executing Plans (parallel session):**
+- Same session (no context switch)
+- Fresh subagent per task (no context pollution)
+- Two-stage review after each task: spec compliance first, then code quality
+- Faster iteration (no human-in-loop between tasks)
+
+## The Process
+
+```dot
+digraph process {
+    rankdir=TB;
+
+    subgraph cluster_per_task {
+        label="Per Task";
+        "Dispatch implementer subagent (./implementer-prompt.md)" [shape=box];
+        "Implementer subagent asks questions?" [shape=diamond];
+        "Answer questions, provide context" [shape=box];
+        "Implementer subagent implements, tests, commits, self-reviews" [shape=box];
+        "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [shape=box];
+        "Spec reviewer subagent confirms code matches spec?" [shape=diamond];
+        "Implementer subagent fixes spec gaps" [shape=box];
+        "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [shape=box];
+        "Code quality reviewer subagent approves?" [shape=diamond];
+        "Implementer subagent fixes quality issues" [shape=box];
+        "Mark task complete in TodoWrite" [shape=box];
+    }
+
+    "Read plan, extract all tasks with full text, note context, create TodoWrite" [shape=box];
+    "More tasks remain?" [shape=diamond];
+    "Dispatch final code reviewer subagent for entire implementation" [shape=box];
+    "Use superpowers:finishing-a-development-branch" [shape=box style=filled fillcolor=lightgreen];
+
+    "Read plan, extract all tasks with full text, note context, create TodoWrite" -> "Dispatch implementer subagent (./implementer-prompt.md)";
+    "Dispatch implementer subagent (./implementer-prompt.md)" -> "Implementer subagent asks questions?";
+    "Implementer subagent asks questions?" -> "Answer questions, provide context" [label="yes"];
+    "Answer questions, provide context" -> "Dispatch implementer subagent (./implementer-prompt.md)";
+    "Implementer subagent asks questions?" -> "Implementer subagent implements, tests, commits, self-reviews" [label="no"];
+    "Implementer subagent implements, tests, commits, self-reviews" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)";
+    "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" -> "Spec reviewer subagent confirms code matches spec?";
+    "Spec reviewer subagent confirms code matches spec?" -> "Implementer subagent fixes spec gaps" [label="no"];
+    "Implementer subagent fixes spec gaps" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [label="re-review"];
+    "Spec reviewer subagent confirms code matches spec?" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="yes"];
+    "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" -> "Code quality reviewer subagent approves?";
+    "Code quality reviewer subagent approves?" -> "Implementer subagent fixes quality issues" [label="no"];
+    "Implementer subagent fixes quality issues" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="re-review"];
+    "Code quality reviewer subagent approves?" -> "Mark task complete in TodoWrite" [label="yes"];
+    "Mark task complete in TodoWrite" -> "More tasks remain?";
+    "More tasks remain?" -> "Dispatch implementer subagent (./implementer-prompt.md)" [label="yes"];
+    "More tasks remain?" -> "Dispatch final code reviewer subagent for entire implementation" [label="no"];
+    "Dispatch final code reviewer subagent for entire implementation" -> "Use superpowers:finishing-a-development-branch";
+}
+```
+
+## Model Selection
+
+Use the least powerful model that can handle each role to conserve cost and increase speed.
+
+**Mechanical implementation tasks** (isolated functions, clear specs, 1-2 files): use a fast, cheap model. Most implementation tasks are mechanical when the plan is well-specified.
+
+**Integration and judgment tasks** (multi-file coordination, pattern matching, debugging): use a standard model.
+
+**Architecture, design, and review tasks**: use the most capable available model.
+
+**Task complexity signals:**
+- Touches 1-2 files with a complete spec → cheap model
+- Touches multiple files with integration concerns → standard model
+- Requires design judgment or broad codebase understanding → most capable model
+
+## Handling Implementer Status
+
+Implementer subagents report one of four statuses. Handle each appropriately:
+
+**DONE:** Proceed to spec compliance review.
+
+**DONE_WITH_CONCERNS:** The implementer completed the work but flagged doubts. Read the concerns before proceeding. If the concerns are about correctness or scope, address them before review. If they're observations (e.g., "this file is getting large"), note them and proceed to review.
+
+**NEEDS_CONTEXT:** The implementer needs information that wasn't provided. Provide the missing context and re-dispatch.
+
+**BLOCKED:** The implementer cannot complete the task. Assess the blocker:
+1. If it's a context problem, provide more context and re-dispatch with the same model
+2. If the task requires more reasoning, re-dispatch with a more capable model
+3. If the task is too large, break it into smaller pieces
+4. If the plan itself is wrong, escalate to the human
+
+**Never** ignore an escalation or force the same model to retry without changes. If the implementer said it's stuck, something needs to change.
+
+## Prompt Templates
+
+- `./implementer-prompt.md` - Dispatch implementer subagent
+- `./spec-reviewer-prompt.md` - Dispatch spec compliance reviewer subagent
+- `./code-quality-reviewer-prompt.md` - Dispatch code quality reviewer subagent
+
+## Example Workflow
+
+```
+You: I'm using Subagent-Driven Development to execute this plan.
+
+[Read plan file once: docs/superpowers/plans/feature-plan.md]
+[Extract all 5 tasks with full text and context]
+[Create TodoWrite with all tasks]
+
+Task 1: Hook installation script
+
+[Get Task 1 text and context (already extracted)]
+[Dispatch implementation subagent with full task text + context]
+
+Implementer: "Before I begin - should the hook be installed at user or system level?"
+
+You: "User level (~/.config/superpowers/hooks/)"
+
+Implementer: "Got it. Implementing now..."
+[Later] Implementer:
+  - Implemented install-hook command
+  - Added tests, 5/5 passing
+  - Self-review: Found I missed --force flag, added it
+  - Committed
+
+[Dispatch spec compliance reviewer]
+Spec reviewer: ✅ Spec compliant - all requirements met, nothing extra
+
+[Get git SHAs, dispatch code quality reviewer]
+Code reviewer: Strengths: Good test coverage, clean. Issues: None. Approved.
+
+[Mark Task 1 complete]
+
+Task 2: Recovery modes
+
+[Get Task 2 text and context (already extracted)]
+[Dispatch implementation subagent with full task text + context]
+
+Implementer: [No questions, proceeds]
+Implementer:
+  - Added verify/repair modes
+  - 8/8 tests passing
+  - Self-review: All good
+  - Committed
+
+[Dispatch spec compliance reviewer]
+Spec reviewer: ❌ Issues:
+  - Missing: Progress reporting (spec says "report every 100 items")
+  - Extra: Added --json flag (not requested)
+
+[Implementer fixes issues]
+Implementer: Removed --json flag, added progress reporting
+
+[Spec reviewer reviews again]
+Spec reviewer: ✅ Spec compliant now
+
+[Dispatch code quality reviewer]
+Code reviewer: Strengths: Solid. Issues (Important): Magic number (100)
+
+[Implementer fixes]
+Implementer: Extracted PROGRESS_INTERVAL constant
+
+[Code reviewer reviews again]
+Code reviewer: ✅ Approved
+
+[Mark Task 2 complete]
+
+...
+
+[After all tasks]
+[Dispatch final code-reviewer]
+Final reviewer: All requirements met, ready to merge
+
+Done!
+```
+
+## Advantages
+
+**vs. Manual execution:**
+- Subagents follow TDD naturally
+- Fresh context per task (no confusion)
+- Parallel-safe (subagents don't interfere)
+- Subagent can ask questions (before AND during work)
+
+**vs. Executing Plans:**
+- Same session (no handoff)
+- Continuous progress (no waiting)
+- Review checkpoints automatic
+
+**Efficiency gains:**
+- No file reading overhead (controller provides full text)
+- Controller curates exactly what context is needed
+- Subagent gets complete information upfront
+- Questions surfaced before work begins (not after)
+
+**Quality gates:**
+- Self-review catches issues before handoff
+- Two-stage review: spec compliance, then code quality
+- Review loops ensure fixes actually work
+- Spec compliance prevents over/under-building
+- Code quality ensures implementation is well-built
+
+**Cost:**
+- More subagent invocations (implementer + 2 reviewers per task)
+- Controller does more prep work (extracting all tasks upfront)
+- Review loops add iterations
+- But catches issues early (cheaper than debugging later)
+
+## Red Flags
+
+**Never:**
+- Start implementation on main/master branch without explicit user consent
+- Skip reviews (spec compliance OR code quality)
+- Proceed with unfixed issues
+- Dispatch multiple implementation subagents in parallel (conflicts)
+- Make subagent read plan file (provide full text instead)
+- Skip scene-setting context (subagent needs to understand where task fits)
+- Ignore subagent questions (answer before letting them proceed)
+- Accept "close enough" on spec compliance (spec reviewer found issues = not done)
+- Skip review loops (reviewer found issues = implementer fixes = review again)
+- Let implementer self-review replace actual review (both are needed)
+- **Start code quality review before spec compliance is ✅** (wrong order)
+- Move to next task while either review has open issues
+
+**If subagent asks questions:**
+- Answer clearly and completely
+- Provide additional context if needed
+- Don't rush them into implementation
+
+**If reviewer finds issues:**
+- Implementer (same subagent) fixes them
+- Reviewer reviews again
+- Repeat until approved
+- Don't skip the re-review
+
+**If subagent fails task:**
+- Dispatch fix subagent with specific instructions
+- Don't try to fix manually (context pollution)
+
+## Integration
+
+**Required workflow skills:**
+- **superpowers:using-git-worktrees** - REQUIRED: Set up isolated workspace before starting
+- **superpowers:writing-plans** - Creates the plan this skill executes
+- **superpowers:requesting-code-review** - Code review template for reviewer subagents
+- **superpowers:finishing-a-development-branch** - Complete development after all tasks
+
+**Subagents should use:**
+- **superpowers:test-driven-development** - Subagents follow TDD for each task
+
+**Alternative workflow:**
+- **superpowers:executing-plans** - Use for parallel session instead of same-session execution
+
+---
+
+yes
+
+---
+
+https://github.com/ravencloak-org/Raven/actions/runs/24417704434/job/71331241225?pr=289
+
+---
+
+https://github.REDACTED?pr=290
+
+---
+
+let's start
+
+---
+
+done
+
+---
+
+https://app.ravencloak.org/login why is the page like a mobile? very weird
+
+---
+
+check the fucking css yourself
+
+---
+
+setup supertoken https://auth.ravencloak.org/ is giving 502, setup google idp in supertokens
+
+---
+
+Failed to fetch
+
+---
+
+Unable to start sign-in
+
+---
+
+e
+Access blocked: Authorization Error
+
+jobinlawrance@gmail.com
+Missing required parameter: client_id Learn more about this error
+If you are a developer of this app, see error details.
+Error 400: invalid_request
+
+---
+
+done, restart
+
+---
+
+026/04/15 09:02:24 OK   00030_voice_usage.sql (4.82ms)
+2026/04/15 09:02:24 OK   00031_whatsapp_calling.sql (10.4ms)
+2026/04/15 09:02:24 OK   00032_billing_rls_and_payment_events.sql (5.01ms)
+2026/04/15 09:02:24 OK   00033_payment_intents.sql (4.96ms)
+2026/04/15 09:02:24 OK   00034_zitadel_migration.sql (2.16ms)
+2026/04/15 09:02:24 goose: successfully migrated database to version: 34
+FAIL
+coverage: 2.5% of statements in ./internal/...
+FAIL    github.com/ravencloak-org/Raven/internal/integration    9.852s
+FAIL
+Error: Process completed with exit code 1.
+
+---
+
+fix that as well
+
+---
+
+Sign in with Google
+Access blocked: This app’s request is invalid
+
+jobinlawrance@gmail.com
+You can’t sign in because this app sent an invalid request. You can try again later, or contact the developer about this issue. Learn more about this error
+If you are a developer of this app, see error details.
+Error 400: redirect_uri_mismatch
+
+---
+
+404
+
+---
+
+Access blocked: This app’s request is invalid
+
+jobinlawrance@gmail.com
+You can’t sign in because this app sent an invalid request. You can try again later, or contact the developer about this issue. Learn more about this error
+If you are a developer of this app, see error details.
+Error 400: redirect_uri_mismatch
+
+---
+
+getting bad request after success login in onboarding
+
+---
+
+still nothing works, check yourself https://app.ravencloak.org/dashboard.. setup a working demo for me. don't ask me to do it
+
+---
+
+1 and 2
+
+---
+
+1 and 2
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.5/skills/brainstorming
+
+# Brainstorming Ideas Into Designs
+
+Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
+
+Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design and get user approval.
+
+<HARD-GATE>
+Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
+</HARD-GATE>
+
+## Anti-Pattern: "This Is Too Simple To Need A Design"
+
+Every project goes through this process. A todo list, a single-function utility, a config change — all of them. "Simple" projects are where unexamined assumptions cause the most wasted work. The design can be short (a few sentences for truly simple projects), but you MUST present it and get approval.
+
+## Checklist
+
+You MUST create a task for each of these items and complete them in order:
+
+1. **Explore project context** — check files, docs, recent commits
+2. **Offer visual companion** (if topic will involve visual questions) — this is its own message, not combined with a clarifying question. See the Visual Companion section below.
+3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
+4. **Propose 2-3 approaches** — with trade-offs and your recommendation
+5. **Present design** — in sections scaled to their complexity, get user approval after each section
+6. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit
+7. **Spec review loop** — dispatch spec-document-reviewer subagent with precisely crafted review context (never your session history); fix issues and re-dispatch until approved (max 3 iterations, then surface to human)
+8. **User reviews written spec** — ask user to review the spec file before proceeding
+9. **Transition to implementation** — invoke writing-plans skill to create implementation plan
+
+## Process Flow
+
+```dot
+digraph brainstorming {
+    "Explore project context" [shape=box];
+    "Visual questions ahead?" [shape=diamond];
+    "Offer Visual Companion\n(own message, no other content)" [shape=box];
+    "Ask clarifying questions" [shape=box];
+    "Propose 2-3 approaches" [shape=box];
+    "Present design sections" [shape=box];
+    "User approves design?" [shape=diamond];
+    "Write design doc" [shape=box];
+    "Spec review loop" [shape=box];
+    "Spec review passed?" [shape=diamond];
+    "User reviews spec?" [shape=diamond];
+    "Invoke writing-plans skill" [shape=doublecircle];
+
+    "Explore project context" -> "Visual questions ahead?";
+    "Visual questions ahead?" -> "Offer Visual Companion\n(own message, no other content)" [label="yes"];
+    "Visual questions ahead?" -> "Ask clarifying questions" [label="no"];
+    "Offer Visual Companion\n(own message, no other content)" -> "Ask clarifying questions";
+    "Ask clarifying questions" -> "Propose 2-3 approaches";
+    "Propose 2-3 approaches" -> "Present design sections";
+    "Present design sections" -> "User approves design?";
+    "User approves design?" -> "Present design sections" [label="no, revise"];
+    "User approves design?" -> "Write design doc" [label="yes"];
+    "Write design doc" -> "Spec review loop";
+    "Spec review loop" -> "Spec review passed?";
+    "Spec review passed?" -> "Spec review loop" [label="issues found,\nfix and re-dispatch"];
+    "Spec review passed?" -> "User reviews spec?" [label="approved"];
+    "User reviews spec?" -> "Write design doc" [label="changes requested"];
+    "User reviews spec?" -> "Invoke writing-plans skill" [label="approved"];
+}
+```
+
+**The terminal state is invoking writing-plans.** Do NOT invoke frontend-design, mcp-builder, or any other implementation skill. The ONLY skill you invoke after brainstorming is writing-plans.
+
+## The Process
+
+**Understanding the idea:**
+
+- Check out the current project state first (files, docs, recent commits)
+- Before asking detailed questions, assess scope: if the request describes multiple independent subsystems (e.g., "build a platform with chat, file storage, billing, and analytics"), flag this immediately. Don't spend questions refining details of a project that needs to be decomposed first.
+- If the project is too large for a single spec, help the user decompose into sub-projects: what are the independent pieces, how do they relate, what order should they be built? Then brainstorm the first sub-project through the normal design flow. Each sub-project gets its own spec → plan → implementation cycle.
+- For appropriately-scoped projects, ask questions one at a time to refine the idea
+- Prefer multiple choice questions when possible, but open-ended is fine too
+- Only one question per message - if a topic needs more exploration, break it into multiple questions
+- Focus on understanding: purpose, constraints, success criteria
+
+**Exploring approaches:**
+
+- Propose 2-3 different approaches with trade-offs
+- Present options conversationally with your recommendation and reasoning
+- Lead with your recommended option and explain why
+
+**Presenting the design:**
+
+- Once you believe you understand what you're building, present the design
+- Scale each section to its complexity: a few sentences if straightforward, up to 200-300 words if nuanced
+- Ask after each section whether it looks right so far
+- Cover: architecture, components, data flow, error handling, testing
+- Be ready to go back and clarify if something doesn't make sense
+
+**Design for isolation and clarity:**
+
+- Break the system into smaller units that each have one clear purpose, communicate through well-defined interfaces, and can be understood and tested independently
+- For each unit, you should be able to answer: what does it do, how do you use it, and what does it depend on?
+- Can someone understand what a unit does without reading its internals? Can you change the internals without breaking consumers? If not, the boundaries need work.
+- Smaller, well-bounded units are also easier for you to work with - you reason better about code you can hold in context at once, and your edits are more reliable when files are focused. When a file grows large, that's often a signal that it's doing too much.
+
+**Working in existing codebases:**
+
+- Explore the current structure before proposing changes. Follow existing patterns.
+- Where existing code has problems that affect the work (e.g., a file that's grown too large, unclear boundaries, tangled responsibilities), include targeted improvements as part of the design - the way a good developer improves code they're working in.
+- Don't propose unrelated refactoring. Stay focused on what serves the current goal.
+
+## After the Design
+
+**Documentation:**
+
+- Write the validated design (spec) to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
+  - (User preferences for spec location override this default)
+- Use elements-of-style:writing-clearly-and-concisely skill if available
+- Commit the design document to git
+
+**Spec Review Loop:**
+After writing the spec document:
+
+1. Dispatch spec-document-reviewer subagent (see spec-document-reviewer-prompt.md)
+2. If Issues Found: fix, re-dispatch, repeat until Approved
+3. If loop exceeds 3 iterations, surface to human for guidance
+
+**User Review Gate:**
+After the spec review loop passes, ask the user to review the written spec before proceeding:
+
+> "Spec written and committed to `<path>`. Please review it and let me know if you want to make any changes before we start writing out the implementation plan."
+
+Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
+
+**Implementation:**
+
+- Invoke the writing-plans skill to create a detailed implementation plan
+- Do NOT invoke any other skill. writing-plans is the next step.
+
+## Key Principles
+
+- **One question at a time** - Don't overwhelm with multiple questions
+- **Multiple choice preferred** - Easier to answer than open-ended when possible
+- **YAGNI ruthlessly** - Remove unnecessary features from all designs
+- **Explore alternatives** - Always propose 2-3 approaches before settling
+- **Incremental validation** - Present design, get approval before moving on
+- **Be flexible** - Go back and clarify when something doesn't make sense
+
+## Visual Companion
+
+A browser-based companion for showing mockups, diagrams, and visual options during brainstorming. Available as a tool — not a mode. Accepting the companion means it's available for questions that benefit from visual treatment; it does NOT mean every question goes through the browser.
+
+**Offering the companion:** When you anticipate that upcoming questions will involve visual content (mockups, layouts, diagrams), offer it once for consent:
+> "Some of what we're working on might be easier to explain if I can show it to you in a web browser. I can put together mockups, diagrams, comparisons, and other visuals as we go. This feature is still new and can be token-intensive. Want to try it? (Requires opening a local URL)"
+
+**This offer MUST be its own message.** Do not combine it with clarifying questions, context summaries, or any other content. The message should contain ONLY the offer above and nothing else. Wait for the user's response before continuing. If they decline, proceed with text-only brainstorming.
+
+**Per-question decision:** Even after the user accepts, decide FOR EACH QUESTION whether to use the browser or the terminal. The test: **would the user understand this better by seeing it than reading it?**
+
+- **Use the browser** for content that IS visual — mockups, wireframes, layout comparisons, architecture diagrams, side-by-side visual designs
+- **Use the terminal** for content that is text — requirements questions, conceptual choices, tradeoff lists, A/B/C/D text options, scope decisions
+
+A question about a UI topic is not automatically a visual question. "What does personality mean in this context?" is a conceptual question — use the terminal. "Which wizard layout works better?" is a visual question — use the browser.
+
+If they agree to the companion, read the detailed guide before proceeding:
+`skills/brainstorming/visual-companion.md`
+
+---
+
+Sign-in failed. Please try again.
+
+---
+
+doesn't work, why don't you try. after google login I am getting Sign-in failed. Please try again.
+
+---
+
+Sign-in failed. Please try again.
+
+---
+
+[Request interrupted by user]
+
+---
+
+onboaridng keeps failing even though the org is being created as i get duplicate error while retrying but otherwise I'm nost sure whether the file I upload was ingested or not. please fix all fo this asap. i want you to test everything out yourself after loggin in
+
+---
+
+keeps showing me No workspaces yet
+Complete onboarding to set up your first workspace and knowledge base.
+
+---
+
+did you create a PR with all the fixes
+
+---
+
+listVoiceSessions failed: 403 https://app.ravencloak.org/orgs/eb8e3065-fc3e-4207-a403-07a032dc5251/voice No workspaces yet
+Complete onboarding to set up your first workspace and knowledge base.
+
+Go to Onboarding
+
+---
+
+make sure you fix all the issues
+
+---
+
+Knowledge base not found
+
+---
+
+yes
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.5/skills/brainstorming
+
+# Brainstorming Ideas Into Designs
+
+Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
+
+Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design and get user approval.
+
+<HARD-GATE>
+Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
+</HARD-GATE>
+
+## Anti-Pattern: "This Is Too Simple To Need A Design"
+
+Every project goes through this process. A todo list, a single-function utility, a config change — all of them. "Simple" projects are where unexamined assumptions cause the most wasted work. The design can be short (a few sentences for truly simple projects), but you MUST present it and get approval.
+
+## Checklist
+
+You MUST create a task for each of these items and complete them in order:
+
+1. **Explore project context** — check files, docs, recent commits
+2. **Offer visual companion** (if topic will involve visual questions) — this is its own message, not combined with a clarifying question. See the Visual Companion section below.
+3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
+4. **Propose 2-3 approaches** — with trade-offs and your recommendation
+5. **Present design** — in sections scaled to their complexity, get user approval after each section
+6. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit
+7. **Spec review loop** — dispatch spec-document-reviewer subagent with precisely crafted review context (never your session history); fix issues and re-dispatch until approved (max 3 iterations, then surface to human)
+8. **User reviews written spec** — ask user to review the spec file before proceeding
+9. **Transition to implementation** — invoke writing-plans skill to create implementation plan
+
+## Process Flow
+
+```dot
+digraph brainstorming {
+    "Explore project context" [shape=box];
+    "Visual questions ahead?" [shape=diamond];
+    "Offer Visual Companion\n(own message, no other content)" [shape=box];
+    "Ask clarifying questions" [shape=box];
+    "Propose 2-3 approaches" [shape=box];
+    "Present design sections" [shape=box];
+    "User approves design?" [shape=diamond];
+    "Write design doc" [shape=box];
+    "Spec review loop" [shape=box];
+    "Spec review passed?" [shape=diamond];
+    "User reviews spec?" [shape=diamond];
+    "Invoke writing-plans skill" [shape=doublecircle];
+
+    "Explore project context" -> "Visual questions ahead?";
+    "Visual questions ahead?" -> "Offer Visual Companion\n(own message, no other content)" [label="yes"];
+    "Visual questions ahead?" -> "Ask clarifying questions" [label="no"];
+    "Offer Visual Companion\n(own message, no other content)" -> "Ask clarifying questions";
+    "Ask clarifying questions" -> "Propose 2-3 approaches";
+    "Propose 2-3 approaches" -> "Present design sections";
+    "Present design sections" -> "User approves design?";
+    "User approves design?" -> "Present design sections" [label="no, revise"];
+    "User approves design?" -> "Write design doc" [label="yes"];
+    "Write design doc" -> "Spec review loop";
+    "Spec review loop" -> "Spec review passed?";
+    "Spec review passed?" -> "Spec review loop" [label="issues found,\nfix and re-dispatch"];
+    "Spec review passed?" -> "User reviews spec?" [label="approved"];
+    "User reviews spec?" -> "Write design doc" [label="changes requested"];
+    "User reviews spec?" -> "Invoke writing-plans skill" [label="approved"];
+}
+```
+
+**The terminal state is invoking writing-plans.** Do NOT invoke frontend-design, mcp-builder, or any other implementation skill. The ONLY skill you invoke after brainstorming is writing-plans.
+
+## The Process
+
+**Understanding the idea:**
+
+- Check out the current project state first (files, docs, recent commits)
+- Before asking detailed questions, assess scope: if the request describes multiple independent subsystems (e.g., "build a platform with chat, file storage, billing, and analytics"), flag this immediately. Don't spend questions refining details of a project that needs to be decomposed first.
+- If the project is too large for a single spec, help the user decompose into sub-projects: what are the independent pieces, how do they relate, what order should they be built? Then brainstorm the first sub-project through the normal design flow. Each sub-project gets its own spec → plan → implementation cycle.
+- For appropriately-scoped projects, ask questions one at a time to refine the idea
+- Prefer multiple choice questions when possible, but open-ended is fine too
+- Only one question per message - if a topic needs more exploration, break it into multiple questions
+- Focus on understanding: purpose, constraints, success criteria
+
+**Exploring approaches:**
+
+- Propose 2-3 different approaches with trade-offs
+- Present options conversationally with your recommendation and reasoning
+- Lead with your recommended option and explain why
+
+**Presenting the design:**
+
+- Once you believe you understand what you're building, present the design
+- Scale each section to its complexity: a few sentences if straightforward, up to 200-300 words if nuanced
+- Ask after each section whether it looks right so far
+- Cover: architecture, components, data flow, error handling, testing
+- Be ready to go back and clarify if something doesn't make sense
+
+**Design for isolation and clarity:**
+
+- Break the system into smaller units that each have one clear purpose, communicate through well-defined interfaces, and can be understood and tested independently
+- For each unit, you should be able to answer: what does it do, how do you use it, and what does it depend on?
+- Can someone understand what a unit does without reading its internals? Can you change the internals without breaking consumers? If not, the boundaries need work.
+- Smaller, well-bounded units are also easier for you to work with - you reason better about code you can hold in context at once, and your edits are more reliable when files are focused. When a file grows large, that's often a signal that it's doing too much.
+
+**Working in existing codebases:**
+
+- Explore the current structure before proposing changes. Follow existing patterns.
+- Where existing code has problems that affect the work (e.g., a file that's grown too large, unclear boundaries, tangled responsibilities), include targeted improvements as part of the design - the way a good developer improves code they're working in.
+- Don't propose unrelated refactoring. Stay focused on what serves the current goal.
+
+## After the Design
+
+**Documentation:**
+
+- Write the validated design (spec) to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
+  - (User preferences for spec location override this default)
+- Use elements-of-style:writing-clearly-and-concisely skill if available
+- Commit the design document to git
+
+**Spec Review Loop:**
+After writing the spec document:
+
+1. Dispatch spec-document-reviewer subagent (see spec-document-reviewer-prompt.md)
+2. If Issues Found: fix, re-dispatch, repeat until Approved
+3. If loop exceeds 3 iterations, surface to human for guidance
+
+**User Review Gate:**
+After the spec review loop passes, ask the user to review the written spec before proceeding:
+
+> "Spec written and committed to `<path>`. Please review it and let me know if you want to make any changes before we start writing out the implementation plan."
+
+Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
+
+**Implementation:**
+
+- Invoke the writing-plans skill to create a detailed implementation plan
+- Do NOT invoke any other skill. writing-plans is the next step.
+
+## Key Principles
+
+- **One question at a time** - Don't overwhelm with multiple questions
+- **Multiple choice preferred** - Easier to answer than open-ended when possible
+- **YAGNI ruthlessly** - Remove unnecessary features from all designs
+- **Explore alternatives** - Always propose 2-3 approaches before settling
+- **Incremental validation** - Present design, get approval before moving on
+- **Be flexible** - Go back and clarify when something doesn't make sense
+
+## Visual Companion
+
+A browser-based companion for showing mockups, diagrams, and visual options during brainstorming. Available as a tool — not a mode. Accepting the companion means it's available for questions that benefit from visual treatment; it does NOT mean every question goes through the browser.
+
+**Offering the companion:** When you anticipate that upcoming questions will involve visual content (mockups, layouts, diagrams), offer it once for consent:
+> "Some of what we're working on might be easier to explain if I can show it to you in a web browser. I can put together mockups, diagrams, comparisons, and other visuals as we go. This feature is still new and can be token-intensive. Want to try it? (Requires opening a local URL)"
+
+**This offer MUST be its own message.** Do not combine it with clarifying questions, context summaries, or any other content. The message should contain ONLY the offer above and nothing else. Wait for the user's response before continuing. If they decline, proceed with text-only brainstorming.
+
+**Per-question decision:** Even after the user accepts, decide FOR EACH QUESTION whether to use the browser or the terminal. The test: **would the user understand this better by seeing it than reading it?**
+
+- **Use the browser** for content that IS visual — mockups, wireframes, layout comparisons, architecture diagrams, side-by-side visual designs
+- **Use the terminal** for content that is text — requirements questions, conceptual choices, tradeoff lists, A/B/C/D text options, scope decisions
+
+A question about a UI topic is not automatically a visual question. "What does personality mean in this context?" is a conceptual question — use the terminal. "Which wizard layout works better?" is a visual question — use the browser.
+
+If they agree to the companion, read the detailed guide before proceeding:
+`skills/brainstorming/visual-companion.md`
+
+---
+
+404 while chatting
+
+---
+
+Request failed: 500
+
+---
+
+[Image #1] why is there sidebar to create new org?
+
+---
+
+[Image: source: /Users/jobinlawrance/Downloads/app.ravencloak.REDACTED.png]
+
+---
+
+you try it, it's still throwing 500. use chrome extension or playwright and test it yourself
+
+---
+
+Failed to fetch in login
