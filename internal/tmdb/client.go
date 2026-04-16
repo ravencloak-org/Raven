@@ -122,7 +122,7 @@ func (c *Client) fetchGenres(ctx context.Context) (map[string]int, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status %d", resp.StatusCode)
@@ -155,7 +155,7 @@ func (c *Client) discoverMovies(ctx context.Context, genreID int) ([]MovieSummar
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status %d", resp.StatusCode)
@@ -182,7 +182,7 @@ func (c *Client) fetchMovieDetail(ctx context.Context, movieID int) (MovieDetail
 	if err != nil {
 		return MovieDetail{}, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return MovieDetail{}, fmt.Errorf("unexpected status %d", resp.StatusCode)

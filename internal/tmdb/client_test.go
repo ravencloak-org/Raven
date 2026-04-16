@@ -55,7 +55,7 @@ func setupMockServer(t *testing.T) *httptest.Server {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(genres)
+		_ = json.NewEncoder(w).Encode(genres)
 	})
 
 	mux.HandleFunc("/discover/movie", func(w http.ResponseWriter, r *http.Request) {
@@ -66,7 +66,7 @@ func setupMockServer(t *testing.T) *httptest.Server {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	})
 
 	mux.HandleFunc("/movie/", func(w http.ResponseWriter, r *http.Request) {
@@ -93,7 +93,7 @@ func setupMockServer(t *testing.T) *httptest.Server {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(detail)
+		_ = json.NewEncoder(w).Encode(detail)
 	})
 
 	return httptest.NewServer(mux)
