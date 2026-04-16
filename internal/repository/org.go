@@ -86,6 +86,25 @@ func (r *OrgRepository) Update(ctx context.Context, orgID string, name *string, 
 	return org, nil
 }
 
+// GetBySlug fetches a non-deactivated organisation by its slug.
+// Returns (nil, nil) when no matching organisation exists.
+func (r *OrgRepository) GetBySlug(ctx context.Context, slug string) (*model.Organization, error) {
+	row := r.pool.QueryRow(ctx,
+		`SELECT id, name, slug, status, settings, created_at, updated_at
+		 FROM organizations
+		 WHERE slug = $1 AND status != 'deactivated'`,
+		slug,
+	)
+	org, err := scanOrg(row)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("OrgRepository.GetBySlug: %w", err)
+	}
+	return org, nil
+}
+
 // SoftDelete sets the organisation status to 'deactivated'.
 func (r *OrgRepository) SoftDelete(ctx context.Context, orgID string) error {
 	tag, err := r.pool.Exec(ctx,

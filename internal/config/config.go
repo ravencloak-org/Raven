@@ -31,6 +31,8 @@ type Config struct {
 	STT          STTConfig
 	EBPF         EBPFConfig
 	Meta         MetaConfig
+	TMDB         TMDBConfig
+	Seed         SeedConfig
 }
 
 // MetaConfig holds Meta WhatsApp Business API settings.
@@ -39,6 +41,17 @@ type MetaConfig struct {
 	PhoneNumberID string `mapstructure:"phone_number_id"`
 	AppSecret     string `mapstructure:"app_secret"`    // for webhook HMAC verification
 	WebhookToken  string `mapstructure:"webhook_token"` // hub.verify_token
+}
+
+// TMDBConfig holds TMDB API settings for the demo knowledge base.
+type TMDBConfig struct {
+	APIKey  string `mapstructure:"api_key"`
+	BaseURL string `mapstructure:"base_url"`
+}
+
+// SeedConfig holds settings for the admin seed endpoint.
+type SeedConfig struct {
+	Key string `mapstructure:"key"` // X-Seed-Key header value for auth bypass
 }
 
 // ClickHouseConfig holds ClickHouse connection and vector backend settings.
@@ -299,6 +312,11 @@ func Load() (*Config, error) {
 	v.SetDefault("meta.phone_number_id", "")
 	v.SetDefault("meta.app_secret", "")
 	v.SetDefault("meta.webhook_token", "")
+	// TMDB API defaults
+	v.SetDefault("tmdb.api_key", "")
+	v.SetDefault("tmdb.base_url", "https://api.themoviedb.org/3")
+	// Seed endpoint defaults
+	v.SetDefault("seed.key", "")
 	v.SetDefault("upload.max_size_bytes", 52428800) // 50 MB
 	v.SetDefault("upload.allowed_types", []string{
 		"application/pdf",
@@ -381,6 +399,9 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("ebpf.audit_ring_buffer_size", "RAVEN_EBPF_AUDIT_RING_BUFFER_SIZE")
 	_ = v.BindEnv("ebpf.xdp_enabled", "RAVEN_EBPF_XDP_ENABLED")
 	_ = v.BindEnv("ebpf.xdp_interface", "RAVEN_EBPF_XDP_INTERFACE")
+	_ = v.BindEnv("tmdb.api_key", "TMDB_API_KEY")
+	_ = v.BindEnv("tmdb.base_url", "RAVEN_TMDB_BASE_URL")
+	_ = v.BindEnv("seed.key", "RAVEN_SEED_KEY")
 
 	// Try to read config file but don't fail if not found
 	_ = v.ReadInConfig()
