@@ -68,6 +68,12 @@ func (s *OrgService) Create(ctx context.Context, req model.CreateOrgRequest) (*m
 	return org, nil
 }
 
+// GetBySlug retrieves an active organisation by slug.
+// Returns (nil, nil) when no matching organisation exists.
+func (s *OrgService) GetBySlug(ctx context.Context, slug string) (*model.Organization, error) {
+	return s.repo.GetBySlug(ctx, slug)
+}
+
 // GetByID retrieves an active organisation by ID.
 func (s *OrgService) GetByID(ctx context.Context, orgID string) (*model.Organization, error) {
 	org, err := s.repo.GetByID(ctx, orgID)

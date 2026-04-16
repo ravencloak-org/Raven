@@ -5,20 +5,12 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/ravencloak-org/Raven/internal/model"
 )
-
-// SeedResult is the response from the seed endpoint.
-type SeedResult struct {
-	OrgID             string `json:"org_id"`
-	WorkspaceID       string `json:"workspace_id"`
-	KBID              string `json:"kb_id"`
-	DocumentsEnqueued int    `json:"documents_enqueued"`
-	PipelineStatus    string `json:"pipeline_status"`
-}
 
 // SeedServicer is the interface the seed handler requires.
 type SeedServicer interface {
-	SeedDemo(ctx context.Context, size string) (*SeedResult, error)
+	SeedDemo(ctx context.Context, size string) (*model.SeedResult, error)
 }
 
 // SeedHandler handles the admin seed endpoint.

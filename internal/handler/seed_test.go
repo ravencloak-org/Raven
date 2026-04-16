@@ -10,19 +10,20 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/ravencloak-org/Raven/internal/handler"
+	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
 
 // mockSeedService implements handler.SeedServicer for unit tests.
 type mockSeedService struct {
-	seedDemoFn func(ctx context.Context, size string) (*handler.SeedResult, error)
+	seedDemoFn func(ctx context.Context, size string) (*model.SeedResult, error)
 }
 
-func (m *mockSeedService) SeedDemo(ctx context.Context, size string) (*handler.SeedResult, error) {
+func (m *mockSeedService) SeedDemo(ctx context.Context, size string) (*model.SeedResult, error) {
 	if m.seedDemoFn != nil {
 		return m.seedDemoFn(ctx, size)
 	}
-	return &handler.SeedResult{}, nil
+	return &model.SeedResult{}, nil
 }
 
 // newSeedRouter builds a test router for the seed handler.
@@ -36,7 +37,7 @@ func newSeedRouter(svc handler.SeedServicer) *gin.Engine {
 }
 
 func TestSeedDemo_Success(t *testing.T) {
-	expected := &handler.SeedResult{
+	expected := &model.SeedResult{
 		OrgID:             "org-123",
 		WorkspaceID:       "ws-456",
 		KBID:              "kb-789",
@@ -44,7 +45,7 @@ func TestSeedDemo_Success(t *testing.T) {
 		PipelineStatus:    "running",
 	}
 	svc := &mockSeedService{
-		seedDemoFn: func(_ context.Context, _ string) (*handler.SeedResult, error) {
+		seedDemoFn: func(_ context.Context, _ string) (*model.SeedResult, error) {
 			return expected, nil
 		},
 	}
@@ -58,7 +59,7 @@ func TestSeedDemo_Success(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var got handler.SeedResult
+	var got model.SeedResult
 	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
 		t.Fatalf("failed to unmarshal response: %v", err)
 	}
@@ -82,9 +83,9 @@ func TestSeedDemo_Success(t *testing.T) {
 func TestSeedDemo_DefaultSizeIsSmall(t *testing.T) {
 	var receivedSize string
 	svc := &mockSeedService{
-		seedDemoFn: func(_ context.Context, size string) (*handler.SeedResult, error) {
+		seedDemoFn: func(_ context.Context, size string) (*model.SeedResult, error) {
 			receivedSize = size
-			return &handler.SeedResult{
+			return &model.SeedResult{
 				OrgID:          "org-1",
 				WorkspaceID:    "ws-1",
 				KBID:           "kb-1",
@@ -109,7 +110,7 @@ func TestSeedDemo_DefaultSizeIsSmall(t *testing.T) {
 
 func TestSeedDemo_ServiceError(t *testing.T) {
 	svc := &mockSeedService{
-		seedDemoFn: func(_ context.Context, _ string) (*handler.SeedResult, error) {
+		seedDemoFn: func(_ context.Context, _ string) (*model.SeedResult, error) {
 			return nil, apierror.NewInternal("seed failed")
 		},
 	}
