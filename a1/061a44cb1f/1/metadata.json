@@ -1,9 +1,11 @@
 {
   "cli_version": "0.4.2",
   "checkpoint_id": "a1061a44cb1f",
+  "session_id": "30bae7da-9b26-4041-9dd0-7458662d72fb",
   "strategy": "manual-commit",
+  "created_at": "2026-04-16T07:56:02.770195Z",
   "branch": "main",
-  "checkpoints_count": 2,
+  "checkpoints_count": 1,
   "files_touched": [
     ".codecov.yml",
     ".github/workflows/pages.yml",
@@ -18,7 +20,6 @@
     "docs/superpowers/specs/2026-04-16-demo-kb-design.md",
     "frontend/Dockerfile",
     "frontend/nginx.conf",
-    "frontend/src/api/knowledge-bases.ts",
     "internal/auth/claims.go",
     "internal/auth/supertokens.go",
     "internal/auth/supertokens_init.go",
@@ -42,27 +43,24 @@
     "internal/storage/seaweedfs.go",
     "migrations/00035_supertokens_auth_provider.sql"
   ],
-  "sessions": [
-    {
-      "metadata": "/a1/061a44cb1f/0/metadata.json",
-      "transcript": "/a1/061a44cb1f/0/full.jsonl",
-      "context": "/a1/061a44cb1f/0/context.md",
-      "content_hash": "/a1/061a44cb1f/0/content_hash.txt",
-      "prompt": "/a1/061a44cb1f/0/prompt.txt"
-    },
-    {
-      "metadata": "/a1/061a44cb1f/1/metadata.json",
-      "transcript": "/a1/061a44cb1f/1/full.jsonl",
-      "context": "/a1/061a44cb1f/1/context.md",
-      "content_hash": "/a1/061a44cb1f/1/content_hash.txt",
-      "prompt": "/a1/061a44cb1f/1/prompt.txt"
-    }
-  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "43251004-dff5-4d74-82b7-1edcc4ccfd2e",
+  "checkpoint_transcript_start": 1255,
+  "transcript_lines_at_start": 1255,
   "token_usage": {
-    "input_tokens": 24,
-    "cache_creation_tokens": 26632,
-    "cache_read_tokens": 9951325,
-    "output_tokens": 16272,
-    "api_call_count": 16
+    "input_tokens": 13,
+    "cache_creation_tokens": 18061,
+    "cache_read_tokens": 1958828,
+    "output_tokens": 12380,
+    "api_call_count": 7
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-16T07:56:02.596098Z",
+    "agent_lines": 1166,
+    "human_added": 553,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1719,
+    "agent_percentage": 67.83013379872018
   }
 }
