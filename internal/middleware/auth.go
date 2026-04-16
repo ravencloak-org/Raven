@@ -29,6 +29,8 @@ const (
 	ContextKeyUserName contextKey = "user_name"
 	// ContextKeyClaims is the context key for the full parsed claims.
 	ContextKeyClaims contextKey = "claims"
+	// ContextKeySeedKey is the context key for the expected seed key value.
+	ContextKeySeedKey contextKey = "seed_key"
 )
 
 // authError represents a structured 401 response body.
@@ -43,6 +45,15 @@ func SessionMiddleware(provider auth.Provider) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		info, err := provider.VerifySession(c.Request)
 		if err != nil || info == nil {
+			// Allow admin endpoints with X-Seed-Key header (Docker entrypoint / CI).
+			if seedKey := c.GetHeader("X-Seed-Key"); seedKey != "" {
+				if expectedKey, exists := c.Get(string(ContextKeySeedKey)); exists {
+					if seedKey == expectedKey.(string) {
+						c.Next()
+						return
+					}
+				}
+			}
 			abortUnauthorized(c, "invalid_session")
 			return
 		}
