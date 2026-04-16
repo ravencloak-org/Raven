@@ -86,3 +86,56 @@ run golangci-lint
 
 codecov failed https://github.com/ravencloak-org/Raven/pull/302/checks?check_run_id=71591908780
 
+### Prompt 17
+
+now let
+
+### Prompt 18
+
+now lets brainstorm the next milestone, part of our release goals. we need to create a dummy org with a demo knowledge base
+
+### Prompt 19
+
+Base directory for this skill: /Users/jobinlawrance/.claude/skills/brainstorming
+
+# Brainstorming Ideas Into Designs
+
+Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
+
+Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design and get user approval.
+
+<HARD-GATE>
+Do NOT invoke any implementation skill, write any code, scaffold any project, or take a...
+
+### Prompt 20
+
+no i don't think that is necessary, just create a demo knowlegebase that fetches it's data from either api from an opensource movie database or some other open large database that could benefit from our service.
+
+### Prompt 21
+
+C
+
+### Prompt 22
+
+A, org should be shared accross all the new users
+
+### Prompt 23
+
+A
+
+### Prompt 24
+
+A
+
+### Prompt 25
+
+sure, go for it
+
+### Prompt 26
+
+B. reuse existing code so that it will also get tested
+
+### Prompt 27
+
+yes
+

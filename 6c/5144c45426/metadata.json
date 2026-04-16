@@ -3,11 +3,42 @@
   "checkpoint_id": "6c5144c45426",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 2,
+  "checkpoints_count": 1,
   "files_touched": [
     ".codecov.yml",
+    ".github/workflows/pages.yml",
+    "Dockerfile",
+    "README.md",
     "cmd/api/main.go",
-    "frontend/src/pages/knowledge-bases/KBDetailPage.vue"
+    "deploy/cloudflare-pages.json",
+    "deploy/ec2/docker-compose.server.yml",
+    "docker-compose.edge.yml",
+    "docker-compose.yml",
+    "frontend/Dockerfile",
+    "frontend/nginx.conf",
+    "frontend/src/pages/knowledge-bases/KBDetailPage.vue",
+    "internal/auth/claims.go",
+    "internal/auth/supertokens.go",
+    "internal/auth/supertokens_init.go",
+    "internal/auth/supertokens_test.go",
+    "internal/config/config.go",
+    "internal/handler/authproxy.go",
+    "internal/handler/chat.go",
+    "internal/handler/document.go",
+    "internal/handler/meta_webhook.go",
+    "internal/handler/meta_webhook_test.go",
+    "internal/handler/org.go",
+    "internal/handler/source.go",
+    "internal/handler/stranger.go",
+    "internal/handler/user_test.go",
+    "internal/handler/voice.go",
+    "internal/handler/whatsapp_webhook.go",
+    "internal/integration/testdata/sample_technical.md",
+    "internal/middleware/cors.go",
+    "internal/repository/rls_test.go",
+    "internal/repository/user.go",
+    "internal/storage/seaweedfs.go",
+    "migrations/00035_supertokens_auth_provider.sql"
   ],
   "sessions": [
     {
@@ -26,10 +57,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 31,
-    "cache_creation_tokens": 9247,
-    "cache_read_tokens": 15485970,
-    "output_tokens": 5024,
-    "api_call_count": 27
+    "input_tokens": 60,
+    "cache_creation_tokens": 14866,
+    "cache_read_tokens": 17687778,
+    "output_tokens": 6927,
+    "api_call_count": 35
   }
 }
