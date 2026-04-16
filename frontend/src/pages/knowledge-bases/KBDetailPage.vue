@@ -166,8 +166,8 @@ async function sendChatMessage() {
 
   await scrollChatToBottom()
 
-  const apiBase = import.meta.env.VITE_API_BASE_URL ?? ''
-  const url = `${apiBase}/api/v1/chat/${kbId}/completions`
+  const apiBase = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
+  const url = `${apiBase}/orgs/${orgId}/workspaces/${wsId}/knowledge-bases/${kbId}/completions`
 
   try {
     const response = await fetch(url, {

@@ -515,6 +515,9 @@ func main() {
 				// Full-text search (nested under knowledge base)
 				kb.GET("/:kb_id/search", searchHandler.Search)
 
+				// Chat completions (session-authenticated, for dashboard users)
+				kb.POST("/:kb_id/completions", chatHandler.StreamCompletion)
+
 				// Document upload
 				kb.POST("/:kb_id/documents/upload", uploadHandler.Upload) // Role check relaxed for onboarding upload
 
