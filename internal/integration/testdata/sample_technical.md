@@ -8,7 +8,7 @@ The Raven API follows RESTful conventions with versioned endpoints under the /ap
 
 ## Authentication
 
-Authentication is handled by Zitadel as the identity provider, issuing OIDC-compliant JWT access tokens. The API server validates tokens by checking the signature against the JWKS endpoint, verifying expiration claims, and confirming the audience matches the registered client. Service-to-service communication uses client credentials grants with scoped permissions. User sessions support refresh token rotation with configurable lifetimes. The authentication middleware extracts the org_id claim from the token to establish tenant context for row-level security. Multi-factor authentication is enforced for administrative operations including API key management, user provisioning, and configuration changes. Token introspection endpoints allow downstream services to validate tokens without direct access to the identity provider.
+Authentication is handled by SuperTokens as the session backend, using cookie-based sessions with anti-CSRF protection. The API server validates sessions via the SuperTokens Go SDK, which checks the access token signature and (optionally) performs a database revocation check. Social login is supported via OIDC third-party providers (Google, GitHub) managed through the SuperTokens Core multitenancy API. The session middleware extracts the user ID from the session and resolves the org_id from the local database to establish tenant context for row-level security. Service-to-service communication uses API keys with scoped permissions.
 
 ## Rate Limiting
 
@@ -76,7 +76,7 @@ Key environment variables control database connections, service discovery, and f
 
 ## Docker Setup
 
-The Docker Compose configuration defines services for the API server, Python worker, PostgreSQL with pgvector, Valkey, SeaweedFS, and Zitadel identity provider. Each service specifies health checks, resource limits, and dependency ordering through depends_on conditions. The PostgreSQL service uses a custom Dockerfile that installs the pgvector extension and configures shared_preload_libraries for optimal full-text search performance. Volume mounts persist database data, object storage files, and configuration between container restarts. A dedicated Docker network isolates service communication with DNS-based service discovery. The development Compose file adds hot-reload configurations with volume mounts for source code. Multi-architecture images support both amd64 and arm64 platforms for deployment flexibility on edge hardware including Raspberry Pi nodes.
+The Docker Compose configuration defines services for the API server, Python worker, PostgreSQL with pgvector, Valkey, SeaweedFS, and SuperTokens auth backend. Each service specifies health checks, resource limits, and dependency ordering through depends_on conditions. The PostgreSQL service uses a custom Dockerfile that installs the pgvector extension and configures shared_preload_libraries for optimal full-text search performance. Volume mounts persist database data, object storage files, and configuration between container restarts. A dedicated Docker network isolates service communication with DNS-based service discovery. The development Compose file adds hot-reload configurations with volume mounts for source code. Multi-architecture images support both amd64 and arm64 platforms for deployment flexibility on edge hardware including Raspberry Pi nodes.
 
 ## Kubernetes Deployment
 

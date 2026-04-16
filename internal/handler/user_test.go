@@ -63,7 +63,7 @@ func TestGetMe_Success(t *testing.T) {
 			return &model.User{ID: "user-1", ExternalID: externalID, Email: "alice@example.com"}, nil
 		},
 	}
-	r := newUserRouter(svc, "zitadel-sub-alice")
+	r := newUserRouter(svc, "st-user-alice")
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/me", nil)
@@ -87,7 +87,7 @@ func TestGetMe_NotFound_Returns404(t *testing.T) {
 			return nil, apierror.NewNotFound("user not found")
 		},
 	}
-	r := newUserRouter(svc, "zitadel-sub-unknown")
+	r := newUserRouter(svc, "st-user-unknown")
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/me", nil)
