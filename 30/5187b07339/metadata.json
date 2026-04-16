@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "305187b07339",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/pages.yml",
+    "deploy/cloudflare-pages.json",
+    "internal/handler/user_test.go",
+    "internal/integration/testdata/sample_technical.md",
+    "internal/repository/rls_test.go",
+    "internal/repository/user.go",
+    "migrations/00035_supertokens_auth_provider.sql"
+  ],
+  "sessions": [
+    {
+      "metadata": "/30/5187b07339/0/metadata.json",
+      "transcript": "/30/5187b07339/0/full.jsonl",
+      "context": "/30/5187b07339/0/context.md",
+      "content_hash": "/30/5187b07339/0/content_hash.txt",
+      "prompt": "/30/5187b07339/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 49,
+    "cache_creation_tokens": 17998,
+    "cache_read_tokens": 10979508,
+    "output_tokens": 9216,
+    "api_call_count": 47
+  }
+}
