@@ -13,9 +13,7 @@
   "env_vars": {
     "VITE_API_URL": "https://api.ravencloak.org",
     "VITE_API_BASE_URL": "https://api.ravencloak.org/api/v1",
-    "VITE_ZITADEL_URL": "https://auth.ravencloak.org",
-    "VITE_ZITADEL_CLIENT_ID": "",
-    "VITE_GOOGLE_IDP_ID": "",
+    "VITE_API_DOMAIN": "https://api.ravencloak.org",
     "VITE_LIVEKIT_URL": "wss://livekit.ravencloak.org",
     "NODE_VERSION": "22"
   }

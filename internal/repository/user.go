@@ -20,7 +20,7 @@ func NewUserRepository(pool *pgxpool.Pool) *UserRepository {
 }
 
 const userColumns = `id, org_id, email, COALESCE(display_name, '') AS display_name,
-	COALESCE(external_id, '') AS external_id, COALESCE(auth_provider, 'zitadel') AS auth_provider,
+	COALESCE(external_id, '') AS external_id, COALESCE(auth_provider, 'supertokens') AS auth_provider,
 	status, last_login_at, created_at, updated_at`
 
 func scanUser(row pgx.Row) (*model.User, error) {
@@ -47,7 +47,7 @@ func scanUser(row pgx.Row) (*model.User, error) {
 func (r *UserRepository) UpsertByExternalID(ctx context.Context, externalID, email, displayName string) (*model.User, error) {
 	row := r.pool.QueryRow(ctx,
 		`INSERT INTO users (external_id, email, display_name, auth_provider)
-		 VALUES ($1, $2, $3, 'zitadel')
+		 Values ($1, $2, $3, 'supertokens')
 		 ON CONFLICT (external_id) WHERE external_id IS NOT NULL DO UPDATE
 		   SET email        = EXCLUDED.email,
 		       display_name = COALESCE(EXCLUDED.display_name, users.display_name),
