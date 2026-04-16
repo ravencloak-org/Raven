@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "1bf9f76d3e71",
+  "session_id": "30bae7da-9b26-4041-9dd0-7458662d72fb",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-16T06:44:08.904571Z",
+  "branch": "fix/purge-zitadel-references",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "internal/handler/org.go"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "3c3de9df-7282-4451-b9a4-ec774cacb741",
+  "checkpoint_transcript_start": 976,
+  "transcript_lines_at_start": 976,
+  "token_usage": {
+    "input_tokens": 25,
+    "cache_creation_tokens": 10685,
+    "cache_read_tokens": 5195109,
+    "output_tokens": 4172,
+    "api_call_count": 21
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-16T06:44:08.725468Z",
+    "agent_lines": 0,
+    "human_added": 560,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 560,
+    "agent_percentage": 0
+  }
+}
