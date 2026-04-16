@@ -3,6 +3,7 @@ package auth
 import (
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 
 	"github.com/supertokens/supertokens-golang/recipe/session"
 )
@@ -29,7 +30,8 @@ func (p *SuperTokensProvider) VerifySession(r *http.Request) (*SessionInfo, erro
 	//
 	// We pass nil for res so no Set-Cookie headers are written; the SDK falls
 	// back gracefully when res is nil during verification-only calls.
-	sessionContainer, err := session.GetSession(r, nil, nil)
+	dummyW := httptest.NewRecorder()
+	sessionContainer, err := session.GetSession(r, dummyW, nil)
 	if err != nil {
 		return nil, fmt.Errorf("session verification failed: %w", err)
 	}
@@ -49,7 +51,8 @@ func (p *SuperTokensProvider) VerifySession(r *http.Request) (*SessionInfo, erro
 
 // RevokeSession invalidates the session identified by the request's access token.
 func (p *SuperTokensProvider) RevokeSession(r *http.Request) error {
-	sessionContainer, err := session.GetSession(r, nil, nil)
+	dummyW := httptest.NewRecorder()
+	sessionContainer, err := session.GetSession(r, dummyW, nil)
 	if err != nil {
 		return fmt.Errorf("session verification failed: %w", err)
 	}
