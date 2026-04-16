@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/hibiken/asynq"
 
@@ -35,7 +36,10 @@ func WithLogger(l *slog.Logger) ClientOption {
 }
 
 // NewClient creates a new queue Client connected to the given Valkey/Redis address.
+// Accepts both "host:port" and "redis://host:port" formats.
 func NewClient(redisAddr string, opts ...ClientOption) *Client {
+	// Strip redis:// scheme if present — asynq expects bare host:port.
+	redisAddr = strings.TrimPrefix(redisAddr, "redis://")
 	c := &Client{
 		inner:    asynq.NewClient(asynq.RedisClientOpt{Addr: redisAddr}),
 		logger:   slog.Default(),
