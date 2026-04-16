@@ -3,31 +3,31 @@
   "checkpoint_id": "4a740fb5ec96",
   "session_id": "c9ce9215-d1ba-4965-83fd-eba9b611dad2",
   "strategy": "manual-commit",
-  "created_at": "2026-04-16T05:49:33.936901Z",
-  "branch": "main",
+  "created_at": "2026-04-16T06:28:53.96653Z",
+  "branch": "fix/pages-zitadel-cleanup",
   "checkpoints_count": 1,
   "files_touched": [
     "cmd/api/main.go",
-    "frontend/src/stores/auth.ts"
+    "frontend/src/pages/onboarding/OnboardingWizard.vue"
   ],
   "agent": "Claude Code",
-  "transcript_identifier_at_start": "c8814f63-6805-44b9-afe5-c1a06b5291cc",
-  "checkpoint_transcript_start": 3754,
-  "transcript_lines_at_start": 3754,
+  "transcript_identifier_at_start": "17a53eff-c28f-42e2-9e21-b56975b797b8",
+  "checkpoint_transcript_start": 3787,
+  "transcript_lines_at_start": 3787,
   "token_usage": {
-    "input_tokens": 12,
-    "cache_creation_tokens": 797479,
-    "cache_read_tokens": 7274064,
-    "output_tokens": 2930,
-    "api_call_count": 10
+    "input_tokens": 29,
+    "cache_creation_tokens": 13243,
+    "cache_read_tokens": 20408946,
+    "output_tokens": 6125,
+    "api_call_count": 25
   },
   "initial_attribution": {
-    "calculated_at": "2026-04-16T05:49:33.43385Z",
+    "calculated_at": "2026-04-16T06:28:53.467596Z",
     "agent_lines": 0,
-    "human_added": 554,
+    "human_added": 560,
     "human_modified": 3,
     "human_removed": 0,
-    "total_committed": 554,
+    "total_committed": 561,
     "agent_percentage": 0
   }
 }

@@ -2,11 +2,11 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "4a740fb5ec96",
   "strategy": "manual-commit",
-  "branch": "main",
+  "branch": "fix/pages-zitadel-cleanup",
   "checkpoints_count": 1,
   "files_touched": [
     "cmd/api/main.go",
-    "frontend/src/stores/auth.ts"
+    "frontend/src/pages/onboarding/OnboardingWizard.vue"
   ],
   "sessions": [
     {
@@ -18,10 +18,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 12,
-    "cache_creation_tokens": 797479,
-    "cache_read_tokens": 7274064,
-    "output_tokens": 2930,
-    "api_call_count": 10
+    "input_tokens": 29,
+    "cache_creation_tokens": 13243,
+    "cache_read_tokens": 20408946,
+    "output_tokens": 6125,
+    "api_call_count": 25
   }
 }
