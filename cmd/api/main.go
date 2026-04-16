@@ -508,7 +508,7 @@ func main() {
 			{
 				kb.POST("", kbHandler.Create) // No role check — onboarding creates first KB
 				kb.GET("", kbHandler.List)
-				kb.GET("/:kb_id", resolveWSRole, kbHandler.Get)
+				kb.GET("/:kb_id", kbHandler.Get)
 				kb.PUT("/:kb_id", resolveWSRole, middleware.RequireWorkspaceRole("member"), kbHandler.Update)
 				kb.DELETE("/:kb_id", resolveWSRole, middleware.RequireWorkspaceRole("admin"), kbHandler.Archive)
 

@@ -13,7 +13,8 @@
       :feature="billingStore.upgradeFeature"
       @close="billingStore.hideUpgradePrompt()"
     />
-    <OnboardingWizard v-if="!onboardingStore.completed" />
+    <!-- Onboarding overlay only shows for users without an org -->
+    <OnboardingWizard v-if="!authStore.hasOrg && !onboardingStore.completed" />
   </div>
 </template>
 
@@ -25,10 +26,12 @@ import MobileTabBar from '../components/MobileTabBar.vue'
 import UpgradePrompt from '../components/UpgradePrompt.vue'
 import OnboardingWizard from '../pages/onboarding/OnboardingWizard.vue'
 import { useMobile } from '../composables/useMediaQuery'
+import { useAuthStore } from '../stores/auth'
 import { useBillingStore } from '../stores/billing'
 import { useOnboardingStore } from '../stores/onboarding'
 
 const { isMobile } = useMobile()
+const authStore = useAuthStore()
 const billingStore = useBillingStore()
 const onboardingStore = useOnboardingStore()
 </script>
