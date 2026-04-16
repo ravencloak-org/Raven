@@ -26,8 +26,6 @@ const providerToDelete = ref<string | null>(null)
 const providerToDeleteName = ref('')
 const deleting = ref(false)
 
-const testingId = ref<string | null>(null)
-const testResult = ref<Record<string, { success: boolean; message: string; latency_ms?: number }>>({})
 
 const providerTypes: { value: ProviderType; label: string }[] = [
   { value: 'openai', label: 'OpenAI' },
@@ -74,25 +72,6 @@ async function handleDelete() {
   }
 }
 
-async function handleTest(id: string) {
-  testingId.value = id
-  const result = await store.testProviderConnection(orgId, id)
-  testResult.value[id] = result
-  testingId.value = null
-}
-
-function statusColor(status: string) {
-  return status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-}
-
-function mobileStatusClass(status: string): string {
-  if (status === 'active') return 'bg-green-900 text-green-300'
-  return 'bg-slate-700 text-slate-300'
-}
-
-function modelCountForProvider(providerType: ProviderType): number {
-  return (PROVIDER_MODELS[providerType] ?? []).length
-}
 
 onMounted(() => store.fetchProviders(orgId))
 </script>
@@ -120,33 +99,21 @@ onMounted(() => store.fetchProviders(orgId))
           <div>
             <div class="flex items-center gap-2">
               <h3 class="font-semibold text-gray-900">{{ provider.display_name }}</h3>
-              <span :class="['rounded-full px-2 py-0.5 text-xs font-medium', statusColor(provider.status)]">{{ provider.status }}</span>
+              <span :class="['rounded-full px-2 py-0.5 text-xs font-medium', provider.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600']">{{ provider.status }}</span>
             </div>
             <p class="mt-1 text-sm text-gray-500">
-              {{ provider.provider.toUpperCase() }} &middot; {{ provider.model }}
+              {{ provider.provider.toUpperCase() }} &middot; {{ provider.provider }}
               <span v-if="provider.base_url"> &middot; {{ provider.base_url }}</span>
             </p>
             <p class="mt-1 text-xs text-gray-400">
-              {{ provider.workspace_id ? `Workspace: ${provider.workspace_id}` : 'Org-wide' }}
-              &middot; API key {{ provider.api_key_set ? 'configured' : 'not set' }}
+              API key {{ !!provider.api_key_hint ? 'configured' : 'not set' }}
             </p>
           </div>
           <div class="flex gap-2">
-            <button
-              class="rounded border border-gray-300 px-3 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-              :disabled="testingId === provider.id"
-              @click="handleTest(provider.id)"
-            >
-              {{ testingId === provider.id ? 'Testing...' : 'Test' }}
-            </button>
             <button class="rounded border border-red-300 px-3 py-1 text-xs text-red-700 hover:bg-red-50" @click="confirmDelete(provider.id, provider.display_name)">
               Delete
             </button>
           </div>
-        </div>
-        <div v-if="testResult[provider.id]" class="mt-2 rounded px-3 py-2 text-sm" :class="testResult[provider.id].success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'">
-          {{ testResult[provider.id].message }}
-          <span v-if="testResult[provider.id].latency_ms"> ({{ testResult[provider.id].latency_ms }}ms)</span>
         </div>
       </div>
     </div>
@@ -163,33 +130,17 @@ onMounted(() => store.fetchProviders(orgId))
           <span class="text-white font-semibold text-[15px] truncate">{{ provider.display_name }}</span>
           <span
             class="shrink-0 inline-block rounded-full px-2 py-0.5 text-xs font-medium"
-            :class="mobileStatusClass(provider.status)"
           >
             {{ provider.status }}
           </span>
         </div>
 
-        <!-- Subtitle: model count -->
         <p class="text-slate-400 text-xs mt-1">
-          {{ modelCountForProvider(provider.provider) }} model{{ modelCountForProvider(provider.provider) === 1 ? '' : 's' }}
-          &bull; {{ provider.provider.toUpperCase() }}
+          {{ provider.provider.toUpperCase() }}
         </p>
-
-        <!-- Test result (if present) -->
-        <div v-if="testResult[provider.id]" class="mt-2 rounded px-3 py-2 text-xs" :class="testResult[provider.id].success ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'">
-          {{ testResult[provider.id].message }}
-          <span v-if="testResult[provider.id].latency_ms"> ({{ testResult[provider.id].latency_ms }}ms)</span>
-        </div>
 
         <!-- Action row -->
         <div class="border-t border-slate-700 mt-2.5 pt-2.5 flex items-center justify-end gap-2">
-          <button
-            class="border border-slate-600 text-slate-300 text-xs px-3 py-1 rounded-lg disabled:opacity-50"
-            :disabled="testingId === provider.id"
-            @click="handleTest(provider.id)"
-          >
-            {{ testingId === provider.id ? 'Testing...' : 'Test' }}
-          </button>
           <button
             class="border border-red-500 text-red-400 text-xs px-3 py-1 rounded-lg"
             @click="confirmDelete(provider.id, provider.display_name)"
@@ -217,7 +168,7 @@ onMounted(() => store.fetchProviders(orgId))
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">Model</label>
-            <select v-model="selectedModel" class="mt-1 block w-full rounded border-gray-300 shadow-sm">
+            <select  class="mt-1 block w-full rounded border-gray-300 shadow-sm">
               <option v-for="m in modelsForType(form.provider)" :key="m.value" :value="m.value">{{ m.label }}</option>
             </select>
           </div>
