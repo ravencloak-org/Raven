@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "6c5144c45426",
+  "session_id": "30bae7da-9b26-4041-9dd0-7458662d72fb",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-16T06:51:42.658372Z",
+  "branch": "fix/purge-zitadel-references",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".codecov.yml"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "1f805aac-c6f2-476b-8535-0932bc97b922",
+  "checkpoint_transcript_start": 1056,
+  "transcript_lines_at_start": 1056,
+  "token_usage": {
+    "input_tokens": 15,
+    "cache_creation_tokens": 3786,
+    "cache_read_tokens": 3301720,
+    "output_tokens": 1847,
+    "api_call_count": 13
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-16T06:51:42.490544Z",
+    "agent_lines": 0,
+    "human_added": 554,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 554,
+    "agent_percentage": 0
+  }
+}
