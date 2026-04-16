@@ -3,10 +3,13 @@
   "checkpoint_id": "305187b07339",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     ".github/workflows/pages.yml",
+    "cmd/api/main.go",
     "deploy/cloudflare-pages.json",
+    "internal/handler/org.go",
+    "internal/handler/org_test.go",
     "internal/handler/user_test.go",
     "internal/integration/testdata/sample_technical.md",
     "internal/repository/rls_test.go",
@@ -20,13 +23,20 @@
       "context": "/30/5187b07339/0/context.md",
       "content_hash": "/30/5187b07339/0/content_hash.txt",
       "prompt": "/30/5187b07339/0/prompt.txt"
+    },
+    {
+      "metadata": "/30/5187b07339/1/metadata.json",
+      "transcript": "/30/5187b07339/1/full.jsonl",
+      "context": "/30/5187b07339/1/context.md",
+      "content_hash": "/30/5187b07339/1/content_hash.txt",
+      "prompt": "/30/5187b07339/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 49,
-    "cache_creation_tokens": 17998,
-    "cache_read_tokens": 10979508,
-    "output_tokens": 9216,
-    "api_call_count": 47
+    "input_tokens": 77,
+    "cache_creation_tokens": 37870,
+    "cache_read_tokens": 30944987,
+    "output_tokens": 18570,
+    "api_call_count": 71
   }
 }
