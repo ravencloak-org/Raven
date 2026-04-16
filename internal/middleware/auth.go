@@ -87,6 +87,9 @@ func UserLookup(resolver UserResolver) gin.HandlerFunc {
 		c.Set(string(ContextKeyUserID), userID)
 		if orgID != nil {
 			c.Set(string(ContextKeyOrgID), *orgID)
+			// Default role: org_admin for the org creator.
+			// TODO: implement proper role management with org_members table.
+			c.Set(string(ContextKeyOrgRole), "org_admin")
 		}
 		c.Next()
 	}
