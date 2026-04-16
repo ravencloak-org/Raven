@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/hibiken/asynq"
 )
@@ -37,8 +38,7 @@ func (h *errorHandler) HandleError(_ context.Context, task *asynq.Task, err erro
 }
 
 // NewServer creates a new Asynq worker server with the given configuration.
-// Handlers are stubs that log the task payload; real processing will be added
-// in subsequent issues (#14-#17).
+// Callers must register handlers on the returned Server's Mux() before calling Start().
 func NewServer(cfg ServerConfig) *Server {
 	if cfg.Concurrency <= 0 {
 		cfg.Concurrency = 10
@@ -50,8 +50,11 @@ func NewServer(cfg ServerConfig) *Server {
 		cfg.Logger = slog.Default()
 	}
 
+	// Strip redis:// scheme if present — Asynq expects bare host:port.
+	redisAddr := strings.TrimPrefix(cfg.RedisAddr, "redis://")
+
 	srv := asynq.NewServer(
-		asynq.RedisClientOpt{Addr: cfg.RedisAddr},
+		asynq.RedisClientOpt{Addr: redisAddr},
 		asynq.Config{
 			Concurrency: cfg.Concurrency,
 			Queues: map[string]int{
@@ -70,11 +73,6 @@ func NewServer(cfg ServerConfig) *Server {
 		mux:    mux,
 		logger: cfg.Logger,
 	}
-
-	// Register stub handlers for all task types.
-	mux.HandleFunc(TypeDocumentProcess, s.handleDocumentProcess)
-	mux.HandleFunc(TypeURLScrape, s.handleURLScrape)
-	mux.HandleFunc(TypeReindex, s.handleReindex)
 
 	return s
 }
