@@ -37,7 +37,8 @@ func InitSuperTokens(cfg SuperTokensInitConfig) error {
 			// Provider list is managed via the SuperTokens Core multitenancy API.
 		}),
 		session.Init(&sessmodels.TypeInput{
-			CookieDomain: &cookieDomain,
+			CookieDomain:  &cookieDomain,
+			CookieSameSite: strPtr("none"),
 		}),
 	}
 
@@ -56,3 +57,5 @@ func InitSuperTokens(cfg SuperTokensInitConfig) error {
 		RecipeList: recipeList,
 	})
 }
+
+func strPtr(s string) *string { return &s }
