@@ -3,39 +3,11 @@
   "checkpoint_id": "6c5144c45426",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     ".codecov.yml",
-    ".env.example",
-    ".github/workflows/docker.yml",
-    ".github/workflows/pages.yml",
     "cmd/api/main.go",
-    "deploy/cloudflare-pages.json",
-    "deploy/ec2/docker-compose.server.yml",
-    "deploy/postgres/init.sql",
-    "deploy/zitadel/zitadel-config.yaml",
-    "deploy/zitadel/zitadel-init-steps.yaml",
-    "docker-compose.yml",
-    "frontend/Dockerfile",
-    "frontend/e2e/auth.spec.ts",
-    "frontend/e2e/mobile/login.spec.ts",
-    "frontend/e2e/orgs.spec.ts",
-    "frontend/src/pages/DashboardPage.vue",
-    "frontend/src/pages/LoginPage.vue",
-    "frontend/src/pages/callback/CallbackPage.vue",
-    "frontend/src/pages/onboarding/OnboardingWizard.vue",
-    "frontend/src/router/index.ts",
-    "frontend/src/stores/auth.spec.ts",
-    "frontend/src/stores/auth.ts",
-    "frontend/wrangler.toml",
-    "internal/auth/provider.go",
-    "internal/auth/supertokens_init.go",
-    "internal/handler/auth.go",
-    "internal/handler/org.go",
-    "internal/handler/org_test.go",
-    "internal/integration/setup_test.go",
-    "internal/middleware/auth.go",
-    "internal/middleware/cors.go"
+    "frontend/src/pages/knowledge-bases/KBDetailPage.vue"
   ],
   "sessions": [
     {
@@ -54,10 +26,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 35,
-    "cache_creation_tokens": 13221,
-    "cache_read_tokens": 16241639,
-    "output_tokens": 5729,
-    "api_call_count": 28
+    "input_tokens": 31,
+    "cache_creation_tokens": 9247,
+    "cache_read_tokens": 15485970,
+    "output_tokens": 5024,
+    "api_call_count": 27
   }
 }

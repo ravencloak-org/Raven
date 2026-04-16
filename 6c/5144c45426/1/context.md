@@ -554,3 +554,7 @@ Start by understanding the current project context, then ask questions one at a 
 <HARD-GATE>
 Do NOT invoke any implementatio...
 
+### Prompt 104
+
+404 while chatting
+
