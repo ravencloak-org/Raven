@@ -48,7 +48,7 @@ func newOrgRouter(svc handler.OrgServicer, orgAdminSetup bool) *gin.Engine {
 			c.Next()
 		})
 	}
-	h := handler.NewOrgHandler(svc)
+	h := handler.NewOrgHandler(svc, nil)
 	r.POST("/api/v1/orgs", h.Create)
 	r.GET("/api/v1/orgs/:org_id", h.Get)
 	r.PUT("/api/v1/orgs/:org_id", h.Update)

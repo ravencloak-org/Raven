@@ -407,7 +407,7 @@ func main() {
 	_ = sttProvider // available for future wiring into voice turn transcription
 
 	// --- Wire handlers ---
-	orgHandler := handler.NewOrgHandler(orgSvc)
+	orgHandler := handler.NewOrgHandler(orgSvc, userRepo)
 	wsHandler := handler.NewWorkspaceHandler(wsSvc)
 	userHandler := handler.NewUserHandler(userSvc)
 	kbHandler := handler.NewKBHandler(kbSvc)
