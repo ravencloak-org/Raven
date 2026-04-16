@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "552b2b521eb0",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".claude/worktrees/agent-a7e04d0a/.env.ci",
+    "frontend/src/api/llm-providers.ts",
+    "frontend/src/pages/llm-providers/LlmProviderListPage.vue",
+    "frontend/src/stores/llm-providers.ts",
+    "internal/model/seed.go",
+    "internal/service/chat.go",
+    "internal/service/seed.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/55/2b2b521eb0/0/metadata.json",
+      "transcript": "/55/2b2b521eb0/0/full.jsonl",
+      "context": "/55/2b2b521eb0/0/context.md",
+      "content_hash": "/55/2b2b521eb0/0/content_hash.txt",
+      "prompt": "/55/2b2b521eb0/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 78,
+    "cache_creation_tokens": 36177,
+    "cache_read_tokens": 68215316,
+    "output_tokens": 16442,
+    "api_call_count": 74
+  }
+}
