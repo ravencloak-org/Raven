@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from "../../stores/auth"
 import { useLlmProvidersStore } from '../../stores/llm-providers'
 import { useMobile } from '../../composables/useMediaQuery'
@@ -8,7 +8,7 @@ import { PROVIDER_MODELS, type ProviderType, type CreateLlmProviderRequest } fro
 const store = useLlmProvidersStore()
 const { isMobile } = useMobile()
 const authStore = useAuthStore()
-const orgId = authStore.orgId ?? sessionStorage.getItem("raven_org_id") ?? ""
+const orgId = computed(() => authStore.orgId ?? sessionStorage.getItem("raven_org_id") ?? "")
 
 
 const showCreateDialog = ref(false)
@@ -44,12 +44,17 @@ function onProviderTypeChange() {
   form.value.base_url = form.value.provider === 'custom' || form.value.provider === 'ollama' ? '' : null
 }
 
+const createError = ref('')
+
 async function handleCreate() {
   creating.value = true
+  createError.value = ''
   try {
-    await store.addProvider(orgId, { ...form.value })
+    await store.addProvider(orgId.value, { ...form.value })
     showCreateDialog.value = false
     form.value = { provider: 'openai', display_name: '', base_url: null, api_key: '' }
+  } catch (e: unknown) {
+    createError.value = e instanceof Error ? e.message : 'Failed to create provider'
   } finally {
     creating.value = false
   }
@@ -65,7 +70,7 @@ async function handleDelete() {
   if (!providerToDelete.value) return
   deleting.value = true
   try {
-    await store.removeProvider(orgId, providerToDelete.value)
+    await store.removeProvider(orgId.value, providerToDelete.value)
     showDeleteDialog.value = false
   } finally {
     deleting.value = false
@@ -73,7 +78,7 @@ async function handleDelete() {
 }
 
 
-onMounted(() => store.fetchProviders(orgId))
+onMounted(() => store.fetchProviders(orgId.value))
 </script>
 
 <template>
@@ -180,9 +185,10 @@ onMounted(() => store.fetchProviders(orgId))
             <label class="block text-sm font-medium text-gray-700">API Key</label>
             <input v-model="form.api_key" type="password" class="mt-1 block w-full rounded border-gray-300 shadow-sm" placeholder="sk-..." />
           </div>
+          <p v-if="createError" class="text-red-500 text-sm">{{ createError }}</p>
           <div class="flex justify-end gap-2 pt-2">
             <button type="button" class="rounded px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" @click="showCreateDialog = false">Cancel</button>
-            <button type="submit" :disabled="creating || !form.display_name" class="rounded bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-50">
+            <button type="submit" :disabled="creating || !form.display_name || !form.api_key" class="rounded bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-50">
               {{ creating ? 'Creating...' : 'Create' }}
             </button>
           </div>
