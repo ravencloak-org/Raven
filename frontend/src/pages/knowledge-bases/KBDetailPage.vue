@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useKnowledgeBasesStore } from '../../stores/knowledge-bases'
 
@@ -126,6 +126,132 @@ async function handleAddSource() {
     /* error surfaced via store.error */
   } finally {
     addingSource.value = false
+  }
+}
+
+// --- Chat ---
+
+interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+  streaming?: boolean
+}
+
+const chatMessages = ref<ChatMessage[]>([])
+const chatInput = ref('')
+const chatSessionId = ref<string | undefined>(undefined)
+const chatStreaming = ref(false)
+const chatError = ref('')
+const chatContainer = ref<HTMLElement | null>(null)
+
+async function scrollChatToBottom() {
+  await nextTick()
+  if (chatContainer.value) {
+    chatContainer.value.scrollTop = chatContainer.value.scrollHeight
+  }
+}
+
+async function sendChatMessage() {
+  const query = chatInput.value.trim()
+  if (!query || chatStreaming.value) return
+
+  chatError.value = ''
+  chatInput.value = ''
+  chatStreaming.value = true
+
+  chatMessages.value.push({ role: 'user', content: query })
+  const assistantMsg: ChatMessage = { role: 'assistant', content: '', streaming: true }
+  chatMessages.value.push(assistantMsg)
+  const assistantIndex = chatMessages.value.length - 1
+
+  await scrollChatToBottom()
+
+  const apiBase = import.meta.env.VITE_API_BASE_URL ?? ''
+  const url = `${apiBase}/api/v1/chat/${kbId}/completions`
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query,
+        session_id: chatSessionId.value,
+      }),
+    })
+
+    if (!response.ok || !response.body) {
+      throw new Error(`Request failed: ${response.status}`)
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+
+      // SSE lines are separated by double newlines
+      const parts = buffer.split('\n\n')
+      buffer = parts.pop() ?? ''
+
+      for (const part of parts) {
+        if (!part.trim()) continue
+
+        let eventType = ''
+        let dataLine = ''
+
+        for (const line of part.split('\n')) {
+          if (line.startsWith('event: ')) {
+            eventType = line.slice('event: '.length).trim()
+          } else if (line.startsWith('data: ')) {
+            dataLine = line.slice('data: '.length).trim()
+          }
+        }
+
+        if (!dataLine) continue
+
+        try {
+          const parsed = JSON.parse(dataLine)
+
+          if (eventType === 'token') {
+            chatMessages.value[assistantIndex].content += parsed.text ?? ''
+            await scrollChatToBottom()
+          } else if (eventType === 'done') {
+            chatMessages.value[assistantIndex].streaming = false
+          } else if (eventType === 'error') {
+            chatError.value = parsed.error ?? 'Streaming error'
+            chatMessages.value[assistantIndex].streaming = false
+          } else if (eventType === 'sources') {
+            // Sources are informational; ignore for now
+          }
+
+          // Persist session_id from any event that provides it
+          if (parsed.session_id) {
+            chatSessionId.value = parsed.session_id
+          }
+        } catch {
+          // Malformed JSON chunk, skip
+        }
+      }
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Unknown error'
+    chatError.value = msg
+  } finally {
+    chatMessages.value[assistantIndex].streaming = false
+    chatStreaming.value = false
+    await scrollChatToBottom()
+  }
+}
+
+function handleChatKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault()
+    void sendChatMessage()
   }
 }
 
@@ -329,7 +455,7 @@ function statusBadgeClass(status: string): string {
       </section>
 
       <!-- URL Sources section -->
-      <section>
+      <section class="mb-8">
         <h2 class="text-lg font-semibold mb-4">URL Sources</h2>
 
         <!-- Add source form -->
@@ -398,6 +524,82 @@ function statusBadgeClass(status: string): string {
             </tr>
           </tbody>
         </table>
+      </section>
+      <!-- Chat section -->
+      <section class="mt-10">
+        <h2 class="text-lg font-semibold mb-1">Chat with this KB</h2>
+        <p class="text-sm text-gray-500 mb-4">Ask questions about the documents in this knowledge base.</p>
+
+        <!-- Message list -->
+        <div
+          ref="chatContainer"
+          class="border border-gray-200 rounded-lg bg-white h-96 overflow-y-auto p-4 flex flex-col gap-3 mb-3"
+        >
+          <!-- Empty state -->
+          <div
+            v-if="chatMessages.length === 0"
+            class="flex-1 flex items-center justify-center text-sm text-gray-400"
+          >
+            No messages yet. Send a question to get started.
+          </div>
+
+          <!-- Messages -->
+          <template v-for="(msg, idx) in chatMessages" :key="idx">
+            <!-- User bubble -->
+            <div v-if="msg.role === 'user'" class="flex justify-end">
+              <div class="max-w-[75%] rounded-2xl rounded-tr-sm bg-amber-400 text-black px-4 py-2 text-sm leading-relaxed shadow-sm">
+                {{ msg.content }}
+              </div>
+            </div>
+
+            <!-- Assistant bubble -->
+            <div v-else class="flex justify-start">
+              <div class="max-w-[75%] rounded-2xl rounded-tl-sm bg-gray-100 text-gray-900 px-4 py-2 text-sm leading-relaxed shadow-sm">
+                <span v-if="msg.content">{{ msg.content }}</span>
+                <!-- Typing indicator -->
+                <span v-else-if="msg.streaming" class="inline-flex items-center gap-1">
+                  <span class="inline-block w-1.5 h-1.5 rounded-full bg-gray-500 animate-bounce" style="animation-delay:0ms" />
+                  <span class="inline-block w-1.5 h-1.5 rounded-full bg-gray-500 animate-bounce" style="animation-delay:150ms" />
+                  <span class="inline-block w-1.5 h-1.5 rounded-full bg-gray-500 animate-bounce" style="animation-delay:300ms" />
+                </span>
+                <!-- Streaming cursor -->
+                <span
+                  v-if="msg.streaming && msg.content"
+                  class="inline-block w-0.5 h-4 bg-gray-600 ml-0.5 align-middle animate-pulse"
+                />
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- Error banner -->
+        <div
+          v-if="chatError"
+          class="mb-3 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-700"
+        >
+          {{ chatError }}
+        </div>
+
+        <!-- Input row -->
+        <div class="flex gap-2">
+          <textarea
+            v-model="chatInput"
+            rows="2"
+            placeholder="Ask a question…"
+            :disabled="chatStreaming"
+            class="flex-1 resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
+            @keydown="handleChatKeydown"
+          />
+          <button
+            type="button"
+            :disabled="chatStreaming || !chatInput.trim()"
+            class="self-end rounded-lg bg-black px-5 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            @click="sendChatMessage"
+          >
+            {{ chatStreaming ? 'Sending…' : 'Send' }}
+          </button>
+        </div>
+        <p class="mt-1.5 text-xs text-gray-400">Press Enter to send · Shift+Enter for new line</p>
       </section>
     </div>
   </div>
