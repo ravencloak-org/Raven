@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "83b8a710a44e",
+  "session_id": "c9ce9215-d1ba-4965-83fd-eba9b611dad2",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-16T11:43:45.551845Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".claude/worktrees/agent-a06accb2/.env.ci",
+    "frontend/src/pages/llm-providers/LlmProviderListPage.vue"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "7972032a-2ae6-4594-8e23-0507b526f0b3",
+  "checkpoint_transcript_start": 4516,
+  "transcript_lines_at_start": 4516,
+  "token_usage": {
+    "input_tokens": 30,
+    "cache_creation_tokens": 10596,
+    "cache_read_tokens": 22658783,
+    "output_tokens": 5776,
+    "api_call_count": 24
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-16T11:43:44.87389Z",
+    "agent_lines": 12,
+    "human_added": 1622,
+    "human_modified": 38,
+    "human_removed": 0,
+    "total_committed": 1672,
+    "agent_percentage": 0.7177033492822966
+  }
+}
