@@ -32,10 +32,11 @@ export const useAuthStore = defineStore('auth', () => {
     }
     sessionExists.value = true
 
-    // Call backend to create/find internal user
+    // Call backend to create/find internal user.
+    // Uses GET so cookies are sent with SameSite=Lax (POST blocks cross-origin cookies).
     const res = await fetch(
       `${import.meta.env.VITE_API_BASE_URL}/auth/callback`,
-      { method: 'POST', credentials: 'include' },
+      { method: 'GET', credentials: 'include' },
     )
     if (!res.ok) {
       throw new Error(`Auth callback failed (${res.status})`)
