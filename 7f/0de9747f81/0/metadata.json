@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "7f0de9747f81",
+  "session_id": "30bae7da-9b26-4041-9dd0-7458662d72fb",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-16T06:30:24.089901Z",
+  "branch": "fix/pages-zitadel-cleanup",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/pages.yml",
+    "README.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "a6be2579-87e3-478e-a951-bd8463a6508c",
+  "token_usage": {
+    "input_tokens": 5998,
+    "cache_creation_tokens": 944331,
+    "cache_read_tokens": 24011518,
+    "output_tokens": 50149,
+    "api_call_count": 178
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-16T06:30:23.962868Z",
+    "agent_lines": 1,
+    "human_added": 553,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 554,
+    "agent_percentage": 0.18050541516245489
+  }
+}
