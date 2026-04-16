@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "2bec98a4539a",
+  "session_id": "30bae7da-9b26-4041-9dd0-7458662d72fb",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-16T09:20:18.151917Z",
+  "branch": "feat/demo-kb",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "internal/tmdb/client.go",
+    "internal/tmdb/client_test.go"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "ed32ed72-d4cf-4596-9dbc-f50a4b3a6305",
+  "checkpoint_transcript_start": 1595,
+  "transcript_lines_at_start": 1595,
+  "token_usage": {
+    "input_tokens": 13,
+    "cache_creation_tokens": 3324,
+    "cache_read_tokens": 3772146,
+    "output_tokens": 1366,
+    "api_call_count": 11
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-16T09:20:17.919589Z",
+    "agent_lines": 0,
+    "human_added": 763,
+    "human_modified": 63,
+    "human_removed": 0,
+    "total_committed": 769,
+    "agent_percentage": 0
+  }
+}

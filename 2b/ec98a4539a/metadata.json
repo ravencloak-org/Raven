@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "2bec98a4539a",
+  "strategy": "manual-commit",
+  "branch": "feat/demo-kb",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "internal/tmdb/client.go",
+    "internal/tmdb/client_test.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/2b/ec98a4539a/0/metadata.json",
+      "transcript": "/2b/ec98a4539a/0/full.jsonl",
+      "context": "/2b/ec98a4539a/0/context.md",
+      "content_hash": "/2b/ec98a4539a/0/content_hash.txt",
+      "prompt": "/2b/ec98a4539a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 13,
+    "cache_creation_tokens": 3324,
+    "cache_read_tokens": 3772146,
+    "output_tokens": 1366,
+    "api_call_count": 11
+  }
+}
