@@ -2,10 +2,19 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "d37ea719730b",
   "strategy": "manual-commit",
-  "branch": "main",
-  "checkpoints_count": 1,
+  "branch": "fix/cr-review-followup",
+  "checkpoints_count": 2,
   "files_touched": [
-    "internal/auth/supertokens.go"
+    ".claude/worktrees/agent-a06accb2/.env.ci",
+    ".claude/worktrees/agent-a06accb2/internal/jobs/document_process.go",
+    ".claude/worktrees/agent-a06accb2/internal/queue/server.go",
+    "cmd/worker/main.go",
+    "internal/auth/supertokens.go",
+    "internal/handler/seed.go",
+    "internal/handler/seed_test.go",
+    "internal/queue/client.go",
+    "internal/service/demo_join.go",
+    "internal/service/seed.go"
   ],
   "sessions": [
     {
@@ -14,13 +23,20 @@
       "context": "/d3/7ea719730b/0/context.md",
       "content_hash": "/d3/7ea719730b/0/content_hash.txt",
       "prompt": "/d3/7ea719730b/0/prompt.txt"
+    },
+    {
+      "metadata": "/d3/7ea719730b/1/metadata.json",
+      "transcript": "/d3/7ea719730b/1/full.jsonl",
+      "context": "/d3/7ea719730b/1/context.md",
+      "content_hash": "/d3/7ea719730b/1/content_hash.txt",
+      "prompt": "/d3/7ea719730b/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 14,
-    "cache_creation_tokens": 5686,
-    "cache_read_tokens": 11424080,
-    "output_tokens": 2557,
-    "api_call_count": 12
+    "input_tokens": 64,
+    "cache_creation_tokens": 28896,
+    "cache_read_tokens": 32083340,
+    "output_tokens": 11760,
+    "api_call_count": 60
   }
 }

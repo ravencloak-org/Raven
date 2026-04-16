@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "d37ea719730b",
+  "session_id": "30bae7da-9b26-4041-9dd0-7458662d72fb",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-16T11:57:04.526605Z",
+  "branch": "fix/cr-review-followup",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".claude/worktrees/agent-a06accb2/.env.ci",
+    ".claude/worktrees/agent-a06accb2/internal/jobs/document_process.go",
+    ".claude/worktrees/agent-a06accb2/internal/queue/server.go",
+    "cmd/worker/main.go",
+    "internal/handler/seed.go",
+    "internal/handler/seed_test.go",
+    "internal/queue/client.go",
+    "internal/service/demo_join.go",
+    "internal/service/seed.go"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "68e3d524-08d5-41be-9598-23c6b9816c8e",
+  "checkpoint_transcript_start": 2138,
+  "transcript_lines_at_start": 2138,
+  "token_usage": {
+    "input_tokens": 50,
+    "cache_creation_tokens": 23210,
+    "cache_read_tokens": 20659260,
+    "output_tokens": 9203,
+    "api_call_count": 48
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-16T11:57:04.18219Z",
+    "agent_lines": 18,
+    "human_added": 336,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 355,
+    "agent_percentage": 5.070422535211268
+  }
+}
