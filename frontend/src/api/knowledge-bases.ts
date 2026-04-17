@@ -18,12 +18,17 @@ export interface KBListResponse {
   limit: number
 }
 
+export type KBDocumentStatus = 'pending' | 'processing' | 'completed' | 'failed'
+
 export interface KBDocument {
   id: string
   kb_id: string
   name: string
-  type: 'file' | 'url'
-  status: 'pending' | 'processing' | 'completed' | 'failed'
+  file_name: string
+  type: string
+  file_type: string
+  status: KBDocumentStatus
+  processing_status: KBDocumentStatus
   created_at: string
 }
 
@@ -99,15 +104,30 @@ export async function archiveKnowledgeBase(
   await authFetch<void>(`${kbBasePath(orgId, wsId)}/${kbId}`, { method: 'DELETE' })
 }
 
+function normalizeDoc(d: Record<string, unknown>): KBDocument {
+  return {
+    id: (d.id ?? '') as string,
+    kb_id: (d.kb_id ?? d.knowledge_base_id ?? '') as string,
+    name: (d.name ?? d.file_name ?? '') as string,
+    file_name: (d.file_name ?? d.name ?? '') as string,
+    type: (d.type ?? d.file_type ?? '') as string,
+    file_type: (d.file_type ?? d.type ?? '') as string,
+    status: (d.status ?? d.processing_status ?? 'pending') as KBDocumentStatus,
+    processing_status: (d.processing_status ?? d.status ?? 'pending') as KBDocumentStatus,
+    created_at: (d.created_at ?? '') as string,
+  }
+}
+
 export async function getDocuments(
   orgId: string,
   wsId: string,
   kbId: string,
 ): Promise<KBDocument[]> {
-  const data = await authFetch<KBDocument[] | { items: KBDocument[] }>(
+  const data = await authFetch<Record<string, unknown>[] | { items: Record<string, unknown>[] }>(
     `${kbBasePath(orgId, wsId)}/${kbId}/documents`,
   )
-  return Array.isArray(data) ? data : (data.items ?? [])
+  const items = Array.isArray(data) ? data : (data.items ?? [])
+  return items.map(normalizeDoc)
 }
 
 export async function addDocument(
@@ -126,7 +146,8 @@ export async function addDocument(
     const data = await res.json().catch(() => ({}))
     throw new Error(data.message || data.error || `Upload failed (${res.status})`)
   }
-  return res.json()
+  const raw = await res.json()
+  return normalizeDoc(raw as Record<string, unknown>)
 }
 
 export async function getSources(
