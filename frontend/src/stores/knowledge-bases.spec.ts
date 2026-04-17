@@ -63,8 +63,11 @@ function fakeDocument(overrides: Partial<KBDocument> = {}): KBDocument {
     id: 'doc-1',
     kb_id: 'kb-1',
     name: 'test.pdf',
+    file_name: 'test.pdf',
     type: 'file',
+    file_type: 'file',
     status: 'completed',
+    processing_status: 'completed',
     created_at: '2026-03-16T10:00:00Z',
     ...overrides,
   }

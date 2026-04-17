@@ -421,8 +421,8 @@ function statusBadgeClass(status: string): string {
           <thead>
             <tr class="border-b border-gray-200 text-left text-sm font-medium text-gray-500">
               <th class="pb-3 pr-4">File Name</th>
-              <th class="pb-3 pr-4">Size</th>
               <th class="pb-3 pr-4">Type</th>
+              <th class="pb-3 pr-4">Uploaded</th>
               <th class="pb-3">Status</th>
             </tr>
           </thead>
@@ -432,9 +432,9 @@ function statusBadgeClass(status: string): string {
               :key="doc.id"
               class="border-b border-gray-100"
             >
-              <td class="py-3 pr-4 text-sm font-medium">{{ doc.name }}</td>
-              <td class="py-3 pr-4 text-sm text-gray-500">{{ doc.type }}</td>
-              <td class="py-3 pr-4 text-sm text-gray-500">{{ doc.created_at.split('T')[0] }}</td>
+              <td class="py-3 pr-4 text-sm font-medium">{{ doc.file_name || doc.name }}</td>
+              <td class="py-3 pr-4 text-sm text-gray-500">{{ doc.file_type || doc.type }}</td>
+              <td class="py-3 pr-4 text-sm text-gray-500">{{ doc.created_at ? doc.created_at.split('T')[0] : '—' }}</td>
               <td class="py-3">
                 <span
                   class="inline-block rounded-full px-2 py-0.5 text-xs font-medium"

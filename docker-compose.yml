@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8081:8081"
+      - "8081:8080"
     volumes:
       - ./.env:/app/.env:ro
     environment:
@@ -19,6 +19,9 @@ services:
       RAVEN_SUPERTOKENS_API_KEY: "${SUPERTOKENS_API_KEY:-supertokens-dev-key-replace-me}"
       GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}"
       GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET}"
+      TMDB_API_KEY: "${TMDB_API_KEY:-}"
+      RAVEN_SEED_KEY: "${RAVEN_SEED_KEY:-}"
+      RAVEN_ENCRYPTION_AES_KEY: "${RAVEN_ENCRYPTION_AES_KEY:-}"
     depends_on:
       postgres:
         condition: service_healthy

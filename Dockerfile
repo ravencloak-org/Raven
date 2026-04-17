@@ -18,7 +18,7 @@ RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w -extldflags '-static'" -o 
 FROM alpine:3.23
 
 RUN apk add --no-cache ca-certificates tzdata curl \
-    && curl -sfS https://dotenvx.sh/1.34.0 | sh \
+    && curl -sfS https://dotenvx.sh | sh \
     && addgroup -g 1000 raven \
     && adduser -u 1000 -G raven -D raven
 
