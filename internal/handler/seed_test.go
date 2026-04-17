@@ -52,7 +52,7 @@ func TestSeedDemo_Success(t *testing.T) {
 
 	r := newSeedRouter(svc)
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodPost, "/api/v1/admin/seed-demo?size=large", nil)
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/admin/seed-demo?size=small", nil)
 	r.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {

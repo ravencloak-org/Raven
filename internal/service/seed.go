@@ -106,15 +106,21 @@ func (s *SeedService) SeedDemo(ctx context.Context, size string) (*model.SeedRes
 
 	// 6. For each movie: render markdown, upload to SeaweedFS, create document, enqueue.
 	enqueued := 0
+	var failures int
 	for _, movie := range movies {
 		if processErr := s.processMovie(ctx, org.ID, kb.ID, movie); processErr != nil {
 			slog.Warn("seed: failed to process movie, skipping",
 				"movie_title", movie.Title,
 				"error", processErr,
 			)
+			failures++
 			continue
 		}
 		enqueued++
+	}
+
+	if enqueued == 0 && failures > 0 {
+		return nil, apierror.NewInternal(fmt.Sprintf("seed: all %d movies failed to process", failures))
 	}
 
 	return &model.SeedResult{
