@@ -5,9 +5,46 @@
   "branch": "fix/kb-document-upload-ui",
   "checkpoints_count": 2,
   "files_touched": [
+    ".env.example",
+    ".github/workflows/docker.yml",
+    ".github/workflows/pages.yml",
     "Dockerfile",
+    "cmd/api/main.go",
+    "deploy/cloudflare-pages.json",
+    "deploy/ec2/docker-compose.server.yml",
+    "deploy/postgres/init.sql",
+    "deploy/zitadel/zitadel-config.yaml",
+    "deploy/zitadel/zitadel-init-steps.yaml",
     "docker-compose.yml",
-    "internal/auth/supertokens.go"
+    "frontend/Dockerfile",
+    "frontend/e2e/auth.spec.ts",
+    "frontend/e2e/mobile/login.spec.ts",
+    "frontend/e2e/orgs.spec.ts",
+    "frontend/src/api/knowledge-bases.ts",
+    "frontend/src/api/llm-providers.ts",
+    "frontend/src/layouts/DefaultLayout.vue",
+    "frontend/src/pages/DashboardPage.vue",
+    "frontend/src/pages/LoginPage.vue",
+    "frontend/src/pages/callback/CallbackPage.vue",
+    "frontend/src/pages/knowledge-bases/KBDetailPage.vue",
+    "frontend/src/pages/llm-providers/LlmProviderListPage.vue",
+    "frontend/src/pages/onboarding/OnboardingWizard.vue",
+    "frontend/src/router/index.ts",
+    "frontend/src/stores/auth.spec.ts",
+    "frontend/src/stores/auth.ts",
+    "frontend/src/stores/knowledge-bases.spec.ts",
+    "frontend/src/stores/llm-providers.ts",
+    "frontend/wrangler.toml",
+    "internal/auth/provider.go",
+    "internal/auth/supertokens.go",
+    "internal/auth/supertokens_init.go",
+    "internal/handler/auth.go",
+    "internal/handler/org.go",
+    "internal/handler/org_test.go",
+    "internal/integration/setup_test.go",
+    "internal/middleware/auth.go",
+    "internal/middleware/cors.go",
+    "internal/service/chat.go"
   ],
   "sessions": [
     {
@@ -26,10 +63,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 59,
-    "cache_creation_tokens": 879390,
-    "cache_read_tokens": 27121677,
-    "output_tokens": 9256,
-    "api_call_count": 49
+    "input_tokens": 166,
+    "cache_creation_tokens": 2102458,
+    "cache_read_tokens": 37868787,
+    "output_tokens": 19318,
+    "api_call_count": 104
   }
 }

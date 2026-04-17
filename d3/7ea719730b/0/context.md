@@ -617,3 +617,30 @@ not happening
 
 Request failed (500)
 
+### Prompt 119
+
+uploading is not working
+
+### Prompt 120
+
+upload is not working
+
+### Prompt 121
+
+but ui doesnt show document upload success
+
+### Prompt 122
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   The user's overarching goal was to set up a working auth system and demo for the Raven platform. This evolved through several phases:
+   - Initially: Execute Zitadel migration plan (replacing Keycloak)
+   - After Zitadel failed in production: Switch to SuperTokens
+   - After SuperTokens auth working: Wi...
+
+### Prompt 123
+
+commit all these changes and raise a PR
+
