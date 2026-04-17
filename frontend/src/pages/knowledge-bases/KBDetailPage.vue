@@ -434,7 +434,7 @@ function statusBadgeClass(status: string): string {
             >
               <td class="py-3 pr-4 text-sm font-medium">{{ doc.file_name || doc.name }}</td>
               <td class="py-3 pr-4 text-sm text-gray-500">{{ doc.file_type || doc.type }}</td>
-              <td class="py-3 pr-4 text-sm text-gray-500">{{ doc.created_at ? doc.created_at.split('T')[0] : '—' }}</td>
+              <td class="py-3 pr-4 text-sm text-gray-500">{{ doc.created_at ? new Date(doc.created_at).toLocaleDateString() : '—' }}</td>
               <td class="py-3">
                 <span
                   class="inline-block rounded-full px-2 py-0.5 text-xs font-medium"

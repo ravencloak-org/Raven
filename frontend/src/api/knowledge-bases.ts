@@ -18,6 +18,8 @@ export interface KBListResponse {
   limit: number
 }
 
+export type KBDocumentStatus = 'pending' | 'processing' | 'completed' | 'failed'
+
 export interface KBDocument {
   id: string
   kb_id: string
@@ -25,8 +27,8 @@ export interface KBDocument {
   file_name: string
   type: string
   file_type: string
-  status: string
-  processing_status: string
+  status: KBDocumentStatus
+  processing_status: KBDocumentStatus
   created_at: string
 }
 
@@ -110,8 +112,8 @@ function normalizeDoc(d: Record<string, unknown>): KBDocument {
     file_name: (d.file_name ?? d.name ?? '') as string,
     type: (d.type ?? d.file_type ?? '') as string,
     file_type: (d.file_type ?? d.type ?? '') as string,
-    status: (d.status ?? d.processing_status ?? 'pending') as string,
-    processing_status: (d.processing_status ?? d.status ?? 'pending') as string,
+    status: (d.status ?? d.processing_status ?? 'pending') as KBDocumentStatus,
+    processing_status: (d.processing_status ?? d.status ?? 'pending') as KBDocumentStatus,
     created_at: (d.created_at ?? '') as string,
   }
 }
