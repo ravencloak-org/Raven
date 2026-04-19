@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "4c2d6f9d6fd6",
+  "strategy": "manual-commit",
+  "branch": "test/demo-seed-integration",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".claude/scheduled_tasks.lock",
+    "internal/integration/seed_demo_test.go",
+    "internal/integration/seed_test.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/4c/2d6f9d6fd6/0/metadata.json",
+      "transcript": "/4c/2d6f9d6fd6/0/full.jsonl",
+      "context": "/4c/2d6f9d6fd6/0/context.md",
+      "content_hash": "/4c/2d6f9d6fd6/0/content_hash.txt",
+      "prompt": "/4c/2d6f9d6fd6/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 116,
+    "cache_creation_tokens": 444983,
+    "cache_read_tokens": 4874923,
+    "output_tokens": 36419,
+    "api_call_count": 47
+  }
+}
