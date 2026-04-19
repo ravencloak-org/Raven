@@ -42,6 +42,15 @@ paths = [
   # Local backup / scratch directories.
   '''(?i)(^|/)backup/''',
 
+  # `.entire/` is the Entire session-history tool's local state dir. Most of
+  # it is gitignored but git history retains older blobs (full.jsonl,
+  # prompt.txt) that contain AI-session transcripts. These are historical
+  # artefacts; any real credentials that appear there have already been
+  # rotated out-of-band.
+  '''(?i)(^|/)\.entire/''',
+  '''(^|/)full\.jsonl$''',
+  '''(^|/)prompt\.txt$''',
+
   # Lockfiles hash content (go.sum, bun.lock) — no secrets expected, high false-positive rate.
   '''(^|/)go\.sum$''',
   '''(^|/)bun\.lock$''',
