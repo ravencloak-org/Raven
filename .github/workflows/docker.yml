@@ -22,14 +22,30 @@ on:
       - 'docker-compose.yml'
       - '.github/workflows/docker.yml'
 
-permissions:
-  contents: read
-  packages: write
+permissions: {}
 
 jobs:
-  build-go-api:
-    name: Build go-api
+  # PR-gated build: verifies the image still builds. No registry token, no
+  # push. `packages: write` is deliberately absent so a compromised action
+  # in the build toolchain cannot abuse the job token to publish.
+  build:
+    name: Build ${{ matrix.image }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: go-api
+            context: .
+            dockerfile: Dockerfile
+          - image: python-worker
+            context: ai-worker
+            dockerfile: ai-worker/Dockerfile
+          - image: frontend
+            context: frontend
+            dockerfile: frontend/Dockerfile
     steps:
       - uses: actions/checkout@v6
 
@@ -41,112 +57,88 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository_owner }}/go-api
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=sha-
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - uses: docker/login-action@v4
-        if: github.event_name != 'pull_request'
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: docker/build-push-action@v7
         with:
-          context: .
-          file: Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
-          platforms: linux/amd64,linux/arm64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-
-  build-python-worker:
-    name: Build python-worker
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: docker/setup-qemu-action@v4
-
-      - uses: docker/setup-buildx-action@v4
-
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ghcr.io/${{ github.repository_owner }}/python-worker
-          tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=sha-
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - uses: docker/login-action@v4
-        if: github.event_name != 'pull_request'
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: docker/build-push-action@v7
-        with:
-          context: ai-worker
-          file: ai-worker/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
-          platforms: linux/amd64,linux/arm64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-
-  build-frontend:
-    name: Build frontend
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: docker/setup-qemu-action@v4
-
-      - uses: docker/setup-buildx-action@v4
-
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ghcr.io/${{ github.repository_owner }}/frontend
-          tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=sha-
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - uses: docker/login-action@v4
-        if: github.event_name != 'pull_request'
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: docker/build-push-action@v7
-        with:
-          context: frontend
-          file: frontend/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: false
           platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            VITE_API_URL=${{ vars.VITE_API_URL || 'https://api.ravencloak.org' }}
-            VITE_API_BASE_URL=${{ vars.VITE_API_BASE_URL || 'https://api.ravencloak.org/api/v1' }}
-            VITE_LIVEKIT_URL=${{ vars.VITE_LIVEKIT_URL || '' }}
-          tags: ${{ steps.meta.outputs.tags }}
+            ${{ matrix.image == 'frontend' && format('VITE_API_URL={0}', vars.VITE_API_URL || 'https://api.ravencloak.org') || '' }}
+            ${{ matrix.image == 'frontend' && format('VITE_API_BASE_URL={0}', vars.VITE_API_BASE_URL || 'https://api.ravencloak.org/api/v1') || '' }}
+            ${{ matrix.image == 'frontend' && format('VITE_LIVEKIT_URL={0}', vars.VITE_LIVEKIT_URL || '') || '' }}
           labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+
+  # Main-branch / tag-push publish: rebuilds from the GHA build cache
+  # populated by the `build` job and pushes to GHCR. `packages: write` is
+  # scoped to this job only.
+  publish:
+    name: Publish ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: go-api
+            context: .
+            dockerfile: Dockerfile
+          - image: python-worker
+            context: ai-worker
+            dockerfile: ai-worker/Dockerfile
+          - image: frontend
+            context: frontend
+            dockerfile: frontend/Dockerfile
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: docker/setup-qemu-action@v4
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            ${{ matrix.image == 'frontend' && format('VITE_API_URL={0}', vars.VITE_API_URL || 'https://api.ravencloak.org') || '' }}
+            ${{ matrix.image == 'frontend' && format('VITE_API_BASE_URL={0}', vars.VITE_API_BASE_URL || 'https://api.ravencloak.org/api/v1') || '' }}
+            ${{ matrix.image == 'frontend' && format('VITE_LIVEKIT_URL={0}', vars.VITE_LIVEKIT_URL || '') || '' }}
+          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}

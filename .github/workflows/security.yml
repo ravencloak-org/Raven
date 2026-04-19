@@ -24,14 +24,14 @@ on:
   schedule:
     - cron: '0 6 * * 1'  # Weekly on Monday at 06:00 UTC
 
-permissions:
-  contents: read
-  security-events: write
+permissions: {}
 
 jobs:
   trivy-scan:
     name: Trivy Filesystem Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -48,6 +48,8 @@ jobs:
   go-vuln:
     name: Go Vulnerability Check
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v6

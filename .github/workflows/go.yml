@@ -21,13 +21,14 @@ on:
       - 'go.mod'
       - 'go.sum'
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   build-and-test:
     name: Build & Test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
 
@@ -145,6 +146,8 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
 
