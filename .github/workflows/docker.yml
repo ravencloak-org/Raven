@@ -127,7 +127,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/build-push-action@v7
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v7
         with:
           context: ai-worker
           file: ai-worker/Dockerfile
@@ -137,6 +139,33 @@ jobs:
           cache-to: type=gha,mode=max
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          provenance: false
+          sbom: false
+
+      - name: Generate SBOM (python-worker)
+        if: github.event_name != 'pull_request'
+        uses: anchore/sbom-action@v0
+        with:
+          image: ghcr.io/${{ github.repository_owner }}/python-worker@${{ steps.build.outputs.digest }}
+          format: spdx-json
+          output-file: sbom-python-worker.spdx.json
+
+      - name: Attest SBOM (python-worker)
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-sbom@v3
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/python-worker
+          subject-digest: ${{ steps.build.outputs.digest }}
+          sbom-path: sbom-python-worker.spdx.json
+          push-to-registry: true
+
+      - name: Attest build provenance (python-worker)
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/python-worker
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
 
   build-frontend:
     name: Build frontend
