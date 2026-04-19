@@ -15,9 +15,9 @@
   <a href="https://codecov.io/gh/ravencloak-org/Raven"><img src="https://codecov.io/gh/ravencloak-org/Raven/branch/main/graph/badge.svg" alt="Coverage" /></a>
   <img src="https://img.shields.io/badge/license-TBD-lightgrey" alt="License" />
   <img src="https://img.shields.io/badge/PRs-welcome-blue" alt="PRs Welcome" />
-  [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12590/badge)](https://www.bestpractices.dev/projects/12590)
 </p>
-
+<p><a href="https://www.bestpractices.dev/projects/12590"><img src="https://www.bestpractices.dev/projects/12590/badge"></a>
+</p>
 ---
 
 ## What is Raven?
