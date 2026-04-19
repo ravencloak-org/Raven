@@ -49,52 +49,86 @@ jobs:
 
       - run: CGO_ENABLED=1 go build ./cmd/api
 
+      - name: Prepare coverage directories
+        run: mkdir -p .coverdata/unit .coverdata/migrations .coverdata/integration coverage
+
       - name: Run tests
         run: |
           if [ -n "$DOTENV_PRIVATE_KEY_CI" ]; then
-            dotenvx run -f .env.ci -- go test -race -timeout 30m -coverprofile=coverage.txt ./...
+            dotenvx run -f .env.ci -- go test -race -timeout 30m \
+              -cover -coverpkg="$COV_PKGS" ./... \
+              -args -test.gocoverdir="$PWD/.coverdata/unit"
           else
             echo "::warning::DOTENV_PRIVATE_KEY_CI not set (fork PR?) — running tests without dotenvx"
-            go test -race -timeout 30m -coverprofile=coverage.txt ./...
+            go test -race -timeout 30m \
+              -cover -coverpkg="$COV_PKGS" ./... \
+              -args -test.gocoverdir="$PWD/.coverdata/unit"
           fi
         env:
+          COV_PKGS: github.com/ravencloak-org/Raven/internal/...,github.com/ravencloak-org/Raven/pkg/...,github.com/ravencloak-org/Raven/cmd/...
           DOTENV_PRIVATE_KEY_CI: ${{ secrets.DOTENV_PRIVATE_KEY_CI }}
           TESTCONTAINERS_RYUK_DISABLED: "true"
 
       - name: Run migration tests
         run: |
           if [ -n "$DOTENV_PRIVATE_KEY_CI" ]; then
-            dotenvx run -f .env.ci -- go test -race -run '^TestMigrationsUpAndDown$' ./migrations/...
+            dotenvx run -f .env.ci -- go test -race -run '^TestMigrationsUpAndDown$' \
+              -cover -coverpkg="$COV_PKGS" ./migrations/... \
+              -args -test.gocoverdir="$PWD/.coverdata/migrations"
           else
-            go test -race -run '^TestMigrationsUpAndDown$' ./migrations/...
+            go test -race -run '^TestMigrationsUpAndDown$' \
+              -cover -coverpkg="$COV_PKGS" ./migrations/... \
+              -args -test.gocoverdir="$PWD/.coverdata/migrations"
           fi
         env:
+          COV_PKGS: github.com/ravencloak-org/Raven/internal/...,github.com/ravencloak-org/Raven/pkg/...,github.com/ravencloak-org/Raven/cmd/...
           DOTENV_PRIVATE_KEY_CI: ${{ secrets.DOTENV_PRIVATE_KEY_CI }}
           TESTCONTAINERS_RYUK_DISABLED: "true"
 
       - name: Run integration tests with coverage
         run: |
           go test -tags=integration -race -timeout 5m \
-            -coverprofile=coverage-integration.txt \
-            -coverpkg=./internal/... \
-            ./internal/integration/
+            -cover -coverpkg="$COV_PKGS" \
+            ./internal/integration/ \
+            -args -test.gocoverdir="$PWD/.coverdata/integration"
         env:
+          COV_PKGS: github.com/ravencloak-org/Raven/internal/...,github.com/ravencloak-org/Raven/pkg/...,github.com/ravencloak-org/Raven/cmd/...
           TESTCONTAINERS_RYUK_DISABLED: "true"
 
       - name: Merge coverage profiles
+        if: always()
         run: |
-          # Combine unit + integration coverage
-          if [ -f coverage-integration.txt ]; then
-            go tool covdata merge -i=coverage.txt,coverage-integration.txt -o=coverage-merged.txt 2>/dev/null || \
-            { head -1 coverage.txt > coverage-merged.txt; tail -n +2 coverage.txt >> coverage-merged.txt; tail -n +2 coverage-integration.txt >> coverage-merged.txt; }
-          else
-            cp coverage.txt coverage-merged.txt
+          INPUTS=""
+          for d in unit migrations integration; do
+            if compgen -G ".coverdata/$d/cov*" >/dev/null; then
+              INPUTS="${INPUTS:+$INPUTS,}.coverdata/$d"
+            fi
+          done
+          if [ -z "$INPUTS" ]; then
+            echo "::warning::no coverage data collected"
+            exit 0
           fi
+          echo "merging: $INPUTS"
+          go tool covdata textfmt -i="$INPUTS" -o=coverage/cov.out
+          go tool covdata percent -i="$INPUTS" | tee coverage/summary.txt
+          go tool cover -func=coverage/cov.out | tail -1 | tee -a coverage/summary.txt
+          go tool cover -html=coverage/cov.out -o coverage/coverage.html
+
+      - name: Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-data
+          path: |
+            .coverdata/
+            coverage/
+          retention-days: 5
 
       - uses: codecov/codecov-action@v6
+        if: always()
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage-merged.txt
+          files: coverage/cov.out
           fail_ci_if_error: false
 
       - run: go vet ./...
