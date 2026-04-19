@@ -1,0 +1,46 @@
+# Gitleaks configuration for Raven.
+#
+# Extends the default ruleset and adds a repository-specific allowlist for
+# paths that legitimately contain placeholder credentials or third-party
+# artifacts that are reviewed out-of-band.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Raven repo-wide allowlist"
+
+# Paths where scanner noise is expected and has been reviewed.
+paths = [
+  # Example / CI env files contain only placeholders like `changeme` or empty strings.
+  '''(?i)(^|/)\.env\.example$''',
+  '''(?i)(^|/)\.env\.ci$''',
+
+  # Fixtures, golden files, and test data — intentional inputs.
+  '''(?i)(^|/)testdata/''',
+  '''(?i)(^|/)fixtures/''',
+
+  # Vendored / third-party trees.
+  '''(?i)(^|/)vendor/''',
+  '''(?i)(^|/)node_modules/''',
+
+  # Local backup / scratch directories.
+  '''(?i)(^|/)backup/''',
+
+  # Lockfiles hash content (go.sum, bun.lock) — no secrets expected, high false-positive rate.
+  '''(^|/)go\.sum$''',
+  '''(^|/)bun\.lock$''',
+
+  # Generated worktrees — git metadata only.
+  '''(^|/)\.worktrees/''',
+
+  # Gitleaks config itself may contain example regexes that look secret-like.
+  '''(^|/)\.gitleaks\.toml$''',
+]
+
+# Regexes that repeatedly trip on project-specific, non-secret strings.
+regexes = [
+  # SuperTokens development key pattern seen in .env.example; real prod
+  # secrets don't ship in the repo.
+  '''supertokens-dev-key-replace-me''',
+]
