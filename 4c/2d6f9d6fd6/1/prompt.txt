@@ -1,0 +1,21 @@
+where are we with the issues marked by this label https://github.com/ravencloak-org/Raven/issues?q=is%3Aissue%20state%3Aopen%20label%3AP1-important
+
+---
+
+have existing pull requests already addressed it?
+
+---
+
+close those and pick up the pending one
+
+---
+
+nope
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+continue

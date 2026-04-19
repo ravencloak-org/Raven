@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "4c2d6f9d6fd6",
+  "session_id": "38e7abd3-a889-4bee-b47b-56fe698be1ed",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-19T17:00:21.430766Z",
+  "branch": "test/demo-seed-integration",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".claude/scheduled_tasks.lock",
+    "internal/integration/seed_test.go"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "5f906c17-ece5-457c-9653-e35d640942d9",
+  "token_usage": {
+    "input_tokens": 86,
+    "cache_creation_tokens": 310519,
+    "cache_read_tokens": 3970130,
+    "output_tokens": 39838,
+    "api_call_count": 46
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-19T17:00:21.338848Z",
+    "agent_lines": 371,
+    "human_added": 34,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 406,
+    "agent_percentage": 91.37931034482759
+  }
+}
