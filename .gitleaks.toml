@@ -11,6 +11,7 @@ useDefault = true
 description = "Raven repo-wide allowlist"
 
 # Paths where scanner noise is expected and has been reviewed.
+# Any real secret outside these paths must still fail the scan.
 paths = [
   # Example / CI env files contain only placeholders like `changeme` or empty strings.
   '''(?i)(^|/)\.env\.example$''',
@@ -19,6 +20,20 @@ paths = [
   # Fixtures, golden files, and test data — intentional inputs.
   '''(?i)(^|/)testdata/''',
   '''(?i)(^|/)fixtures/''',
+
+  # Language-specific test / spec files — deterministic dummy inputs for unit tests.
+  '''.*_test\.go$''',
+  '''.*\.spec\.(ts|tsx|js|jsx|vue)$''',
+  '''.*\.test\.(ts|tsx|js|jsx|vue)$''',
+  '''(?i)/tests?/''',
+
+  # Playwright E2E fixtures and sandbox HTML — dummy keys exercising error paths.
+  '''(?i)(^|/)frontend/e2e/''',
+
+  # Design docs and plan documents — describe example values in prose.
+  '''(?i)(^|/)docs/superpowers/''',
+  '''(?i)(^|/)docs/compliance/''',
+  '''(?i)(^|/)docs/wiki/''',
 
   # Vendored / third-party trees.
   '''(?i)(^|/)vendor/''',
@@ -30,6 +45,8 @@ paths = [
   # Lockfiles hash content (go.sum, bun.lock) — no secrets expected, high false-positive rate.
   '''(^|/)go\.sum$''',
   '''(^|/)bun\.lock$''',
+  '''(^|/)package-lock\.json$''',
+  '''(?i)(^|/)poetry\.lock$''',
 
   # Generated worktrees — git metadata only.
   '''(^|/)\.worktrees/''',
