@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "9d5b1dfa6dde",
+  "strategy": "manual-commit",
+  "branch": "feat/go-coverage-automation",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/go.yml",
+    ".gitignore",
+    "Makefile",
+    "scripts/coverage.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9d/5b1dfa6dde/0/metadata.json",
+      "transcript": "/9d/5b1dfa6dde/0/full.jsonl",
+      "context": "/9d/5b1dfa6dde/0/context.md",
+      "content_hash": "/9d/5b1dfa6dde/0/content_hash.txt",
+      "prompt": "/9d/5b1dfa6dde/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 74,
+    "cache_creation_tokens": 127714,
+    "cache_read_tokens": 3961325,
+    "output_tokens": 21957,
+    "api_call_count": 44
+  }
+}

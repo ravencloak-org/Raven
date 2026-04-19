@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "9d5b1dfa6dde",
+  "session_id": "d345fce6-bd3a-4238-9b1a-f18c96b86762",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-19T17:27:14.573586Z",
+  "branch": "feat/go-coverage-automation",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/go.yml",
+    ".gitignore",
+    "Makefile",
+    "scripts/coverage.sh"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 74,
+    "cache_creation_tokens": 127714,
+    "cache_read_tokens": 3961325,
+    "output_tokens": 21957,
+    "api_call_count": 44
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-04-19T17:27:14.470585Z",
+    "agent_lines": 0,
+    "human_added": 586,
+    "human_modified": 15,
+    "human_removed": 0,
+    "total_committed": 586,
+    "agent_percentage": 0
+  }
+}
