@@ -18,3 +18,4 @@
 - [ ] Database migrations include both UP and DOWN
 - [ ] Changes are backward compatible (API, DB schema)
 - [ ] No secrets, tokens, or credentials committed
+- [ ] All commits are signed off (`git commit -s`) — required by DCO check
