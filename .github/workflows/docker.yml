@@ -58,7 +58,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/build-push-action@v7
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile
@@ -68,6 +70,33 @@ jobs:
           cache-to: type=gha,mode=max
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          provenance: false
+          sbom: false
+
+      - name: Generate SBOM (go-api)
+        if: github.event_name != 'pull_request'
+        uses: anchore/sbom-action@v0
+        with:
+          image: ghcr.io/${{ github.repository_owner }}/go-api@${{ steps.build.outputs.digest }}
+          format: spdx-json
+          output-file: sbom-go-api.spdx.json
+
+      - name: Attest SBOM (go-api)
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-sbom@v3
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/go-api
+          subject-digest: ${{ steps.build.outputs.digest }}
+          sbom-path: sbom-go-api.spdx.json
+          push-to-registry: true
+
+      - name: Attest build provenance (go-api)
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/go-api
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
 
   build-python-worker:
     name: Build python-worker
