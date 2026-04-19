@@ -1,0 +1,110 @@
+# GoReleaser configuration for Raven.
+# Builds the Go binaries (cmd/api, cmd/worker), produces SHA256SUMS and
+# tar/zip archives, and signs the checksums manifest with cosign keyless.
+#
+# Invoked by .github/workflows/release.yml on tag push (v*.*.*).
+# GitHub Release creation is delegated to the workflow so Docker images
+# and the frontend bundle can be attached to the same release.
+
+version: 2
+
+project_name: raven
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: raven-api
+    main: ./cmd/api
+    binary: raven-api
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      # Keep the matrix lean — darwin/amd64 dropped since production targets
+      # are linux (cloud + Raspberry Pi) plus Apple Silicon for dev.
+      - goos: darwin
+        goarch: amd64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+  - id: raven-worker
+    main: ./cmd/worker
+    binary: raven-worker
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: darwin
+        goarch: amd64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - id: default
+    ids:
+      - raven-api
+      - raven-worker
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - README.md
+      - SECURITY.md
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+# cosign keyless signing (OIDC). Produces checksums.txt.sig and
+# checksums.txt.pem recorded in the Rekor transparency log.
+signs:
+  - id: cosign-checksums
+    cmd: cosign
+    signature: "${artifact}.sig"
+    certificate: "${artifact}.pem"
+    args:
+      - "sign-blob"
+      - "--oidc-issuer=https://token.actions.githubusercontent.com"
+      - "--output-certificate=${certificate}"
+      - "--output-signature=${signature}"
+      - "${artifact}"
+      - "--yes"
+    artifacts: checksum
+    output: true
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+# Let release.yml publish the GitHub Release — goreleaser only builds
+# artifacts and writes them to dist/.
+release:
+  disable: true

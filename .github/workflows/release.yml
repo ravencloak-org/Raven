@@ -1,0 +1,327 @@
+name: Release
+
+# Triggered only by pushing a SemVer tag. docker.yml no longer fires on
+# tags so the two workflows do not race.
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-rc*'
+
+permissions: {}
+
+jobs:
+  # -----------------------------------------------------------------------
+  # preflight: assert the tag was cut from main and is SemVer.
+  # -----------------------------------------------------------------------
+  preflight:
+    name: Preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.extract.outputs.version }}
+      tag: ${{ steps.extract.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Extract version
+        id: extract
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          TAG="${REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)?$'; then
+            echo "::error::Tag '$TAG' does not match SemVer vX.Y.Z or vX.Y.Z-rcN"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Verify tag is reachable from main
+        env:
+          TAG: ${{ steps.extract.outputs.tag }}
+        run: |
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$TAG" origin/main; then
+            echo "::error::Tag $TAG is not reachable from origin/main — releases must be cut from main"
+            exit 1
+          fi
+
+  # -----------------------------------------------------------------------
+  # changelog: git-cliff renders the release body from conventional commits.
+  # -----------------------------------------------------------------------
+  changelog:
+    name: Changelog
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: preflight
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes
+        uses: orhun/git-cliff-action@c93ef52f3d0ddcdcc9bd5447d98d458a11cd4f72  # v4.7.1
+        with:
+          config: cliff.toml
+          args: --latest --strip header
+        env:
+          OUTPUT: RELEASE_NOTES.md
+
+      - name: Upload release notes
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.0
+        with:
+          name: release-notes
+          path: RELEASE_NOTES.md
+          retention-days: 1
+
+  # -----------------------------------------------------------------------
+  # go-binaries: goreleaser builds Go binary archives + SHA256SUMS and
+  # cosign-signs the checksum file.
+  # -----------------------------------------------------------------------
+  go-binaries:
+    name: Go binaries
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: preflight
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00  # v6.0.0
+        with:
+          go-version: '1.26.2'
+          cache: true
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@f713795cb21599bc4e5c4b58cbad1da852d7eeb9  # v3.8.1
+
+      - name: Run goreleaser
+        uses: goreleaser/goreleaser-action@e24998b8b67b290c2fa8b7c14fcfa7de2c5c9b8c  # v6
+        with:
+          version: '~> v2'
+          args: release --clean --skip=publish
+
+      - name: Upload binary artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.0
+        with:
+          name: go-binaries
+          path: |
+            dist/*.tar.gz
+            dist/checksums.txt
+            dist/checksums.txt.sig
+            dist/checksums.txt.pem
+          retention-days: 7
+
+  # -----------------------------------------------------------------------
+  # docker-images: build multi-arch images for api / worker / frontend,
+  # push to ghcr.io, and cosign-sign each image digest.
+  # -----------------------------------------------------------------------
+  docker-images:
+    name: Docker (${{ matrix.component }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: preflight
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: go-api
+            context: .
+            dockerfile: Dockerfile
+          - component: python-worker
+            context: ai-worker
+            dockerfile: ai-worker/Dockerfile
+          - component: frontend
+            context: frontend
+            dockerfile: frontend/Dockerfile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a  # v4
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd  # v4
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf  # v6
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.component }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ !contains(needs.preflight.outputs.tag, '-rc') }}
+
+      - name: Login to GHCR
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121  # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f  # v7
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: true
+          sbom: true
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@f713795cb21599bc4e5c4b58cbad1da852d7eeb9  # v3.8.1
+
+      - name: Sign image
+        env:
+          IMAGES: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          echo "$IMAGES" | while IFS= read -r image; do
+            [ -z "$image" ] && continue
+            echo "Signing ${image}@${DIGEST}"
+            cosign sign --yes "${image}@${DIGEST}"
+          done
+
+  # -----------------------------------------------------------------------
+  # frontend-bundle: produce a signed tarball of the built frontend
+  # (/dist) so self-hosted users can serve it from any static host.
+  # -----------------------------------------------------------------------
+  frontend-bundle:
+    name: Frontend bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: preflight
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL || 'https://api.ravencloak.org' }}
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'https://api.ravencloak.org/api/v1' }}
+          VITE_LIVEKIT_URL: ${{ vars.VITE_LIVEKIT_URL || '' }}
+
+      - name: Package bundle
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          cd frontend
+          tar -czf "../frontend-${VERSION}.tgz" -C dist .
+          cd ..
+          sha256sum "frontend-${VERSION}.tgz" > "frontend-${VERSION}.tgz.sha256"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@f713795cb21599bc4e5c4b58cbad1da852d7eeb9  # v3.8.1
+
+      - name: Sign bundle
+        env:
+          VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          cosign sign-blob \
+            --yes \
+            --oidc-issuer=https://token.actions.githubusercontent.com \
+            --output-signature "frontend-${VERSION}.tgz.sig" \
+            --output-certificate "frontend-${VERSION}.tgz.pem" \
+            "frontend-${VERSION}.tgz"
+
+      - name: Upload bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.0
+        with:
+          name: frontend-bundle
+          path: |
+            frontend-*.tgz
+            frontend-*.tgz.sha256
+            frontend-*.tgz.sig
+            frontend-*.tgz.pem
+          retention-days: 7
+
+  # -----------------------------------------------------------------------
+  # publish-release: assemble all artifacts into a single GitHub Release.
+  # -----------------------------------------------------------------------
+  publish-release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [preflight, changelog, go-binaries, docker-images, frontend-bundle]
+    permissions:
+      contents: write
+    steps:
+      - name: Download go binaries
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53  # v6
+        with:
+          name: go-binaries
+          path: artifacts/binaries
+
+      - name: Download frontend bundle
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53  # v6
+        with:
+          name: frontend-bundle
+          path: artifacts/frontend
+
+      - name: Download release notes
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53  # v6
+        with:
+          name: release-notes
+          path: artifacts/notes
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65  # v2
+        with:
+          tag_name: ${{ needs.preflight.outputs.tag }}
+          name: Release ${{ needs.preflight.outputs.tag }}
+          body_path: artifacts/notes/RELEASE_NOTES.md
+          prerelease: ${{ contains(needs.preflight.outputs.tag, '-rc') }}
+          fail_on_unmatched_files: true
+          files: |
+            artifacts/binaries/*.tar.gz
+            artifacts/binaries/checksums.txt
+            artifacts/binaries/checksums.txt.sig
+            artifacts/binaries/checksums.txt.pem
+            artifacts/frontend/frontend-*.tgz
+            artifacts/frontend/frontend-*.tgz.sha256
+            artifacts/frontend/frontend-*.tgz.sig
+            artifacts/frontend/frontend-*.tgz.pem
