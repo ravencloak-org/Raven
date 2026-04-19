@@ -59,6 +59,9 @@ coverage.txt
 coverage.html
 htmlcov/
 .coverage
+.coverdata/
+coverage/
+bin/api-cover
 
 # Worktrees
 .worktrees/
