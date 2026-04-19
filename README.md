@@ -12,6 +12,7 @@
   <a href="https://github.com/ravencloak-org/Raven/actions/workflows/python.yml"><img src="https://github.com/ravencloak-org/Raven/actions/workflows/python.yml/badge.svg" alt="Python CI" /></a>
   <a href="https://github.com/ravencloak-org/Raven/actions/workflows/docker.yml"><img src="https://github.com/ravencloak-org/Raven/actions/workflows/docker.yml/badge.svg" alt="Docker Build" /></a>
   <a href="https://github.com/ravencloak-org/Raven/actions/workflows/security.yml"><img src="https://github.com/ravencloak-org/Raven/actions/workflows/security.yml/badge.svg" alt="Security" /></a>
+  <a href="docs/security/slsa-verification.md"><img src="https://slsa.dev/images/gh-badge-level3.svg" alt="SLSA 3" /></a>
   <a href="https://codecov.io/gh/ravencloak-org/Raven"><img src="https://codecov.io/gh/ravencloak-org/Raven/branch/main/graph/badge.svg" alt="Coverage" /></a>
   <img src="https://img.shields.io/badge/license-TBD-lightgrey" alt="License" />
   <img src="https://img.shields.io/badge/PRs-welcome-blue" alt="PRs Welcome" />
