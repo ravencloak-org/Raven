@@ -1,0 +1,27 @@
+name: DCO
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  dco-check:
+    name: DCO Sign-off
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: DCO check
+        uses: tim-actions/dco@f2279e6e62d5a7d9115b0cb8e837b777b1b02e21  # v1.1.0
+        with:
+          commits: ${{ github.event.pull_request.commits }}
