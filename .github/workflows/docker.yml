@@ -22,14 +22,15 @@ on:
       - 'docker-compose.yml'
       - '.github/workflows/docker.yml'
 
-permissions:
-  contents: read
-  packages: write
+permissions: {}
 
 jobs:
   build-go-api:
     name: Build go-api
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v6
 
@@ -70,6 +71,9 @@ jobs:
   build-python-worker:
     name: Build python-worker
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v6
 
@@ -110,6 +114,9 @@ jobs:
   build-frontend:
     name: Build frontend
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v6
 
