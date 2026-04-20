@@ -46,6 +46,8 @@ verify.
 
 For environments without `gh`:
 
+**Provenance:**
+
 ```
 cosign verify-attestation \
   --type slsaprovenance1 \
@@ -54,6 +56,43 @@ cosign verify-attestation \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   ghcr.io/ravencloak-org/go-api:latest
 ```
+
+**SBOM:**
+
+```
+cosign verify-attestation \
+  --type spdxjson \
+  --certificate-identity-regexp \
+    'https://github.com/ravencloak-org/Raven/.github/workflows/docker.yml@.*' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  ghcr.io/ravencloak-org/go-api:latest
+```
+
+## Always Verify by Digest in Production
+
+Tags like `:latest` are mutable. For any real supply-chain check, pin to
+the image's immutable `sha256:` digest. Resolve a tag to a digest with
+either of:
+
+```
+crane digest ghcr.io/ravencloak-org/go-api:latest
+```
+
+```
+docker buildx imagetools inspect ghcr.io/ravencloak-org/go-api:latest --format '{{json .Manifest.Digest}}'
+```
+
+Then verify the digest directly:
+
+```
+gh attestation verify \
+  oci://ghcr.io/ravencloak-org/go-api@sha256:<digest> \
+  --owner ravencloak-org \
+  --predicate-type https://slsa.dev/provenance/v1
+```
+
+`cosign verify-attestation` accepts the same `<image>@sha256:<digest>`
+form.
 
 ## What Verification Proves
 
