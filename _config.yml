@@ -49,6 +49,13 @@ exclude:
   - contracts/
   - update-check/
 
+  # Working documents that embed Vue / shell / CI templates using `{{ }}`
+  # and `{% %}`. Kramdown's code fences do not shield these from Jekyll's
+  # Liquid pass, so they crash the Pages build. These files are engineering
+  # specs / plans / the OSPS self-assessment, not user-facing documentation.
+  - docs/superpowers/
+  - docs/compliance/
+
   # Build / config files — not meant for Pages rendering
   - "*.sh"
   - "Makefile"
