@@ -21,15 +21,59 @@ defaults:
       layout: default
 
 exclude:
+  # Local / generated / agent state
   - .worktrees/
   - .claude/
+  - .entire/
+  - .serena/
+  - .mcp_data/
+  - .idea/
+  - .wrangler/
   - ai-worker/.venv/
   - frontend/node_modules/
   - frontend/dist/
+  - node-compile-cache/
+
+  # Source code trees (not documentation)
+  - cmd/
+  - internal/
+  - pkg/
+  - proto/
+  - ai-worker/
+  - frontend/
+  - landing/
+  - migrations/
+  - deploy/
+  - tests/
+  - backup/
+  - contracts/
+  - update-check/
+
+  # Build / config files — not meant for Pages rendering
   - "*.sh"
-  - Makefile
-  - go.mod
-  - go.sum
+  - "Makefile"
+  - "Makefile.edge"
+  - "Dockerfile"
+  - "docker-compose*.yml"
+  - "go.mod"
+  - "go.sum"
+  - "bun.lock"
+  - ".env.*"
+  - ".air.toml"
+  - ".codecov.yml"
+  - ".coderabbit.yaml"
+  - ".dockerignore"
+  - ".gitignore"
+  - ".gitleaks.toml"
+  - ".goreleaser.yaml"
+  - ".golangci.yml"
+  - ".mergify.yml"
+  - ".trivyignore"
+  - ".mcp.json"
+  - "cliff.toml"
+  - "ee-LICENSE"
+  - "ee-README.md"
+  - "index.html"
 
 header_pages:
   - docs/project-status.md
