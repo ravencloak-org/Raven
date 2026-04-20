@@ -22,6 +22,32 @@ Example: `feat/semantic-cache`, `fix/voice-session-timeout`
 - Use [Conventional Commits](https://www.conventionalcommits.org/) — `feat:`, `fix:`, `chore:`, etc.
 - Keep the subject line under 72 characters
 - No AI attribution trailers (`Co-Authored-By:` etc.)
+- **Every commit must carry a `Signed-off-by:` trailer (DCO)** — see below
+
+## Developer Certificate of Origin (DCO)
+
+This project requires every commit to be signed off under the [Developer Certificate of Origin 1.1](https://developercertificate.org/). Signing off certifies that you wrote the patch (or otherwise have the right to submit it under the project's open-source license).
+
+Add the trailer automatically with `-s`:
+
+```bash
+git commit -s -m "feat: your message here"
+```
+
+This appends:
+
+```
+Signed-off-by: Your Name <your.email@example.com>
+```
+
+Rules:
+
+- The sign-off email must match the email on your commit
+- Every commit on a PR must be signed — the `DCO` check blocks merge otherwise
+- To back-fill sign-offs on an existing branch: `git rebase --signoff main` then force-push
+- If you're committing on behalf of an employer, make sure your employer allows you to contribute under Apache 2.0 (the OSS license)
+
+The DCO is enforced by a required CI check. See `.github/workflows/dco.yml`.
 
 ## Pull Request Workflow
 

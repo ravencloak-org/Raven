@@ -6,8 +6,7 @@ on:
   pull_request:
     branches: [main]
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   # Intentional Mergify marker job. Mergify gates merges on `#check-failure = 0`
@@ -16,5 +15,7 @@ jobs:
   gate:
     name: Gate
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - run: echo "CI gate passed"

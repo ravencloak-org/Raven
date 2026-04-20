@@ -1,0 +1,83 @@
+name: Secret Scanning
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '46 6 * * 1'
+
+permissions: {}
+
+jobs:
+  scan:
+    name: Gitleaks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      # Pinned release + upstream-published SHA256 of the linux_x64 tarball.
+      # Bump both when upgrading (via Dependabot-style review). Mismatched
+      # checksum fails the install step before the binary is executed.
+      GITLEAKS_VERSION: '8.30.1'
+      GITLEAKS_SHA256: '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          tmp="$(mktemp -d)"
+          curl -fsSL "$url" -o "$tmp/gitleaks.tar.gz"
+          echo "${GITLEAKS_SHA256}  $tmp/gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf "$tmp/gitleaks.tar.gz" -C "$tmp" gitleaks
+          sudo install -m 0755 "$tmp/gitleaks" /usr/local/bin/gitleaks
+          gitleaks version
+
+      # Working-tree scan: catches secrets added in files present on this ref
+      # regardless of git history. This is the primary gate — a PR adding a
+      # leaked key fails here.
+      - name: Scan working tree
+        run: gitleaks detect --source . --config .gitleaks.toml --no-git --verbose --redact
+
+      # PR diff scan: inspect only the commits introduced by this PR.
+      # Avoids surfacing pre-existing historical blobs that cannot be unbaked.
+      - name: Scan PR commits
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          gitleaks detect \
+            --source . \
+            --config .gitleaks.toml \
+            --log-opts="${BASE_SHA}..${HEAD_SHA}" \
+            --verbose --redact
+
+      # Push scan: inspect only the new commits relative to what was at the
+      # branch tip before this push.
+      - name: Scan pushed commits
+        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+        run: |
+          gitleaks detect \
+            --source . \
+            --config .gitleaks.toml \
+            --log-opts="${BEFORE}..${AFTER}" \
+            --verbose --redact
+
+      # Scheduled full-history sweep: advisory only. Historical findings here
+      # indicate secrets that need ROTATION, not history rewriting. Does not
+      # block merges.
+      - name: Scan full history (scheduled, advisory)
+        if: github.event_name == 'schedule'
+        continue-on-error: true
+        run: gitleaks detect --source . --config .gitleaks.toml --verbose --redact

@@ -13,13 +13,14 @@ on:
       - 'proto/**'
   workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   test:
     name: Lint, Type-check & Test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: ai-worker
@@ -64,6 +65,8 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: smoke
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: ai-worker

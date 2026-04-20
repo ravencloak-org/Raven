@@ -11,6 +11,8 @@ on:
   issues:
     types: [opened, assigned]
 
+permissions: {}
+
 jobs:
   claude-assist:
     name: Claude (on-demand)

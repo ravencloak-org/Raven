@@ -14,7 +14,8 @@
   <a href="https://github.com/ravencloak-org/Raven/actions/workflows/security.yml"><img src="https://github.com/ravencloak-org/Raven/actions/workflows/security.yml/badge.svg" alt="Security" /></a>
   <a href="docs/security/slsa-verification.md"><img src="https://slsa.dev/images/gh-badge-level3.svg" alt="SLSA 3" /></a>
   <a href="https://codecov.io/gh/ravencloak-org/Raven"><img src="https://codecov.io/gh/ravencloak-org/Raven/branch/main/graph/badge.svg" alt="Coverage" /></a>
-  <img src="https://img.shields.io/badge/license-TBD-lightgrey" alt="License" />
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License: Apache 2.0" /></a>
+  <a href="https://baseline.openssf.org/versions/2026-02-19"><img src="https://img.shields.io/badge/OpenSSF%20Baseline-L2%20target-blue" alt="OpenSSF Baseline L2" /></a>
   <img src="https://img.shields.io/badge/PRs-welcome-blue" alt="PRs Welcome" />
 </p>
 <p><a href="https://www.bestpractices.dev/projects/12590"><img src="https://www.bestpractices.dev/projects/12590/badge"></a>
@@ -25,7 +26,7 @@
 
 Raven is a self-hostable, multi-tenant knowledge base platform that lets organizations ingest documents and web content, then query them through AI-powered channels -- an embeddable chatbot, a real-time voice agent, and WhatsApp. It combines hybrid retrieval (vector search + BM25), BYOK LLM support, and a modular architecture designed for both cloud and edge deployment.
 
-The platform is organized around a clear hierarchy: **Organizations** (tenant boundaries) contain **Workspaces** (operational sub-units), which contain **Knowledge Bases** (collections of documents and web sources). Each layer enforces data isolation through PostgreSQL Row-Level Security, Keycloak-based authentication, and API middleware.
+The platform is organized around a clear hierarchy: **Organizations** (tenant boundaries) contain **Workspaces** (operational sub-units), which contain **Knowledge Bases** (collections of documents and web sources). Each layer enforces data isolation through PostgreSQL Row-Level Security, SuperTokens-based authentication, and API middleware.
 
 Raven is built for teams that need a production-grade RAG platform without vendor lock-in. Bring your own LLM keys (Anthropic, OpenAI, Cohere), deploy on a cloud VM or a Raspberry Pi, and own your data end to end.
 
@@ -44,7 +45,7 @@ Raven is built for teams that need a production-grade RAG platform without vendo
 
 Raven uses a **two-process architecture**: a Go API server handles HTTP routing, authentication, and orchestration, while a Python AI worker handles all ML/AI workloads (embedding, RAG queries, document parsing, web scraping). The two communicate over gRPC, with Valkey (Redis-compatible) as the async job queue.
 
-PostgreSQL serves as the single source of truth -- storing relational data, vector embeddings (pgvector), and full-text search indexes. A Vue.js SPA provides the admin dashboard, and Keycloak handles identity management.
+PostgreSQL serves as the single source of truth -- storing relational data, vector embeddings (pgvector), and full-text search indexes. A Vue.js SPA provides the admin dashboard, and SuperTokens handles identity management.
 
 ## Tech Stack
 
@@ -55,7 +56,7 @@ PostgreSQL serves as the single source of truth -- storing relational data, vect
 | **Database** | PostgreSQL 18 + pgvector | Relational data, vector search, BM25 full-text |
 | **Frontend** | Vue.js 3 + Tailwind CSS | Admin dashboard (SPA, mobile-first, PWA-capable) |
 | **Chatbot Widget** | Web Component | Embeddable `<raven-chat>` element |
-| **Auth** | Keycloak | OIDC/OAuth2, user management, multi-tenant realms |
+| **Auth** | SuperTokens | Email/password + OAuth (Google), session management, MFA |
 | **Job Queue** | Valkey (Redis fork) | Async document processing, caching, rate limiting |
 | **Object Storage** | SeaweedFS | S3-compatible file storage (Apache 2.0) |
 | **Voice** | LiveKit Server + Agents | WebRTC SFU, STT/LLM/TTS voice pipeline |
@@ -70,7 +71,7 @@ cp .env.example .env        # fill in required values (see comments inside)
 docker compose up -d        # starts all services
 ```
 
-The admin dashboard is available at `http://localhost:3000` once all containers are healthy. See [docs/quickstart.md](docs/quickstart.md) for a full walkthrough including first-user setup and Keycloak configuration.
+The admin dashboard is available at `http://localhost:3000` once all containers are healthy. See [docs/quickstart.md](docs/quickstart.md) for a full walkthrough including first-user setup and SuperTokens configuration.
 
 For local development without Docker, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
@@ -123,6 +124,17 @@ Contributions are welcome. Please open an issue to discuss proposed changes befo
 - Browse [open issues](../../issues) for tasks and bug reports
 - See the [architecture overview](docs/wiki/Architecture-Overview.md) and [data model](docs/wiki/Data-Model.md) for context
 
-## License
+## Security
 
-License TBD -- to be determined before public release.
+Vulnerability disclosure, supported versions, and response SLAs are in [SECURITY.md](SECURITY.md). Please do not open public issues for suspected security problems; use GitHub private advisories instead.
+
+Current maintainers and their areas of ownership are in [MAINTAINERS.md](MAINTAINERS.md).
+
+## Licensing
+
+Raven is dual-licensed:
+
+- **Open-source portion** — everything in this repository is licensed under the [Apache License 2.0](./LICENSE) **except** files and directories whose name begins with `ee-`.
+- **Enterprise portion** — files prefixed with `ee-` (for example `ee-LICENSE`, `ee-README.md`) are covered by the [Raven Enterprise License](./ee-LICENSE) and are **not** open-source. They are not included in any Apache-2.0 obligations, nor in the release artifacts that target OpenSSF Baseline compliance.
+
+The open-source portion targets [OpenSSF Baseline 2026-02-19](https://baseline.openssf.org/versions/2026-02-19) **Level 2** compliance. See [`docs/architecture.md`](docs/architecture.md) for a system-level overview and [`docs/dependency-policy.md`](docs/dependency-policy.md) for how we manage supply chain.
