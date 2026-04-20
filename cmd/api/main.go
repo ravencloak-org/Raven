@@ -335,7 +335,13 @@ func main() {
 	hsClient := hyperswitch.NewClient(cfg.Hyperswitch.BaseURL, cfg.Hyperswitch.APIKey)
 	billingSvc := service.NewBillingService(billingRepo, pool, hsClient, cfg.Hyperswitch.WebhookSecret)
 	chatRepo := repository.NewChatRepository(pool)
-	chatSvc := service.NewChatService(chatRepo, grpcClient, pool)
+	// Cross-channel conversation memory (issue #258): shares the
+	// conversation_sessions table with #257. The migration
+	// (00037_conversation_sessions.sql) is introduced by #257 — this
+	// branch reads/writes the table but does not create it.
+	conversationRepo := repository.NewConversationRepository(pool)
+	conversationSvc := service.NewConversationService(conversationRepo, posthogClient)
+	chatSvc := service.NewChatService(chatRepo, grpcClient, pool).WithConversationMemory(conversationSvc)
 	voiceRepo := repository.NewVoiceRepository(pool)
 	// Instantiate shared LiveKit client for WebRTC room management and token generation.
 	lkClient := lk.NewClient(lk.Config{
@@ -430,6 +436,7 @@ func main() {
 	securityHandler := handler.NewSecurityHandler(securitySvc)
 	strangerHandler := handler.NewStrangerHandler(strangerSvc)
 	identityHandler := handler.NewIdentityHandler(identitySvc)
+	conversationHandler := handler.NewConversationHandler(conversationSvc)
 	notifHandler := handler.NewNotificationHandler(notifSvc)
 	webhookHandler := handler.NewWebhookHandler(webhookSvc)
 	chatHandler := handler.NewChatHandler(chatSvc)
@@ -641,6 +648,14 @@ func main() {
 			identity.POST("/track", middleware.RequireOrgRole("org_member"), identityHandler.Track)
 			identity.GET("", middleware.RequireOrgRole("org_member"), identityHandler.ListIdentities)
 			identity.DELETE("/:id", middleware.RequireOrgRole("org_admin"), identityHandler.DeleteIdentity)
+		}
+
+		// --- Cross-channel conversation memory (#258): user-scoped history
+		// shared between chat, voice, and WebRTC channels. ---
+		conv := api.Group("/orgs/:org_id/kbs/:kb_id/conversations")
+		{
+			conv.GET("", middleware.RequireOrgRole("org_member"), conversationHandler.List)
+			conv.GET("/:session_id", middleware.RequireOrgRole("org_member"), conversationHandler.Get)
 		}
 
 		// --- Notification config and log routes (nested under org, admin only) ---

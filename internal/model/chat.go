@@ -81,12 +81,21 @@ type ChatMessage struct {
 
 // ChatCompletionRequest is the request body for POST /v1/chat/:kb_id/completions.
 type ChatCompletionRequest struct {
-	Query    string            `json:"query" binding:"required"`
-	SessionID string           `json:"session_id,omitempty"`
-	Model    string            `json:"model,omitempty"`
-	Provider string            `json:"provider,omitempty"`
-	Filters  map[string]string `json:"filters,omitempty"`
-	Stream   bool              `json:"stream"`
+	Query     string            `json:"query" binding:"required"`
+	SessionID string            `json:"session_id,omitempty"`
+	Model     string            `json:"model,omitempty"`
+	Provider  string            `json:"provider,omitempty"`
+	Filters   map[string]string `json:"filters,omitempty"`
+	Stream    bool              `json:"stream"`
+	// UserID is the stable authenticated user identifier (JWT `sub` claim).
+	// Populated server-side by the handler from the request context — never
+	// trusted from the client body. Used to pull cross-channel conversation
+	// memory from the conversation_sessions table (issue #258).
+	UserID string `json:"-"`
+	// ConversationSessionID is the caller's active cross-channel
+	// conversation_sessions row id (when one has been started). Also populated
+	// server-side by the handler / voice code path.
+	ConversationSessionID string `json:"-"`
 }
 
 // ChatSource describes a source chunk that contributed to the AI response.

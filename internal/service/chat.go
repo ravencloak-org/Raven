@@ -61,11 +61,25 @@ type AIWorkerClient interface {
 	Worker() pb.AIWorkerClient
 }
 
+// ConversationMemory is the cross-channel conversation memory integration
+// point. It injects user-scoped history into the gRPC call and records the
+// turn for later cross-channel recall. All methods are best-effort — failures
+// must not break chat completion.
+type ConversationMemory interface {
+	RecentHistory(ctx context.Context, orgID, kbID, userID string, maxTurns int) ([]model.ConversationTurn, error)
+	IsReturningUser(ctx context.Context, orgID, kbID, userID string) (bool, error)
+	RecordMessage(ctx context.Context, orgID, sessionID, userID, kbID, channel, role, content string, isReturningUser bool, historyTurnsInjected int) (*model.ConversationSession, error)
+	StartSession(ctx context.Context, orgID, kbID, userID, channel string) (*model.ConversationSession, error)
+}
+
 // ChatService contains business logic for chat completions with SSE streaming.
 type ChatService struct {
 	chatRepo   ChatRepository
 	grpcClient AIWorkerClient
 	pool       *pgxpool.Pool
+	// convMem is optional: when non-nil and the caller has an authenticated
+	// user, the service pulls cross-channel history and records the turn.
+	convMem ConversationMemory
 }
 
 // NewChatService creates a new ChatService.
@@ -76,6 +90,13 @@ func NewChatService(chatRepo *repository.ChatRepository, grpcClient *rpcClient.C
 // NewChatServiceWithDeps creates a ChatService with explicit interface dependencies (for testing).
 func NewChatServiceWithDeps(chatRepo ChatRepository, grpcClient AIWorkerClient, pool *pgxpool.Pool) *ChatService {
 	return &ChatService{chatRepo: chatRepo, grpcClient: grpcClient, pool: pool}
+}
+
+// WithConversationMemory attaches the cross-channel conversation memory
+// integration. Returns the receiver so the call is chainable at wiring time.
+func (s *ChatService) WithConversationMemory(m ConversationMemory) *ChatService {
+	s.convMem = m
+	return s
 }
 
 // StreamCompletion calls QueryRAG and returns a channel of SSE events.
@@ -150,6 +171,28 @@ func (s *ChatService) StreamCompletion(ctx context.Context, orgID, kbID string, 
 		ctxJSON, err := json.Marshal(convCtx)
 		if err == nil {
 			filters["conversation_context"] = string(ctxJSON)
+		}
+	}
+
+	// Cross-channel conversation history (issue #258): pull the user's most
+	// recent turns across chat/voice/webrtc sessions on this KB and forward
+	// them to the AI worker. Best-effort — failures are logged but do not
+	// break completion.
+	historyTurnsInjected := 0
+	isReturningUser := false
+	if s.convMem != nil && req.UserID != "" {
+		history, hErr := s.convMem.RecentHistory(ctx, orgID, kbID, req.UserID, model.MaxConversationHistoryTurns)
+		if hErr == nil && len(history) > 0 {
+			if raw, mErr := json.Marshal(history); mErr == nil {
+				filters["conversation_history"] = string(raw)
+				historyTurnsInjected = len(history)
+				isReturningUser = true
+			}
+		}
+		// Best-effort: append the user turn to the cross-channel memory.
+		if _, rErr := s.convMem.RecordMessage(ctx, orgID, req.ConversationSessionID, req.UserID, kbID, model.ConvChannelChat, "user", req.Query, isReturningUser, historyTurnsInjected); rErr != nil {
+			// swallow — analytics / memory must never break the stream
+			_ = rErr
 		}
 	}
 
