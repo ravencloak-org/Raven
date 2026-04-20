@@ -51,6 +51,8 @@ var allExpectedTables = []string{
 	"webhook_configs",
 	"webhook_deliveries",
 	"lead_profiles",
+	"conversation_sessions",
+	"user_notification_preferences",
 }
 
 // rlsTables are the tables that must have RLS enabled (all tables with org_id).
@@ -80,6 +82,8 @@ var rlsTables = []string{
 	"webhook_configs",
 	"webhook_deliveries",
 	"lead_profiles",
+	"conversation_sessions",
+	"user_notification_preferences",
 }
 
 // allExpectedTypes lists every custom ENUM type.

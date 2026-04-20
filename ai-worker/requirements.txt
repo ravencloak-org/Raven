@@ -4,3 +4,6 @@ grpcio-health-checking>=1.69.0
 protobuf>=5.29.0
 pydantic-settings>=2.7.0
 structlog>=24.4.0
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+anthropic>=0.40.0

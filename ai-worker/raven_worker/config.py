@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     livekit_api_secret: str = ""
     memory_dir: str = ""  # directory for per-session memory files; empty = disabled
     enable_web_search: bool = False  # allow Anthropic web_search tool in RAG responses
+    http_port: int = 8090  # FastAPI internal endpoints (POST /internal/summarize for #257)
+    http_enabled: bool = True
     model_config = SettingsConfigDict(env_prefix="RAVEN_")
 
 

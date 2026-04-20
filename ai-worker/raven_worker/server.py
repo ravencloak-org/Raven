@@ -1,6 +1,7 @@
 """gRPC server setup with reflection, health checking, and graceful shutdown."""
 
 import asyncio
+import contextlib
 import logging
 import signal
 
@@ -11,6 +12,7 @@ from grpc_reflection.v1alpha import reflection
 
 from raven_worker.config import settings
 from raven_worker.generated import ai_worker_pb2, ai_worker_pb2_grpc
+from raven_worker.http_internal import build_app
 from raven_worker.services.embedding import EmbeddingServicer
 from raven_worker.services.rag import RAGServicer
 from raven_worker.telemetry import get_grpc_server_interceptor, init_telemetry
@@ -109,6 +111,25 @@ async def serve() -> None:
     logger.info("starting_server", address=listen_addr, max_workers=settings.grpc_max_workers)
     await server.start()
 
+    # Start the internal FastAPI app (POST /internal/summarize for #257) on a
+    # separate loopback-bound port. The gateway layer must not expose this
+    # port publicly — it is for intra-cluster calls from the Go worker only.
+    http_task: asyncio.Task | None = None
+    if settings.http_enabled:
+        import uvicorn
+
+        app = build_app()
+        uvicorn_config = uvicorn.Config(
+            app,
+            host="0.0.0.0",  # noqa: S104 — container-local; network policy enforced at ingress
+            port=settings.http_port,
+            log_level=settings.log_level.lower(),
+            access_log=False,
+        )
+        http_server = uvicorn.Server(uvicorn_config)
+        http_task = asyncio.create_task(http_server.serve())
+        logger.info("starting_http", port=settings.http_port)
+
     # Graceful shutdown on SIGINT / SIGTERM
     loop = asyncio.get_running_loop()
     shutdown_event = asyncio.Event()
@@ -124,4 +145,8 @@ async def serve() -> None:
 
     logger.info("shutting_down", grace_period_seconds=5)
     await server.stop(grace=5)
+    if http_task is not None:
+        http_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError, Exception):
+            await http_task
     logger.info("server_stopped")

@@ -30,6 +30,8 @@ dependencies = [
     "redis>=5.0.0",
     "livekit>=1.0.0",
     "livekit-agents>=1.0.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
 ]
 
 [project.optional-dependencies]

@@ -112,6 +112,28 @@ func (a *userLookupAdapter) GetByExternalID(ctx context.Context, externalID stri
 	return u.ID, u.OrgID, nil
 }
 
+// userExternalIDResolver bridges the user repository to the unsubscribe handler.
+// Given an external IdP id (e.g. SuperTokens sub) embedded in the unsubscribe
+// token, it returns the internal (orgID, userID) tuple so preferences can be
+// updated under the correct RLS scope.
+type userExternalIDResolver struct {
+	repo *repository.UserRepository
+}
+
+func (r *userExternalIDResolver) ResolveInternalUser(ctx context.Context, externalID string) (orgID, userID string, err error) {
+	u, err := r.repo.GetByExternalID(ctx, externalID)
+	if err != nil {
+		if strings.Contains(err.Error(), "no rows") {
+			return "", "", nil
+		}
+		return "", "", err
+	}
+	if u.OrgID == nil {
+		return "", "", nil
+	}
+	return *u.OrgID, u.ID, nil
+}
+
 func apiKeyToLookupResult(ak *model.APIKey) *middleware.APIKeyLookupResult {
 	return &middleware.APIKeyLookupResult{
 		ID:              ak.ID,
@@ -438,6 +460,8 @@ func main() {
 	identityHandler := handler.NewIdentityHandler(identitySvc)
 	conversationHandler := handler.NewConversationHandler(conversationSvc)
 	notifHandler := handler.NewNotificationHandler(notifSvc)
+	notifPrefsRepo := repository.NewNotificationPreferencesRepository(pool)
+	notifPrefsHandler := handler.NewNotificationPrefsHandler(notifPrefsRepo, &userExternalIDResolver{repo: userRepo})
 	webhookHandler := handler.NewWebhookHandler(webhookSvc)
 	chatHandler := handler.NewChatHandler(chatSvc)
 	semCacheHandler := handler.NewSemanticCacheHandler(semCacheRepo)
@@ -467,6 +491,12 @@ func main() {
 	// Infrastructure endpoint — intentionally outside the versioned group.
 	// Excluded from rate limiting.
 	router.GET("/healthz", handler.HealthCheck)
+
+	// One-click unsubscribe — public, authenticated via a signed token embedded
+	// in the link (RFC 8058). Placed outside /api/v1 so email clients can hit
+	// it without triggering CORS/auth middleware.
+	router.GET("/api/v1/notifications/unsubscribe", notifPrefsHandler.Unsubscribe)
+	router.POST("/api/v1/notifications/unsubscribe", notifPrefsHandler.UnsubscribePost)
 
 	// Swagger UI — served at /api/docs (unauthenticated; disable in prod via env).
 	router.GET("/api/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
@@ -519,6 +549,7 @@ func main() {
 			ws.POST("/:ws_id/members", resolveWSRole, middleware.RequireWorkspaceRole("admin"), wsHandler.AddMember)
 			ws.PUT("/:ws_id/members/:user_id", resolveWSRole, middleware.RequireWorkspaceRole("admin"), wsHandler.UpdateMember)
 			ws.DELETE("/:ws_id/members/:user_id", resolveWSRole, middleware.RequireWorkspaceRole("admin"), wsHandler.RemoveMember)
+			ws.PUT("/:ws_id/notification-preferences", resolveWSRole, middleware.RequireWorkspaceRole("admin"), notifPrefsHandler.UpsertWorkspacePreference)
 
 			// Knowledge Base routes (nested under workspace)
 			kb := ws.Group("/:ws_id/knowledge-bases")
@@ -751,6 +782,7 @@ func main() {
 		api.GET("/me", userHandler.GetMe)
 		api.PUT("/me", userHandler.UpdateMe)
 		api.DELETE("/me", userHandler.DeleteMe)
+		api.PUT("/me/notification-preferences/:workspace_id", notifPrefsHandler.UpsertUserPreference)
 		api.GET("/users/:user_id", middleware.RequireOrgRole("org_admin"), userHandler.GetUser)
 
 	}

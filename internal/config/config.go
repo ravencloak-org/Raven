@@ -32,7 +32,29 @@ type Config struct {
 	EBPF         EBPFConfig
 	Meta         MetaConfig
 	TMDB         TMDBConfig
-	Seed         SeedConfig
+	Seed          SeedConfig
+	SES           SESConfig
+	EmailSummary  EmailSummaryConfig
+}
+
+// SESConfig holds AWS SES outbound email settings.
+// Credentials come from SES SMTP credentials (distinct from IAM access keys).
+// Never commit values — populate via env vars (see .env.example).
+type SESConfig struct {
+	Region       string `mapstructure:"region"`         // default: ap-south-1
+	FromAddress  string `mapstructure:"from_address"`   // verified SES identity
+	FromName     string `mapstructure:"from_name"`      // e.g. "Raven"
+	SMTPUsername string `mapstructure:"smtp_username"`
+	SMTPPassword string `mapstructure:"smtp_password"`
+}
+
+// EmailSummaryConfig holds settings for the M9 post-session summary email job.
+type EmailSummaryConfig struct {
+	FrontendBaseURL   string `mapstructure:"frontend_base_url"`  // e.g. https://app.ravencloak.io
+	SupportAddress    string `mapstructure:"support_address"`    // support@ravencloak.io
+	UnsubscribeBaseURL string `mapstructure:"unsubscribe_base_url"` // e.g. https://api.ravencloak.io/api/v1/notifications/unsubscribe
+	UnsubscribeSecret string `mapstructure:"unsubscribe_secret"` // HMAC key; UNSUBSCRIBE_TOKEN_SECRET
+	SummarizerBaseURL string `mapstructure:"summarizer_base_url"` // AI worker HTTP base (POST /internal/summarize)
 }
 
 // MetaConfig holds Meta WhatsApp Business API settings.
@@ -268,6 +290,16 @@ func Load() (*Config, error) {
 	v.SetDefault("seaweedfs.master_url", "http://seaweedfs-master:9333")
 	v.SetDefault("posthog.api_key", "")
 	v.SetDefault("posthog.host", "https://us.i.posthog.com")
+	v.SetDefault("ses.region", "ap-south-1")
+	v.SetDefault("ses.from_address", "")
+	v.SetDefault("ses.from_name", "Raven")
+	v.SetDefault("ses.smtp_username", "")
+	v.SetDefault("ses.smtp_password", "")
+	v.SetDefault("emailsummary.frontend_base_url", "")
+	v.SetDefault("emailsummary.support_address", "support@ravencloak.io")
+	v.SetDefault("emailsummary.unsubscribe_base_url", "")
+	v.SetDefault("emailsummary.unsubscribe_secret", "")
+	v.SetDefault("emailsummary.summarizer_base_url", "http://ai-worker:8090")
 	v.SetDefault("hyperswitch.base_url", "http://localhost:8090")
 	v.SetDefault("hyperswitch.api_key", "")
 	v.SetDefault("hyperswitch.webhook_secret", "")
@@ -402,6 +434,18 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("tmdb.api_key", "TMDB_API_KEY")
 	_ = v.BindEnv("tmdb.base_url", "RAVEN_TMDB_BASE_URL")
 	_ = v.BindEnv("seed.key", "RAVEN_SEED_KEY")
+	_ = v.BindEnv("ses.region", "AWS_SES_REGION")
+	_ = v.BindEnv("ses.from_address", "AWS_SES_FROM_ADDRESS")
+	_ = v.BindEnv("ses.from_name", "AWS_SES_FROM_NAME")
+	_ = v.BindEnv("ses.smtp_username", "AWS_SES_SMTP_USERNAME")
+	_ = v.BindEnv("ses.smtp_password", "AWS_SES_SMTP_PASSWORD")
+	_ = v.BindEnv("emailsummary.frontend_base_url", "RAVEN_FRONTEND_BASE_URL")
+	_ = v.BindEnv("emailsummary.support_address", "RAVEN_SUPPORT_ADDRESS")
+	_ = v.BindEnv("emailsummary.unsubscribe_base_url", "RAVEN_UNSUBSCRIBE_BASE_URL")
+	_ = v.BindEnv("emailsummary.unsubscribe_secret", "UNSUBSCRIBE_TOKEN_SECRET")
+	_ = v.BindEnv("emailsummary.summarizer_base_url", "RAVEN_AI_WORKER_HTTP_URL")
+	_ = v.BindEnv("posthog.api_key", "RAVEN_POSTHOG_API_KEY")
+	_ = v.BindEnv("posthog.host", "RAVEN_POSTHOG_HOST")
 
 	// Try to read config file but don't fail if not found
 	_ = v.ReadInConfig()
