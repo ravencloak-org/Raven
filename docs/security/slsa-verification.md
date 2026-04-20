@@ -52,7 +52,7 @@ For environments without `gh`:
 cosign verify-attestation \
   --type slsaprovenance1 \
   --certificate-identity-regexp \
-    'https://github.com/ravencloak-org/Raven/.github/workflows/docker.yml@.*' \
+    'https://github.com/ravencloak-org/Raven/.github/workflows/(docker|release)\.yml@.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   ghcr.io/ravencloak-org/go-api:latest
 ```
@@ -63,7 +63,7 @@ cosign verify-attestation \
 cosign verify-attestation \
   --type spdxjson \
   --certificate-identity-regexp \
-    'https://github.com/ravencloak-org/Raven/.github/workflows/docker.yml@.*' \
+    'https://github.com/ravencloak-org/Raven/.github/workflows/(docker|release)\.yml@.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   ghcr.io/ravencloak-org/go-api:latest
 ```
@@ -96,8 +96,9 @@ form.
 
 ## What Verification Proves
 
-- The image was built from `ravencloak-org/Raven` by the `docker.yml`
-  workflow on a GitHub-hosted runner.
+- The image was built from `ravencloak-org/Raven` by either the
+  `docker.yml` workflow (main-branch pushes) or the `release.yml`
+  workflow (tag releases), on a GitHub-hosted runner.
 - The commit SHA in the provenance matches a real commit on this repo.
 - The image digest you pull is byte-for-byte the one that was attested.
 - The SBOM was produced by the same build.
@@ -117,6 +118,9 @@ form.
   will fail with "no attestation found". That is expected.
 - If `gh attestation verify` fails with an auth error, run `gh auth login`
   and ensure the account has read access to `ravencloak-org/Raven`.
+- Re-pushing an image with an unchanged digest will add a new referrer
+  manifest rather than dedupe. `gh attestation verify` picks the first
+  valid attestation, so this is benign.
 
 ## References
 
