@@ -69,7 +69,7 @@ func (r *NotificationPreferencesRepository) SetWorkspacePreference(ctx context.C
 	})
 }
 
-// UnsubscribeByHash disables the email-summaries flag for a user across all
+// UnsubscribeAll disables the email-summaries flag for a user across all
 // workspaces where a preference row already exists. Used by the one-click
 // unsubscribe endpoint, which has no notion of workspace scope.
 func (r *NotificationPreferencesRepository) UnsubscribeAll(ctx context.Context, orgID, userID string) error {

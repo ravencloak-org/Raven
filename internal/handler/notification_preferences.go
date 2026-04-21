@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"os"
 
@@ -163,5 +162,3 @@ var unsubscribeSuccessHTML = []byte(`<!doctype html>
 <p style="color:#486581;line-height:1.5;margin:0;">You will no longer receive conversation summary emails from Raven. You can re-enable them anytime from your account settings.</p>
 </div></body></html>`)
 
-// compile-time assertion that the zero value satisfies the interface contracts.
-var _ error = errors.New("")
