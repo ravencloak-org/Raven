@@ -178,23 +178,7 @@ func (s *ChatService) StreamCompletion(ctx context.Context, orgID, kbID string, 
 	// recent turns across chat/voice/webrtc sessions on this KB and forward
 	// them to the AI worker. Best-effort — failures are logged but do not
 	// break completion.
-	historyTurnsInjected := 0
-	isReturningUser := false
-	if s.convMem != nil && req.UserID != "" {
-		history, hErr := s.convMem.RecentHistory(ctx, orgID, kbID, req.UserID, model.MaxConversationHistoryTurns)
-		if hErr == nil && len(history) > 0 {
-			if raw, mErr := json.Marshal(history); mErr == nil {
-				filters["conversation_history"] = string(raw)
-				historyTurnsInjected = len(history)
-				isReturningUser = true
-			}
-		}
-		// Best-effort: append the user turn to the cross-channel memory.
-		if _, rErr := s.convMem.RecordMessage(ctx, orgID, req.ConversationSessionID, req.UserID, kbID, model.ConvChannelChat, "user", req.Query, isReturningUser, historyTurnsInjected); rErr != nil {
-			// swallow — analytics / memory must never break the stream
-			_ = rErr
-		}
-	}
+	convSessionID, historyTurnsInjected, isReturningUser := s.primeConversationMemory(ctx, orgID, kbID, req, filters)
 
 	provider := req.Provider
 	if provider == "" {
@@ -301,6 +285,10 @@ func (s *ChatService) StreamCompletion(ctx context.Context, orgID, kbID string, 
 			}
 			return
 		}
+
+		// Persist the assistant turn into cross-channel memory so other
+		// channels see a complete transcript. Best-effort.
+		s.recordAssistantMemoryTurn(ctx, orgID, kbID, req.UserID, convSessionID, fullText, isReturningUser, historyTurnsInjected)
 
 		// Emit done event.
 		msgID := ""
@@ -494,3 +482,65 @@ func strPtr(s string) *string {
 	}
 	return &s
 }
+
+// primeConversationMemory pulls cross-channel history, stuffs it into the
+// AI-worker filters, lazily creates a conversation_sessions row when none
+// exists, and appends the user's turn to that row. Returns the session ID
+// to reuse for the matching assistant turn, the number of history turns
+// injected, and whether the user is returning.
+//
+// All interactions are best-effort: any failure is swallowed so conversation
+// memory never breaks the chat stream.
+func (s *ChatService) primeConversationMemory(
+	ctx context.Context,
+	orgID, kbID string,
+	req *model.ChatCompletionRequest,
+	filters map[string]string,
+) (convSessionID string, historyTurnsInjected int, isReturningUser bool) {
+	convSessionID = req.ConversationSessionID
+	if s.convMem == nil || req.UserID == "" {
+		return convSessionID, 0, false
+	}
+
+	if history, hErr := s.convMem.RecentHistory(ctx, orgID, kbID, req.UserID, model.MaxConversationHistoryTurns); hErr == nil && len(history) > 0 {
+		if raw, mErr := json.Marshal(history); mErr == nil {
+			filters["conversation_history"] = string(raw)
+			historyTurnsInjected = len(history)
+			isReturningUser = true
+		}
+	}
+
+	// Lazily start a cross-channel conversation_sessions row when the caller
+	// hasn't supplied one. Without this, AppendMessage would silently fail
+	// with ErrConversationNotFound and the whole memory feature would be a
+	// no-op (see PR #349 CodeRabbit review).
+	if convSessionID == "" {
+		if sess, sErr := s.convMem.StartSession(ctx, orgID, kbID, req.UserID, model.ConvChannelChat); sErr == nil && sess != nil {
+			convSessionID = sess.ID
+		}
+	}
+
+	if convSessionID != "" {
+		if _, rErr := s.convMem.RecordMessage(ctx, orgID, convSessionID, req.UserID, kbID, model.ConvChannelChat, "user", req.Query, isReturningUser, historyTurnsInjected); rErr != nil {
+			_ = rErr // swallow — memory must never break the stream
+		}
+	}
+	return convSessionID, historyTurnsInjected, isReturningUser
+}
+
+// recordAssistantMemoryTurn mirrors primeConversationMemory's user-turn
+// AppendMessage for the assistant reply. Best-effort; failures are swallowed.
+func (s *ChatService) recordAssistantMemoryTurn(
+	ctx context.Context,
+	orgID, kbID, userID, convSessionID, content string,
+	isReturningUser bool,
+	historyTurnsInjected int,
+) {
+	if s.convMem == nil || userID == "" || convSessionID == "" {
+		return
+	}
+	if _, rErr := s.convMem.RecordMessage(ctx, orgID, convSessionID, userID, kbID, model.ConvChannelChat, "assistant", content, isReturningUser, historyTurnsInjected); rErr != nil {
+		_ = rErr
+	}
+}
+

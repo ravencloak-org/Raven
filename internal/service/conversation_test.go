@@ -56,18 +56,19 @@ func (f *fakeConvRepo) AppendMessage(ctx context.Context, orgID, sessionID strin
 	return s, nil
 }
 
-func (f *fakeConvRepo) EndSession(ctx context.Context, orgID, sessionID string) error {
+func (f *fakeConvRepo) EndSession(ctx context.Context, orgID, sessionID string) (bool, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	s, ok := f.byID[sessionID]
 	if !ok || s.OrgID != orgID {
-		return repository.ErrConversationNotFound
+		return false, repository.ErrConversationNotFound
 	}
-	if s.EndedAt == nil {
-		t := time.Now().UTC()
-		s.EndedAt = &t
+	if s.EndedAt != nil {
+		return false, nil
 	}
-	return nil
+	t := time.Now().UTC()
+	s.EndedAt = &t
+	return true, nil
 }
 
 func (f *fakeConvRepo) GetRecentByUser(ctx context.Context, orgID, kbID, userID string, limit int) ([]model.ConversationSession, error) {

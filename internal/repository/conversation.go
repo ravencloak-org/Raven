@@ -126,11 +126,14 @@ func (r *ConversationRepository) AppendMessage(
 }
 
 // EndSession stamps ended_at = NOW() on the session. Idempotent: subsequent
-// calls are a no-op.
+// calls are a no-op. Returns (ended=true, nil) only when this call actually
+// transitioned a row from open to ended; (ended=false, nil) when the row was
+// already ended. Returns ErrConversationNotFound if the row does not exist.
 func (r *ConversationRepository) EndSession(
 	ctx context.Context,
 	orgID, sessionID string,
-) error {
+) (bool, error) {
+	var ended bool
 	err := db.WithOrgID(ctx, r.pool, orgID, func(tx pgx.Tx) error {
 		tag, e := tx.Exec(ctx,
 			`UPDATE conversation_sessions
@@ -141,37 +144,41 @@ func (r *ConversationRepository) EndSession(
 		if e != nil {
 			return e
 		}
-		if tag.RowsAffected() == 0 {
-			// Either unknown session or already ended — treat as not found only
-			// when the row truly doesn't exist.
-			var exists bool
-			if err := tx.QueryRow(ctx,
-				`SELECT EXISTS(SELECT 1 FROM conversation_sessions WHERE id = $1 AND org_id = $2)`,
-				sessionID, orgID,
-			).Scan(&exists); err != nil {
-				return err
-			}
-			if !exists {
-				return ErrConversationNotFound
-			}
+		if tag.RowsAffected() > 0 {
+			ended = true
+			return nil
+		}
+		// Either unknown session or already ended — treat as not found only
+		// when the row truly doesn't exist.
+		var exists bool
+		if err := tx.QueryRow(ctx,
+			`SELECT EXISTS(SELECT 1 FROM conversation_sessions WHERE id = $1 AND org_id = $2)`,
+			sessionID, orgID,
+		).Scan(&exists); err != nil {
+			return err
+		}
+		if !exists {
+			return ErrConversationNotFound
 		}
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("ConversationRepository.EndSession: %w", err)
+		return false, fmt.Errorf("ConversationRepository.EndSession: %w", err)
 	}
-	return nil
+	return ended, nil
 }
 
 // GetRecentByUser returns the most recent sessions for a given user on a KB
-// ordered by started_at DESC. Limit <= 0 means use a default of 5.
+// ordered by started_at DESC. Limit <= 0 means use the default session-count
+// limit (DefaultConversationListLimit); this is a session count, not a turn
+// count.
 func (r *ConversationRepository) GetRecentByUser(
 	ctx context.Context,
 	orgID, kbID, userID string,
 	limit int,
 ) ([]model.ConversationSession, error) {
 	if limit <= 0 {
-		limit = model.MaxConversationHistoryTurns
+		limit = model.DefaultConversationListLimit
 	}
 
 	var out []model.ConversationSession
@@ -242,7 +249,7 @@ func (r *ConversationRepository) ListByUser(
 	limit, offset int,
 ) ([]model.ConversationSessionSummary, int, error) {
 	if limit <= 0 || limit > 100 {
-		limit = 20
+		limit = model.DefaultConversationListLimit
 	}
 	if offset < 0 {
 		offset = 0

@@ -26,6 +26,11 @@ const (
 // roughly 1500 tokens.
 const MaxConversationHistoryTurns = 5
 
+// DefaultConversationListLimit is the default page size for conversation
+// session list endpoints (distinct from MaxConversationHistoryTurns which
+// bounds turns, not sessions).
+const DefaultConversationListLimit = 20
+
 // ConversationTurn is a single user or assistant message persisted inside
 // a ConversationSession.messages JSONB column.
 type ConversationTurn struct {

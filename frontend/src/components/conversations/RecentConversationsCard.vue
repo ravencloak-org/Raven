@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   listConversations,
   getConversation,
@@ -72,7 +72,23 @@ function closeTranscript() {
   selected.value = null
 }
 
-onMounted(load)
+// Keep the transcript open on Escape the same way a native <dialog> would —
+// without the implied modal semantics (see #349 CodeRabbit review thread).
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && selected.value) {
+    closeTranscript()
+  }
+}
+
+onMounted(() => {
+  void load()
+  window.addEventListener('keydown', onKeydown)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
+})
+
 watch(() => [props.orgId, props.kbId], () => {
   sessions.value = []
   selected.value = null
@@ -129,14 +145,14 @@ watch(() => [props.orgId, props.kbId], () => {
       </li>
     </ul>
 
-    <div
+    <section
       v-if="selected"
       class="recent-conversations__transcript"
-      role="dialog"
-      aria-modal="true"
+      role="region"
+      aria-labelledby="recent-conv-transcript-heading"
     >
       <header class="recent-conversations__transcript-header">
-        <h4>Transcript</h4>
+        <h4 id="recent-conv-transcript-heading">Transcript</h4>
         <button type="button" @click="closeTranscript">Close</button>
       </header>
       <p v-if="loadingTranscript">Loading transcript…</p>
@@ -152,7 +168,7 @@ watch(() => [props.orgId, props.kbId], () => {
           <time class="recent-conversations__turn-ts">{{ fmtDate(t.ts) }}</time>
         </li>
       </ol>
-    </div>
+    </section>
   </section>
 </template>
 

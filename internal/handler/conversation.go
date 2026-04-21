@@ -56,6 +56,14 @@ func (h *ConversationHandler) List(c *gin.Context) {
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	// Mirror the clamp in internal/handler/chat.go GetHistory/ListSessions so
+	// callers get defensive pagination at the HTTP edge as well as the repo.
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
 
 	resp, err := h.svc.ListForUser(c.Request.Context(), orgID, kbID, userID, limit, offset)
 	if err != nil {
