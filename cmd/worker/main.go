@@ -61,7 +61,9 @@ func main() {
 		jobs.NewDocumentProcessHandler(pool, docRepo, chunkRepo, storageClient, logger))
 
 	// --- M9: post-session email summaries (#257) ---
-	convoRepo := repository.NewConversationSessionRepository(pool)
+	// Reuses the ConversationRepository landed in #349; SetSummary is added
+	// on top in internal/repository/conversation_summary.go.
+	convoRepo := repository.NewConversationRepository(pool)
 	prefsRepo := repository.NewNotificationPreferencesRepository(pool)
 
 	var sender email.Sender

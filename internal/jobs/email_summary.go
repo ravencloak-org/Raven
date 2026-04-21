@@ -42,7 +42,7 @@ type SummarizeRequest struct {
 	Channel   string                       `json:"channel"`
 	KBName    string                       `json:"kb_name"`
 	UserName  string                       `json:"user_name,omitempty"`
-	Messages  []model.ConversationMessage  `json:"messages"`
+	Messages  []model.ConversationTurn     `json:"messages"`
 }
 
 // SummarizeResponse is the AI worker's response shape.
@@ -56,9 +56,12 @@ type SummarizeResponse struct {
 	BodyText string `json:"body_text,omitempty"`
 }
 
-// SessionReader is the minimal repository contract the handler needs.
+// SessionReader is the minimal repository contract the handler needs. The
+// GetByID signature matches ConversationRepository.GetByID which also
+// verifies the user owns the session (extra defence-in-depth on top of
+// RLS).
 type SessionReader interface {
-	GetByID(ctx context.Context, orgID, sessionID string) (*model.ConversationSession, error)
+	GetByID(ctx context.Context, orgID, sessionID, userID string) (*model.ConversationSession, error)
 	SetSummary(ctx context.Context, orgID, sessionID, summary string) error
 }
 
@@ -102,7 +105,7 @@ func HandleEmailSummary(deps EmailSummaryHandlerDeps) asynq.HandlerFunc {
 			return fmt.Errorf("email_summary: incomplete payload: %w", asynq.SkipRetry)
 		}
 
-		sess, err := deps.Sessions.GetByID(ctx, p.OrgID, p.SessionID)
+		sess, err := deps.Sessions.GetByID(ctx, p.OrgID, p.SessionID, p.UserID)
 		if err != nil {
 			return fmt.Errorf("email_summary: load session: %w", err)
 		}
@@ -259,11 +262,11 @@ func greetingFromName(name string) string {
 	return "Hi " + name + ","
 }
 
-func channelLabel(c model.ConversationChannel) string {
+func channelLabel(c string) string {
 	switch c {
-	case model.ConversationChannelVoice:
+	case model.ConvChannelVoice:
 		return "voice call"
-	case model.ConversationChannelWebRTC:
+	case model.ConvChannelWebRTC:
 		return "voice session"
 	default:
 		return "chat session"
