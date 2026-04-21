@@ -9,7 +9,6 @@ without hitting the real API.
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import patch
 
 import pytest
 from fastapi import FastAPI
@@ -148,7 +147,8 @@ def _payload() -> dict[str, Any]:
 
 class TestSummarizeRouter:
     def test_happy_path(self) -> None:
-        client = _mount(lambda: _StubClient('["You asked about refunds.", "We covered the 7-day window."]'))
+        raw = '["You asked about refunds.", "We covered the 7-day window."]'
+        client = _mount(lambda: _StubClient(raw))
         res = client.post("/internal/summarize", json=_payload())
         assert res.status_code == 200, res.text
         body = res.json()
