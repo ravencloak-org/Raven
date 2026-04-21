@@ -22,7 +22,7 @@ Primary path — no extra install beyond `gh`.
 
 **Provenance:**
 
-```
+```bash
 gh attestation verify \
   oci://ghcr.io/ravencloak-org/go-api:latest \
   --owner ravencloak-org \
@@ -31,7 +31,7 @@ gh attestation verify \
 
 **SBOM:**
 
-```
+```bash
 gh attestation verify \
   oci://ghcr.io/ravencloak-org/go-api:latest \
   --owner ravencloak-org \
@@ -48,7 +48,7 @@ For environments without `gh`:
 
 **Provenance:**
 
-```
+```bash
 cosign verify-attestation \
   --type slsaprovenance1 \
   --certificate-identity-regexp \
@@ -59,7 +59,7 @@ cosign verify-attestation \
 
 **SBOM:**
 
-```
+```bash
 cosign verify-attestation \
   --type spdxjson \
   --certificate-identity-regexp \
@@ -74,17 +74,17 @@ Tags like `:latest` are mutable. For any real supply-chain check, pin to
 the image's immutable `sha256:` digest. Resolve a tag to a digest with
 either of:
 
-```
+```bash
 crane digest ghcr.io/ravencloak-org/go-api:latest
 ```
 
-```
+```bash
 docker buildx imagetools inspect ghcr.io/ravencloak-org/go-api:latest --format '{{json .Manifest.Digest}}'
 ```
 
 Then verify the digest directly:
 
-```
+```bash
 gh attestation verify \
   oci://ghcr.io/ravencloak-org/go-api@sha256:<digest> \
   --owner ravencloak-org \
@@ -114,13 +114,19 @@ form.
 
 - `actions/attest-sbom@v3` supports SPDX only; the SBOM attestation uses
   `spdx-json`. A CycloneDX variant is not produced.
-- If you verify an image pushed before this feature landed, both commands
+- If you verify an image pushed before this feature landed (PR
+  [#352](https://github.com/ravencloak-org/Raven/pull/352)), both commands
   will fail with "no attestation found". That is expected.
 - If `gh attestation verify` fails with an auth error, run `gh auth login`
   and ensure the account has read access to `ravencloak-org/Raven`.
 - Re-pushing an image with an unchanged digest will add a new referrer
   manifest rather than dedupe. `gh attestation verify` picks the first
   valid attestation, so this is benign.
+- The SBOM is attached to the multi-arch **manifest-list digest**, so a
+  single SBOM covers all platforms for a given tag. Syft runs against one
+  platform when generating it, so platform-specific contents (e.g. arm64
+  vs. amd64 system libs) may not be fully enumerated. Per-platform SBOM
+  attestation is a tracked follow-up.
 
 ## References
 
