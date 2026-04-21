@@ -2,6 +2,7 @@
 import { nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useKnowledgeBasesStore } from '../../stores/knowledge-bases'
+import RecentConversationsCard from '../../components/conversations/RecentConversationsCard.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -600,6 +601,10 @@ function statusBadgeClass(status: string): string {
           </button>
         </div>
         <p class="mt-1.5 text-xs text-gray-400">Press Enter to send · Shift+Enter for new line</p>
+      </section>
+
+      <section class="mt-6">
+        <RecentConversationsCard :org-id="orgId" :kb-id="kbId" />
       </section>
     </div>
   </div>

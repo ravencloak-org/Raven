@@ -66,6 +66,14 @@ func (h *ChatHandler) StreamCompletion(c *gin.Context) {
 		return
 	}
 
+	// Populate the stable authenticated user identifier (JWT `sub` claim)
+	// from the session context when present. This is what the cross-channel
+	// conversation memory layer (#258) keys on; it is never read from the
+	// JSON body to avoid client-supplied impersonation.
+	if uid := c.GetString(string(middleware.ContextKeyExternalID)); uid != "" {
+		req.UserID = uid
+	}
+
 	// Set SSE headers before starting the stream.
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")
