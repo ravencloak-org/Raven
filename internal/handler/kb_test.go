@@ -147,3 +147,63 @@ func TestArchiveKB_Success(t *testing.T) {
 		t.Errorf("expected 204, got %d", w.Code)
 	}
 }
+
+// TestUpdateKB_AcceptsCacheKnobs verifies the KB update endpoint accepts the
+// M9 semantic-cache knobs (cache_enabled and cache_similarity_threshold).
+// Issue #256.
+func TestUpdateKB_AcceptsCacheKnobs(t *testing.T) {
+	threshold := float32(0.88)
+	enabled := false
+	var received model.UpdateKBRequest
+	svc := &mockKBService{
+		updateFn: func(_ context.Context, orgID, kbID string, req model.UpdateKBRequest) (*model.KnowledgeBase, error) {
+			received = req
+			return &model.KnowledgeBase{
+				ID:                       kbID,
+				OrgID:                    orgID,
+				Name:                     "KB",
+				CacheEnabled:             false,
+				CacheSimilarityThreshold: threshold,
+			}, nil
+		},
+	}
+	r := newKBRouter(svc)
+	body, _ := json.Marshal(map[string]any{
+		"cache_enabled":              enabled,
+		"cache_similarity_threshold": threshold,
+	})
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPut,
+		"/api/v1/orgs/org-abc/workspaces/ws-1/knowledge-bases/kb-1",
+		bytes.NewBuffer(body),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if received.CacheEnabled == nil || *received.CacheEnabled != false {
+		t.Errorf("cache_enabled not propagated to service: %+v", received.CacheEnabled)
+	}
+	if received.CacheSimilarityThreshold == nil || *received.CacheSimilarityThreshold != threshold {
+		t.Errorf("cache_similarity_threshold not propagated: %+v", received.CacheSimilarityThreshold)
+	}
+}
+
+// TestUpdateKB_RejectsOutOfRangeThreshold confirms the validator rejects
+// thresholds outside the 0.80 – 0.99 band documented in the spec.
+func TestUpdateKB_RejectsOutOfRangeThreshold(t *testing.T) {
+	svc := &mockKBService{}
+	r := newKBRouter(svc)
+	body, _ := json.Marshal(map[string]any{"cache_similarity_threshold": 1.2})
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPut,
+		"/api/v1/orgs/org-abc/workspaces/ws-1/knowledge-bases/kb-1",
+		bytes.NewBuffer(body),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422 for bad threshold, got %d", w.Code)
+	}
+}

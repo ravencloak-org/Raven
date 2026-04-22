@@ -7,13 +7,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/ravencloak-org/Raven/internal/repository"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
 
 // SemanticCacheRepositorier defines the repository operations needed by the handler.
 type SemanticCacheRepositorier interface {
 	InvalidateKB(ctx context.Context, orgID, kbID string) (int64, error)
-	Stats(ctx context.Context, orgID, kbID string) (count int64, avgHits float64, err error)
+	Stats(ctx context.Context, orgID, kbID string) (repository.CacheStats, error)
 }
 
 // SemanticCacheHandler handles HTTP requests for semantic cache management.
@@ -74,7 +75,7 @@ func (h *SemanticCacheHandler) InvalidateKBCache(c *gin.Context) {
 // @Security    BearerAuth
 // @Param       org_id path string true "Organisation ID"
 // @Param       kb_id  path string true "Knowledge Base ID"
-// @Success     200 {object} map[string]interface{}
+// @Success     200 {object} repository.CacheStats
 // @Failure     400 {object} apierror.AppError
 // @Failure     401 {object} apierror.AppError
 // @Failure     403 {object} apierror.AppError
@@ -95,7 +96,7 @@ func (h *SemanticCacheHandler) GetCacheStats(c *gin.Context) {
 		return
 	}
 
-	count, avgHits, err := h.repo.Stats(c.Request.Context(), orgID, kbID)
+	stats, err := h.repo.Stats(c.Request.Context(), orgID, kbID)
 	if err != nil {
 		slog.ErrorContext(c.Request.Context(), "failed to fetch cache stats",
 			"error", err, "org_id", orgID, "kb_id", kbID)
@@ -104,8 +105,5 @@ func (h *SemanticCacheHandler) GetCacheStats(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"count":    count,
-		"avg_hits": avgHits,
-	})
+	c.JSON(http.StatusOK, stats)
 }
