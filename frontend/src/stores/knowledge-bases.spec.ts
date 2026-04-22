@@ -52,6 +52,8 @@ function fakeKB(overrides: Partial<KnowledgeBase> = {}): KnowledgeBase {
     settings: {},
     status: 'active',
     doc_count: 5,
+    cache_enabled: true,
+    cache_similarity_threshold: 0.92,
     created_at: '2026-03-15T10:00:00Z',
     updated_at: '2026-03-20T14:30:00Z',
     ...overrides,

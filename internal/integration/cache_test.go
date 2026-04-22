@@ -246,7 +246,9 @@ func TestCachePostgres(t *testing.T) {
 		insertCacheEntry(t, ctx, org.OrgID, org.KBID, "stats q2", generateEmbedding(11), 4)
 		insertCacheEntry(t, ctx, org.OrgID, org.KBID, "stats q3", generateEmbedding(12), 6)
 
-		count, avgHits, err := testCacheRepo.Stats(ctx, org.OrgID, org.KBID)
+		stats, err := testCacheRepo.Stats(ctx, org.OrgID, org.KBID)
+		count := stats.TotalEntries
+		avgHits := stats.AvgHits
 		require.NoError(t, err)
 		assert.Equal(t, int64(3), count)
 		assert.InDelta(t, 4.0, avgHits, 0.001)

@@ -307,7 +307,7 @@ func main() {
 	userSvc := service.NewUserService(userRepo)
 	kbSvc := service.NewKBService(kbRepo, pool, quotaChecker)
 	sourceSvc := service.NewSourceService(sourceRepo, pool)
-	docSvc := service.NewDocumentService(docRepo, pool)
+	docSvc := service.NewDocumentService(docRepo, pool).WithCacheInvalidator(semCacheRepo)
 	searchSvc := service.NewSearchService(searchRepo, pool)
 	hybridRetrievalSvc := service.NewHybridRetrievalService(
 		searchRepo, chEmbeddingRepo, pool,
