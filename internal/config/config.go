@@ -10,19 +10,19 @@ import (
 
 // Config holds all configuration for the application.
 type Config struct {
-	Server     ServerConfig
-	Database   DatabaseConfig
-	Valkey     ValkeyConfig
-	GRPC       GRPCConfig
-	OTel       OTelConfig
-	SuperTokens SuperTokensConfig
-	GoogleOAuth GoogleOAuthConfig
-	CORS       CORSConfig
-	RateLimit  RateLimitConfig
-	Queue      QueueConfig
-	Encryption EncryptionConfig
-	SeaweedFS  SeaweedFSConfig
-	Upload     UploadConfig
+	Server       ServerConfig
+	Database     DatabaseConfig
+	Valkey       ValkeyConfig
+	GRPC         GRPCConfig
+	OTel         OTelConfig
+	SuperTokens  SuperTokensConfig
+	GoogleOAuth  GoogleOAuthConfig
+	CORS         CORSConfig
+	RateLimit    RateLimitConfig
+	Queue        QueueConfig
+	Encryption   EncryptionConfig
+	SeaweedFS    SeaweedFSConfig
+	Upload       UploadConfig
 	PostHog      PostHogConfig
 	Hyperswitch  HyperswitchConfig
 	LiveKit      LiveKitConfig
@@ -32,29 +32,29 @@ type Config struct {
 	EBPF         EBPFConfig
 	Meta         MetaConfig
 	TMDB         TMDBConfig
-	Seed          SeedConfig
-	SES           SESConfig
-	EmailSummary  EmailSummaryConfig
+	Seed         SeedConfig
+	SES          SESConfig
+	EmailSummary EmailSummaryConfig
 }
 
 // SESConfig holds AWS SES outbound email settings.
 // Credentials come from SES SMTP credentials (distinct from IAM access keys).
 // Never commit values — populate via env vars (see .env.example).
 type SESConfig struct {
-	Region       string `mapstructure:"region"`         // default: ap-south-1
-	FromAddress  string `mapstructure:"from_address"`   // verified SES identity
-	FromName     string `mapstructure:"from_name"`      // e.g. "Raven"
+	Region       string `mapstructure:"region"`       // default: ap-south-1
+	FromAddress  string `mapstructure:"from_address"` // verified SES identity
+	FromName     string `mapstructure:"from_name"`    // e.g. "Raven"
 	SMTPUsername string `mapstructure:"smtp_username"`
 	SMTPPassword string `mapstructure:"smtp_password"`
 }
 
 // EmailSummaryConfig holds settings for the M9 post-session summary email job.
 type EmailSummaryConfig struct {
-	FrontendBaseURL   string `mapstructure:"frontend_base_url"`  // e.g. https://app.ravencloak.io
-	SupportAddress    string `mapstructure:"support_address"`    // support@ravencloak.io
+	FrontendBaseURL    string `mapstructure:"frontend_base_url"`    // e.g. https://app.ravencloak.io
+	SupportAddress     string `mapstructure:"support_address"`      // support@ravencloak.io
 	UnsubscribeBaseURL string `mapstructure:"unsubscribe_base_url"` // e.g. https://api.ravencloak.io/api/v1/notifications/unsubscribe
-	UnsubscribeSecret string `mapstructure:"unsubscribe_secret"` // HMAC key; UNSUBSCRIBE_TOKEN_SECRET
-	SummarizerBaseURL string `mapstructure:"summarizer_base_url"` // AI worker HTTP base (POST /internal/summarize)
+	UnsubscribeSecret  string `mapstructure:"unsubscribe_secret"`   // HMAC key; UNSUBSCRIBE_TOKEN_SECRET
+	SummarizerBaseURL  string `mapstructure:"summarizer_base_url"`  // AI worker HTTP base (POST /internal/summarize)
 }
 
 // MetaConfig holds Meta WhatsApp Business API settings.
@@ -98,10 +98,10 @@ type PostHogConfig struct {
 
 // HyperswitchConfig holds Hyperswitch payment orchestration settings.
 type HyperswitchConfig struct {
-	BaseURL        string `mapstructure:"base_url"`
-	APIKey         string `mapstructure:"api_key"`
-	WebhookSecret  string `mapstructure:"webhook_secret"`
-	RazorpayKeyID  string `mapstructure:"razorpay_key_id"`
+	BaseURL       string `mapstructure:"base_url"`
+	APIKey        string `mapstructure:"api_key"`
+	WebhookSecret string `mapstructure:"webhook_secret"`
+	RazorpayKeyID string `mapstructure:"razorpay_key_id"`
 }
 
 // LiveKitConfig holds LiveKit WebRTC server settings.
@@ -210,11 +210,11 @@ type RateLimitConfig struct {
 	DefaultOrgLimit  int `mapstructure:"default_org_limit"`
 
 	// Per-tier org-level limits (requests per minute).
-	FreeGeneralRPM       int `mapstructure:"free_general_rpm"`
-	FreeCompletionRPM    int `mapstructure:"free_completion_rpm"`
-	ProGeneralRPM        int `mapstructure:"pro_general_rpm"`
-	ProCompletionRPM     int `mapstructure:"pro_completion_rpm"`
-	EnterpriseGeneralRPM int `mapstructure:"enterprise_general_rpm"`
+	FreeGeneralRPM          int `mapstructure:"free_general_rpm"`
+	FreeCompletionRPM       int `mapstructure:"free_completion_rpm"`
+	ProGeneralRPM           int `mapstructure:"pro_general_rpm"`
+	ProCompletionRPM        int `mapstructure:"pro_completion_rpm"`
+	EnterpriseGeneralRPM    int `mapstructure:"enterprise_general_rpm"`
 	EnterpriseCompletionRPM int `mapstructure:"enterprise_completion_rpm"` // -1 = unlimited
 
 	// Widget limits — stricter for public chatbot widget endpoints.
@@ -474,6 +474,15 @@ func Load() (*Config, error) {
 		if size <= 0 || bits.OnesCount(uint(size)) != 1 {
 			return nil, fmt.Errorf("ebpf.audit_ring_buffer_size must be a power of 2 > 0, got %d", size)
 		}
+	}
+
+	// Reject misconfigured unsubscribe secret at startup rather than at first
+	// send. Empty/short secrets let attackers forge one-click unsubscribe
+	// tokens for any user. When the summary pipeline is enabled (signalled
+	// by a non-empty unsubscribe_base_url), the HMAC key must be at least
+	// 32 bytes.
+	if cfg.EmailSummary.UnsubscribeBaseURL != "" && len(cfg.EmailSummary.UnsubscribeSecret) < 32 {
+		return nil, fmt.Errorf("emailsummary.unsubscribe_secret (UNSUBSCRIBE_TOKEN_SECRET) must be >= 32 bytes when emailsummary.unsubscribe_base_url is set")
 	}
 
 	return &cfg, nil

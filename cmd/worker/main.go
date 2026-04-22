@@ -75,7 +75,15 @@ func main() {
 		SMTPPass:    cfg.SES.SMTPPassword,
 	}
 	if err := sesCfg.Validate(); err != nil {
-		logger.Warn("SES not fully configured; using stub email sender", "error", err.Error())
+		// Only fall back to the stub sender when running in debug mode OR
+		// when the operator has explicitly opted in via env. Outside those
+		// cases a misconfigured SES should fail startup so summary jobs
+		// don't silently succeed without delivering emails.
+		allowStub := cfg.Server.Mode == "debug" || os.Getenv("ALLOW_STUB_EMAIL_SENDER") == "true"
+		if !allowStub {
+			log.Fatalf("SES not configured for email summaries: %v", err)
+		}
+		logger.Warn("SES not fully configured; using stub email sender (dev/test only)", "error", err.Error())
 		sender = email.NewStubSender(logger)
 	} else {
 		s, err := email.NewSESSender(sesCfg, logger)

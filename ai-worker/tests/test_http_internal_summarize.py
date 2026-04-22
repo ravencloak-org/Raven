@@ -122,12 +122,10 @@ def _mount(client_factory: Any) -> TestClient:
     """Build a FastAPI app whose summarize endpoint uses the given client."""
     app = FastAPI()
     router = build_router(api_key="test-key", model="claude-haiku-4-5")
-    # Replace the Depends function with our stub. The router was built with a
-    # closure, so we override via FastAPI's dependency_overrides.
-    router_deps = next(iter(router.routes))
-    dep = router_deps.dependant.dependencies[0].call  # type: ignore[attr-defined]
+    # build_router exposes the dependency factory as `router.get_client` so
+    # tests can swap it without reaching into FastAPI internals.
     app.include_router(router)
-    app.dependency_overrides[dep] = client_factory
+    app.dependency_overrides[router.get_client] = client_factory  # type: ignore[attr-defined]
     return TestClient(app)
 
 

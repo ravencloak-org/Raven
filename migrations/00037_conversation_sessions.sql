@@ -27,6 +27,12 @@ CREATE TABLE conversation_sessions (
     summary     TEXT,
     CONSTRAINT chk_conversation_sessions_times CHECK (
         ended_at IS NULL OR ended_at >= started_at
+    ),
+    -- Enforce that messages is always a JSON array. Without this, a bug in
+    -- the Go side could persist an object/scalar and silently break the
+    -- email-summary and conversation-history readers.
+    CONSTRAINT chk_conversation_sessions_messages_is_array CHECK (
+        jsonb_typeof(messages) = 'array'
     )
 );
 
@@ -48,7 +54,7 @@ CREATE POLICY tenant_isolation ON conversation_sessions FOR ALL
     USING (org_id = current_setting('app.current_org_id')::uuid)
     WITH CHECK (org_id = current_setting('app.current_org_id')::uuid);
 
-CREATE POLICY admin_bypass ON conversation_sessions FOR ALL TO raven_admin USING (true);
+CREATE POLICY admin_bypass ON conversation_sessions FOR ALL TO raven_admin USING (true) WITH CHECK (true);
 
 -- Per-user email-summary preferences.
 -- A user opts in to receiving a recap email after each conversation ends.
@@ -71,7 +77,7 @@ CREATE POLICY tenant_isolation ON user_notification_preferences FOR ALL
     USING (org_id = current_setting('app.current_org_id')::uuid)
     WITH CHECK (org_id = current_setting('app.current_org_id')::uuid);
 
-CREATE POLICY admin_bypass ON user_notification_preferences FOR ALL TO raven_admin USING (true);
+CREATE POLICY admin_bypass ON user_notification_preferences FOR ALL TO raven_admin USING (true) WITH CHECK (true);
 
 -- Workspace-admin master switch. When FALSE the workspace opts out of summary
 -- emails for every member regardless of their personal preference.

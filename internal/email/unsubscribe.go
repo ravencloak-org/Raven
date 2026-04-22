@@ -41,7 +41,14 @@ func SignUnsubscribeToken(secret, userID, workspaceID string) (string, error) {
 
 // VerifyUnsubscribeToken returns the (userID, workspaceID) encoded in token
 // when its HMAC matches. Constant-time comparison prevents timing attacks.
+//
+// Refuses to operate with secrets shorter than 32 bytes (matching
+// SignUnsubscribeToken's contract) so a misconfigured unsubscribe handler
+// cannot accept forged tokens signed with an empty/short HMAC key.
 func VerifyUnsubscribeToken(secret, token string) (userID, workspaceID string, err error) {
+	if len(secret) < 32 {
+		return "", "", errors.New("email: unsubscribe secret must be >= 32 bytes")
+	}
 	parts := strings.SplitN(token, ".", 2)
 	if len(parts) != 2 {
 		return "", "", ErrInvalidUnsubscribeToken

@@ -7,11 +7,16 @@ package email
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
+	"mime"
 	"net"
+	"net/mail"
 	"net/smtp"
 	"os"
 	"strings"
@@ -21,6 +26,12 @@ import (
 // DefaultSESRegion is the SES region used when none is configured.
 // Raven is operated from India; ap-south-1 is the latency-optimal default.
 const DefaultSESRegion = "ap-south-1"
+
+// LogHashSaltEnv is the environment variable holding a per-deployment salt
+// used when hashing email addresses for log correlation. When unset, the
+// unsubscribe-token secret is used as a fallback so the hash is still
+// non-reversible across deployments.
+const LogHashSaltEnv = "EMAIL_LOG_HASH_SALT"
 
 // Sender is the minimal contract implemented by both the SES SMTP client and
 // the development stub (which logs but does not deliver).
@@ -139,6 +150,17 @@ func (s *SESSender) Send(ctx context.Context, msg Message) error {
 	}
 	defer func() { _ = conn.Close() }()
 
+	// Extend the dial-only timeout to cover every subsequent SMTP op
+	// (StartTLS, Auth, Mail/Rcpt, Data, Close). Without this the worker
+	// can block indefinitely on a stalled SES submission.
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		deadline = time.Now().Add(60 * time.Second)
+	}
+	if err := conn.SetDeadline(deadline); err != nil {
+		return fmt.Errorf("email: set deadline: %w", err)
+	}
+
 	c, err := smtp.NewClient(conn, host)
 	if err != nil {
 		return fmt.Errorf("email: smtp client: %w", err)
@@ -196,12 +218,15 @@ func buildMIME(cfg Config, m Message) string {
 
 	var sb strings.Builder
 	if fromName != "" {
-		fmt.Fprintf(&sb, "From: %s <%s>\r\n", fromName, from)
+		// net/mail.Address.String handles RFC 2047 Q-encoding when the
+		// display name contains non-ASCII characters (accents, emoji, CJK).
+		addr := (&mail.Address{Name: fromName, Address: from}).String()
+		fmt.Fprintf(&sb, "From: %s\r\n", addr)
 	} else {
 		fmt.Fprintf(&sb, "From: %s\r\n", from)
 	}
 	fmt.Fprintf(&sb, "To: %s\r\n", to)
-	fmt.Fprintf(&sb, "Subject: %s\r\n", subject)
+	fmt.Fprintf(&sb, "Subject: %s\r\n", encodeHeaderValue(subject))
 	sb.WriteString("MIME-Version: 1.0\r\n")
 	if listUnsub != "" {
 		fmt.Fprintf(&sb, "List-Unsubscribe: <%s>\r\n", listUnsub)
@@ -227,14 +252,42 @@ func buildMIME(cfg Config, m Message) string {
 	return sb.String()
 }
 
-// hashAddress returns a short opaque marker so we can correlate delivery logs
-// without persisting the recipient's email address in plaintext.
-func hashAddress(addr string) string {
-	// Avoid importing crypto/sha256 for just this helper — use len+prefix.
-	if len(addr) <= 4 {
-		return "xxxx"
+// encodeHeaderValue returns the RFC 2047 Q-encoded form of v when it
+// contains non-ASCII bytes; otherwise it returns v unchanged. Mail clients
+// render unencoded non-ASCII header values as mojibake and some SMTP relays
+// reject them outright as 8-bit violations of RFC 5322.
+func encodeHeaderValue(v string) string {
+	for i := 0; i < len(v); i++ {
+		if v[i] > 0x7F {
+			return mime.QEncoding.Encode("utf-8", v)
+		}
 	}
-	return addr[:2] + "***" + addr[len(addr)-2:]
+	return v
+}
+
+// hashAddress returns a short non-reversible marker so delivery logs can be
+// correlated across events without persisting the recipient's email address
+// in plaintext. The marker is derived from HMAC-SHA256(salt, addr) truncated
+// to 12 hex chars; the salt comes from EMAIL_LOG_HASH_SALT and falls back to
+// UNSUBSCRIBE_TOKEN_SECRET so a deployed environment always has a salt.
+// When neither is set we return a coarse prefix/suffix marker — enough to
+// tell log entries apart for a single recipient in a debug shell, and no
+// more PII than was already visible in the To: header on disk.
+func hashAddress(addr string) string {
+	salt := os.Getenv(LogHashSaltEnv)
+	if salt == "" {
+		salt = os.Getenv(UnsubscribeSecretEnv)
+	}
+	if salt == "" {
+		if len(addr) <= 4 {
+			return "xxxx"
+		}
+		return addr[:2] + "***" + addr[len(addr)-2:]
+	}
+	mac := hmac.New(sha256.New, []byte(salt))
+	_, _ = mac.Write([]byte(addr))
+	sum := mac.Sum(nil)
+	return hex.EncodeToString(sum)[:12]
 }
 
 // StubSender is a Sender that only logs — used in dev when SES is not configured.

@@ -40,7 +40,7 @@ LEFT JOIN user_notification_preferences p
 	err := db.WithOrgID(ctx, r.pool, orgID, func(tx pgx.Tx) error {
 		return tx.QueryRow(ctx, q, userID, workspaceID, orgID).Scan(&enabled)
 	})
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	if err != nil {
 		return false, err
 	}
 	return enabled, nil
@@ -60,12 +60,27 @@ SET email_summaries_enabled = EXCLUDED.email_summaries_enabled, updated_at = NOW
 	})
 }
 
+// ErrWorkspaceNotFound is returned by SetWorkspacePreference when the UPDATE
+// matches zero rows (workspace does not exist, or belongs to a different
+// org that RLS hides). Surfacing this as a distinct error lets the handler
+// return 404 to the client instead of a misleading 200.
+var ErrWorkspaceNotFound = errors.New("repository: workspace not found")
+
 // SetWorkspacePreference flips the workspace-level master switch.
+// Returns ErrWorkspaceNotFound when the workspace does not exist (or is
+// hidden from the caller by RLS) — otherwise the handler would send a
+// 200 response for a write that never touched the database.
 func (r *NotificationPreferencesRepository) SetWorkspacePreference(ctx context.Context, orgID, workspaceID string, enabled bool) error {
 	const q = `UPDATE workspaces SET email_summaries_enabled = $3 WHERE id = $2 AND org_id = $1`
 	return db.WithOrgID(ctx, r.pool, orgID, func(tx pgx.Tx) error {
-		_, err := tx.Exec(ctx, q, orgID, workspaceID, enabled)
-		return err
+		tag, err := tx.Exec(ctx, q, orgID, workspaceID, enabled)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return ErrWorkspaceNotFound
+		}
+		return nil
 	})
 }
 

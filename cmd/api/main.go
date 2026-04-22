@@ -22,12 +22,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -36,14 +36,16 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
+	"github.com/jackc/pgx/v5"
+
+	_ "github.com/ravencloak-org/Raven/docs/swagger" // swagger docs
 	"github.com/ravencloak-org/Raven/internal/auth"
 	"github.com/ravencloak-org/Raven/internal/cache"
 	"github.com/ravencloak-org/Raven/internal/config"
 	"github.com/ravencloak-org/Raven/internal/db"
-	"github.com/ravencloak-org/Raven/internal/hyperswitch"
-	_ "github.com/ravencloak-org/Raven/docs/swagger" // swagger docs
 	rpcClient "github.com/ravencloak-org/Raven/internal/grpc"
 	"github.com/ravencloak-org/Raven/internal/handler"
+	"github.com/ravencloak-org/Raven/internal/hyperswitch"
 	"github.com/ravencloak-org/Raven/internal/middleware"
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/internal/posthog"
@@ -103,8 +105,8 @@ type userLookupAdapter struct {
 func (a *userLookupAdapter) GetByExternalID(ctx context.Context, externalID string) (string, *string, error) {
 	u, err := a.repo.GetByExternalID(ctx, externalID)
 	if err != nil {
-		// Not found → return empty (first login); real DB errors propagate
-		if strings.Contains(err.Error(), "no rows") {
+		// Not found → return empty (first login); real DB errors propagate.
+		if errors.Is(err, pgx.ErrNoRows) {
 			return "", nil, nil
 		}
 		return "", nil, err
@@ -123,7 +125,9 @@ type userExternalIDResolver struct {
 func (r *userExternalIDResolver) ResolveInternalUser(ctx context.Context, externalID string) (orgID, userID string, err error) {
 	u, err := r.repo.GetByExternalID(ctx, externalID)
 	if err != nil {
-		if strings.Contains(err.Error(), "no rows") {
+		// Typed sentinel over stringly-typed substring match: robust to any
+		// future fmt.Errorf("%w") wrapping in the repository layer.
+		if errors.Is(err, pgx.ErrNoRows) {
 			return "", "", nil
 		}
 		return "", "", err
@@ -461,7 +465,7 @@ func main() {
 	conversationHandler := handler.NewConversationHandler(conversationSvc)
 	notifHandler := handler.NewNotificationHandler(notifSvc)
 	notifPrefsRepo := repository.NewNotificationPreferencesRepository(pool)
-	notifPrefsHandler := handler.NewNotificationPrefsHandler(notifPrefsRepo, &userExternalIDResolver{repo: userRepo})
+	notifPrefsHandler := handler.NewNotificationPrefsHandler(notifPrefsRepo, &userExternalIDResolver{repo: userRepo}, cfg.EmailSummary.UnsubscribeSecret)
 	webhookHandler := handler.NewWebhookHandler(webhookSvc)
 	chatHandler := handler.NewChatHandler(chatSvc)
 	semCacheHandler := handler.NewSemanticCacheHandler(semCacheRepo)
@@ -486,7 +490,6 @@ func main() {
 	router.Use(middleware.SecurityHeadersMiddleware())
 	router.Use(middleware.CORSMiddleware(&cfg.CORS))
 	router.Use(apierror.ErrorHandler())
-
 
 	// Infrastructure endpoint — intentionally outside the versioned group.
 	// Excluded from rate limiting.
@@ -782,7 +785,7 @@ func main() {
 		api.GET("/me", userHandler.GetMe)
 		api.PUT("/me", userHandler.UpdateMe)
 		api.DELETE("/me", userHandler.DeleteMe)
-		api.PUT("/me/notification-preferences/:workspace_id", notifPrefsHandler.UpsertUserPreference)
+		api.PUT("/me/notification-preferences/:ws_id", resolveWSRole, notifPrefsHandler.UpsertUserPreference)
 		api.GET("/users/:user_id", middleware.RequireOrgRole("org_admin"), userHandler.GetUser)
 
 	}

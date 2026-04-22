@@ -1,6 +1,7 @@
 package email
 
 import (
+	"encoding/base64"
 	"strings"
 	"testing"
 )
@@ -43,9 +44,26 @@ func TestSignRejectsShortSecret(t *testing.T) {
 }
 
 func TestVerifyRejectsTamperedPayload(t *testing.T) {
-	tok, _ := SignUnsubscribeToken(testSecret, "user-1", "ws-1")
+	tok, err := SignUnsubscribeToken(testSecret, "user-1", "ws-1")
+	if err != nil {
+		t.Fatalf("sign: %v", err)
+	}
 	parts := strings.SplitN(tok, ".", 2)
-	tampered := strings.TrimSuffix(parts[0], "A") + "B." + parts[1]
+	if len(parts) != 2 {
+		t.Fatalf("unexpected token shape: %q", tok)
+	}
+	// Decode payload, flip the last byte, re-encode — guarantees the
+	// payload bytes differ regardless of what characters the base64url
+	// encoding used.
+	payload, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		t.Fatalf("decode payload: %v", err)
+	}
+	if len(payload) == 0 {
+		t.Fatal("empty payload")
+	}
+	payload[len(payload)-1] ^= 0x01
+	tampered := base64.RawURLEncoding.EncodeToString(payload) + "." + parts[1]
 	if _, _, err := VerifyUnsubscribeToken(testSecret, tampered); err == nil {
 		t.Fatal("expected tampered token to fail verification")
 	}

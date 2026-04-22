@@ -2,14 +2,17 @@
  * Client for M9 email-summary preference endpoints (#257).
  *
  * Two toggles live here:
- *   1. User-level:       PUT /me/notification-preferences/:workspace_id
+ *   1. User-level:       PUT /me/notification-preferences/:ws_id
  *   2. Workspace-admin:  PUT /orgs/:org_id/workspaces/:ws_id/notification-preferences
  *
  * Both expect `{ email_summaries_enabled: boolean }` and return the same shape.
  */
 
 async function authFetch(path: string, init?: RequestInit): Promise<Response> {
-  const base = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
+  // Strip any trailing slash from the base so callers can pass either
+  // "/api/v1" or "/api/v1/" without producing "//" at the boundary.
+  const rawBase = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
+  const base = rawBase.replace(/\/+$/, '')
   return fetch(base + path, {
     ...init,
     credentials: 'include',

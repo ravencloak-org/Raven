@@ -2,14 +2,17 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
 	"github.com/ravencloak-org/Raven/internal/email"
 	"github.com/ravencloak-org/Raven/internal/middleware"
+	"github.com/ravencloak-org/Raven/internal/repository"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
 
@@ -30,16 +33,22 @@ type UnsubscribeResolver interface {
 // NotificationPrefsHandler exposes the user-level email-summary toggle and
 // the unsigned-public /unsubscribe endpoint used by email footers.
 type NotificationPrefsHandler struct {
-	svc      NotificationPrefsService
-	resolver UnsubscribeResolver
+	svc               NotificationPrefsService
+	resolver          UnsubscribeResolver
+	unsubscribeSecret string
 }
 
 // NewNotificationPrefsHandler constructs the handler.
-func NewNotificationPrefsHandler(svc NotificationPrefsService, resolver UnsubscribeResolver) *NotificationPrefsHandler {
-	return &NotificationPrefsHandler{svc: svc, resolver: resolver}
+//
+// unsubscribeSecret is the HMAC-SHA256 key used to verify one-click
+// unsubscribe tokens; it MUST be at least 32 bytes. Pass an empty string
+// from dev mode only — the handler returns 503 on every call in that case
+// rather than accepting forgeable tokens.
+func NewNotificationPrefsHandler(svc NotificationPrefsService, resolver UnsubscribeResolver, unsubscribeSecret string) *NotificationPrefsHandler {
+	return &NotificationPrefsHandler{svc: svc, resolver: resolver, unsubscribeSecret: unsubscribeSecret}
 }
 
-// userPreferenceRequest is the JSON payload for PUT /me/notification-preferences/:workspace_id.
+// userPreferenceRequest is the JSON payload for PUT /me/notification-preferences/:ws_id.
 type userPreferenceRequest struct {
 	EmailSummariesEnabled bool `json:"email_summaries_enabled"`
 }
@@ -49,21 +58,31 @@ type workspacePreferenceRequest struct {
 	EmailSummariesEnabled bool `json:"email_summaries_enabled"`
 }
 
-// UpsertUserPreference handles PUT /api/v1/me/notification-preferences/:workspace_id.
+// UpsertUserPreference handles PUT /api/v1/me/notification-preferences/:ws_id.
 // It stores the current authenticated user's email-summary opt-in status for
 // the given workspace.
 func (h *NotificationPrefsHandler) UpsertUserPreference(c *gin.Context) {
-	orgID, ok := c.Get(string(middleware.ContextKeyOrgID))
+	orgIDVal, ok := c.Get(string(middleware.ContextKeyOrgID))
 	if !ok {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, apierror.AppError{Code: http.StatusUnauthorized, Message: "Unauthorized"})
 		return
 	}
-	userID, ok := c.Get(string(middleware.ContextKeyUserID))
+	orgID, ok := orgIDVal.(string)
+	if !ok || orgID == "" {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, apierror.AppError{Code: http.StatusUnauthorized, Message: "Unauthorized"})
+		return
+	}
+	userIDVal, ok := c.Get(string(middleware.ContextKeyUserID))
 	if !ok {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, apierror.AppError{Code: http.StatusUnauthorized, Message: "Unauthorized"})
 		return
 	}
-	wsID := c.Param("workspace_id")
+	userID, ok := userIDVal.(string)
+	if !ok || userID == "" {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, apierror.AppError{Code: http.StatusUnauthorized, Message: "Unauthorized"})
+		return
+	}
+	wsID := c.Param("ws_id")
 	if _, err := uuid.Parse(wsID); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, apierror.AppError{Code: http.StatusBadRequest, Message: "Bad Request", Detail: "workspace_id must be a valid UUID"})
 		return
@@ -73,7 +92,7 @@ func (h *NotificationPrefsHandler) UpsertUserPreference(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, apierror.AppError{Code: http.StatusUnprocessableEntity, Message: "Unprocessable Entity", Detail: err.Error()})
 		return
 	}
-	if err := h.svc.SetUserPreference(c.Request.Context(), orgID.(string), userID.(string), wsID, req.EmailSummariesEnabled); err != nil {
+	if err := h.svc.SetUserPreference(c.Request.Context(), orgID, userID, wsID, req.EmailSummariesEnabled); err != nil {
 		_ = c.Error(err)
 		c.Abort()
 		return
@@ -95,12 +114,27 @@ func (h *NotificationPrefsHandler) UpsertWorkspacePreference(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, apierror.AppError{Code: http.StatusBadRequest, Message: "Bad Request", Detail: "ws_id must be a valid UUID"})
 		return
 	}
+	// Reject cross-org writes: the ResolveWorkspaceRole middleware only
+	// verifies workspace membership, not that the :org_id URL param
+	// matches the authenticated user's org. Without this check, an
+	// admin of org A could hit /orgs/<orgB>/workspaces/<wsB>/... and
+	// have the update silently filtered by RLS while the handler still
+	// returns 200.
+	ctxOrgID, _ := c.Get(string(middleware.ContextKeyOrgID))
+	if claimOrgID, _ := ctxOrgID.(string); claimOrgID == "" || !strings.EqualFold(claimOrgID, orgID) {
+		c.AbortWithStatusJSON(http.StatusForbidden, apierror.AppError{Code: http.StatusForbidden, Message: "Forbidden"})
+		return
+	}
 	var req workspacePreferenceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, apierror.AppError{Code: http.StatusUnprocessableEntity, Message: "Unprocessable Entity", Detail: err.Error()})
 		return
 	}
 	if err := h.svc.SetWorkspacePreference(c.Request.Context(), orgID, wsID, req.EmailSummariesEnabled); err != nil {
+		if errors.Is(err, repository.ErrWorkspaceNotFound) {
+			c.AbortWithStatusJSON(http.StatusNotFound, apierror.AppError{Code: http.StatusNotFound, Message: "Not Found", Detail: "workspace does not exist"})
+			return
+		}
 		_ = c.Error(err)
 		c.Abort()
 		return
@@ -120,8 +154,14 @@ func (h *NotificationPrefsHandler) Unsubscribe(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, apierror.AppError{Code: http.StatusBadRequest, Message: "Bad Request", Detail: "token is required"})
 		return
 	}
-	secret := os.Getenv(email.UnsubscribeSecretEnv)
-	if secret == "" {
+	secret := h.unsubscribeSecret
+	if len(secret) < 32 {
+		// Fall back to env for backwards compatibility with dev scripts
+		// that only set the env var; still require >= 32 bytes to avoid
+		// accepting forged tokens signed with an empty HMAC key.
+		secret = os.Getenv(email.UnsubscribeSecretEnv)
+	}
+	if len(secret) < 32 {
 		c.AbortWithStatusJSON(http.StatusServiceUnavailable, apierror.AppError{Code: http.StatusServiceUnavailable, Message: "Service Unavailable", Detail: "unsubscribe is temporarily disabled"})
 		return
 	}
@@ -161,4 +201,3 @@ var unsubscribeSuccessHTML = []byte(`<!doctype html>
 <h1 style="font-size:20px;color:#102a43;margin:0 0 12px 0;">You're unsubscribed</h1>
 <p style="color:#486581;line-height:1.5;margin:0;">You will no longer receive conversation summary emails from Raven. You can re-enable them anytime from your account settings.</p>
 </div></body></html>`)
-

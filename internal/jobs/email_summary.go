@@ -38,11 +38,11 @@ type SummaryGenerator interface {
 
 // SummarizeRequest is the payload sent to the AI worker.
 type SummarizeRequest struct {
-	SessionID string                       `json:"session_id"`
-	Channel   string                       `json:"channel"`
-	KBName    string                       `json:"kb_name"`
-	UserName  string                       `json:"user_name,omitempty"`
-	Messages  []model.ConversationTurn     `json:"messages"`
+	SessionID string                   `json:"session_id"`
+	Channel   string                   `json:"channel"`
+	KBName    string                   `json:"kb_name"`
+	UserName  string                   `json:"user_name,omitempty"`
+	Messages  []model.ConversationTurn `json:"messages"`
 }
 
 // SummarizeResponse is the AI worker's response shape.
@@ -155,6 +155,15 @@ func HandleEmailSummary(deps EmailSummaryHandlerDeps) asynq.HandlerFunc {
 		if unsubSecret == "" {
 			unsubSecret = os.Getenv(email.UnsubscribeSecretEnv)
 		}
+		if len(unsubSecret) < 32 {
+			// Without a strong secret, unsubscribe tokens can be forged by any
+			// attacker. Abort the send rather than deliver a footer whose
+			// one-click link is vulnerable.
+			return fmt.Errorf("email_summary: unsubscribe secret not configured (>=32 bytes required): %w", asynq.SkipRetry)
+		}
+		if deps.UnsubBaseURL == "" {
+			return fmt.Errorf("email_summary: unsubscribe base URL not configured: %w", asynq.SkipRetry)
+		}
 		unsubWorkspaceID := p.WorkspaceID
 		if unsubWorkspaceID == "" {
 			unsubWorkspaceID = sess.KBID
@@ -163,7 +172,10 @@ func HandleEmailSummary(deps EmailSummaryHandlerDeps) asynq.HandlerFunc {
 		if err != nil {
 			return fmt.Errorf("email_summary: sign unsubscribe: %w", err)
 		}
-		unsubURL := joinURL(deps.UnsubBaseURL, "?token="+token)
+		unsubURL, err := joinURL(deps.UnsubBaseURL, "?token="+token)
+		if err != nil {
+			return fmt.Errorf("email_summary: build unsubscribe URL: %w", err)
+		}
 
 		continueURL := buildContinueURL(deps.FrontendBase, sess.KBID, p.SessionID)
 
@@ -215,15 +227,21 @@ func HandleEmailSummary(deps EmailSummaryHandlerDeps) asynq.HandlerFunc {
 	}
 }
 
-// joinURL concatenates a base URL and a trailing query fragment. It tolerates
-// an empty base (for tests) and an already-present leading "?".
-func joinURL(base, suffix string) string {
+// joinURL concatenates a base URL and a trailing query fragment. The base
+// MUST be an absolute URL — RFC 2369 / RFC 8058 require the
+// List-Unsubscribe header to carry an absolute URI, and mail clients drop
+// the header when it is relative. An error is returned when base is empty
+// or cannot be parsed as an absolute URL.
+func joinURL(base, suffix string) (string, error) {
 	if base == "" {
-		return suffix
+		return "", fmt.Errorf("joinURL: base URL is empty")
 	}
 	u, err := url.Parse(base)
 	if err != nil {
-		return base + suffix
+		return "", fmt.Errorf("joinURL: parse base: %w", err)
+	}
+	if !u.IsAbs() {
+		return "", fmt.Errorf("joinURL: base URL %q is not absolute", base)
 	}
 	q := strings.TrimPrefix(suffix, "?")
 	if u.RawQuery != "" {
@@ -231,7 +249,7 @@ func joinURL(base, suffix string) string {
 	} else {
 		u.RawQuery = q
 	}
-	return u.String()
+	return u.String(), nil
 }
 
 // buildContinueURL returns a deep-link into the frontend with UTM params so

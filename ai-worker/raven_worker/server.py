@@ -1,7 +1,6 @@
 """gRPC server setup with reflection, health checking, and graceful shutdown."""
 
 import asyncio
-import contextlib
 import logging
 import signal
 
@@ -121,14 +120,21 @@ async def serve() -> None:
         app = build_app()
         uvicorn_config = uvicorn.Config(
             app,
-            host="0.0.0.0",  # noqa: S104 — container-local; network policy enforced at ingress
+            # Loopback-bound by default — these routes are consumed by the
+            # Go worker co-located with this process. Deployments needing a
+            # different host override RAVEN_HTTP_BIND_HOST.
+            host=settings.http_bind_host,
             port=settings.http_port,
             log_level=settings.log_level.lower(),
             access_log=False,
         )
         http_server = uvicorn.Server(uvicorn_config)
         http_task = asyncio.create_task(http_server.serve())
-        logger.info("starting_http", port=settings.http_port)
+        logger.info(
+            "starting_http",
+            host=settings.http_bind_host,
+            port=settings.http_port,
+        )
 
     # Graceful shutdown on SIGINT / SIGTERM
     loop = asyncio.get_running_loop()
@@ -147,6 +153,14 @@ async def serve() -> None:
     await server.stop(grace=5)
     if http_task is not None:
         http_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError, Exception):
+        try:
             await http_task
+        except asyncio.CancelledError:
+            # Expected — we just cancelled the task.
+            pass
+        except Exception as exc:  # noqa: BLE001
+            # Log, don't suppress silently: a shutdown error in the HTTP
+            # server often masks a port-binding or teardown bug that would
+            # otherwise only surface the next time the worker starts.
+            logger.warning("http_task_shutdown_error", error=str(exc))
     logger.info("server_stopped")

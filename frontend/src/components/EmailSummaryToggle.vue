@@ -31,11 +31,13 @@ const emit = defineEmits<{
 }>()
 
 const saving = ref(false)
+const errorMessage = ref('')
 const posthog = usePostHog()
 
 async function onToggle(e: Event) {
   const next = (e.target as HTMLInputElement).checked
   saving.value = true
+  errorMessage.value = ''
   try {
     if (props.mode === 'user') {
       await setUserEmailSummaries(props.workspaceId, next)
@@ -50,7 +52,9 @@ async function onToggle(e: Event) {
       workspace_id: props.workspaceId,
     })
   } catch (err) {
-    emit('error', (err as Error).message)
+    const msg = (err as Error).message
+    errorMessage.value = msg
+    emit('error', msg)
     // Revert the checkbox — two-way binding will re-assert the previous value.
     ;(e.target as HTMLInputElement).checked = props.modelValue
   } finally {
@@ -60,7 +64,7 @@ async function onToggle(e: Event) {
 </script>
 
 <template>
-  <label class="email-summary-toggle">
+  <label class="email-summary-toggle" :aria-busy="saving || undefined">
     <input
       type="checkbox"
       :checked="modelValue"
@@ -75,6 +79,13 @@ async function onToggle(e: Event) {
       <small v-else>
         Receive a concise recap in your inbox after every chat or voice call.
       </small>
+    </span>
+    <!-- Visually-hidden status/error live regions for screen readers. -->
+    <span class="sr-only" role="status" aria-live="polite">
+      {{ saving ? 'Saving preference…' : '' }}
+    </span>
+    <span class="sr-only" role="alert" aria-live="assertive">
+      {{ errorMessage }}
     </span>
   </label>
 </template>
@@ -98,5 +109,16 @@ async function onToggle(e: Event) {
   margin-top: 0.25rem;
   color: var(--color-text-muted, #616e7c);
   font-size: 0.85rem;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 </style>

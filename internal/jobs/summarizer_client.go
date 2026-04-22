@@ -20,8 +20,10 @@ type HTTPSummarizer struct {
 }
 
 // NewHTTPSummarizer returns a summarizer pointing at baseURL. A trailing slash
-// is stripped so callers can pass "http://ai-worker:8080" or
-// "http://ai-worker:8080/" interchangeably.
+// is stripped so callers can pass "http://ai-worker:8090" or
+// "http://ai-worker:8090/" interchangeably. The default AI worker HTTP port
+// is 8090 (see ai-worker/raven_worker/config.py and RAVEN_AI_WORKER_HTTP_URL
+// in .env.example).
 func NewHTTPSummarizer(baseURL string) *HTTPSummarizer {
 	return &HTTPSummarizer{
 		baseURL: strings.TrimRight(baseURL, "/"),
@@ -63,7 +65,11 @@ func (s *HTTPSummarizer) Summarize(ctx context.Context, req SummarizeRequest) (*
 	}
 
 	var out SummarizeResponse
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+	// Cap successful responses too — subject + 5 bullets is ~1 KiB; 256 KiB
+	// is a comfortable bound that prevents a misbehaving worker from
+	// exhausting Asynq worker memory with an arbitrarily large JSON stream.
+	const maxSuccessBody = 256 * 1024
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxSuccessBody)).Decode(&out); err != nil {
 		return nil, fmt.Errorf("summarizer: decode: %w", err)
 	}
 	return &out, nil
