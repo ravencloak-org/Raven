@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import time
 from collections.abc import AsyncIterator
 
 import anthropic
@@ -31,6 +32,7 @@ from raven_worker.generated import ai_worker_pb2
 from raven_worker.memory import MEMORY_TOOL, MemoryStore
 from raven_worker.providers.registry import get_provider_for_request
 from raven_worker.retrieval.bm25_search import bm25_search
+from raven_worker.retrieval.cache_repo import DEFAULT_SIMILARITY_THRESHOLD, CacheRepository
 from raven_worker.retrieval.reranker import cohere_rerank
 from raven_worker.retrieval.rrf import reciprocal_rank_fusion
 from raven_worker.retrieval.vector_search import vector_search
@@ -112,6 +114,8 @@ class RAGServicer:
     ) -> None:
         self._pool = pool
         self._redis: aioredis.Redis | None = redis_client
+        # Semantic cache (pgvector) — lazily attached in _get_semantic_cache (#256).
+        self._semantic_cache: CacheRepository | None = None
 
     async def _get_pool(self) -> asyncpg.Pool:
         """Return the shared connection pool, creating it if necessary."""
@@ -152,6 +156,79 @@ class RAGServicer:
             await rds.setex(cache_key, _CACHE_TTL_SECONDS, json.dumps(payload))
         except Exception:
             logger.debug("cache_store_error", cache_key=cache_key, exc_info=True)
+
+    async def _get_semantic_cache(self) -> CacheRepository | None:
+        """Lazily build a CacheRepository on top of the existing asyncpg pool.
+
+        Returns None when the semantic cache is disabled globally or the
+        asyncpg pool isn't yet available. Errors are logged, not raised —
+        any failure must degrade to the full RAG pipeline, not break the
+        request.
+        """
+        if getattr(settings, "semantic_cache_enabled", True) is False:
+            return None
+        if self._semantic_cache is not None:
+            return self._semantic_cache
+        try:
+            pool = await self._get_pool()
+        except Exception:  # pragma: no cover
+            return None
+        if pool is None:
+            return None
+        self._semantic_cache = CacheRepository(pool)
+        return self._semantic_cache
+
+    async def _embed_query_for_cache(
+        self,
+        query_text: str,
+        org_id: str,
+        provider_name: str,
+        model: str,
+        log,
+    ) -> list[float] | None:
+        """Embed the query for semantic-cache lookup.
+
+        The semantic cache needs an embedding BEFORE the retrieval stage so we
+        can short-circuit on a HIT. On any failure return None so the regular
+        pipeline embeds again inside _run_pipeline (duplication is acceptable
+        because this path is a miss).
+        """
+        try:
+            provider = await get_provider_for_request(org_id, provider_name, model)
+            embedding = await provider.embed(query_text)
+            if isinstance(embedding, list) and embedding and isinstance(embedding[0], list):
+                embedding = embedding[0]
+            return [float(x) for x in embedding] if embedding else None
+        except Exception as exc:  # pragma: no cover
+            log.debug("embed_for_cache_failed", error=str(exc))
+            return None
+
+    async def _read_cache_threshold(self, kb_id: str, org_id: str) -> float | None:
+        """Return the KB's cache_similarity_threshold, or None to disable the cache.
+
+        Fails closed: any exception OR an explicit ``cache_enabled = false``
+        returns ``None`` so the caller skips the semantic lookup entirely and
+        does not even pay the embedding cost.
+        """
+        try:
+            pool = await self._get_pool()
+            if pool is None:
+                return None
+            async with pool.acquire() as conn, conn.transaction():
+                await conn.execute("SELECT set_config('app.current_org_id', $1, true)", org_id)
+                row = await conn.fetchrow(
+                    "SELECT cache_enabled, cache_similarity_threshold "
+                    "FROM knowledge_bases WHERE id = $1::uuid",
+                    kb_id,
+                )
+                if row is None or row["cache_enabled"] is False:
+                    return None
+                threshold = row["cache_similarity_threshold"]
+                if threshold is None:
+                    return DEFAULT_SIMILARITY_THRESHOLD
+                return float(threshold)
+        except Exception:  # pragma: no cover
+            return None
 
     # ------------------------------------------------------------------
     # Public RPC handler
@@ -219,6 +296,87 @@ class RAGServicer:
                 )
                 return
 
+        # --- Semantic cache lookup (pgvector cosine similarity) — #256 ---
+        # Runs when cache_safe is true and a usable asyncpg pool is available.
+        # Read KB cache settings FIRST so a disabled (or unreadable) KB skips
+        # the embedding cost entirely. On HIT we short-circuit the pipeline;
+        # on MISS we thread the embedding through so we don't pay for it twice.
+        semantic_hit_embedding: list[float] | None = None
+        if cache_safe:
+            sem_repo = await self._get_semantic_cache()
+            if sem_repo is not None:
+                threshold = await self._read_cache_threshold(kb_ids[0], org_id)
+                if threshold is None:
+                    log.debug("semantic_cache_disabled", kb_id=kb_ids[0])
+                else:
+                    embedding = await self._embed_query_for_cache(
+                        query_text, org_id, provider_name, model, log
+                    )
+                    if embedding:
+                        semantic_hit_embedding = embedding
+                        # Belt-and-braces: CacheRepository.lookup() already
+                        # swallows DB errors, but wrap here so any unexpected
+                        # failure degrades to a cache miss rather than aborting
+                        # the RAG request.
+                        # Measure real lookup latency — the #256 acceptance
+                        # criterion requires p99 miss overhead <=10ms, so the
+                        # miss log needs a real number (not 0.0). On a hit
+                        # we log the measured latency too, overriding the
+                        # CacheRepository's internal-only figure.
+                        lookup_start_ns = time.perf_counter_ns()
+                        try:
+                            hit = await sem_repo.lookup(
+                                org_id=org_id,
+                                kb_id=kb_ids[0],
+                                embedding=embedding,
+                                threshold=threshold,
+                            )
+                        except Exception as exc:  # pragma: no cover
+                            log.warning("semantic_cache_lookup_error", error=str(exc))
+                            hit = None
+                        lookup_elapsed_ms = (time.perf_counter_ns() - lookup_start_ns) / 1_000_000
+                        if hit is not None:
+                            log.info(
+                                "cache_hit",
+                                kb_id=kb_ids[0],
+                                similarity_score=hit.similarity,
+                                latency_ms=lookup_elapsed_ms,
+                                source="pgvector",
+                            )
+                            # Rebuild Source protos from the metadata stored at
+                            # the original miss (see the store path below). Any
+                            # malformed entry is skipped rather than crashing
+                            # the response.
+                            stored_sources = hit.metadata.get("sources") or []
+                            hit_sources: list[ai_worker_pb2.Source] = []
+                            if isinstance(stored_sources, list):
+                                for s in stored_sources:
+                                    if not isinstance(s, dict):
+                                        continue
+                                    try:
+                                        hit_sources.append(
+                                            ai_worker_pb2.Source(
+                                                document_id=str(s.get("document_id", "")),
+                                                document_name=str(s.get("document_name", "")),
+                                                chunk_text=str(s.get("chunk_text", "")),
+                                                score=float(s.get("score", 0.0)),
+                                            )
+                                        )
+                                    except (TypeError, ValueError):
+                                        continue
+                            yield ai_worker_pb2.RAGChunk(
+                                text=hit.answer_text,
+                                is_final=True,
+                                sources=hit_sources,
+                            )
+                            return
+                        log.info(
+                            "cache_miss",
+                            kb_id=kb_ids[0],
+                            latency_ms=lookup_elapsed_ms,
+                            source="pgvector",
+                        )
+
         try:
             collected_text: list[str] = []
             final_sources: list[dict] = []
@@ -232,6 +390,7 @@ class RAGServicer:
                 filters,
                 request.session_id,
                 log,
+                precomputed_embedding=semantic_hit_embedding,
             ):
                 if not chunk.is_final:
                     collected_text.append(chunk.text)
@@ -249,6 +408,28 @@ class RAGServicer:
 
             # --- Store in cache after successful pipeline completion ---
             if cache_key and collected_text:
+                if semantic_hit_embedding is not None:
+                    # Isolate the semantic-cache write: any exception here
+                    # must not kill the already-streamed response. The store
+                    # itself is async (create_task); wrap the scheduling too
+                    # so failures to obtain the repo never bubble out.
+                    try:
+                        sem_repo_store = await self._get_semantic_cache()
+                        if sem_repo_store is not None:
+                            await sem_repo_store.store_async(
+                                org_id=org_id,
+                                kb_id=kb_ids[0],
+                                query_text=query_text,
+                                embedding=semantic_hit_embedding,
+                                answer_text="".join(collected_text),
+                                metadata={
+                                    "model": model,
+                                    "provider": provider_name,
+                                    "sources": final_sources,
+                                },
+                            )
+                    except Exception as exc:  # pragma: no cover
+                        log.warning("semantic_cache_store_error", error=str(exc))
                 payload = {
                     "text": "".join(collected_text),
                     "sources": final_sources,
@@ -275,12 +456,22 @@ class RAGServicer:
         filters: dict[str, str],
         session_id: str,
         log: structlog.BoundLogger,
+        precomputed_embedding: list[float] | None = None,
     ) -> AsyncIterator[ai_worker_pb2.RAGChunk]:
-        """Execute the full RAG pipeline and yield streaming chunks."""
-        # 1. Embed the query
-        embedding_provider = await get_provider_for_request(org_id, provider_name, model)
-        query_embedding = await embedding_provider.embed(query_text)
-        log.debug("query_embedded", dims=len(query_embedding))
+        """Execute the full RAG pipeline and yield streaming chunks.
+
+        ``precomputed_embedding`` reuses an embedding already produced by the
+        semantic-cache lookup on the hot path, avoiding a second embedding
+        round-trip on a cache miss.
+        """
+        # 1. Embed the query (or reuse the one produced for the cache lookup)
+        if precomputed_embedding is not None:
+            query_embedding = precomputed_embedding
+            log.debug("query_embedded_reused", dims=len(query_embedding))
+        else:
+            embedding_provider = await get_provider_for_request(org_id, provider_name, model)
+            query_embedding = await embedding_provider.embed(query_text)
+            log.debug("query_embedded", dims=len(query_embedding))
 
         # 2. Hybrid search (vector + BM25) in parallel — share a single connection
         pool = await self._get_pool()

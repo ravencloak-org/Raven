@@ -7,8 +7,30 @@ export interface KnowledgeBase {
   settings: Record<string, unknown>
   status: 'active' | 'archived'
   doc_count: number
+  /** Whether the semantic response cache is enabled for this KB. See #256. */
+  cache_enabled: boolean
+  /** Cosine similarity threshold (0.80–0.99) for a cache HIT. */
+  cache_similarity_threshold: number
   created_at: string
   updated_at: string
+}
+
+/** Cache statistics returned by GET /orgs/:orgId/kbs/:kbId/cache/stats (#256). */
+export interface CacheStats {
+  total_entries: number
+  hit_count: number
+  estimated_tokens_saved: number
+  expires_soonest: string | null
+  avg_hits: number
+}
+
+/** Payload for PUT .../knowledge-bases/:kbId — the server merges provided fields. */
+export interface UpdateKBPayload {
+  name?: string
+  description?: string
+  settings?: Record<string, unknown>
+  cache_enabled?: boolean
+  cache_similarity_threshold?: number
 }
 
 export interface KBListResponse {
@@ -170,5 +192,39 @@ export async function addSource(
   return authFetch<KBSource>(`${kbBasePath(orgId, wsId)}/${kbId}/sources`, {
     method: 'POST',
     body: JSON.stringify({ url }),
+  })
+}
+
+/**
+ * Partially update a knowledge base. Used by the KB detail page to toggle the
+ * cache or change the similarity threshold (#256).
+ */
+export async function updateKnowledgeBase(
+  orgId: string,
+  wsId: string,
+  kbId: string,
+  payload: UpdateKBPayload,
+): Promise<KnowledgeBase> {
+  return authFetch<KnowledgeBase>(`${kbBasePath(orgId, wsId)}/${kbId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+}
+
+/** Fetch semantic-cache stats for a KB. */
+export async function getCacheStats(
+  orgId: string,
+  kbId: string,
+): Promise<CacheStats> {
+  return authFetch<CacheStats>(`/orgs/${orgId}/kbs/${kbId}/cache/stats`)
+}
+
+/** Flush every cached answer for the given KB. */
+export async function flushCache(
+  orgId: string,
+  kbId: string,
+): Promise<{ deleted: number }> {
+  return authFetch<{ deleted: number }>(`/orgs/${orgId}/kbs/${kbId}/cache`, {
+    method: 'DELETE',
   })
 }

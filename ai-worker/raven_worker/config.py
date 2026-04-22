@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     # to override for deployments where the callers live on a separate
     # node (a network policy must still gate external access).
     http_bind_host: str = "127.0.0.1"
+    # Semantic response cache (issue #256 — M9). Flip to False to bypass the
+    # pgvector lookup entirely while keeping the exact-match Valkey cache.
+    semantic_cache_enabled: bool = True
     model_config = SettingsConfigDict(env_prefix="RAVEN_")
 
 

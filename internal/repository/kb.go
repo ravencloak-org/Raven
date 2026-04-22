@@ -20,8 +20,12 @@ func NewKBRepository(pool *pgxpool.Pool) *KBRepository {
 	return &KBRepository{pool: pool}
 }
 
+// kbColumns lists every column returned by KB reads. The M9 semantic cache
+// (#256) added cache_enabled and cache_similarity_threshold.
 const kbColumns = `id, org_id, workspace_id, name, slug,
-	COALESCE(description, '') AS description, settings, status, created_at, updated_at`
+	COALESCE(description, '') AS description, settings, status,
+	cache_enabled, cache_similarity_threshold,
+	created_at, updated_at`
 
 func scanKB(row pgx.Row) (*model.KnowledgeBase, error) {
 	var kb model.KnowledgeBase
@@ -34,6 +38,8 @@ func scanKB(row pgx.Row) (*model.KnowledgeBase, error) {
 		&kb.Description,
 		&kb.Settings,
 		&kb.Status,
+		&kb.CacheEnabled,
+		&kb.CacheSimilarityThreshold,
 		&kb.CreatedAt,
 		&kb.UpdatedAt,
 	)
@@ -91,7 +97,9 @@ func (r *KBRepository) ListByWorkspace(ctx context.Context, tx pgx.Tx, orgID, ws
 	for rows.Next() {
 		var kb model.KnowledgeBase
 		if err := rows.Scan(&kb.ID, &kb.OrgID, &kb.WorkspaceID, &kb.Name, &kb.Slug,
-			&kb.Description, &kb.Settings, &kb.Status, &kb.CreatedAt, &kb.UpdatedAt); err != nil {
+			&kb.Description, &kb.Settings, &kb.Status,
+			&kb.CacheEnabled, &kb.CacheSimilarityThreshold,
+			&kb.CreatedAt, &kb.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("KBRepository.ListByWorkspace scan: %w", err)
 		}
 		kbs = append(kbs, kb)
@@ -99,17 +107,29 @@ func (r *KBRepository) ListByWorkspace(ctx context.Context, tx pgx.Tx, orgID, ws
 	return kbs, rows.Err()
 }
 
-// Update applies partial updates to a knowledge base.
-func (r *KBRepository) Update(ctx context.Context, tx pgx.Tx, orgID, kbID string, name, description *string, settings map[string]any) (*model.KnowledgeBase, error) {
+// Update applies partial updates to a knowledge base. The cacheEnabled and
+// cacheThreshold parameters are the M9 semantic-cache knobs (#256); when nil
+// the existing value is preserved via COALESCE.
+func (r *KBRepository) Update(
+	ctx context.Context,
+	tx pgx.Tx,
+	orgID, kbID string,
+	name, description *string,
+	settings map[string]any,
+	cacheEnabled *bool,
+	cacheThreshold *float32,
+) (*model.KnowledgeBase, error) {
 	row := tx.QueryRow(ctx,
 		`UPDATE knowledge_bases
 		 SET
-		   name        = COALESCE($3, name),
-		   description = COALESCE($4, description),
-		   settings    = CASE WHEN $5::jsonb IS NOT NULL THEN $5::jsonb ELSE settings END
+		   name                       = COALESCE($3, name),
+		   description                = COALESCE($4, description),
+		   settings                   = CASE WHEN $5::jsonb IS NOT NULL THEN $5::jsonb ELSE settings END,
+		   cache_enabled              = COALESCE($6, cache_enabled),
+		   cache_similarity_threshold = COALESCE($7, cache_similarity_threshold)
 		 WHERE id = $1 AND org_id = $2 AND status = 'active'
 		 RETURNING `+kbColumns,
-		kbID, orgID, name, description, settings,
+		kbID, orgID, name, description, settings, cacheEnabled, cacheThreshold,
 	)
 	kb, err := scanKB(row)
 	if err != nil {

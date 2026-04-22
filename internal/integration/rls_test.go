@@ -156,17 +156,20 @@ func TestRLS(t *testing.T) {
 
 	t.Run("cache_isolation", func(t *testing.T) {
 		// Org-B queries its own cache → sees 2 entries.
-		countB, _, err := testCacheRepo.Stats(ctx, orgB.OrgID, orgB.KBID)
+		stats0, err := testCacheRepo.Stats(ctx, orgB.OrgID, orgB.KBID)
+		countB := stats0.TotalEntries
 		require.NoError(t, err)
 		assert.Equal(t, int64(2), countB, "Org-B should have exactly 2 cache entries")
 
 		// Org-A queries its own cache → sees 2 entries.
-		countA, _, err := testCacheRepo.Stats(ctx, orgA.OrgID, orgA.KBID)
+		stats1, err := testCacheRepo.Stats(ctx, orgA.OrgID, orgA.KBID)
+		countA := stats1.TotalEntries
 		require.NoError(t, err)
 		assert.Equal(t, int64(2), countA, "Org-A should have exactly 2 cache entries")
 
 		// Org-A queries Org-B's KB → 0 entries (RLS blocks cross-org).
-		countCross, _, err := testCacheRepo.Stats(ctx, orgA.OrgID, orgB.KBID)
+		stats2, err := testCacheRepo.Stats(ctx, orgA.OrgID, orgB.KBID)
+		countCross := stats2.TotalEntries
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), countCross, "Org-A must not see Org-B's cache entries")
 	})
@@ -178,12 +181,14 @@ func TestRLS(t *testing.T) {
 		assert.Equal(t, int64(2), deleted, "Org-A should have invalidated 2 cache entries")
 
 		// Org-A's cache should now be empty.
-		countA, _, err := testCacheRepo.Stats(ctx, orgA.OrgID, orgA.KBID)
+		stats3, err := testCacheRepo.Stats(ctx, orgA.OrgID, orgA.KBID)
+		countA := stats3.TotalEntries
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), countA, "Org-A cache should be empty after invalidation")
 
 		// Org-B's cache must be untouched.
-		countB, _, err := testCacheRepo.Stats(ctx, orgB.OrgID, orgB.KBID)
+		stats4, err := testCacheRepo.Stats(ctx, orgB.OrgID, orgB.KBID)
+		countB := stats4.TotalEntries
 		require.NoError(t, err)
 		assert.Equal(t, int64(2), countB, "Org-B cache must be untouched after Org-A's invalidation")
 	})

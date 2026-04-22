@@ -2,7 +2,16 @@
 import { nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useKnowledgeBasesStore } from '../../stores/knowledge-bases'
+import CacheStatsCard from '../../components/cache/CacheStatsCard.vue'
 import RecentConversationsCard from '../../components/conversations/RecentConversationsCard.vue'
+import type { KnowledgeBase } from '../../api/knowledge-bases'
+
+// When the cache card saves new settings it emits `updated` with the fresh
+// KB row; we refresh the store copy so the card re-renders with the new
+// threshold/toggle values after save.
+function onKBUpdated(updated: KnowledgeBase) {
+  if (store.currentKB) store.currentKB = updated
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -379,6 +388,17 @@ function statusBadgeClass(status: string): string {
           <dd>{{ new Date(store.currentKB.updated_at).toLocaleDateString() }}</dd>
         </div>
       </dl>
+
+      <!-- Semantic response cache (issue #256) -->
+      <section class="mb-8">
+        <CacheStatsCard
+          :org-id="orgId"
+          :ws-id="wsId"
+          :kb-id="kbId"
+          :kb="store.currentKB"
+          @updated="onKBUpdated"
+        />
+      </section>
 
       <!-- Documents section -->
       <section class="mb-8">

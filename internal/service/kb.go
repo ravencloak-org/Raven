@@ -87,7 +87,11 @@ func (s *KBService) Update(ctx context.Context, orgID, kbID string, req model.Up
 	var kb *model.KnowledgeBase
 	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
 		var err error
-		kb, err = s.repo.Update(ctx, tx, orgID, kbID, req.Name, req.Description, req.Settings)
+		kb, err = s.repo.Update(
+			ctx, tx, orgID, kbID,
+			req.Name, req.Description, req.Settings,
+			req.CacheEnabled, req.CacheSimilarityThreshold,
+		)
 		return err
 	})
 	if err != nil {
