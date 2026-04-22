@@ -13,7 +13,9 @@ import (
 
 	"github.com/ravencloak-org/Raven/internal/config"
 	"github.com/ravencloak-org/Raven/internal/db"
+	"github.com/ravencloak-org/Raven/internal/email"
 	"github.com/ravencloak-org/Raven/internal/jobs"
+	"github.com/ravencloak-org/Raven/internal/posthog"
 	"github.com/ravencloak-org/Raven/internal/queue"
 	"github.com/ravencloak-org/Raven/internal/repository"
 	"github.com/ravencloak-org/Raven/internal/storage"
@@ -58,6 +60,56 @@ func main() {
 	srv.Mux().HandleFunc(queue.TypeDocumentProcess,
 		jobs.NewDocumentProcessHandler(pool, docRepo, chunkRepo, storageClient, logger))
 
+	// --- M9: post-session email summaries (#257) ---
+	// Reuses the ConversationRepository landed in #349; SetSummary is added
+	// on top in internal/repository/conversation_summary.go.
+	convoRepo := repository.NewConversationRepository(pool)
+	prefsRepo := repository.NewNotificationPreferencesRepository(pool)
+
+	var sender email.Sender
+	sesCfg := email.Config{
+		Region:      cfg.SES.Region,
+		FromAddress: cfg.SES.FromAddress,
+		FromName:    cfg.SES.FromName,
+		SMTPUser:    cfg.SES.SMTPUsername,
+		SMTPPass:    cfg.SES.SMTPPassword,
+	}
+	if err := sesCfg.Validate(); err != nil {
+		// Only fall back to the stub sender when running in debug mode OR
+		// when the operator has explicitly opted in via env. Outside those
+		// cases a misconfigured SES should fail startup so summary jobs
+		// don't silently succeed without delivering emails.
+		allowStub := cfg.Server.Mode == "debug" || os.Getenv("ALLOW_STUB_EMAIL_SENDER") == "true"
+		if !allowStub {
+			log.Fatalf("SES not configured for email summaries: %v", err)
+		}
+		logger.Warn("SES not fully configured; using stub email sender (dev/test only)", "error", err.Error())
+		sender = email.NewStubSender(logger)
+	} else {
+		s, err := email.NewSESSender(sesCfg, logger)
+		if err != nil {
+			log.Fatalf("failed to initialise SES sender: %v", err)
+		}
+		sender = s
+	}
+
+	summaryPrefs := summaryPrefsAdapter{repo: prefsRepo}
+	summarizer := jobs.NewHTTPSummarizer(cfg.EmailSummary.SummarizerBaseURL)
+	posthogClient := posthog.NewClient(cfg.PostHog.APIKey, cfg.PostHog.Host)
+
+	srv.Mux().HandleFunc(queue.TypeEmailSummary, jobs.HandleEmailSummary(jobs.EmailSummaryHandlerDeps{
+		Logger:       logger,
+		Sessions:     convoRepo,
+		Prefs:        summaryPrefs,
+		Summarizer:   summarizer,
+		Sender:       sender,
+		PostHog:      posthogClient,
+		FrontendBase: cfg.EmailSummary.FrontendBaseURL,
+		SupportEmail: cfg.EmailSummary.SupportAddress,
+		UnsubSecret:  cfg.EmailSummary.UnsubscribeSecret,
+		UnsubBaseURL: cfg.EmailSummary.UnsubscribeBaseURL,
+	}))
+
 	errCh := make(chan error, 1)
 
 	// Start worker in a goroutine so we can listen for shutdown signals.
@@ -80,4 +132,15 @@ func main() {
 	srv.Shutdown()
 	// pool.Close() is handled by defer above.
 	logger.Info("worker exited gracefully")
+}
+
+// summaryPrefsAdapter bridges repository.NotificationPreferencesRepository to
+// jobs.PreferenceChecker. The summary handler asks "is this (user, workspace)
+// opted in?"; we answer via the repo's effective-enabled query.
+type summaryPrefsAdapter struct {
+	repo *repository.NotificationPreferencesRepository
+}
+
+func (a summaryPrefsAdapter) IsEnabled(ctx context.Context, orgID, userID, workspaceID string) (bool, error) {
+	return a.repo.GetEmailSummariesEnabled(ctx, orgID, userID, workspaceID)
 }

@@ -24,6 +24,13 @@ class Settings(BaseSettings):
     livekit_api_secret: str = ""
     memory_dir: str = ""  # directory for per-session memory files; empty = disabled
     enable_web_search: bool = False  # allow Anthropic web_search tool in RAG responses
+    http_port: int = 8090  # FastAPI internal endpoints (POST /internal/summarize for #257)
+    http_enabled: bool = True
+    # Bind loopback by default — the /internal/* endpoints are consumed by
+    # the Go worker running in the same pod/host. Set RAVEN_HTTP_BIND_HOST
+    # to override for deployments where the callers live on a separate
+    # node (a network policy must still gate external access).
+    http_bind_host: str = "127.0.0.1"
     # Semantic response cache (issue #256 — M9). Flip to False to bypass the
     # pgvector lookup entirely while keeping the exact-match Valkey cache.
     semantic_cache_enabled: bool = True

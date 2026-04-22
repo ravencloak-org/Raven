@@ -22,12 +22,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -36,14 +36,16 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
+	"github.com/jackc/pgx/v5"
+
+	_ "github.com/ravencloak-org/Raven/docs/swagger" // swagger docs
 	"github.com/ravencloak-org/Raven/internal/auth"
 	"github.com/ravencloak-org/Raven/internal/cache"
 	"github.com/ravencloak-org/Raven/internal/config"
 	"github.com/ravencloak-org/Raven/internal/db"
-	"github.com/ravencloak-org/Raven/internal/hyperswitch"
-	_ "github.com/ravencloak-org/Raven/docs/swagger" // swagger docs
 	rpcClient "github.com/ravencloak-org/Raven/internal/grpc"
 	"github.com/ravencloak-org/Raven/internal/handler"
+	"github.com/ravencloak-org/Raven/internal/hyperswitch"
 	"github.com/ravencloak-org/Raven/internal/middleware"
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/internal/posthog"
@@ -103,13 +105,37 @@ type userLookupAdapter struct {
 func (a *userLookupAdapter) GetByExternalID(ctx context.Context, externalID string) (string, *string, error) {
 	u, err := a.repo.GetByExternalID(ctx, externalID)
 	if err != nil {
-		// Not found → return empty (first login); real DB errors propagate
-		if strings.Contains(err.Error(), "no rows") {
+		// Not found → return empty (first login); real DB errors propagate.
+		if errors.Is(err, pgx.ErrNoRows) {
 			return "", nil, nil
 		}
 		return "", nil, err
 	}
 	return u.ID, u.OrgID, nil
+}
+
+// userExternalIDResolver bridges the user repository to the unsubscribe handler.
+// Given an external IdP id (e.g. SuperTokens sub) embedded in the unsubscribe
+// token, it returns the internal (orgID, userID) tuple so preferences can be
+// updated under the correct RLS scope.
+type userExternalIDResolver struct {
+	repo *repository.UserRepository
+}
+
+func (r *userExternalIDResolver) ResolveInternalUser(ctx context.Context, externalID string) (orgID, userID string, err error) {
+	u, err := r.repo.GetByExternalID(ctx, externalID)
+	if err != nil {
+		// Typed sentinel over stringly-typed substring match: robust to any
+		// future fmt.Errorf("%w") wrapping in the repository layer.
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", "", nil
+		}
+		return "", "", err
+	}
+	if u.OrgID == nil {
+		return "", "", nil
+	}
+	return *u.OrgID, u.ID, nil
 }
 
 func apiKeyToLookupResult(ak *model.APIKey) *middleware.APIKeyLookupResult {
@@ -438,6 +464,8 @@ func main() {
 	identityHandler := handler.NewIdentityHandler(identitySvc)
 	conversationHandler := handler.NewConversationHandler(conversationSvc)
 	notifHandler := handler.NewNotificationHandler(notifSvc)
+	notifPrefsRepo := repository.NewNotificationPreferencesRepository(pool)
+	notifPrefsHandler := handler.NewNotificationPrefsHandler(notifPrefsRepo, &userExternalIDResolver{repo: userRepo}, cfg.EmailSummary.UnsubscribeSecret)
 	webhookHandler := handler.NewWebhookHandler(webhookSvc)
 	chatHandler := handler.NewChatHandler(chatSvc)
 	semCacheHandler := handler.NewSemanticCacheHandler(semCacheRepo)
@@ -463,10 +491,15 @@ func main() {
 	router.Use(middleware.CORSMiddleware(&cfg.CORS))
 	router.Use(apierror.ErrorHandler())
 
-
 	// Infrastructure endpoint — intentionally outside the versioned group.
 	// Excluded from rate limiting.
 	router.GET("/healthz", handler.HealthCheck)
+
+	// One-click unsubscribe — public, authenticated via a signed token embedded
+	// in the link (RFC 8058). Placed outside /api/v1 so email clients can hit
+	// it without triggering CORS/auth middleware.
+	router.GET("/api/v1/notifications/unsubscribe", notifPrefsHandler.Unsubscribe)
+	router.POST("/api/v1/notifications/unsubscribe", notifPrefsHandler.UnsubscribePost)
 
 	// Swagger UI — served at /api/docs (unauthenticated; disable in prod via env).
 	router.GET("/api/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
@@ -519,6 +552,7 @@ func main() {
 			ws.POST("/:ws_id/members", resolveWSRole, middleware.RequireWorkspaceRole("admin"), wsHandler.AddMember)
 			ws.PUT("/:ws_id/members/:user_id", resolveWSRole, middleware.RequireWorkspaceRole("admin"), wsHandler.UpdateMember)
 			ws.DELETE("/:ws_id/members/:user_id", resolveWSRole, middleware.RequireWorkspaceRole("admin"), wsHandler.RemoveMember)
+			ws.PUT("/:ws_id/notification-preferences", resolveWSRole, middleware.RequireWorkspaceRole("admin"), notifPrefsHandler.UpsertWorkspacePreference)
 
 			// Knowledge Base routes (nested under workspace)
 			kb := ws.Group("/:ws_id/knowledge-bases")
@@ -751,6 +785,7 @@ func main() {
 		api.GET("/me", userHandler.GetMe)
 		api.PUT("/me", userHandler.UpdateMe)
 		api.DELETE("/me", userHandler.DeleteMe)
+		api.PUT("/me/notification-preferences/:ws_id", resolveWSRole, notifPrefsHandler.UpsertUserPreference)
 		api.GET("/users/:user_id", middleware.RequireOrgRole("org_admin"), userHandler.GetUser)
 
 	}
