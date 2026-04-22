@@ -200,8 +200,11 @@ jobs:
       - name: Install system dependencies
         run: |
           apt-get update
+          # `gcc` is required because `go test -race` needs cgo, and the
+          # minimal ubuntu:24.04 container doesn't ship a C compiler.
           apt-get install -y --no-install-recommends \
-            clang llvm libbpf-dev linux-tools-$(uname -r) linux-tools-generic \
+            build-essential clang llvm libbpf-dev \
+            linux-tools-$(uname -r) linux-tools-generic \
             ca-certificates curl git docker.io
 
       - uses: actions/setup-go@v6
