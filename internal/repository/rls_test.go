@@ -171,17 +171,13 @@ func TestRLS_MigrationVersion_AllApplied(t *testing.T) {
 
 	// The highest migration version_id should match whichever migration
 	// file sits at the tip of `migrations/`. Bump this when adding a new
-	// migration. Goose tolerates gaps in the numeric sequence (e.g., 00036
-	// is reserved for the parallel semantic-cache PR), so MAX(version_id)
-	// may jump over reserved numbers.
-	// All SQL migrations must be applied.
+	// migration.
 	var maxVersion int64
 	err := pool.QueryRow(ctx,
 		"SELECT MAX(version_id) FROM goose_db_version WHERE is_applied = true",
 	).Scan(&maxVersion)
 	require.NoError(t, err)
 	assert.EqualValues(t, 37, maxVersion, "latest migration version must be applied")
-	assert.EqualValues(t, 36, maxVersion, "all 36 migrations must be applied cleanly")
 
 	// Spot-check critical tables exist.
 	for _, table := range []string{
