@@ -1,0 +1,65 @@
+name: Semgrep
+
+# Umbrella SAST. One tool, every source-producing language (Go, Python,
+# JavaScript, TypeScript, Vue) + shell + Dockerfile + YAML. Complements
+# CodeQL (which is deeper but slower) with a faster first-pass of
+# community rules from p/ci, p/security-audit, p/owasp-top-ten, and
+# p/secrets.
+#
+# Satisfies the OpenSSF Best Practices `static_analysis` criterion at
+# the "one SAST tool per language" bar even in the absence of CodeQL
+# for a given language.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # 03:17 UTC Mondays — offset from every other security workflow.
+    - cron: '17 3 * * 1'
+
+permissions: {}
+
+jobs:
+  semgrep:
+    name: Semgrep scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
+        with:
+          python-version: '3.12'
+
+      - name: Install Semgrep
+        run: pip install "semgrep==1.*"
+
+      - name: Scan
+        # --config=auto pulls Semgrep's maintained community rule packs
+        # that match the languages detected in the repo. --sarif
+        # produces SARIF for the Code Scanning upload; --error makes
+        # findings fail the job.
+        run: |
+          semgrep scan \
+            --config=p/default \
+            --config=p/security-audit \
+            --config=p/owasp-top-ten \
+            --config=p/secrets \
+            --sarif --output=semgrep.sarif \
+            --error
+        env:
+          SEMGREP_RULES_CACHE_DIR: /tmp/semgrep-rules
+
+      - name: Upload SARIF to Code Scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@865f5f5c36632f18690a3d569fa0a764f2da0c3e  # v3
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep

@@ -1,0 +1,70 @@
+name: Infra Lint
+
+# Lint the non-app-code surfaces that the Go / Python / frontend CI jobs
+# don't cover: Dockerfiles (hadolint) and GitHub Actions workflow YAML
+# (actionlint). Kept in its own workflow so Dockerfile edits don't
+# trigger the whole security scan battery.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - 'ai-worker/Dockerfile'
+      - 'frontend/Dockerfile'
+      - '.github/workflows/*.yml'
+      - '.github/workflows/*.yaml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - 'ai-worker/Dockerfile'
+      - 'frontend/Dockerfile'
+      - '.github/workflows/*.yml'
+      - '.github/workflows/*.yaml'
+
+permissions: {}
+
+jobs:
+  hadolint:
+    name: Hadolint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        dockerfile:
+          - Dockerfile
+          - ai-worker/Dockerfile
+          - frontend/Dockerfile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+
+      - name: Hadolint ${{ matrix.dockerfile }}
+        uses: hadolint/hadolint-action@54c9adbab1582c2ef04b2016b760714a4bfde3cf  # v3
+        with:
+          dockerfile: ${{ matrix.dockerfile }}
+          # DL3008 (apt pin versions) + DL3018 (apk pin versions) are
+          # noisy on base-image-derived Dockerfiles; enable later once
+          # we version-pin systematically.
+          ignore: DL3008,DL3018
+          failure-threshold: warning
+
+  actionlint:
+    name: Actionlint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+
+      - name: Actionlint + shellcheck
+        uses: reviewdog/action-actionlint@e0207a28405ecad11953ba625a95d92f7889572a  # v1
+        with:
+          reporter: github-pr-check
+          fail_level: warning
