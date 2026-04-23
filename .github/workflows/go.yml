@@ -202,10 +202,17 @@ jobs:
           apt-get update
           # `gcc` is required because `go test -race` needs cgo, and the
           # minimal ubuntu:24.04 container doesn't ship a C compiler.
+          # linux-tools-generic covers the bpftool/perf tooling we need and
+          # is always available; the host-kernel-specific package is
+          # attempted separately so a missing package (the Azure-hosted
+          # runner kernel often has no match in noble) doesn't abort the
+          # whole install.
           apt-get install -y --no-install-recommends \
             build-essential clang llvm libbpf-dev \
-            linux-tools-$(uname -r) linux-tools-generic \
+            linux-tools-generic \
             ca-certificates curl git docker.io
+          apt-get install -y --no-install-recommends "linux-tools-$(uname -r)" || \
+            echo "::warning::linux-tools for kernel $(uname -r) unavailable; using linux-tools-generic"
 
       - uses: actions/setup-go@v6
         with:
