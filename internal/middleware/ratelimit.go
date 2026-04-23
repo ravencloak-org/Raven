@@ -2,7 +2,9 @@ package middleware
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -59,19 +61,34 @@ end
 return {count, -1, oldest}
 `
 
-// RateLimiter holds the Valkey client and logger used by rate-limit middleware.
+// RateLimiter holds the Valkey client, logger, and API-key HMAC secret used by
+// rate-limit middleware. The HMAC secret is used to derive bucket keys for
+// API-key-scoped limits so that raw keys never hit Valkey and the bucket
+// identifier cannot be reversed by a rainbow-table lookup of plain SHA-256.
 type RateLimiter struct {
-	client redis.Cmdable
-	logger *slog.Logger
+	client  redis.Cmdable
+	logger  *slog.Logger
+	hmacKey []byte
 }
 
 // NewRateLimiter constructs a RateLimiter from any redis.Cmdable (real client
 // or miniredis stub).
-func NewRateLimiter(client redis.Cmdable, logger *slog.Logger) *RateLimiter {
+//
+// apiKeyHashSecret is used as the HMAC-SHA-256 key for hashing raw API keys
+// into Valkey bucket identifiers. It MUST be set to a stable, secret value in
+// production (e.g. from RAVEN_RATELIMIT_APIKEY_HASH_SECRET) so that bucket
+// identifiers are consistent across processes and nodes. If empty, a warning
+// is logged and a zero-length key is used — acceptable only for dev/tests
+// where API-key hashing is not security-critical (buckets still work, but
+// the hash is reversible via brute force).
+func NewRateLimiter(client redis.Cmdable, logger *slog.Logger, apiKeyHashSecret string) *RateLimiter {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &RateLimiter{client: client, logger: logger}
+	if apiKeyHashSecret == "" {
+		logger.Warn("rate limiter: apiKeyHashSecret is empty — API-key bucket hashes are not keyed; set RAVEN_RATELIMIT_APIKEY_HASH_SECRET in production")
+	}
+	return &RateLimiter{client: client, logger: logger, hmacKey: []byte(apiKeyHashSecret)}
 }
 
 // rateLimitResult is the decoded response from the Lua script.
@@ -234,11 +251,14 @@ func RateLimitMiddleware(rl *RateLimiter, limit int, keyFn func(*gin.Context) st
 	}
 }
 
-// apiKeyHash returns the SHA-256 hex digest of an API key, used as the Valkey
-// key suffix so that raw secrets are never stored in Valkey.
-func apiKeyHash(apiKey string) string {
-	h := sha256.Sum256([]byte(apiKey))
-	return fmt.Sprintf("%x", h)
+// apiKeyHash returns the HMAC-SHA-256 hex digest of an API key using the
+// rate-limiter's per-deployment secret as the HMAC key, used as the Valkey
+// key suffix so that raw secrets are never stored in Valkey and the bucket
+// identifier is not reversible via a rainbow table of plain SHA-256.
+func (rl *RateLimiter) apiKeyHash(apiKey string) string {
+	m := hmac.New(sha256.New, rl.hmacKey)
+	m.Write([]byte(apiKey))
+	return hex.EncodeToString(m.Sum(nil))
 }
 
 // ByAPIKey returns a Gin middleware that rate-limits by API key.
@@ -254,7 +274,7 @@ func ByAPIKey(rl *RateLimiter, limit int) gin.HandlerFunc {
 		if !ok || key == "" {
 			return ""
 		}
-		return keyPrefixAPIKey + apiKeyHash(key)
+		return keyPrefixAPIKey + rl.apiKeyHash(key)
 	}, keyPrefixAPIKey+"fallback:")
 }
 

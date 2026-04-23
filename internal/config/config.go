@@ -219,6 +219,13 @@ type RateLimitConfig struct {
 
 	// Widget limits — stricter for public chatbot widget endpoints.
 	WidgetRPM int `mapstructure:"widget_rpm"`
+
+	// APIKeyHashSecret is the HMAC-SHA-256 key used to derive Valkey bucket
+	// identifiers from raw API keys. Must be a stable, secret value in
+	// production so that bucket IDs are consistent across nodes and cannot
+	// be reversed via a rainbow-table lookup of plain SHA-256. Provide via
+	// RAVEN_RATELIMIT_APIKEY_HASH_SECRET.
+	APIKeyHashSecret string `mapstructure:"apikey_hash_secret"`
 }
 
 // ServerConfig holds HTTP server settings.
@@ -285,6 +292,7 @@ func Load() (*Config, error) {
 	v.SetDefault("ratelimit.enterprise_general_rpm", 6000)
 	v.SetDefault("ratelimit.enterprise_completion_rpm", -1) // unlimited
 	v.SetDefault("ratelimit.widget_rpm", 30)
+	v.SetDefault("ratelimit.apikey_hash_secret", "")
 	v.SetDefault("queue.concurrency", 10)
 	v.SetDefault("queue.max_retry", 5)
 	v.SetDefault("seaweedfs.master_url", "http://seaweedfs-master:9333")
@@ -416,6 +424,7 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("ratelimit.enterprise_general_rpm", "RAVEN_RATELIMIT_ENTERPRISE_GENERAL_RPM")
 	_ = v.BindEnv("ratelimit.enterprise_completion_rpm", "RAVEN_RATELIMIT_ENTERPRISE_COMPLETION_RPM")
 	_ = v.BindEnv("ratelimit.widget_rpm", "RAVEN_RATELIMIT_WIDGET_RPM")
+	_ = v.BindEnv("ratelimit.apikey_hash_secret", "RAVEN_RATELIMIT_APIKEY_HASH_SECRET")
 	_ = v.BindEnv("otel.endpoint", "RAVEN_OTEL_ENDPOINT")
 	_ = v.BindEnv("otel.service_name", "RAVEN_OTEL_SERVICE_NAME")
 	_ = v.BindEnv("otel.enabled", "RAVEN_OTEL_ENABLED")

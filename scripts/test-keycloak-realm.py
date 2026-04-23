@@ -18,6 +18,20 @@ PASS = 0
 FAIL = 0
 
 
+def _redact(value: str) -> str:
+    """Mask all but the first 4 characters of a potentially-sensitive value.
+
+    Used when surfacing credential-shaped data in assertion failure messages
+    so CodeQL (py/clear-text-logging-sensitive-data) and reviewers do not see
+    raw secrets in CI logs. Placeholders like "${ENV_VAR}" pass through.
+    """
+    if not value or value.startswith("${"):
+        return value
+    if len(value) <= 4:
+        return "<REDACTED>"
+    return value[:4] + "<REDACTED>"
+
+
 def check(description, condition, detail=""):
     global PASS, FAIL
     if condition:
@@ -196,7 +210,7 @@ def main():
         check(
             "raven-api secret is a placeholder (not a real value)",
             secret.startswith("${") or secret == "",
-            f"got '{secret}'",
+            f"got '{_redact(secret)}'",
         )
     # Broad scan for common secret patterns
     suspicious = []
@@ -212,7 +226,7 @@ def main():
                 val_end = lower.index('"', val_start)
                 val = raw[val_start:val_end]
                 if val and not val.startswith("${"):
-                    suspicious.append(f"{keyword}={val}")
+                    suspicious.append(f"{keyword}={_redact(val)}")
     check("no hardcoded password/secret_key/api_key/private_key values", len(suspicious) == 0,
           f"found: {suspicious}")
 

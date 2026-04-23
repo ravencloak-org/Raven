@@ -2,9 +2,10 @@ package middleware
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -22,7 +23,7 @@ func newTestRateLimiter(t *testing.T) (*RateLimiter, *miniredis.Miniredis) {
 	t.Helper()
 	mr := miniredis.RunT(t)
 	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	rl := NewRateLimiter(client, nil)
+	rl := NewRateLimiter(client, nil, "test-hmac-secret")
 	return rl, mr
 }
 
@@ -343,9 +344,11 @@ func TestByAPIKey(t *testing.T) {
 	}
 
 	// Assert that the raw key was NOT stored in Valkey, and that the hashed
-	// form IS present — confirming ByAPIKey hashes the key before use.
-	hash := sha256.Sum256([]byte(rawKey))
-	expectedValkeyKey := keyPrefixAPIKey + fmt.Sprintf("%x", hash)
+	// form IS present — confirming ByAPIKey hashes the key before use with
+	// HMAC-SHA-256 keyed by the rate-limiter's secret.
+	m := hmac.New(sha256.New, []byte("test-hmac-secret"))
+	m.Write([]byte(rawKey))
+	expectedValkeyKey := keyPrefixAPIKey + hex.EncodeToString(m.Sum(nil))
 
 	allKeys := mr.Keys()
 	for _, k := range allKeys {
