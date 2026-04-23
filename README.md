@@ -18,7 +18,9 @@
   <a href="https://baseline.openssf.org/versions/2026-02-19"><img src="https://img.shields.io/badge/OpenSSF%20Baseline-L2%20target-blue" alt="OpenSSF Baseline L2" /></a>
   <img src="https://img.shields.io/badge/PRs-welcome-blue" alt="PRs Welcome" />
 </p>
-<p><a href="https://www.bestpractices.dev/projects/12590"><img src="https://www.bestpractices.dev/projects/12590/badge"></a>
+<p allign="center">
+  <a href="https://www.bestpractices.dev/projects/12590"><img src="https://www.bestpractices.dev/projects/12590/badge"></a>
+</p>
 </p>
 ---
 
