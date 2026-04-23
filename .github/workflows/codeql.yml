@@ -3,44 +3,50 @@ name: CodeQL
 on:
   push:
     branches: [main]
-    paths:
-      - '**/*.go'
-      - '**/*.py'
-      - '**/*.ts'
-      - '**/*.tsx'
-      - '**/*.js'
-      - '**/*.vue'
-      - 'go.mod'
-      - 'go.sum'
-      - 'frontend/package.json'
-      - 'frontend/bun.lock'
-      - 'ai-worker/pyproject.toml'
-      - 'ai-worker/requirements*.txt'
-      - '.github/workflows/codeql.yml'
   pull_request:
     branches: [main]
-    paths:
-      - '**/*.go'
-      - '**/*.py'
-      - '**/*.ts'
-      - '**/*.tsx'
-      - '**/*.js'
-      - '**/*.vue'
-      - 'go.mod'
-      - 'go.sum'
-      - 'frontend/package.json'
-      - 'frontend/bun.lock'
-      - 'ai-worker/pyproject.toml'
-      - 'ai-worker/requirements*.txt'
-      - '.github/workflows/codeql.yml'
   schedule:
     - cron: '23 6 * * 1'
 
 permissions: {}
 
 jobs:
+  changes:
+    name: Detect relevant changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+
+      - name: Filter paths
+        id: filter
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36  # v3.0.2
+        with:
+          filters: |
+            code:
+              - '**/*.go'
+              - '**/*.py'
+              - '**/*.ts'
+              - '**/*.tsx'
+              - '**/*.js'
+              - '**/*.vue'
+              - 'go.mod'
+              - 'go.sum'
+              - 'frontend/package.json'
+              - 'frontend/bun.lock'
+              - 'ai-worker/pyproject.toml'
+              - 'ai-worker/requirements*.txt'
+              - '.github/workflows/codeql.yml'
+
   analyze:
     name: Analyze (${{ matrix.language }})
+    needs: changes
+    if: needs.changes.outputs.code == 'true' || github.event_name == 'schedule' || github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -83,3 +89,20 @@ jobs:
         uses: github/codeql-action/analyze@b25d0ebf40e5b63ee81e1bd6e5d2a12b7c2aeb61  # v4
         with:
           category: "/language:${{ matrix.language }}"
+
+  gate:
+    name: Gate
+    needs: analyze
+    runs-on: ubuntu-latest
+    if: always() && !cancelled()
+    permissions:
+      contents: read
+    steps:
+      - name: Evaluate CodeQL result
+        run: |
+          result="${{ needs.analyze.result }}"
+          echo "analyze result: $result"
+          case "$result" in
+            success|skipped) exit 0 ;;
+            *) exit 1 ;;
+          esac
