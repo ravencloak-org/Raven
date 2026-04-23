@@ -307,28 +307,41 @@ ORDER BY timestamp
 func startClickHouse(ctx context.Context, t *testing.T) (testcontainers.Container, string) {
 	t.Helper()
 
-	// When this test runs inside a Docker-in-Docker privileged CI harness,
-	// the nested ClickHouse container inherits the HOST's seccomp profile
-	// instead of the outer container's `--privileged` relaxation. That
-	// denies `get_mempolicy`/`set_mempolicy`, which ClickHouse calls at
-	// startup for NUMA bookkeeping, and the image spins indefinitely
-	// printing "Operation not permitted" instead of serving connections.
+	// Running inside a Docker-in-Docker privileged CI harness creates two
+	// problems that collectively stop ClickHouse from finishing boot:
+	//   1. The nested container inherits the HOST seccomp profile, so
+	//      get_mempolicy / set_mempolicy are denied and ClickHouse's NUMA
+	//      bookkeeping loops on "Operation not permitted".
+	//   2. The default nofile ulimit in DinD is ~1024, far below what
+	//      ClickHouse opens; with the limit clamped it silently stalls
+	//      before the listener binds.
 	//
-	// Passing `seccomp=unconfined` + `apparmor=unconfined` via HostConfig
-	// lifts that restriction so ClickHouse boots normally. It is safe for
-	// the test context because we only talk to it over the loopback-bound
-	// exposed port.
+	// HostConfigModifier lifts seccomp/apparmor and raises nofile/nproc.
+	// The readiness check accepts either the classic log line OR the
+	// HTTP port becoming reachable — on slow DinD runners the log pump
+	// lags behind the listener by several seconds.
 	req := testcontainers.ContainerRequest{
 		Image:        "clickhouse/clickhouse-server:24-alpine",
 		ExposedPorts: []string{"9000/tcp", "8123/tcp"},
+		Env: map[string]string{
+			// Skip the heavy /var init; we only need a read/write schema.
+			"CLICKHOUSE_DB":                       "default",
+			"CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT": "0",
+		},
 		HostConfigModifier: func(hc *dockercontainer.HostConfig) {
 			hc.SecurityOpt = append(hc.SecurityOpt,
 				"seccomp=unconfined",
 				"apparmor=unconfined",
 			)
+			hc.Ulimits = append(hc.Ulimits,
+				&dockercontainer.Ulimit{Name: "nofile", Soft: 262144, Hard: 262144},
+				&dockercontainer.Ulimit{Name: "nproc", Soft: 65535, Hard: 65535},
+			)
 		},
-		WaitingFor: wait.ForLog("Ready for connections").
-			WithStartupTimeout(90 * time.Second),
+		WaitingFor: wait.ForAll(
+			wait.ForListeningPort("9000/tcp").WithStartupTimeout(120*time.Second),
+			wait.ForListeningPort("8123/tcp").WithStartupTimeout(120*time.Second),
+		).WithStartupTimeoutDefault(150 * time.Second),
 	}
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
