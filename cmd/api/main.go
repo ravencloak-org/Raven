@@ -213,7 +213,7 @@ func main() {
 	})
 
 	// Build rate limiter using config-driven limits.
-	rl := middleware.NewRateLimiter(valkeyClient, slog.Default())
+	rl := middleware.NewRateLimiter(valkeyClient, slog.Default(), cfg.RateLimit.APIKeyHashSecret)
 	tierResolver := middleware.NewValkeyTierResolver(valkeyClient, slog.Default())
 	tierCfg := middleware.TierConfig{
 		Free: middleware.TierLimits{
