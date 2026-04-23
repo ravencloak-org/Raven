@@ -69,7 +69,7 @@ jobs:
           cache: true
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@865f5f5c36632f18690a3d569fa0a764f2da0c3e  # v3
+        uses: github/codeql-action/init@b25d0ebf40e5b63ee81e1bd6e5d2a12b7c2aeb61  # v4
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
@@ -77,9 +77,9 @@ jobs:
 
       - name: Autobuild
         if: matrix.build-mode == 'autobuild'
-        uses: github/codeql-action/autobuild@865f5f5c36632f18690a3d569fa0a764f2da0c3e  # v3
+        uses: github/codeql-action/autobuild@b25d0ebf40e5b63ee81e1bd6e5d2a12b7c2aeb61  # v4
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@865f5f5c36632f18690a3d569fa0a764f2da0c3e  # v3
+        uses: github/codeql-action/analyze@b25d0ebf40e5b63ee81e1bd6e5d2a12b7c2aeb61  # v4
         with:
           category: "/language:${{ matrix.language }}"

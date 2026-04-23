@@ -50,19 +50,23 @@ jobs:
         # build-side signal out of the hot path while the existing
         # backlog is triaged in follow-up issues.
         run: |
+          # --sarif-output writes ONLY SARIF to the file; --text prints a
+          # human-readable summary to stdout without corrupting the file.
+          # Using --output with --sarif writes both formats to the same
+          # destination and the SARIF becomes unparseable.
           semgrep scan \
             --config=p/default \
             --config=p/security-audit \
             --config=p/owasp-top-ten \
             --config=p/secrets \
-            --sarif --output=semgrep.sarif \
+            --sarif-output=semgrep.sarif \
             --text --no-error
         env:
           SEMGREP_RULES_CACHE_DIR: /tmp/semgrep-rules
 
       - name: Upload SARIF to Code Scanning
         if: always()
-        uses: github/codeql-action/upload-sarif@865f5f5c36632f18690a3d569fa0a764f2da0c3e  # v3
+        uses: github/codeql-action/upload-sarif@b25d0ebf40e5b63ee81e1bd6e5d2a12b7c2aeb61  # v4
         with:
           sarif_file: semgrep.sarif
           category: semgrep
