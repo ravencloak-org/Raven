@@ -11,10 +11,12 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/cilium/ebpf/ringbuf"
+	dockercontainer "github.com/moby/moby/api/types/container"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -30,10 +32,13 @@ import (
 // --- Mock ring buffer reader ---
 
 // mockRingBufReader implements audit.RingBufReader for unit testing the consumer.
+// `closed` is atomic because the consumer goroutine calls Read() while the
+// test goroutine can concurrently call Close() — `go test -race` correctly
+// flags plain-bool access from the two goroutines as a data race.
 type mockRingBufReader struct {
 	records []ringbuf.Record
 	index   int
-	closed  bool
+	closed  atomic.Bool
 }
 
 func newMockReader(records []ringbuf.Record) *mockRingBufReader {
@@ -41,12 +46,13 @@ func newMockReader(records []ringbuf.Record) *mockRingBufReader {
 }
 
 func (m *mockRingBufReader) Read() (ringbuf.Record, error) {
-	if m.closed {
+	if m.closed.Load() {
 		return ringbuf.Record{}, ringbuf.ErrClosed
 	}
 	if m.index >= len(m.records) {
-		// Block until closed — simulates waiting for events.
-		m.closed = true
+		// No more records — simulate the reader draining by closing and
+		// returning ErrClosed so the consumer's event loop exits cleanly.
+		m.closed.Store(true)
 		return ringbuf.Record{}, ringbuf.ErrClosed
 	}
 	rec := m.records[m.index]
@@ -55,7 +61,7 @@ func (m *mockRingBufReader) Read() (ringbuf.Record, error) {
 }
 
 func (m *mockRingBufReader) Close() error {
-	m.closed = true
+	m.closed.Store(true)
 	return nil
 }
 
@@ -301,11 +307,28 @@ ORDER BY timestamp
 func startClickHouse(ctx context.Context, t *testing.T) (testcontainers.Container, string) {
 	t.Helper()
 
+	// When this test runs inside a Docker-in-Docker privileged CI harness,
+	// the nested ClickHouse container inherits the HOST's seccomp profile
+	// instead of the outer container's `--privileged` relaxation. That
+	// denies `get_mempolicy`/`set_mempolicy`, which ClickHouse calls at
+	// startup for NUMA bookkeeping, and the image spins indefinitely
+	// printing "Operation not permitted" instead of serving connections.
+	//
+	// Passing `seccomp=unconfined` + `apparmor=unconfined` via HostConfig
+	// lifts that restriction so ClickHouse boots normally. It is safe for
+	// the test context because we only talk to it over the loopback-bound
+	// exposed port.
 	req := testcontainers.ContainerRequest{
 		Image:        "clickhouse/clickhouse-server:24-alpine",
 		ExposedPorts: []string{"9000/tcp", "8123/tcp"},
+		HostConfigModifier: func(hc *dockercontainer.HostConfig) {
+			hc.SecurityOpt = append(hc.SecurityOpt,
+				"seccomp=unconfined",
+				"apparmor=unconfined",
+			)
+		},
 		WaitingFor: wait.ForLog("Ready for connections").
-			WithStartupTimeout(60 * time.Second),
+			WithStartupTimeout(90 * time.Second),
 	}
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
