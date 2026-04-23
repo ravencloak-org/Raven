@@ -43,7 +43,7 @@ jobs:
         run: curl -sfS https://dotenvx.sh | sh
 
       - name: Install eBPF build tools
-        run: sudo apt-get install -y clang llvm libbpf-dev linux-tools-$(uname -r) || sudo apt-get install -y clang llvm libbpf-dev
+        run: sudo apt-get install -y clang llvm libbpf-dev "linux-tools-$(uname -r)" || sudo apt-get install -y clang llvm libbpf-dev
 
       - name: Pre-pull testcontainers image
         run: docker pull pgvector/pgvector:pg18
@@ -157,7 +157,7 @@ jobs:
           cache: true
 
       - name: Install eBPF build tools
-        run: sudo apt-get install -y clang llvm libbpf-dev linux-tools-$(uname -r) || sudo apt-get install -y clang llvm libbpf-dev
+        run: sudo apt-get install -y clang llvm libbpf-dev "linux-tools-$(uname -r)" || sudo apt-get install -y clang llvm libbpf-dev
 
       - uses: golangci/golangci-lint-action@v9
         with:

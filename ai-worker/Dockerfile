@@ -11,6 +11,10 @@ RUN pip install --no-cache-dir --prefix=/install .
 # ---------------------------------------------------------------------------
 FROM python:3.14-slim
 
+# hadolint DL4006: the curl | sh pipe below needs an explicit pipefail-aware
+# shell; python:3.14-slim ships bash so use it instead of /bin/sh.
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && curl -sfS https://dotenvx.sh | sh \
     && apt-get purge -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/* \
