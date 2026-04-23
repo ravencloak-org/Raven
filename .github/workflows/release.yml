@@ -129,43 +129,161 @@ jobs:
           retention-days: 7
 
   # -----------------------------------------------------------------------
-  # docker-images: build multi-arch images for api / worker / frontend,
-  # push to ghcr.io, and cosign-sign each image digest.
+  # docker-build: build per-platform Docker images on NATIVE runners.
+  #
+  # Previously the three images were built by a single job on ubuntu-latest
+  # with QEMU emulation for the arm64 leg. CGO + eBPF under QEMU pushed the
+  # go-api build to 15–25 min and left a 20 min window open for transient
+  # GHCR 504s on the manifest push.
+  #
+  # This matrix builds each (component, platform) on the runner that
+  # matches the target arch (ubuntu-latest → amd64, ubuntu-24.04-arm →
+  # arm64). Each job pushes by digest only — no tags yet. The digest
+  # is exported as a one-file artifact so the follow-up `docker-merge`
+  # job can assemble the multi-arch manifest. Signatures and attestations
+  # are applied once to the merged manifest in docker-merge, not per
+  # platform, to keep a single cosign subject per release.
   # -----------------------------------------------------------------------
-  docker-images:
-    name: Docker (${{ matrix.component }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+  docker-build:
+    name: Docker ${{ matrix.component }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
     needs: preflight
     permissions:
       contents: read
       packages: write
       id-token: write
-      attestations: write   # GitHub attestation store
     strategy:
       fail-fast: false
       matrix:
         include:
+          # go-api (CGO + eBPF; the one that actually needs the native speed)
           - component: go-api
             context: .
             dockerfile: Dockerfile
+            platform: linux/amd64
+            arch: amd64
+            runner: ubuntu-latest
+          - component: go-api
+            context: .
+            dockerfile: Dockerfile
+            platform: linux/arm64
+            arch: arm64
+            runner: ubuntu-24.04-arm
+          # python-worker
           - component: python-worker
             context: ai-worker
             dockerfile: ai-worker/Dockerfile
+            platform: linux/amd64
+            arch: amd64
+            runner: ubuntu-latest
+          - component: python-worker
+            context: ai-worker
+            dockerfile: ai-worker/Dockerfile
+            platform: linux/arm64
+            arch: arm64
+            runner: ubuntu-24.04-arm
+          # frontend (nginx COPY; fast either way but still native)
           - component: frontend
             context: frontend
             dockerfile: frontend/Dockerfile
+            platform: linux/amd64
+            arch: amd64
+            runner: ubuntu-latest
+          - component: frontend
+            context: frontend
+            dockerfile: frontend/Dockerfile
+            platform: linux/arm64
+            arch: arm64
+            runner: ubuntu-24.04-arm
     steps:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
 
-      - name: Setup QEMU
-        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a  # v4
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd  # v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121  # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta (labels only)
+        id: meta
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf  # v6
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.component }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f  # v7
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: ${{ matrix.platform }}
+          # Per-platform GHA cache scope — amd64 and arm64 runners do not
+          # share the same cache, and overlapping scopes cause churn.
+          cache-from: type=gha,scope=${{ matrix.component }}-${{ matrix.arch }}
+          cache-to:   type=gha,scope=${{ matrix.component }}-${{ matrix.arch }},mode=max
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/${{ matrix.component }},push-by-digest=true,name-canonical=true,push=true
+          provenance: false
+          sbom: false
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.0
+        with:
+          name: digests-${{ matrix.component }}-${{ matrix.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # -----------------------------------------------------------------------
+  # docker-merge: assemble the per-platform digests into a multi-arch
+  # manifest, tag it (SemVer + latest), sign with cosign, and attach
+  # SLSA build-provenance + SPDX SBOM attestations.
+  # -----------------------------------------------------------------------
+  docker-merge:
+    name: Docker manifest ${{ matrix.component }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [preflight, docker-build]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [go-api, python-worker, frontend]
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53  # v6
+        with:
+          path: /tmp/digests
+          pattern: digests-${{ matrix.component }}-*
+          merge-multiple: true
 
       - name: Setup Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd  # v4
 
-      - name: Docker meta
+      - name: Login to GHCR
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121  # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta (tags for manifest)
         id: meta
         uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf  # v6
         with:
@@ -175,32 +293,30 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ !contains(needs.preflight.outputs.tag, '-rc') }}
 
-      - name: Login to GHCR
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121  # v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ matrix.component }}
+        run: |
+          tag_args=$(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          digest_args=$(printf '%s@sha256:%s ' "$IMAGE" *)
+          # shellcheck disable=SC2086  # intentional word-splitting on tag_args + digest_args
+          docker buildx imagetools create $tag_args $digest_args
 
-      - name: Build and push
-        id: build
-        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f  # v7
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          push: true
-          platforms: linux/amd64,linux/arm64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          provenance: false
-          sbom: false
+      - name: Inspect manifest + capture merged digest
+        id: manifest
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ matrix.component }}
+          VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          merged_digest=$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" --format '{{json .Manifest.Digest}}' | tr -d '"')
+          echo "digest=${merged_digest}" >> "$GITHUB_OUTPUT"
+          echo "merged manifest digest: ${merged_digest}"
 
       - name: Generate SBOM
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610  # v0
         with:
-          image: ghcr.io/${{ github.repository_owner }}/${{ matrix.component }}@${{ steps.build.outputs.digest }}
+          image: ghcr.io/${{ github.repository_owner }}/${{ matrix.component }}@${{ steps.manifest.outputs.digest }}
           format: spdx-json
           output-file: sbom-${{ matrix.component }}.spdx.json
 
@@ -208,7 +324,7 @@ jobs:
         uses: actions/attest-sbom@51e74621a501c89df81fc1391c5a8f4cfc9fab2f  # v3
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/${{ matrix.component }}
-          subject-digest: ${{ steps.build.outputs.digest }}
+          subject-digest: ${{ steps.manifest.outputs.digest }}
           sbom-path: sbom-${{ matrix.component }}.spdx.json
           push-to-registry: true
 
@@ -216,16 +332,16 @@ jobs:
         uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661  # v3
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/${{ matrix.component }}
-          subject-digest: ${{ steps.build.outputs.digest }}
+          subject-digest: ${{ steps.manifest.outputs.digest }}
           push-to-registry: true
 
       - name: Install cosign
         uses: sigstore/cosign-installer@f713795cb21599bc4e5c4b58cbad1da852d7eeb9  # v3.8.1
 
-      - name: Sign image
+      - name: Sign merged manifest
         env:
           IMAGES: ${{ steps.meta.outputs.tags }}
-          DIGEST: ${{ steps.build.outputs.digest }}
+          DIGEST: ${{ steps.manifest.outputs.digest }}
         run: |
           echo "$IMAGES" | while IFS= read -r image; do
             [ -z "$image" ] && continue
@@ -309,7 +425,7 @@ jobs:
     name: Publish GitHub Release
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [preflight, changelog, go-binaries, docker-images, frontend-bundle]
+    needs: [preflight, changelog, go-binaries, docker-merge, frontend-bundle]
     permissions:
       contents: write
     steps:
