@@ -49,6 +49,7 @@ async def vector_search(
         embedding_dims=len(query_embedding),
     )
 
+    # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli -- hard-coded SQL, $N placeholders
     rows = await conn.fetch(
         _VECTOR_SEARCH_SQL,
         embedding_str,
