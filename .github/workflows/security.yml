@@ -71,6 +71,10 @@ jobs:
         # block will re-tighten once upstream patches land.
         continue-on-error: true
         run: |
-          govulncheck -scan=package \
-            $(go list ./... | grep -vE '/testutil$')
+          # Collect the package list into a shell array so we don't rely
+          # on unquoted word-splitting of a command substitution
+          # (shellcheck SC2046). Each package becomes its own argv entry.
+          mapfile -t pkgs < <(go list ./... | grep -vE '/testutil$')
+          govulncheck -scan=package "${pkgs[@]}"
+        shell: bash
 

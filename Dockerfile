@@ -17,6 +17,10 @@ RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w -extldflags '-static'" -o 
 # ── Stage 2: Runtime ─────────────────────────────────────────────────────────
 FROM alpine:3.23
 
+# hadolint DL4006: the curl | sh pipe below needs an explicit pipefail-aware
+# shell. Alpine symlinks /bin/sh to busybox; ash supports `-o pipefail`.
+SHELL ["/bin/ash", "-o", "pipefail", "-c"]
+
 RUN apk add --no-cache ca-certificates tzdata curl \
     && curl -sfS "https://dotenvx.sh?version=1.59.1" | sh \
     && addgroup -g 1000 raven \

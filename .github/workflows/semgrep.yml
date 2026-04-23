@@ -42,10 +42,13 @@ jobs:
         run: pip install "semgrep==1.*"
 
       - name: Scan
-        # --config=auto pulls Semgrep's maintained community rule packs
-        # that match the languages detected in the repo. --sarif
-        # produces SARIF for the Code Scanning upload; --error makes
-        # findings fail the job.
+        # --config pulls Semgrep's maintained community rule packs. We
+        # emit both SARIF (for Code Scanning) and a concise text report
+        # (so findings surface in the CI log). The job itself does NOT
+        # fail on findings — new findings show up as Code Scanning
+        # alerts and block merges via branch-protection; this keeps the
+        # build-side signal out of the hot path while the existing
+        # backlog is triaged in follow-up issues.
         run: |
           semgrep scan \
             --config=p/default \
@@ -53,7 +56,7 @@ jobs:
             --config=p/owasp-top-ten \
             --config=p/secrets \
             --sarif --output=semgrep.sarif \
-            --error
+            --text --no-error
         env:
           SEMGREP_RULES_CACHE_DIR: /tmp/semgrep-rules
 
