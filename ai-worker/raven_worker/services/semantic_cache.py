@@ -88,6 +88,7 @@ class SemanticCache:
 
             async with self._pool.acquire() as conn, conn.transaction():
                 await conn.execute("SELECT set_config('app.current_org_id', $1, true)", org_id)
+                # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli -- hard-coded SQL, $N placeholders  # noqa: E501
                 row = await conn.fetchrow(
                     _LOOKUP_SQL, embedding_str, org_id, kb_id, self._threshold
                 )
@@ -160,6 +161,7 @@ class SemanticCache:
 
             async with self._pool.acquire() as conn, conn.transaction():
                 await conn.execute("SELECT set_config('app.current_org_id', $1, true)", org_id)
+                # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli -- hard-coded SQL, $N placeholders  # noqa: E501
                 await conn.execute(
                     _STORE_SQL,
                     cache_id,
