@@ -81,6 +81,7 @@ services:
       - ./.env:/app/.env:ro
     environment:
       DOTENV_PRIVATE_KEY: ${DOTENV_PRIVATE_KEY:-}
+      # nosemgrep: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket -- dev-only placeholder; prod uses wss://
       RAVEN_LIVEKIT_URL: ws://livekit-server:7880
       RAVEN_LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-devkey}
       RAVEN_LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-devsecret}
