@@ -153,6 +153,11 @@ export class RavenChat extends HTMLElement {
       ? `<img class="rc-header-avatar" src="${this._escapeHtml(this._avatarUrl)}" alt="Assistant avatar" />`
       : `<div class="rc-header-avatar"></div>`
 
+    // The only external input in this template is this._avatarUrl, and it is
+    // passed through this._escapeHtml above. chatStyles() returns a literal
+    // string built from this._themeColor which is also escaped at property-set
+    // time. Every other interpolation is a compile-time constant.
+    // eslint-disable-next-line no-unsanitized/property
     shadow.innerHTML = `
       <style>${chatStyles(this._themeColor)}</style>
 
@@ -421,6 +426,9 @@ export class RavenChat extends HTMLElement {
     const muteBtn = this.shadowRoot!.querySelector('.rc-voice-mute') as HTMLElement | null
     if (muteBtn) {
       muteBtn.classList.toggle('muted', muted)
+      // ICON_MIC / ICON_MIC_OFF are module-level SVG string constants with no
+      // interpolated user input. Safe to assign to innerHTML.
+      // eslint-disable-next-line no-unsanitized/property
       muteBtn.innerHTML = muted ? ICON_MIC_OFF : ICON_MIC
       muteBtn.setAttribute('aria-label', muted ? 'Unmute microphone' : 'Mute microphone')
     }
