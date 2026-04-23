@@ -46,9 +46,16 @@ SYSTEM_PROMPT = textwrap.dedent(f"""
 def run_bash(command: str, timeout: int = 60) -> str:
     """Execute a shell command and return combined stdout+stderr."""
     try:
+        # This helper is the backend for Anthropic's `bash_20250124` tool,
+        # which issues free-form shell strings (pipes, redirection, `cd &&`,
+        # here-docs). Running without `shell=True` would break the tool
+        # contract. The script is a developer-only CLI that requires an
+        # ANTHROPIC_API_KEY in the local env and is never exposed to
+        # untrusted input -- any "injection" here is already the LLM choosing
+        # what to run, which is the entire point of the bash tool.
         result = subprocess.run(
             command,
-            shell=True,
+            shell=True,  # nosemgrep: python.lang.security.audit.subprocess-shell-true.subprocess-shell-true -- dev-only CLI; Anthropic bash tool contract requires shell string execution
             capture_output=True,
             text=True,
             timeout=timeout,

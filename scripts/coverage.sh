@@ -60,7 +60,10 @@ if [ "${#INPUTS[@]}" -eq 0 ]; then
   exit 1
 fi
 
-IFS=','; INPUT_CSV="${INPUTS[*]}"; unset IFS
+# Join INPUTS with ',' inside a subshell so the IFS change is scoped to
+# this single command and never leaks into the caller's environment.
+# See semgrep rule bash.lang.security.ifs-tampering.ifs-tampering.
+INPUT_CSV="$(IFS=','; printf '%s' "${INPUTS[*]}")"
 
 log "Merging coverage from: $INPUT_CSV"
 go tool covdata textfmt -i="$INPUT_CSV" -o="$OUT_DIR/cov.out"
