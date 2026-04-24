@@ -109,7 +109,7 @@ jobs:
           cache: true
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@f713795cb21599bc4e5c4b58cbad1da852d7eeb9  # v3.8.1
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac  # v3.8.1
 
       - name: Run goreleaser
         uses: goreleaser/goreleaser-action@e24998b8b67b290c2fa8b7c14fcfa7de2c5c9b8c  # v6
@@ -336,7 +336,7 @@ jobs:
           push-to-registry: true
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@f713795cb21599bc4e5c4b58cbad1da852d7eeb9  # v3.8.1
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac  # v3.8.1
 
       - name: Sign merged manifest
         env:
@@ -394,7 +394,7 @@ jobs:
           sha256sum "frontend-${VERSION}.tgz" > "frontend-${VERSION}.tgz.sha256"
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@f713795cb21599bc4e5c4b58cbad1da852d7eeb9  # v3.8.1
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac  # v3.8.1
 
       - name: Sign bundle
         env:
