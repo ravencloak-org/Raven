@@ -44,7 +44,7 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
 
       - name: Hadolint ${{ matrix.dockerfile }}
-        uses: hadolint/hadolint-action@54c9adbab1582c2ef04b2016b760714a4bfde3cf  # v3
+        uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5  # v3
         with:
           dockerfile: ${{ matrix.dockerfile }}
           # DL3008 (apt pin versions) + DL3018 (apk pin versions) are
