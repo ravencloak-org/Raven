@@ -11,7 +11,6 @@ on:
       - 'frontend/Dockerfile'
       - 'frontend/nginx.conf'
       - 'docker-compose.yml'
-      - '.github/workflows/docker.yml'
   pull_request:
     branches: [main]
     paths:
@@ -20,17 +19,23 @@ on:
       - 'frontend/Dockerfile'
       - 'frontend/nginx.conf'
       - 'docker-compose.yml'
-      - '.github/workflows/docker.yml'
+      # NOTE: `.github/workflows/docker.yml` is intentionally NOT a path
+      # filter trigger. Internal edits to this workflow (Dependabot SHA
+      # bumps, refactors) shouldn't fire a 25-minute multi-arch build that
+      # produces no useful signal. Regressions surface on the next push
+      # that actually touches a Dockerfile.
 
 permissions: {}
 
 jobs:
-  # PR-gated build: verifies the image still builds. No registry token, no
-  # push. `packages: write` is deliberately absent so a compromised action
-  # in the build toolchain cannot abuse the job token to publish.
+  # PR-gated build: verifies the image still builds on each native runner.
+  # Previously a single ubuntu-latest job did multi-arch via QEMU and the
+  # arm64 leg with CGO + eBPF took ~20 min. Splitting per arch onto native
+  # runners lifts that to ~5 min critical path. PR-gate doesn't need to
+  # produce a manifest — verifying both arches build cleanly is enough.
   build:
-    name: Build ${{ matrix.image }}
-    runs-on: ubuntu-latest
+    name: Build ${{ matrix.image }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
     strategy:
@@ -40,16 +45,41 @@ jobs:
           - image: go-api
             context: .
             dockerfile: Dockerfile
+            platform: linux/amd64
+            arch: amd64
+            runner: ubuntu-latest
+          - image: go-api
+            context: .
+            dockerfile: Dockerfile
+            platform: linux/arm64
+            arch: arm64
+            runner: ubuntu-24.04-arm
           - image: python-worker
             context: ai-worker
             dockerfile: ai-worker/Dockerfile
+            platform: linux/amd64
+            arch: amd64
+            runner: ubuntu-latest
+          - image: python-worker
+            context: ai-worker
+            dockerfile: ai-worker/Dockerfile
+            platform: linux/arm64
+            arch: arm64
+            runner: ubuntu-24.04-arm
           - image: frontend
             context: frontend
             dockerfile: frontend/Dockerfile
+            platform: linux/amd64
+            arch: amd64
+            runner: ubuntu-latest
+          - image: frontend
+            context: frontend
+            dockerfile: frontend/Dockerfile
+            platform: linux/arm64
+            arch: arm64
+            runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v6
-
-      - uses: docker/setup-qemu-action@v4
 
       - uses: docker/setup-buildx-action@v4
 
@@ -69,9 +99,11 @@ jobs:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           push: false
-          platforms: linux/amd64,linux/arm64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          platforms: ${{ matrix.platform }}
+          # Per-(image,arch) cache scope — different arches don't share
+          # buildx layers.
+          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.arch }}
+          cache-to:   type=gha,scope=${{ matrix.image }}-${{ matrix.arch }},mode=max
           build-args: |
             ${{ matrix.image == 'frontend' && format('VITE_API_URL={0}', vars.VITE_API_URL || 'https://api.ravencloak.org') || '' }}
             ${{ matrix.image == 'frontend' && format('VITE_API_BASE_URL={0}', vars.VITE_API_BASE_URL || 'https://api.ravencloak.org/api/v1') || '' }}
