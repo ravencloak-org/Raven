@@ -24,8 +24,78 @@ on:
 permissions: {}
 
 jobs:
-  build-and-test:
-    name: Build & Test
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.2'
+          cache: true
+
+      - run: go mod download
+
+      - name: Install eBPF build tools
+        run: sudo apt-get install -y clang llvm libbpf-dev "linux-tools-$(uname -r)" || sudo apt-get install -y clang llvm libbpf-dev
+
+      - run: CGO_ENABLED=1 go build ./cmd/api
+
+  unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.2'
+          cache: true
+
+      - run: go mod download
+
+      - name: Install dotenvx
+        run: curl -sfS https://dotenvx.sh | sh
+
+      - name: Install eBPF build tools
+        run: sudo apt-get install -y clang llvm libbpf-dev "linux-tools-$(uname -r)" || sudo apt-get install -y clang llvm libbpf-dev
+
+      - name: Prepare coverage directory
+        run: mkdir -p .coverdata/unit
+
+      - name: Run tests
+        run: |
+          if [ -n "$DOTENV_PRIVATE_KEY_CI" ]; then
+            dotenvx run -f .env.ci -- go test -race -timeout 30m \
+              -cover -coverpkg="$COV_PKGS" ./... \
+              -args -test.gocoverdir="$PWD/.coverdata/unit"
+          else
+            echo "::warning::DOTENV_PRIVATE_KEY_CI not set (fork PR?) — running tests without dotenvx"
+            go test -race -timeout 30m \
+              -cover -coverpkg="$COV_PKGS" ./... \
+              -args -test.gocoverdir="$PWD/.coverdata/unit"
+          fi
+        env:
+          COV_PKGS: github.com/ravencloak-org/Raven/internal/...,github.com/ravencloak-org/Raven/pkg/...,github.com/ravencloak-org/Raven/cmd/...
+          DOTENV_PRIVATE_KEY_CI: ${{ secrets.DOTENV_PRIVATE_KEY_CI }}
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+
+      - name: Upload unit coverage
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: coverage-unit
+          path: .coverdata/unit/
+          retention-days: 5
+          if-no-files-found: ignore
+
+  integration:
+    name: Integration Tests
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -48,27 +118,8 @@ jobs:
       - name: Pre-pull testcontainers image
         run: docker pull pgvector/pgvector:pg18
 
-      - run: CGO_ENABLED=1 go build ./cmd/api
-
       - name: Prepare coverage directories
-        run: mkdir -p .coverdata/unit .coverdata/migrations .coverdata/integration coverage
-
-      - name: Run tests
-        run: |
-          if [ -n "$DOTENV_PRIVATE_KEY_CI" ]; then
-            dotenvx run -f .env.ci -- go test -race -timeout 30m \
-              -cover -coverpkg="$COV_PKGS" ./... \
-              -args -test.gocoverdir="$PWD/.coverdata/unit"
-          else
-            echo "::warning::DOTENV_PRIVATE_KEY_CI not set (fork PR?) — running tests without dotenvx"
-            go test -race -timeout 30m \
-              -cover -coverpkg="$COV_PKGS" ./... \
-              -args -test.gocoverdir="$PWD/.coverdata/unit"
-          fi
-        env:
-          COV_PKGS: github.com/ravencloak-org/Raven/internal/...,github.com/ravencloak-org/Raven/pkg/...,github.com/ravencloak-org/Raven/cmd/...
-          DOTENV_PRIVATE_KEY_CI: ${{ secrets.DOTENV_PRIVATE_KEY_CI }}
-          TESTCONTAINERS_RYUK_DISABLED: "true"
+        run: mkdir -p .coverdata/migrations .coverdata/integration
 
       - name: Run migration tests
         run: |
@@ -96,8 +147,106 @@ jobs:
           COV_PKGS: github.com/ravencloak-org/Raven/internal/...,github.com/ravencloak-org/Raven/pkg/...,github.com/ravencloak-org/Raven/cmd/...
           TESTCONTAINERS_RYUK_DISABLED: "true"
 
-      - name: Merge coverage profiles
+      - name: Upload migrations coverage
         if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: coverage-migrations
+          path: .coverdata/migrations/
+          retention-days: 5
+          if-no-files-found: ignore
+
+      - name: Upload integration coverage
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: coverage-integration
+          path: .coverdata/integration/
+          retention-days: 5
+          if-no-files-found: ignore
+
+  vet:
+    name: Vet & Generate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.2'
+          cache: true
+
+      - run: go mod download
+
+      - name: Install eBPF build tools
+        run: sudo apt-get install -y clang llvm libbpf-dev "linux-tools-$(uname -r)" || sudo apt-get install -y clang llvm libbpf-dev
+
+      - run: go vet ./...
+
+      - name: Verify generated eBPF files are up-to-date
+        run: |
+          if [ -f /sys/kernel/btf/vmlinux ] && bpftool btf dump file /sys/kernel/btf/vmlinux format c > internal/ebpf/programs/vmlinux.h 2>/dev/null; then
+            go generate ./internal/ebpf/...
+            git diff --exit-code -- internal/ebpf ':(exclude)internal/ebpf/programs/vmlinux.h' || (echo "Generated eBPF artifacts are out of date. Run 'go generate ./internal/ebpf/...'" && exit 1)
+          else
+            echo "::warning::BTF or bpftool not available on this runner — skipping eBPF artifact verification"
+          fi
+
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    needs: [build, unit, integration, vet]
+    if: always()
+    permissions:
+      contents: read
+    steps:
+      - name: Fail if any upstream job failed
+        if: |
+          needs.build.result != 'success' ||
+          needs.unit.result != 'success' ||
+          needs.integration.result != 'success' ||
+          needs.vet.result != 'success'
+        run: |
+          echo "build: ${{ needs.build.result }}"
+          echo "unit: ${{ needs.unit.result }}"
+          echo "integration: ${{ needs.integration.result }}"
+          echo "vet: ${{ needs.vet.result }}"
+          exit 1
+
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.2'
+          cache: true
+
+      - name: Prepare coverage directories
+        run: mkdir -p .coverdata/unit .coverdata/migrations .coverdata/integration coverage
+
+      - name: Download unit coverage
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: coverage-unit
+          path: .coverdata/unit/
+        continue-on-error: true
+
+      - name: Download migrations coverage
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: coverage-migrations
+          path: .coverdata/migrations/
+        continue-on-error: true
+
+      - name: Download integration coverage
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: coverage-integration
+          path: .coverdata/integration/
+        continue-on-error: true
+
+      - name: Merge coverage profiles
         run: |
           INPUTS=""
           for d in unit migrations integration; do
@@ -116,32 +265,20 @@ jobs:
           go tool cover -html=coverage/cov.out -o coverage/coverage.html
 
       - name: Upload coverage artifacts
-        if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: coverage-data
           path: |
             .coverdata/
             coverage/
           retention-days: 5
+          if-no-files-found: ignore
 
       - uses: codecov/codecov-action@v6
-        if: always()
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/cov.out
           fail_ci_if_error: false
-
-      - run: go vet ./...
-
-      - name: Verify generated eBPF files are up-to-date
-        run: |
-          if [ -f /sys/kernel/btf/vmlinux ] && bpftool btf dump file /sys/kernel/btf/vmlinux format c > internal/ebpf/programs/vmlinux.h 2>/dev/null; then
-            go generate ./internal/ebpf/...
-            git diff --exit-code -- internal/ebpf ':(exclude)internal/ebpf/programs/vmlinux.h' || (echo "Generated eBPF artifacts are out of date. Run 'go generate ./internal/ebpf/...'" && exit 1)
-          else
-            echo "::warning::BTF or bpftool not available on this runner — skipping eBPF artifact verification"
-          fi
 
   lint:
     name: Lint

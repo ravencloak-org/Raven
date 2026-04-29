@@ -329,7 +329,7 @@ jobs:
           push-to-registry: true
 
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661  # v3
+        uses: actions/attest-build-provenance@10334b5f1e684784025c3fc0a277c88c19089275  # v3
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/${{ matrix.component }}
           subject-digest: ${{ steps.manifest.outputs.digest }}
