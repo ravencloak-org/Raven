@@ -1,13 +1,16 @@
 name: Claude Code
 
 on:
-  # Manual: tag @claude in any comment/review to get help
+  # Manual: tag @claude in any PR/issue comment, or in a new issue body/title.
+  # GitHub fires `issue_comment` for both issue and PR conversation comments,
+  # so that single trigger covers @claude mentions on PRs as well. We do NOT
+  # subscribe to `pull_request_review` / `pull_request_review_comment` —
+  # those events register the workflow as a `Skipped` check on every review
+  # activity. Trade-off: @claude mentions inside an inline review comment or
+  # a review-submission body won't trigger the bot — re-mention @claude in
+  # the regular PR conversation to invoke it.
   issue_comment:
     types: [created]
-  pull_request_review_comment:
-    types: [created]
-  pull_request_review:
-    types: [submitted]
   issues:
     types: [opened, assigned]
 
@@ -18,8 +21,6 @@ jobs:
     name: Claude (on-demand)
     if: |
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubuntu-latest
     permissions:
