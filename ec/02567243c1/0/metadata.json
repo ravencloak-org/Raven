@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "ec02567243c1",
+  "session_id": "30bae7da-9b26-4041-9dd0-7458662d72fb",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-06T12:50:31.292881Z",
+  "branch": "chore/sync-serena-config-and-claude-stash-docs",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docker-compose.yml",
+    "frontend/src/pages/LoginPage.vue",
+    "frontend/src/plugins/supertokens.ts",
+    "frontend/src/stores/auth.ts",
+    "internal/auth/supertokens_init.go"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "c86b30fb-9616-45c4-92d3-76230b87aeeb",
+  "checkpoint_transcript_start": 2401,
+  "transcript_lines_at_start": 2401,
+  "token_usage": {
+    "input_tokens": 88,
+    "cache_creation_tokens": 1081728,
+    "cache_read_tokens": 23972752,
+    "output_tokens": 13785,
+    "api_call_count": 54
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-06T12:50:30.92814Z",
+    "agent_lines": 0,
+    "human_added": 13261,
+    "human_modified": 124,
+    "human_removed": 0,
+    "total_committed": 13385,
+    "agent_percentage": 0
+  }
+}
