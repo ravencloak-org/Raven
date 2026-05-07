@@ -15,7 +15,16 @@ import (
 
 	rpcClient "github.com/ravencloak-org/Raven/internal/grpc"
 	pb "github.com/ravencloak-org/Raven/internal/grpc/pb"
+	"github.com/ravencloak-org/Raven/internal/resilience"
 )
+
+// defaultTestPolicy returns a resilience.Policy suitable for integration tests.
+func defaultTestPolicy(t *testing.T) (*resilience.Policy, *resilience.Breaker) {
+	t.Helper()
+	p, err := resilience.NewPolicy("test-ai-worker", resilience.WithTimeout(5*time.Second))
+	require.NoError(t, err)
+	return p, resilience.NewBreaker(p)
+}
 
 // fakeAIWorker is a configurable gRPC server implementation for tests.
 type fakeAIWorker struct {
@@ -70,7 +79,8 @@ func startFakeGRPCServer(t *testing.T, impl pb.AIWorkerServer) string {
 func TestGRPCClient_ParseAndEmbed_HappyPath(t *testing.T) {
 	addr := startFakeGRPCServer(t, &fakeAIWorker{})
 
-	client, err := rpcClient.NewClient(addr)
+	p, br := defaultTestPolicy(t)
+	client, err := rpcClient.NewClient(addr, p, br)
 	require.NoError(t, err)
 	defer func() { _ = client.Close() }()
 
@@ -88,7 +98,8 @@ func TestGRPCClient_ParseAndEmbed_HappyPath(t *testing.T) {
 // on a non-listening address eventually returns an error.
 func TestGRPCClient_ConnectionRefused_ReturnsError(t *testing.T) {
 	// Port 1 is virtually guaranteed to be not listening.
-	client, err := rpcClient.NewClient("127.0.0.1:1")
+	p, br := defaultTestPolicy(t)
+	client, err := rpcClient.NewClient("127.0.0.1:1", p, br)
 	require.NoError(t, err, "NewClient should succeed (lazy dial)")
 	defer func() { _ = client.Close() }()
 
@@ -106,7 +117,8 @@ func TestGRPCClient_Unavailable_ReturnsError(t *testing.T) {
 		parseErr: status.Error(codes.Unavailable, "worker down"),
 	})
 
-	client, err := rpcClient.NewClient(addr)
+	p, br := defaultTestPolicy(t)
+	client, err := rpcClient.NewClient(addr, p, br)
 	require.NoError(t, err)
 	defer func() { _ = client.Close() }()
 
@@ -124,7 +136,8 @@ func TestGRPCClient_ResourceExhausted_ReturnsError(t *testing.T) {
 		parseErr: status.Error(codes.ResourceExhausted, "rate limit"),
 	})
 
-	client, err := rpcClient.NewClient(addr)
+	p, br := defaultTestPolicy(t)
+	client, err := rpcClient.NewClient(addr, p, br)
 	require.NoError(t, err)
 	defer func() { _ = client.Close() }()
 
@@ -141,7 +154,8 @@ func TestGRPCClient_ResourceExhausted_ReturnsError(t *testing.T) {
 func TestGRPCClient_QueryRAG_StreamAssembly(t *testing.T) {
 	addr := startFakeGRPCServer(t, &fakeAIWorker{})
 
-	client, err := rpcClient.NewClient(addr)
+	p, br := defaultTestPolicy(t)
+	client, err := rpcClient.NewClient(addr, p, br)
 	require.NoError(t, err)
 	defer func() { _ = client.Close() }()
 
@@ -197,6 +211,10 @@ func TestGRPCClient_TLSHandshake_InsecureClient_PlainServer(t *testing.T) {
 
 // TestGRPCClient_ContextTimeout_Cancelled verifies that an already-expired
 // context returns a deadline-exceeded error immediately.
+//
+// Note: with the resilience interceptor, the breaker short-circuits on ctx.Err()
+// before invoking the gRPC call, so the error is a raw context.DeadlineExceeded
+// rather than a gRPC status error. We accept either form.
 func TestGRPCClient_ContextTimeout_Cancelled(t *testing.T) {
 	// Start a fake gRPC server. The 1ns timeout expires before the handshake
 	// completes, so the RPC fails with DeadlineExceeded immediately.
@@ -208,7 +226,8 @@ func TestGRPCClient_ContextTimeout_Cancelled(t *testing.T) {
 	go func() { _ = slowSrv.Serve(lis) }()
 	t.Cleanup(slowSrv.Stop)
 
-	client, err := rpcClient.NewClient(lis.Addr().String())
+	p, br := defaultTestPolicy(t)
+	client, err := rpcClient.NewClient(lis.Addr().String(), p, br)
 	require.NoError(t, err)
 	defer func() { _ = client.Close() }()
 
@@ -217,7 +236,11 @@ func TestGRPCClient_ContextTimeout_Cancelled(t *testing.T) {
 	defer cancel()
 
 	_, err = client.Worker().ParseAndEmbed(ctx, &pb.ParseRequest{Content: []byte("test")})
-	st, ok := status.FromError(err)
-	assert.True(t, ok, "error should be a gRPC status error")
-	assert.Equal(t, codes.DeadlineExceeded, st.Code(), "expired context must produce DeadlineExceeded")
+	require.Error(t, err, "expired context must produce an error")
+	// Accept either a raw context error or a gRPC status error wrapping DeadlineExceeded.
+	if st, ok := status.FromError(err); ok {
+		assert.Equal(t, codes.DeadlineExceeded, st.Code(), "gRPC status must be DeadlineExceeded")
+	} else {
+		assert.ErrorIs(t, err, context.DeadlineExceeded, "raw error must be DeadlineExceeded")
+	}
 }

@@ -45,6 +45,7 @@ import (
 	"github.com/ravencloak-org/Raven/internal/db"
 	rpcClient "github.com/ravencloak-org/Raven/internal/grpc"
 	"github.com/ravencloak-org/Raven/internal/handler"
+	"github.com/ravencloak-org/Raven/internal/resilience"
 	"github.com/ravencloak-org/Raven/internal/hyperswitch"
 	"github.com/ravencloak-org/Raven/internal/middleware"
 	"github.com/ravencloak-org/Raven/internal/model"
@@ -310,7 +311,17 @@ func main() {
 	}
 
 	// --- gRPC client for AI worker ---
-	grpcClient, err := rpcClient.NewClient(cfg.GRPC.WorkerAddr)
+	aiPolicy, err := resilience.NewPolicy("ai-worker",
+		resilience.WithTimeout(cfg.Server.AIWorkerTimeout),
+		resilience.WithBreakerThreshold(cfg.Server.AIWorkerBreakerThreshold),
+		resilience.WithBreakerCooldown(cfg.Server.AIWorkerBreakerCooldown),
+	)
+	if err != nil {
+		log.Fatalf("invalid AI worker resilience policy: %v", err)
+	}
+	aiBreaker := resilience.NewBreaker(aiPolicy)
+
+	grpcClient, err := rpcClient.NewClient(cfg.GRPC.WorkerAddr, aiPolicy, aiBreaker)
 	if err != nil {
 		log.Fatalf("failed to connect to AI worker: %v", err)
 	}
@@ -493,7 +504,7 @@ func main() {
 
 	// Infrastructure endpoint — intentionally outside the versioned group.
 	// Excluded from rate limiting.
-	router.GET("/healthz", handler.HealthCheck)
+	router.GET("/healthz", middleware.Deadline(1*time.Second), handler.HealthCheck)
 
 	// One-click unsubscribe — public, authenticated via a signed token embedded
 	// in the link (RFC 8058). Placed outside /api/v1 so email clients can hit
@@ -515,6 +526,12 @@ func main() {
 	//   SET LOCAL app.current_org_id = '<uuid>'
 	// using the org_id stored in the Gin context key middleware.ContextKeyOrgID.
 	api := router.Group("/api/v1")
+	// Default per-request deadline for all authenticated /api/v1/* routes.
+	// Specialised sub-groups (voice, upload) carry their own Deadline but
+	// context.WithTimeout only shortens, so their budgets are capped to this
+	// value. To grant those groups a longer budget, either raise this value
+	// or move them to a sibling group under router (follow-up: Task 11 debt).
+	api.Use(middleware.Deadline(10 * time.Second))
 
 	authProvider := auth.NewSuperTokensProvider()
 	api.Use(middleware.SessionMiddleware(authProvider))
@@ -569,8 +586,10 @@ func main() {
 				// Chat completions (session-authenticated, for dashboard users)
 				kb.POST("/:kb_id/completions", chatHandler.StreamCompletion)
 
-				// Document upload
-				kb.POST("/:kb_id/documents/upload", uploadHandler.Upload) // Role check relaxed for onboarding upload
+				// Document upload — 60s budget for large files.
+				// Note: effective budget is min(parent api Deadline 10s, 60s) = 10s.
+				// Raise api.Deadline or move this route out of api to achieve 60s (Task 11 debt).
+				kb.POST("/:kb_id/documents/upload", middleware.Deadline(60*time.Second), uploadHandler.Upload) // Role check relaxed for onboarding upload
 
 				// Source routes (nested under knowledge base)
 				src := kb.Group("/:kb_id/sources")
@@ -715,6 +734,9 @@ func main() {
 
 		// --- Voice session routes (nested under org) ---
 		voice := api.Group("/orgs/:org_id/voice-sessions")
+		// 30s budget; note: effective budget is min(parent Deadline, 30s).
+		// Currently capped at 10s by the api group. See Task 11 debt comment above.
+		voice.Use(middleware.Deadline(30 * time.Second))
 		{
 			voice.POST("", middleware.RequireOrgRole("org_member"), voiceHandler.CreateSession)
 			voice.GET("", middleware.RequireOrgRole("org_member"), voiceHandler.ListSessions)
@@ -792,6 +814,8 @@ func main() {
 
 	// Public chat routes — API key authentication (for embeddable chat widget).
 	chatAPI := router.Group("/api/v1/chat")
+	// 30s budget for streaming completions (not under api, so full 30s is effective).
+	chatAPI.Use(middleware.Deadline(30 * time.Second))
 	chatAPI.Use(middleware.APIKeyAuth(&apiKeyLookupAdapter{repo: apiKeyRepo}))
 	chatAPI.Use(middleware.SecurityRulesMiddleware(&securityEvaluatorAdapter{svc: securitySvc}))
 	chatAPI.Use(middleware.StrangerCheck(strangerSvc, valkeyClient))
@@ -853,8 +877,12 @@ func main() {
 	// Create HTTP server
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	srv := &http.Server{
-		Addr:    addr,
-		Handler: router,
+		Addr:              addr,
+		Handler:           router,
+		ReadHeaderTimeout: cfg.Server.ReadHeaderTimeout,
+		ReadTimeout:       cfg.Server.ReadTimeout,
+		WriteTimeout:      cfg.Server.WriteTimeout,
+		IdleTimeout:       cfg.Server.IdleTimeout,
 	}
 
 	// Graceful shutdown with signal handling
