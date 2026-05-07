@@ -2,7 +2,9 @@ package integration_test
 
 import (
 	"context"
+	"errors"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -243,4 +245,221 @@ func TestGRPCClient_ContextTimeout_Cancelled(t *testing.T) {
 	} else {
 		assert.ErrorIs(t, err, context.DeadlineExceeded, "raw error must be DeadlineExceeded")
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Fault-injection fixture — configurable delay + error code, with call count.
+// ---------------------------------------------------------------------------
+
+// faultConfig controls how faultAIWorker responds to ParseAndEmbed calls.
+type faultConfig struct {
+	// Delay is the artificial sleep before responding (simulates a slow worker).
+	Delay time.Duration
+	// Code, when non-zero, is returned as a gRPC status error after any Delay.
+	Code codes.Code
+	// ErrMessage is the message for the returned status error (defaults to "injected fault").
+	ErrMessage string
+}
+
+// faultAIWorker is a thread-safe gRPC AIWorker implementation that applies the
+// currently configured fault on every ParseAndEmbed call.
+type faultAIWorker struct {
+	pb.UnimplementedAIWorkerServer
+
+	// cfg holds the active faultConfig; reads/writes must hold cfgMu.
+	cfg   faultConfig
+	calls atomic.Int64
+}
+
+// SetConfig atomically replaces the active fault configuration.
+func (f *faultAIWorker) SetConfig(cfg faultConfig) {
+	f.cfg = cfg
+}
+
+// CallCount returns the total number of ParseAndEmbed calls received.
+func (f *faultAIWorker) CallCount() int64 {
+	return f.calls.Load()
+}
+
+func (f *faultAIWorker) ParseAndEmbed(ctx context.Context, req *pb.ParseRequest) (*pb.ParseResponse, error) {
+	f.calls.Add(1)
+	cfg := f.cfg
+
+	if cfg.Delay > 0 {
+		select {
+		case <-time.After(cfg.Delay):
+		case <-ctx.Done():
+			return nil, status.FromContextError(ctx.Err()).Err()
+		}
+	}
+
+	if cfg.Code != codes.OK && cfg.Code != 0 {
+		msg := cfg.ErrMessage
+		if msg == "" {
+			msg = "injected fault"
+		}
+		return nil, status.Error(cfg.Code, msg)
+	}
+
+	return &pb.ParseResponse{
+		DocumentId: req.GetDocumentId(),
+		ChunkCount: 1,
+		Status:     "ok",
+	}, nil
+}
+
+// faultServerHandle is returned by startFaultServer so tests can mutate the
+// server's config and inspect call counts.
+type faultServerHandle struct {
+	impl *faultAIWorker
+	srv  *grpc.Server
+}
+
+// SetConfig forwards to the underlying faultAIWorker.
+func (h *faultServerHandle) SetConfig(cfg faultConfig) { h.impl.SetConfig(cfg) }
+
+// CallCount returns the total number of ParseAndEmbed calls received.
+func (h *faultServerHandle) CallCount() int64 { return h.impl.CallCount() }
+
+// Stop gracefully stops the gRPC server.
+func (h *faultServerHandle) Stop() { h.srv.Stop() }
+
+// startFaultServer starts an in-process gRPC server backed by a faultAIWorker
+// with the given initial configuration and returns the handle and address.
+func startFaultServer(t *testing.T, cfg faultConfig) (*faultServerHandle, string) {
+	t.Helper()
+
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+
+	impl := &faultAIWorker{cfg: cfg}
+	srv := grpc.NewServer()
+	pb.RegisterAIWorkerServer(srv, impl)
+	go func() { _ = srv.Serve(lis) }()
+	t.Cleanup(srv.Stop)
+
+	return &faultServerHandle{impl: impl, srv: srv}, lis.Addr().String()
+}
+
+// ---------------------------------------------------------------------------
+// Task 13 — three new resilience test cases
+// ---------------------------------------------------------------------------
+
+// TestResilience_SlowAIWorker_HitsClientDeadline verifies that a worker that
+// delays longer than policy.Timeout causes the call to return DeadlineExceeded
+// within the timeout budget (±100 ms tolerance).
+func TestResilience_SlowAIWorker_HitsClientDeadline(t *testing.T) {
+	const policyTimeout = 200 * time.Millisecond
+	const serverDelay = 5 * time.Second // much longer than policyTimeout
+
+	srv, addr := startFaultServer(t, faultConfig{Delay: serverDelay})
+	defer srv.Stop()
+
+	p, err := resilience.NewPolicy("slow-worker",
+		resilience.WithTimeout(policyTimeout),
+	)
+	require.NoError(t, err)
+	br := resilience.NewBreaker(p)
+
+	client, err := rpcClient.NewClient(addr, p, br)
+	require.NoError(t, err)
+	defer func() { _ = client.Close() }()
+
+	start := time.Now()
+	_, callErr := client.Worker().ParseAndEmbed(context.Background(), &pb.ParseRequest{Content: []byte("slow")})
+	elapsed := time.Since(start)
+
+	require.Error(t, callErr, "slow server must return an error")
+
+	// Accept either a gRPC status DeadlineExceeded or a raw context error.
+	if st, ok := status.FromError(callErr); ok {
+		assert.Equal(t, codes.DeadlineExceeded, st.Code(), "gRPC status must be DeadlineExceeded")
+	} else {
+		assert.True(t, errors.Is(callErr, context.DeadlineExceeded), "raw error must be DeadlineExceeded, got: %v", callErr)
+	}
+
+	// The call must return within policyTimeout + 100 ms CI tolerance.
+	assert.LessOrEqual(t, elapsed, policyTimeout+100*time.Millisecond,
+		"call took %v; expected ≤ %v", elapsed, policyTimeout+100*time.Millisecond)
+}
+
+// TestResilience_RepeatedUnavailable_OpensBreaker verifies that N consecutive
+// Unavailable responses trip the circuit breaker, and the next call returns
+// ErrCircuitOpen without the server being invoked again.
+func TestResilience_RepeatedUnavailable_OpensBreaker(t *testing.T) {
+	const threshold = uint32(3)
+
+	srv, addr := startFaultServer(t, faultConfig{Code: codes.Unavailable})
+	defer srv.Stop()
+
+	p, err := resilience.NewPolicy("breaker-open",
+		resilience.WithTimeout(500*time.Millisecond),
+		resilience.WithBreakerThreshold(threshold),
+		resilience.WithBreakerCooldown(30*time.Second),
+	)
+	require.NoError(t, err)
+	br := resilience.NewBreaker(p)
+
+	client, err := rpcClient.NewClient(addr, p, br)
+	require.NoError(t, err)
+	defer func() { _ = client.Close() }()
+
+	// Drive threshold consecutive failures to open the breaker.
+	for i := uint32(0); i < threshold; i++ {
+		_, _ = client.Worker().ParseAndEmbed(context.Background(), &pb.ParseRequest{Content: []byte("fail")})
+	}
+
+	// Record how many calls the server has seen so far.
+	preCalls := srv.CallCount()
+
+	// The next call must be short-circuited by the open breaker.
+	_, openErr := client.Worker().ParseAndEmbed(context.Background(), &pb.ParseRequest{Content: []byte("blocked")})
+	assert.True(t, errors.Is(openErr, resilience.ErrCircuitOpen),
+		"expected ErrCircuitOpen, got: %v", openErr)
+
+	// The server must not have received the short-circuited call.
+	assert.Equal(t, preCalls, srv.CallCount(), "server saw extra call after breaker opened")
+}
+
+// TestResilience_HalfOpenProbe_ClosesBreaker verifies that after the cooldown
+// period the breaker allows a single probe, and a successful probe closes the
+// breaker so subsequent calls succeed normally.
+func TestResilience_HalfOpenProbe_ClosesBreaker(t *testing.T) {
+	const threshold = uint32(3)
+	const cooldown = 200 * time.Millisecond // short so the test stays fast
+
+	srv, addr := startFaultServer(t, faultConfig{Code: codes.Unavailable})
+	defer srv.Stop()
+
+	p, err := resilience.NewPolicy("half-open-probe",
+		resilience.WithTimeout(500*time.Millisecond),
+		resilience.WithBreakerThreshold(threshold),
+		resilience.WithBreakerCooldown(cooldown),
+		resilience.WithBreakerHalfOpenMax(1),
+	)
+	require.NoError(t, err)
+	br := resilience.NewBreaker(p)
+
+	client, err := rpcClient.NewClient(addr, p, br)
+	require.NoError(t, err)
+	defer func() { _ = client.Close() }()
+
+	// Trip the breaker with consecutive failures.
+	for i := uint32(0); i < threshold; i++ {
+		_, _ = client.Worker().ParseAndEmbed(context.Background(), &pb.ParseRequest{Content: []byte("fail")})
+	}
+
+	// Wait for the cooldown to expire so the breaker enters Half-Open.
+	time.Sleep(cooldown + 50*time.Millisecond)
+
+	// Flip the server to healthy so the probe succeeds.
+	srv.SetConfig(faultConfig{})
+
+	// The probe call closes the breaker.
+	_, probeErr := client.Worker().ParseAndEmbed(context.Background(), &pb.ParseRequest{Content: []byte("probe")})
+	require.NoError(t, probeErr, "probe call must succeed")
+
+	// Subsequent calls should also succeed (breaker is Closed again).
+	_, followErr := client.Worker().ParseAndEmbed(context.Background(), &pb.ParseRequest{Content: []byte("follow-up")})
+	assert.NoError(t, followErr, "follow-up call after breaker closed must succeed")
 }
