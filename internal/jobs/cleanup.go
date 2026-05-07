@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -38,6 +39,9 @@ func NewCleanupHandler(pool *pgxpool.Pool, logger *slog.Logger) *CleanupHandler 
 
 // ProcessTask implements asynq.Handler for the cleanup scheduled job.
 func (h *CleanupHandler) ProcessTask(ctx context.Context, task *asynq.Task) error {
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+	defer cancel()
+
 	var payload CleanupPayload
 	if err := json.Unmarshal(task.Payload(), &payload); err != nil {
 		return fmt.Errorf("unmarshal CleanupPayload: %w", err)

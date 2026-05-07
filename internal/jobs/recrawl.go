@@ -37,6 +37,9 @@ func NewRecrawlHandler(pool *pgxpool.Pool, queueClient *queue.Client, logger *sl
 
 // ProcessTask implements asynq.Handler for the re-crawl scheduled job.
 func (h *RecrawlHandler) ProcessTask(ctx context.Context, task *asynq.Task) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+
 	var payload RecrawlPayload
 	if err := json.Unmarshal(task.Payload(), &payload); err != nil {
 		return fmt.Errorf("unmarshal RecrawlPayload: %w", err)
