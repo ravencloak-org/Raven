@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hibiken/asynq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -90,4 +91,30 @@ func TestContextWithTimeout_CleanupTimeout(t *testing.T) {
 	remaining := time.Until(deadline)
 	assert.GreaterOrEqual(t, remaining, cleanupTimeout-time.Second)
 	assert.LessOrEqual(t, remaining, cleanupTimeout+time.Second)
+}
+
+// TestVoiceUsageHandler_InvalidPayload_HitsTimeoutWrap invokes ProcessTask with
+// an invalid JSON payload. json.Unmarshal fails before any DB call is made, so
+// the handler returns an error without touching the nil pool. This covers the
+// context.WithTimeout wrap + defer cancel() lines added in commit 86c6cdc5.
+func TestVoiceUsageHandler_InvalidPayload_HitsTimeoutWrap(t *testing.T) {
+	h := &VoiceUsageHandler{} // nil pool — unmarshal fails before pool is touched
+	task := asynq.NewTask(TypeVoiceUsageAggregation, []byte("not-json"))
+	err := h.ProcessTask(context.Background(), task)
+	if err == nil {
+		t.Fatal("expected unmarshal error, got nil")
+	}
+}
+
+// TestWebhookDeliveryHandler_InvalidPayload_HitsTimeoutWrap invokes ProcessTask
+// with an invalid JSON payload. json.Unmarshal fails before any DB or HTTP call
+// is made, covering the context.WithTimeout wrap + defer cancel() lines added
+// in commit 86c6cdc5.
+func TestWebhookDeliveryHandler_InvalidPayload_HitsTimeoutWrap(t *testing.T) {
+	h := &WebhookDeliveryHandler{} // nil fields — unmarshal fails before they're touched
+	task := asynq.NewTask(TypeWebhookDelivery, []byte("not-json"))
+	err := h.ProcessTask(context.Background(), task)
+	if err == nil {
+		t.Fatal("expected unmarshal error, got nil")
+	}
 }
