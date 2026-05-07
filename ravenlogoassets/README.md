@@ -5,19 +5,18 @@ that renders the wordmark by typing the literal characters `RAVEN`.
 
 ## Layout
 
-```
+```text
 ravenlogoassets/
 ├── Asset 2.svg … Asset 6.svg   # source glyphs for R A V E N (see mapping below)
 ├── logo/                       # bird logo SVGs (Asset 7, 8, 11, 12)
 ├── build-font.mjs              # regenerates font/ from the Asset *.svg files
 ├── package.json                # pins svgtofont
+├── preview.html                # open in a browser to verify rendering
 └── font/                       # generated — commit alongside source
     ├── ravenicons.{woff2,woff,ttf,eot,svg}
     ├── ravenicons.symbol.svg   # SVG sprite for <use xlink:href>
     ├── ravenicons.{css,scss,less,module.less,styl}
-    ├── react/                  # React components (one per glyph)
-    ├── info.json               # codepoint manifest
-    └── preview.html            # open in a browser to verify rendering
+    └── info.json               # codepoint manifest
 ```
 
 ## Glyph → codepoint map
@@ -70,13 +69,20 @@ Then anywhere in a template:
 
 ### React
 
-Either import the generated component:
+Import the CSS once (e.g. in your app entry point):
 
-```tsx
-import { R, A, V, E, N } from 'ravenlogoassets/font/react';
+```ts
+import 'ravenlogoassets/font/ravenicons.css';
 ```
 
-…or use the same CSS approach with the `font-family` set to `ravenicons`.
+Then render the wordmark like any other text:
+
+```tsx
+<span style={{ fontFamily: 'ravenicons', fontSize: '6rem' }}>RAVEN</span>
+```
+
+Or use the helper classes for individual glyphs (`ravenicons-R`,
+`ravenicons-A`, `ravenicons-V`, `ravenicons-E`, `ravenicons-N`).
 
 ### SVG sprite (no font load)
 
@@ -111,5 +117,5 @@ rebuilds.
 
 ## Visual smoke-test
 
-Open `font/preview.html` in any browser — you should see the wordmark
+Open `preview.html` in any browser — you should see the wordmark
 rendered at 12rem, then individual letters via the helper classes.

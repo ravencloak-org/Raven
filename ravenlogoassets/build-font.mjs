@@ -20,28 +20,31 @@ const distDir = path.join(__dirname, 'font');
 fs.rmSync(stageDir, { recursive: true, force: true });
 fs.mkdirSync(stageDir);
 
-for (const [asset, letter] of Object.entries(ASSET_TO_LETTER)) {
-  const src = path.join(__dirname, asset);
-  if (!fs.existsSync(src)) throw new Error(`Missing source SVG: ${asset}`);
-  fs.copyFileSync(src, path.join(stageDir, `${letter}.svg`));
+try {
+  for (const [asset, letter] of Object.entries(ASSET_TO_LETTER)) {
+    const src = path.join(__dirname, asset);
+    if (!fs.existsSync(src)) throw new Error(`Missing source SVG: ${asset}`);
+    fs.copyFileSync(src, path.join(stageDir, `${letter}.svg`));
+  }
+
+  await svgtofont({
+    src: stageDir,
+    dist: distDir,
+    fontName: 'ravenicons',
+    // hasTimestamp: false keeps CSS diffs stable; fontSize avoids the
+    // svgtofont default emitting `font-size: undefined` into stylesheets.
+    css: { hasTimestamp: false, fontSize: '16px' },
+    emptyDist: true,
+    generateInfoData: true,
+    // Map each filename (R, A, V, E, N) to its real ASCII codepoint so that
+    // typing "RAVEN" in font-family: ravenicons renders the logo letters.
+    getIconUnicode: (name) => {
+      const code = name.toUpperCase().charCodeAt(0);
+      return [String.fromCharCode(code), code + 1];
+    },
+  });
+} finally {
+  fs.rmSync(stageDir, { recursive: true, force: true });
 }
 
-await svgtofont({
-  src: stageDir,
-  dist: distDir,
-  fontName: 'ravenicons',
-  css: { hasTimestamp: false },
-  emptyDist: true,
-  outSVGReact: true,
-  outSVGReactNative: false,
-  generateInfoData: true,
-  // Map each filename (R, A, V, E, N) to its real ASCII codepoint so that
-  // typing "RAVEN" in font-family: ravenicons renders the logo letters.
-  getIconUnicode: (name) => {
-    const code = name.toUpperCase().charCodeAt(0);
-    return [String.fromCharCode(code), code + 1];
-  },
-});
-
-fs.rmSync(stageDir, { recursive: true, force: true });
 console.log('Done.');
