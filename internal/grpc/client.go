@@ -6,6 +6,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	pb "github.com/ravencloak-org/Raven/internal/grpc/pb"
+	"github.com/ravencloak-org/Raven/internal/resilience"
 )
 
 // Client wraps a gRPC connection and exposes the AIWorker service stub.
@@ -15,8 +16,13 @@ type Client struct {
 }
 
 // NewClient dials the AI worker at addr and returns a ready-to-use Client.
-func NewClient(addr string) (*Client, error) {
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+// The unary interceptor wires policy.Timeout and the breaker around every call.
+func NewClient(addr string, policy *resilience.Policy, breaker *resilience.Breaker) (*Client, error) {
+	conn, err := grpc.NewClient(
+		addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithChainUnaryInterceptor(resilience.UnaryClientInterceptor(policy, breaker)),
+	)
 	if err != nil {
 		return nil, err
 	}

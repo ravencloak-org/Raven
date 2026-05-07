@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/bits"
 	"strings"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -232,6 +233,18 @@ type RateLimitConfig struct {
 type ServerConfig struct {
 	Port int    `mapstructure:"port"`
 	Mode string `mapstructure:"mode"`
+
+	// HTTP server timeouts. Zero means "use the http.Server zero value",
+	// which disables the timeout — set explicit values in production.
+	ReadHeaderTimeout time.Duration `mapstructure:"read_header_timeout"`
+	ReadTimeout       time.Duration `mapstructure:"read_timeout"`
+	WriteTimeout      time.Duration `mapstructure:"write_timeout"`
+	IdleTimeout       time.Duration `mapstructure:"idle_timeout"`
+
+	// AI worker resilience knobs.
+	AIWorkerTimeout          time.Duration `mapstructure:"ai_worker_timeout"`
+	AIWorkerBreakerThreshold uint32        `mapstructure:"ai_worker_breaker_threshold"`
+	AIWorkerBreakerCooldown  time.Duration `mapstructure:"ai_worker_breaker_cooldown"`
 }
 
 // DatabaseConfig holds database connection settings.
@@ -263,6 +276,13 @@ func Load() (*Config, error) {
 	// Set defaults
 	v.SetDefault("server.port", 8081)
 	v.SetDefault("server.mode", "debug")
+	v.SetDefault("server.read_header_timeout", "5s")
+	v.SetDefault("server.read_timeout", "30s")
+	v.SetDefault("server.write_timeout", "60s")
+	v.SetDefault("server.idle_timeout", "120s")
+	v.SetDefault("server.ai_worker_timeout", "5s")
+	v.SetDefault("server.ai_worker_breaker_threshold", 5)
+	v.SetDefault("server.ai_worker_breaker_cooldown", "30s")
 	v.SetDefault("grpc.worker_addr", "localhost:50051")
 	v.SetDefault("otel.endpoint", "")
 	v.SetDefault("otel.service_name", "raven-api")
@@ -392,6 +412,13 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("googleoauth.client_secret", "GOOGLE_CLIENT_SECRET")
 	_ = v.BindEnv("server.port", "RAVEN_SERVER_PORT")
 	_ = v.BindEnv("server.mode", "RAVEN_SERVER_MODE")
+	_ = v.BindEnv("server.read_header_timeout", "RAVEN_HTTP_READ_HEADER_TIMEOUT")
+	_ = v.BindEnv("server.read_timeout", "RAVEN_HTTP_READ_TIMEOUT")
+	_ = v.BindEnv("server.write_timeout", "RAVEN_HTTP_WRITE_TIMEOUT")
+	_ = v.BindEnv("server.idle_timeout", "RAVEN_HTTP_IDLE_TIMEOUT")
+	_ = v.BindEnv("server.ai_worker_timeout", "RAVEN_AI_WORKER_TIMEOUT")
+	_ = v.BindEnv("server.ai_worker_breaker_threshold", "RAVEN_AI_WORKER_BREAKER_THRESHOLD")
+	_ = v.BindEnv("server.ai_worker_breaker_cooldown", "RAVEN_AI_WORKER_BREAKER_COOLDOWN")
 	_ = v.BindEnv("clickhouse.host", "RAVEN_CLICKHOUSE_HOST")
 	_ = v.BindEnv("clickhouse.port", "RAVEN_CLICKHOUSE_PORT")
 	_ = v.BindEnv("clickhouse.database", "RAVEN_CLICKHOUSE_DATABASE")

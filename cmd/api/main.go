@@ -45,6 +45,7 @@ import (
 	"github.com/ravencloak-org/Raven/internal/db"
 	rpcClient "github.com/ravencloak-org/Raven/internal/grpc"
 	"github.com/ravencloak-org/Raven/internal/handler"
+	"github.com/ravencloak-org/Raven/internal/resilience"
 	"github.com/ravencloak-org/Raven/internal/hyperswitch"
 	"github.com/ravencloak-org/Raven/internal/middleware"
 	"github.com/ravencloak-org/Raven/internal/model"
@@ -310,7 +311,17 @@ func main() {
 	}
 
 	// --- gRPC client for AI worker ---
-	grpcClient, err := rpcClient.NewClient(cfg.GRPC.WorkerAddr)
+	aiPolicy, err := resilience.NewPolicy("ai-worker",
+		resilience.WithTimeout(cfg.Server.AIWorkerTimeout),
+		resilience.WithBreakerThreshold(cfg.Server.AIWorkerBreakerThreshold),
+		resilience.WithBreakerCooldown(cfg.Server.AIWorkerBreakerCooldown),
+	)
+	if err != nil {
+		log.Fatalf("invalid AI worker resilience policy: %v", err)
+	}
+	aiBreaker := resilience.NewBreaker(aiPolicy)
+
+	grpcClient, err := rpcClient.NewClient(cfg.GRPC.WorkerAddr, aiPolicy, aiBreaker)
 	if err != nil {
 		log.Fatalf("failed to connect to AI worker: %v", err)
 	}
@@ -493,7 +504,7 @@ func main() {
 
 	// Infrastructure endpoint — intentionally outside the versioned group.
 	// Excluded from rate limiting.
-	router.GET("/healthz", handler.HealthCheck)
+	router.GET("/healthz", middleware.Deadline(1*time.Second), handler.HealthCheck)
 
 	// One-click unsubscribe — public, authenticated via a signed token embedded
 	// in the link (RFC 8058). Placed outside /api/v1 so email clients can hit
@@ -514,6 +525,10 @@ func main() {
 	// NOTE: The repository layer is responsible for applying RLS by executing
 	//   SET LOCAL app.current_org_id = '<uuid>'
 	// using the org_id stored in the Gin context key middleware.ContextKeyOrgID.
+	// NOTE: per-route Deadline middleware is applied on leaf sub-groups
+	// (chat, voice, upload) for tighter budgets than the 60s http.Server
+	// WriteTimeout. Endpoints without their own Deadline are bounded by
+	// WriteTimeout — acceptable for default-CRUD route groups.
 	api := router.Group("/api/v1")
 
 	authProvider := auth.NewSuperTokensProvider()
@@ -569,8 +584,10 @@ func main() {
 				// Chat completions (session-authenticated, for dashboard users)
 				kb.POST("/:kb_id/completions", chatHandler.StreamCompletion)
 
-				// Document upload
-				kb.POST("/:kb_id/documents/upload", uploadHandler.Upload) // Role check relaxed for onboarding upload
+				// Document upload — 60s budget for large files.
+				// context.WithTimeout only shortens, so this leaf Deadline is the
+				// effective budget (no parent api Deadline to cap it).
+				kb.POST("/:kb_id/documents/upload", middleware.Deadline(60*time.Second), uploadHandler.Upload) // Role check relaxed for onboarding upload
 
 				// Source routes (nested under knowledge base)
 				src := kb.Group("/:kb_id/sources")
@@ -715,6 +732,8 @@ func main() {
 
 		// --- Voice session routes (nested under org) ---
 		voice := api.Group("/orgs/:org_id/voice-sessions")
+		// 30s budget; no parent api Deadline, so the full 30s is effective.
+		voice.Use(middleware.Deadline(30 * time.Second))
 		{
 			voice.POST("", middleware.RequireOrgRole("org_member"), voiceHandler.CreateSession)
 			voice.GET("", middleware.RequireOrgRole("org_member"), voiceHandler.ListSessions)
@@ -792,6 +811,8 @@ func main() {
 
 	// Public chat routes — API key authentication (for embeddable chat widget).
 	chatAPI := router.Group("/api/v1/chat")
+	// 30s budget for streaming completions (not under api, so full 30s is effective).
+	chatAPI.Use(middleware.Deadline(30 * time.Second))
 	chatAPI.Use(middleware.APIKeyAuth(&apiKeyLookupAdapter{repo: apiKeyRepo}))
 	chatAPI.Use(middleware.SecurityRulesMiddleware(&securityEvaluatorAdapter{svc: securitySvc}))
 	chatAPI.Use(middleware.StrangerCheck(strangerSvc, valkeyClient))
@@ -853,8 +874,12 @@ func main() {
 	// Create HTTP server
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	srv := &http.Server{
-		Addr:    addr,
-		Handler: router,
+		Addr:              addr,
+		Handler:           router,
+		ReadHeaderTimeout: cfg.Server.ReadHeaderTimeout,
+		ReadTimeout:       cfg.Server.ReadTimeout,
+		WriteTimeout:      cfg.Server.WriteTimeout,
+		IdleTimeout:       cfg.Server.IdleTimeout,
 	}
 
 	// Graceful shutdown with signal handling

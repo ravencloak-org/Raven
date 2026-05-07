@@ -1,9 +1,12 @@
 package apierror
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/ravencloak-org/Raven/internal/resilience"
 )
 
 // AppError represents a structured API error response.
@@ -103,7 +106,14 @@ func ErrorHandler() gin.HandlerFunc {
 
 		if len(c.Errors) > 0 {
 			err := c.Errors.Last().Err
-			if quotaErr, ok := err.(*QuotaError); ok {
+			if errors.Is(err, resilience.ErrCircuitOpen) {
+				c.Header("Retry-After", "30")
+				c.JSON(http.StatusServiceUnavailable, &AppError{
+					Code:    http.StatusServiceUnavailable,
+					Message: "Service Unavailable",
+					Detail:  "circuit breaker open; please retry after 30 seconds",
+				})
+			} else if quotaErr, ok := err.(*QuotaError); ok {
 				c.JSON(quotaErr.Code, quotaErr)
 			} else if appErr, ok := err.(*AppError); ok {
 				c.JSON(appErr.Code, appErr)
