@@ -32,9 +32,14 @@ type ButtonProps = (
     | (Omit<React.ComponentPropsWithoutRef<'button'>, 'color'> & { href?: undefined })
   )
 
-export function Button({ className, ...props }: ButtonProps) {
-  const variant = props.variant ?? 'solid'
-  const color = props.color ?? 'accent'
+export function Button({
+  className,
+  variant: variantProp,
+  color: colorProp,
+  ...rest
+}: ButtonProps) {
+  const variant = variantProp ?? 'solid'
+  const color = colorProp ?? 'accent'
   className = clsx(
     baseStyles[variant],
     variant === 'solid'
@@ -42,9 +47,9 @@ export function Button({ className, ...props }: ButtonProps) {
       : variantStyles.outline[color as keyof typeof variantStyles.outline],
     className,
   )
-  return typeof props.href === 'undefined' ? (
-    <button className={className} {...(props as React.ComponentPropsWithoutRef<'button'>)} />
+  return typeof rest.href === 'undefined' ? (
+    <button className={className} {...(rest as React.ComponentPropsWithoutRef<'button'>)} />
   ) : (
-    <Link className={className} {...(props as React.ComponentPropsWithoutRef<typeof Link>)} />
+    <Link className={className} {...(rest as React.ComponentPropsWithoutRef<typeof Link>)} />
   )
 }
