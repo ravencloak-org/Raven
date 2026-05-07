@@ -31,12 +31,13 @@
 | `landing/postcss.config.js` | PostCSS / Tailwind v4 entry | T1 |
 | `landing/prettier.config.js` | Prettier config | T1 |
 | `landing/.gitignore` | ignore node_modules/.next/out/ | T1 |
-| `landing/src/styles/tailwind.css` | Tailwind v4 entry + `@theme` palette | T2 |
+| `landing/src/styles/tailwind.css` | Tailwind v4 entry + `@theme` palette + ravenicons `@font-face` | T2 |
 | `landing/src/app/layout.tsx` | root layout, fonts, Header/Footer | T2 |
-| `landing/src/images/logo-full.svg`, `logo-mark.svg` | brand SVGs | T3 |
+| `landing/public/fonts/ravenicons.woff2` | brand wordmark font (vendored from `ravenlogoassets/`) | T2 |
+| `landing/src/images/logo-mark.svg` | bird/wing mark (vendored from `ravenlogoassets/logo/`) | T3 |
 | `landing/scripts/build-favicons.mjs` | one-shot favicon generator | T3 |
 | `landing/public/favicon*.png`, `apple-touch-icon.png`, `site.webmanifest` | favicon family | T3 |
-| `landing/src/components/Logo.tsx` | logo component (3 variants) | T3 |
+| `landing/src/components/Logo.tsx` | logo component (mark + ravenicons wordmark) | T3 |
 | `landing/src/components/Container.tsx`, `Button.tsx`, `NavLink.tsx` | layout primitives | T4 |
 | `landing/src/components/Header.tsx`, `Footer.tsx` | site chrome | T4 |
 | `landing/src/components/Hero.tsx` | home hero | T5 |
@@ -174,18 +175,40 @@ in subsequent commits."
 
 ---
 
-### Task 2: Brand tokens + fonts
+### Task 2: Brand tokens + fonts (incl. ravenicons)
 
 **Files:**
 - Modify: `landing/src/styles/tailwind.css`
 - Modify: `landing/src/app/layout.tsx`
+- Create: `landing/public/fonts/ravenicons.woff2` (copy from `ravenlogoassets/font/ravenicons.woff2`)
 
-- [ ] **Step 1: Replace `landing/src/styles/tailwind.css` with Raven `@theme` palette**
+**Why ravenicons:** PR #408 merged a vendored `ravenicons` icon font under `ravenlogoassets/`. Each glyph is mapped to its real ASCII codepoint, so `<span style={{fontFamily: 'ravenicons'}}>RAVEN</span>` renders the brand wordmark. We use this for the wordmark in Header / Footer / OG card. Copying just the `.woff2` (modern browsers, smallest file) into `landing/public/fonts/` keeps the build self-contained without cross-package import paths.
+
+- [ ] **Step 1: Vendor the ravenicons woff2 into `landing/public/fonts/`**
+
+```bash
+mkdir -p landing/public/fonts
+cp ravenlogoassets/font/ravenicons.woff2 landing/public/fonts/ravenicons.woff2
+```
+
+Verify size > 0:
+
+```bash
+ls -la landing/public/fonts/
+```
+
+- [ ] **Step 2: Replace `landing/src/styles/tailwind.css` with Raven `@theme` palette + ravenicons @font-face**
 
 Overwrite the file:
 
 ```css
 @import 'tailwindcss';
+
+@font-face {
+  font-family: 'ravenicons';
+  src: url('/fonts/ravenicons.woff2') format('woff2');
+  font-display: swap;
+}
 
 @theme {
   --color-ink: oklch(0.18 0 0);          /* slate-950 */
@@ -199,6 +222,7 @@ Overwrite the file:
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-space-grotesk), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-wordmark: 'ravenicons', var(--font-display);
 }
 
 html {
@@ -214,9 +238,14 @@ h1, h2, h3, h4 {
   font-family: var(--font-display);
   color: var(--color-ink);
 }
+
+.raven-wordmark {
+  font-family: var(--font-wordmark);
+  letter-spacing: 0.05em;
+}
 ```
 
-- [ ] **Step 2: Replace `landing/src/app/layout.tsx`**
+- [ ] **Step 3: Replace `landing/src/app/layout.tsx`**
 
 Overwrite the file:
 
@@ -278,15 +307,15 @@ export default function RootLayout({
 
 (Header/Footer are added to pages individually in T4–T13, not the root layout — gives flexibility per page.)
 
-- [ ] **Step 3: Smoke — dev server renders without errors**
+- [ ] **Step 4: Smoke — dev server renders without errors**
 
 ```bash
 npm run dev
 ```
 
-Open `http://localhost:3000`. Expected: page renders (still with Salient's TaxPal copy — that gets replaced later); Inter + Space Grotesk fonts loaded (verify in DevTools → Fonts); no console errors. Stop dev server.
+Open `http://localhost:3000`. Expected: page renders (still with Salient's TaxPal copy — that gets replaced later); Inter + Space Grotesk fonts loaded (verify in DevTools → Fonts → both Inter, Space Grotesk, JetBrains Mono, **and ravenicons** appear); no console errors. Quick visual probe: in DevTools Console run `getComputedStyle(document.documentElement).getPropertyValue('--color-accent')` — should print a non-empty cyan value. Stop dev server.
 
-- [ ] **Step 4: Lint + typecheck**
+- [ ] **Step 5: Lint + typecheck**
 
 ```bash
 npm run lint && npm run typecheck
@@ -294,16 +323,19 @@ npm run lint && npm run typecheck
 
 Expected: both pass.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add landing/src/styles/tailwind.css landing/src/app/layout.tsx
-git commit -m "feat(landing): wire Raven brand palette and fonts
+git add landing/src/styles/tailwind.css landing/src/app/layout.tsx \
+        landing/public/fonts/ravenicons.woff2
+git commit -m "feat(landing): wire Raven brand palette, fonts, and ravenicons
 
 @theme tokens for ink/body/bg/accent (electric cyan), and load Inter +
-Space Grotesk + JetBrains Mono via next/font (self-hosted, no runtime
-external requests so the strict CSP can stay locked down). Updates
-metadata defaults to Raven; per-page metadata overrides follow."
+Space Grotesk + JetBrains Mono via next/font (self-hosted). Vendors
+ravenicons.woff2 from ravenlogoassets/ into public/fonts/ and exposes
+it via the .raven-wordmark utility class so any element with class
+'raven-wordmark' and the literal text 'RAVEN' renders the brand
+wordmark. Sets metadata defaults to Raven; per-page overrides follow."
 ```
 
 ---
@@ -311,58 +343,96 @@ metadata defaults to Raven; per-page metadata overrides follow."
 ### Task 3: Logo assets, Logo component, favicon family
 
 **Files:**
-- Create: `landing/src/images/logo-full.svg` (copy from `~/Downloads/Raven Logo Final.svg`)
-- Create: `landing/src/images/logo-mark.svg` (extract just the wing mark)
+- Create: `landing/src/images/logo-mark.svg` (copy from `ravenlogoassets/logo/Asset *.svg`, choosing the cleanest standalone bird mark)
 - Modify: `landing/src/components/Logo.tsx`
 - Create: `landing/scripts/build-favicons.mjs`
 - Create: `landing/public/favicon-16x16.png`, `favicon-32x32.png`, `apple-touch-icon.png`, `android-chrome-192x192.png`, `android-chrome-512x512.png`, `site.webmanifest`
-- Replace: `landing/src/app/favicon.ico` (with the wing mark)
+- Replace: `landing/src/app/favicon.ico` (with the bird mark)
 
-- [ ] **Step 1: Copy the full lockup SVG**
+**Source:** `ravenlogoassets/` (added by PR #408, merged on main). It contains four bird/wing SVGs at `ravenlogoassets/logo/Asset 7.svg`, `Asset 8.svg`, `Asset 11.svg`, `Asset 12.svg`. **There is no separate logo-full SVG** — the lockup is composed in JSX as `<bird mark> + <span class="raven-wordmark">RAVEN</span>` so the wordmark is rendered via the `ravenicons` font wired in T2.
+
+- [ ] **Step 1: Inspect the four bird-mark SVGs and pick one**
 
 ```bash
-cp '/Users/jobinlawrance/Downloads/Raven Logo Final.svg' landing/src/images/logo-full.svg
+for f in ravenlogoassets/logo/Asset\ {7,8,11,12}.svg; do
+  echo "=== $f ==="
+  head -3 "$f"
+done
 ```
 
-- [ ] **Step 2: Make `logo-mark.svg`**
+Open each SVG in a browser or VS Code preview. **Pick the standalone wing/bird mark** (no circle background, no wordmark, no extra container shapes — just the bird in monochrome on transparent). Likely candidate: `Asset 7.svg` (smallest path-count file is usually the cleanest standalone). If unclear, check `git log -1 --format=%B 970252e0 -- 'ravenlogoassets/logo/'` for any context from the PR description, then default to the smallest file.
 
-Open `landing/src/images/logo-full.svg` and visually inspect (cat or open in a viewer). The file likely contains both the wing-mark `<g>` and the "RAVEN" wordmark text. Manually create `landing/src/images/logo-mark.svg` containing only the wing-mark `<path>`/`<g>` with a tight `viewBox`. If the source file contains a single combined path that can't be split, create `logo-mark.svg` as a copy of `logo-full.svg` for now and refine in a follow-up task — this is a presentation-only fallback that won't block the build.
+- [ ] **Step 2: Copy the chosen bird SVG into the landing source tree**
+
+```bash
+mkdir -p landing/src/images
+cp 'ravenlogoassets/logo/Asset 7.svg' landing/src/images/logo-mark.svg
+```
+
+(Substitute the chosen filename if you picked a different Asset. Filename in the destination must be `logo-mark.svg`.)
 
 - [ ] **Step 3: Replace `landing/src/components/Logo.tsx`**
 
 Overwrite the file:
 
 ```tsx
-import Image, { type ImageProps } from 'next/image'
+import Image from 'next/image'
 import clsx from 'clsx'
 
-import logoFull from '@/images/logo-full.svg'
 import logoMark from '@/images/logo-mark.svg'
 
-type LogoProps = Omit<ImageProps, 'src' | 'alt'> & {
+type LogoProps = {
   variant?: 'full' | 'mark'
   inverted?: boolean
-  alt?: string
+  className?: string
+  /** Tailwind height class for the bird mark. Defaults to `h-8`. */
+  markClassName?: string
 }
 
 export function Logo({
   variant = 'full',
   inverted = false,
   className,
-  alt = 'Raven',
-  ...props
+  markClassName = 'h-8 w-auto',
 }: LogoProps) {
-  return (
+  const mark = (
     <Image
-      src={variant === 'mark' ? logoMark : logoFull}
-      alt={alt}
-      className={clsx(inverted && 'invert', className)}
+      src={logoMark}
+      alt=""
+      aria-hidden="true"
+      className={clsx(markClassName, inverted && 'invert')}
       priority
-      {...props}
     />
+  )
+
+  if (variant === 'mark') {
+    return (
+      <span aria-label="Raven" className={clsx('inline-flex items-center', className)}>
+        {mark}
+      </span>
+    )
+  }
+
+  return (
+    <span
+      aria-label="Raven"
+      className={clsx('inline-flex items-baseline gap-2', className)}
+    >
+      {mark}
+      <span
+        className={clsx(
+          'raven-wordmark text-2xl leading-none',
+          inverted ? 'text-white' : 'text-[var(--color-ink)]',
+        )}
+      >
+        RAVEN
+      </span>
+    </span>
   )
 }
 ```
+
+The wordmark uses the `.raven-wordmark` utility (defined in T2's `tailwind.css`), which sets `font-family: ravenicons`. The literal text `RAVEN` then renders the brand wordmark. Inverted variant flips the bird to white via `invert` and switches the wordmark colour.
 
 - [ ] **Step 4: Write `landing/scripts/build-favicons.mjs`**
 
@@ -454,18 +524,20 @@ npm run lint && npm run typecheck
 - [ ] **Step 8: Commit**
 
 ```bash
-git add landing/src/images/logo-full.svg landing/src/images/logo-mark.svg \
+git add landing/src/images/logo-mark.svg \
         landing/src/components/Logo.tsx landing/scripts/build-favicons.mjs \
         landing/public/favicon-16x16.png landing/public/favicon-32x32.png \
         landing/public/apple-touch-icon.png \
         landing/public/android-chrome-192x192.png landing/public/android-chrome-512x512.png \
         landing/public/site.webmanifest landing/src/app/favicon.ico
-git commit -m "feat(landing): swap brand assets to Raven logo and favicon family
+git commit -m "feat(landing): wire Raven bird mark, ravenicons wordmark, favicons
 
-Adds the Raven wing-mark + 'RAVEN' wordmark SVGs, a Logo component
-with full/mark variants and an inverted modifier for footer use, and
-a one-shot scripts/build-favicons.mjs that generates the favicon
-family from logo-mark.svg via sharp."
+Vendors the bird mark SVG from ravenlogoassets/logo/ into the landing
+source tree. The Logo component composes the lockup in JSX as bird
+mark + a span using the .raven-wordmark utility (font-family:
+ravenicons) so the literal text 'RAVEN' renders the brand wordmark.
+A one-shot scripts/build-favicons.mjs generates the favicon family
+from logo-mark.svg via sharp."
 ```
 
 ---
@@ -614,8 +686,8 @@ export function Header() {
         <nav className="relative z-50 flex justify-between">
           <div className="flex items-center md:gap-x-12">
             <Link href="/" aria-label="Home">
-              <Logo variant="full" className="h-8 w-auto md:hidden" />
-              <Logo variant="full" className="hidden h-8 w-auto md:block" />
+              <Logo variant="mark" markClassName="h-8 w-auto md:hidden" />
+              <Logo variant="full" markClassName="h-8 w-auto" className="hidden md:inline-flex" />
             </Link>
             <div className="hidden md:flex md:gap-x-6">
               <NavLink href="/#features">Features</NavLink>
@@ -657,7 +729,7 @@ export function Footer() {
     <footer className="bg-[var(--color-ink)] text-[var(--color-bg)]">
       <Container>
         <div className="py-16">
-          <Logo variant="mark" inverted className="mx-auto h-10 w-auto" />
+          <Logo variant="mark" inverted markClassName="h-10 w-auto" className="mx-auto" />
           <nav className="mt-10 text-sm" aria-label="Footer">
             <ul className="-my-1 flex flex-wrap justify-center gap-x-6 gap-y-1">
               <li><Link href="/#features" className="hover:text-white">Features</Link></li>
@@ -1951,13 +2023,18 @@ Sitemap: https://raven.ravencloak.org/sitemap.xml
 
 ```tsx
 import { ImageResponse } from 'next/og'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 
-export const runtime = 'edge'
 export const alt = 'Raven — Self-hostable AI knowledge platform for teams'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
 export default async function OG() {
+  const ravenicons = readFileSync(
+    path.join(process.cwd(), 'public/fonts/ravenicons.woff2'),
+  )
+
   return new ImageResponse(
     (
       <div
@@ -1970,27 +2047,41 @@ export default async function OG() {
           justifyContent: 'center',
           background: 'oklch(0.18 0 0)',
           color: 'white',
-          fontFamily: 'sans-serif',
         }}
       >
-        <div style={{ fontSize: 84, fontWeight: 600, letterSpacing: -2 }}>RAVEN</div>
         <div
           style={{
-            marginTop: 24,
-            fontSize: 32,
+            fontFamily: 'ravenicons',
+            fontSize: 220,
+            letterSpacing: 18,
+            lineHeight: 1,
+          }}
+        >
+          RAVEN
+        </div>
+        <div
+          style={{
+            marginTop: 40,
+            fontSize: 36,
             color: 'oklch(0.71 0.16 200)',
-            maxWidth: 900,
+            maxWidth: 980,
             textAlign: 'center',
+            fontFamily: 'sans-serif',
           }}
         >
           Your team's knowledge, on your infrastructure.
         </div>
       </div>
     ),
-    { ...size },
+    {
+      ...size,
+      fonts: [{ name: 'ravenicons', data: ravenicons, weight: 400, style: 'normal' }],
+    },
   )
 }
 ```
+
+Note: no `runtime = 'edge'` — under `output: 'export'`, the Node default runtime renders the OG image at build time, which lets us read the `.woff2` from disk.
 
 - [ ] **Step 4: Smoke + lint + typecheck + build**
 
