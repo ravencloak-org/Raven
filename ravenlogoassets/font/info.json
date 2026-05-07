@@ -1,0 +1,32 @@
+{
+  "A": {
+    "encodedCode": "\\41",
+    "prefix": "ravenicons",
+    "className": "ravenicons-A",
+    "unicode": "&#65;"
+  },
+  "E": {
+    "encodedCode": "\\45",
+    "prefix": "ravenicons",
+    "className": "ravenicons-E",
+    "unicode": "&#69;"
+  },
+  "N": {
+    "encodedCode": "\\4e",
+    "prefix": "ravenicons",
+    "className": "ravenicons-N",
+    "unicode": "&#78;"
+  },
+  "R": {
+    "encodedCode": "\\52",
+    "prefix": "ravenicons",
+    "className": "ravenicons-R",
+    "unicode": "&#82;"
+  },
+  "V": {
+    "encodedCode": "\\56",
+    "prefix": "ravenicons",
+    "className": "ravenicons-V",
+    "unicode": "&#86;"
+  }
+}
