@@ -1,40 +1,41 @@
 @import 'tailwindcss';
 
-@plugin '@tailwindcss/forms';
+@font-face {
+  font-family: 'ravenicons';
+  src: url('/fonts/ravenicons.woff2') format('woff2');
+  font-display: swap;
+}
 
 @theme {
-  --text-*: initial;
-  --text-xs: 0.75rem;
-  --text-xs--line-height: 1rem;
-  --text-sm: 0.875rem;
-  --text-sm--line-height: 1.5rem;
-  --text-base: 1rem;
-  --text-base--line-height: 1.75rem;
-  --text-lg: 1.125rem;
-  --text-lg--line-height: 2rem;
-  --text-xl: 1.25rem;
-  --text-xl--line-height: 2rem;
-  --text-2xl: 1.5rem;
-  --text-2xl--line-height: 2rem;
-  --text-3xl: 2rem;
-  --text-3xl--line-height: 2.5rem;
-  --text-4xl: 2.5rem;
-  --text-4xl--line-height: 3.5rem;
-  --text-5xl: 3rem;
-  --text-5xl--line-height: 3.5rem;
-  --text-6xl: 3.75rem;
-  --text-6xl--line-height: 1;
-  --text-7xl: 4.5rem;
-  --text-7xl--line-height: 1.1;
-  --text-8xl: 6rem;
-  --text-8xl--line-height: 1;
-  --text-9xl: 8rem;
-  --text-9xl--line-height: 1;
+  --color-ink: oklch(0.18 0 0);          /* slate-950 */
+  --color-body: oklch(0.42 0 0);          /* slate-600 */
+  --color-bg: oklch(0.98 0.005 75);       /* warm off-white */
+  --color-surface: oklch(1 0 0);          /* white */
+  --color-accent: oklch(0.71 0.16 200);   /* cyan-500 */
+  --color-accent-hover: oklch(0.65 0.18 200); /* cyan-600 */
+  --color-border: oklch(0.91 0.005 75);
 
-  --radius-4xl: 2rem;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-space-grotesk), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-wordmark: 'ravenicons', var(--font-display);
+}
 
-  --font-sans: var(--font-inter);
-  --font-display: var(--font-lexend);
+html {
+  background-color: var(--color-bg);
+  color: var(--color-body);
+}
 
-  --container-2xl: 40rem;
+body {
+  font-family: var(--font-sans);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  color: var(--color-ink);
+}
+
+.raven-wordmark {
+  font-family: var(--font-wordmark);
+  letter-spacing: 0.05em;
 }

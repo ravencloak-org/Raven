@@ -1,16 +1,17 @@
 import { type Metadata } from 'next'
-import { Inter, Lexend } from 'next/font/google'
+import { Inter, Space_Grotesk, JetBrains_Mono } from 'next/font/google'
 import clsx from 'clsx'
 
 import '@/styles/tailwind.css'
 
 export const metadata: Metadata = {
   title: {
-    template: '%s - TaxPal',
-    default: 'TaxPal - Accounting made simple for small businesses',
+    template: '%s — Raven',
+    default: 'Raven — Self-hostable AI knowledge platform for teams',
   },
   description:
-    'Most bookkeeping software is accurate, but hard to use. We make the opposite trade-off, and hope you don’t get audited.',
+    "Raven is a self-hostable, multi-tenant RAG platform with built-in voice, chat, and edge deployment. Your team's knowledge, on your infrastructure.",
+  metadataBase: new URL('https://raven.ravencloak.org'),
 }
 
 const inter = Inter({
@@ -19,10 +20,16 @@ const inter = Inter({
   variable: '--font-inter',
 })
 
-const lexend = Lexend({
+const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
   display: 'swap',
-  variable: '--font-lexend',
+  variable: '--font-space-grotesk',
+})
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-jetbrains-mono',
 })
 
 export default function RootLayout({
@@ -34,12 +41,13 @@ export default function RootLayout({
     <html
       lang="en"
       className={clsx(
-        'h-full scroll-smooth bg-white antialiased',
+        'h-full scroll-smooth antialiased',
         inter.variable,
-        lexend.variable,
+        spaceGrotesk.variable,
+        jetbrainsMono.variable,
       )}
     >
-      <body className="flex h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">{children}</body>
     </html>
   )
 }
