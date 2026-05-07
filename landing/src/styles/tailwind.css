@@ -1,0 +1,41 @@
+@import 'tailwindcss';
+
+@font-face {
+  font-family: 'ravenicons';
+  src: url('/fonts/ravenicons.woff2') format('woff2');
+  font-display: swap;
+}
+
+@theme {
+  --color-ink: oklch(0.18 0 0);          /* slate-950 */
+  --color-body: oklch(0.42 0 0);          /* slate-600 */
+  --color-bg: oklch(0.98 0.005 75);       /* warm off-white */
+  --color-surface: oklch(1 0 0);          /* white */
+  --color-accent: oklch(0.71 0.16 200);   /* cyan-500 */
+  --color-accent-hover: oklch(0.65 0.18 200); /* cyan-600 */
+  --color-border: oklch(0.91 0.005 75);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-space-grotesk), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-wordmark: 'ravenicons', var(--font-display);
+}
+
+html {
+  background-color: var(--color-bg);
+  color: var(--color-body);
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  color: var(--color-ink);
+}
+
+.raven-wordmark {
+  font-family: var(--font-wordmark);
+  letter-spacing: 0.05em;
+}
