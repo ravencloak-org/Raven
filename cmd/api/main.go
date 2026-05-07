@@ -525,13 +525,11 @@ func main() {
 	// NOTE: The repository layer is responsible for applying RLS by executing
 	//   SET LOCAL app.current_org_id = '<uuid>'
 	// using the org_id stored in the Gin context key middleware.ContextKeyOrgID.
+	// NOTE: per-route Deadline middleware is applied on leaf sub-groups
+	// (chat, voice, upload) for tighter budgets than the 60s http.Server
+	// WriteTimeout. Endpoints without their own Deadline are bounded by
+	// WriteTimeout — acceptable for default-CRUD route groups.
 	api := router.Group("/api/v1")
-	// Default per-request deadline for all authenticated /api/v1/* routes.
-	// Specialised sub-groups (voice, upload) carry their own Deadline but
-	// context.WithTimeout only shortens, so their budgets are capped to this
-	// value. To grant those groups a longer budget, either raise this value
-	// or move them to a sibling group under router (follow-up: Task 11 debt).
-	api.Use(middleware.Deadline(10 * time.Second))
 
 	authProvider := auth.NewSuperTokensProvider()
 	api.Use(middleware.SessionMiddleware(authProvider))
@@ -587,8 +585,8 @@ func main() {
 				kb.POST("/:kb_id/completions", chatHandler.StreamCompletion)
 
 				// Document upload — 60s budget for large files.
-				// Note: effective budget is min(parent api Deadline 10s, 60s) = 10s.
-				// Raise api.Deadline or move this route out of api to achieve 60s (Task 11 debt).
+				// context.WithTimeout only shortens, so this leaf Deadline is the
+				// effective budget (no parent api Deadline to cap it).
 				kb.POST("/:kb_id/documents/upload", middleware.Deadline(60*time.Second), uploadHandler.Upload) // Role check relaxed for onboarding upload
 
 				// Source routes (nested under knowledge base)
@@ -734,8 +732,7 @@ func main() {
 
 		// --- Voice session routes (nested under org) ---
 		voice := api.Group("/orgs/:org_id/voice-sessions")
-		// 30s budget; note: effective budget is min(parent Deadline, 30s).
-		// Currently capped at 10s by the api group. See Task 11 debt comment above.
+		// 30s budget; no parent api Deadline, so the full 30s is effective.
 		voice.Use(middleware.Deadline(30 * time.Second))
 		{
 			voice.POST("", middleware.RequireOrgRole("org_member"), voiceHandler.CreateSession)
