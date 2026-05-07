@@ -1,34 +1,23 @@
-import Image from 'next/image'
-
 import { Button } from '@/components/Button'
 import { Container } from '@/components/Container'
-import backgroundImage from '@/images/background-call-to-action.jpg'
 
 export function CallToAction() {
   return (
     <section
-      id="get-started-today"
-      className="relative overflow-hidden bg-blue-600 py-32"
+      id="get-started"
+      className="relative overflow-hidden bg-[var(--color-ink)] py-32"
     >
-      <Image
-        className="absolute top-1/2 left-1/2 max-w-none -translate-x-1/2 -translate-y-1/2"
-        src={backgroundImage}
-        alt=""
-        width={2347}
-        height={1244}
-        unoptimized
-      />
       <Container className="relative">
         <div className="mx-auto max-w-lg text-center">
           <h2 className="font-display text-3xl tracking-tight text-white sm:text-4xl">
-            Get started today
+            Ready to give your team a brain that doesn&apos;t leak?
           </h2>
-          <p className="mt-4 text-lg tracking-tight text-white">
-            It’s time to take control of your books. Buy our software so you can
-            feel like you’re doing something productive.
+          <p className="mt-4 text-lg tracking-tight text-white/70">
+            Five minutes from <code className="font-mono text-[var(--color-accent)]">docker compose up</code> to a
+            working voice + chat search over your team&apos;s documents.
           </p>
-          <Button href="/register" color="accent" className="mt-10">
-            Get 6 months free
+          <Button href="/self-host" color="accent" className="mt-10">
+            Read the self-host guide
           </Button>
         </div>
       </Container>
