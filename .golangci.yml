@@ -26,32 +26,29 @@ linters:
         - name: error-strings
         - name: increment-decrement
         - name: var-naming
+  exclusions:
+    rules:
+      # Tests using net/http.NewRequest with httptest servers — ctx propagation
+      # is moot for these short-lived requests. New non-test code MUST use
+      # NewRequestWithContext (linter still enforces).
+      - path: _test\.go$
+        linters:
+          - noctx
+      # Pre-existing fire-and-forget goroutines (async log delivery, async
+      # cache invalidation) intentionally detach from the request lifecycle.
+      # contextcheck cannot tell intentional detachment from accidental;
+      # narrow file-level exemptions until a follow-up audit reworks each
+      # site to use a long-lived background ctx.
+      - path: internal/service/(security|document|billing)\.go$
+        linters:
+          - contextcheck
+      - path: internal/repository/semantic_cache\.go$
+        linters:
+          - contextcheck
+      - path: internal/jobs/airbyte_sync\.go$
+        linters:
+          - contextcheck
 
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
-  exclude-rules:
-    # Tests using net/http.NewRequest with httptest servers — ctx propagation
-    # is moot for these short-lived requests. New non-test code MUST use
-    # NewRequestWithContext (linter still enforces).
-    - path: _test\.go$
-      linters:
-        - noctx
-    # Pre-existing fire-and-forget goroutines (async log delivery, async
-    # cache invalidation) intentionally detach from the request lifecycle.
-    # contextcheck cannot tell intentional detachment from accidental;
-    # narrow file-level exemptions until a follow-up audit reworks each
-    # site to use a long-lived background ctx.
-    - path: internal/service/(security|document|billing)\.go$
-      linters:
-        - contextcheck
-    - path: internal/repository/semantic_cache\.go$
-      linters:
-        - contextcheck
-    - path: internal/jobs/airbyte_sync\.go$
-      linters:
-        - contextcheck
-    # webhooks_test.go uses http.NewRequest extensively for delivery
-    # simulation; covered by the _test.go rule above but included here
-    # as documentation of the known site.
-    # internal/ee/webhooks/webhooks_test.go — see above

@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Run golangci-lint when staged changes touch Go files.
+# Catches lint violations before they reach the remote and CI.
+#
+# Install once per clone (alongside the pre-push hook):
+#   git config core.hooksPath .githooks
+#
+# Bypass (NOT recommended): git commit --no-verify
+
+set -euo pipefail
+
+# No staged Go files? Skip silently.
+if ! git diff --cached --name-only --diff-filter=AM | grep -qE '\.go$'; then
+    exit 0
+fi
+
+if ! command -v golangci-lint >/dev/null 2>&1; then
+    cat >&2 <<'EOF'
+WARNING: golangci-lint not found in PATH; skipping pre-commit lint check.
+
+Install it so this hook can protect your commits:
+  brew install golangci-lint               # macOS
+  go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+
+EOF
+    exit 0
+fi
+
+echo "Running golangci-lint on the repository..." >&2
+if ! golangci-lint run ./...; then
+    cat >&2 <<'EOF'
+
+Refusing to commit: golangci-lint reported issues above.
+
+Fix the reported violations, then commit again. To bypass (e.g. for a
+work-in-progress checkpoint commit) use:
+  git commit --no-verify
+…but CI will still reject the push.
+
+EOF
+    exit 1
+fi
+
+exit 0
