@@ -38,13 +38,20 @@ Use `type/descriptor` format:
 
 ## Local hooks
 
-The repo ships a pre-push hook that mirrors the DCO CI check. Install it once per clone:
+The repo ships two hooks under `.githooks/` that mirror CI checks. Install both at once with:
 
 ```bash
 git config core.hooksPath .githooks
 ```
 
-After that, every `git push` runs `.githooks/pre-push`, which rejects the push if any commit being sent lacks a `Signed-off-by:` trailer. To retroactively sign off a branch:
+| Hook | Runs | Checks |
+|------|------|--------|
+| `pre-commit` | every `git commit` | `golangci-lint run ./...` when staged changes include `.go` files |
+| `pre-push` | every `git push` | every commit being sent carries a `Signed-off-by:` trailer |
+
+`pre-commit` skips silently if `golangci-lint` is not installed; install it via `brew install golangci-lint` (macOS) or `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest`.
+
+To retroactively sign off a branch that was made before the hook existed:
 
 ```bash
 git rebase origin/main --exec 'git commit --amend --no-edit -s'
