@@ -27,13 +27,29 @@ Use `type/descriptor` format:
 
 - **No AI attribution** — do not add `Co-Authored-By:` trailers to any commit message
 - Commits should appear as authored by the repo owner only
+- **Every commit MUST be signed off** — append `Signed-off-by: Jobin Lawrance <jobinlawrance@gmail.com>` (use `git commit -s`). The DCO CI check enforces this; missing trailers block the PR.
 
 ## Rules
 
 - **Never push directly to `main`** — always use a PR
 - **Squash merge only** — never regular merge or rebase-merge
 - **Never use `--no-verify`** — all hooks must pass
-- **Never amend published commits** — create new commits instead
+- **Never amend published commits** — create new commits instead. Exception: rewriting a PR branch's own history to add missing `Signed-off-by` trailers is acceptable (force-push with `--force-with-lease`).
+
+## Local hooks
+
+The repo ships a pre-push hook that mirrors the DCO CI check. Install it once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+After that, every `git push` runs `.githooks/pre-push`, which rejects the push if any commit being sent lacks a `Signed-off-by:` trailer. To retroactively sign off a branch:
+
+```bash
+git rebase origin/main --exec 'git commit --amend --no-edit -s'
+git push --force-with-lease
+```
 
 ## Memory: Stash MCP
 

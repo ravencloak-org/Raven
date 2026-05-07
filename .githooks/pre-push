@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# Verify every commit being pushed carries a Signed-off-by trailer.
+# Mirrors the .github DCO check so failures surface locally instead of in CI.
+#
+# Install once per clone:
+#   git config core.hooksPath .githooks
+
+set -euo pipefail
+
+zero='0000000000000000000000000000000000000000'
+
+while IFS=' ' read -r _local_ref local_sha _remote_ref remote_sha; do
+    # Branch deletion — nothing to verify.
+    if [ "$local_sha" = "$zero" ]; then
+        continue
+    fi
+
+    if [ "$remote_sha" = "$zero" ]; then
+        # New branch on the remote — verify everything since the merge-base
+        # with origin/main (or main if origin/main is missing).
+        if base=$(git merge-base origin/main "$local_sha" 2>/dev/null); then
+            range="${base}..${local_sha}"
+        elif base=$(git merge-base main "$local_sha" 2>/dev/null); then
+            range="${base}..${local_sha}"
+        else
+            # No mergeable base; check the last 50 commits as a safety net.
+            range="${local_sha}~50..${local_sha}"
+        fi
+    else
+        range="${remote_sha}..${local_sha}"
+    fi
+
+    missing=0
+    while read -r sha; do
+        [ -z "$sha" ] && continue
+        if ! git log -1 --format='%B' "$sha" | grep -qE '^Signed-off-by: .+ <.+@.+>'; then
+            author=$(git log -1 --format='%an <%ae>' "$sha")
+            subject=$(git log -1 --format='%s' "$sha")
+            echo "ERROR: ${sha:0:8} by ${author} missing Signed-off-by"
+            echo "       ${subject}"
+            missing=1
+        fi
+    done < <(git rev-list "$range" 2>/dev/null || true)
+
+    if [ "$missing" -ne 0 ]; then
+        cat >&2 <<'EOF'
+
+Refusing to push: one or more commits lack a Signed-off-by trailer.
+
+Fix the entire branch in one shot with:
+    git rebase origin/main --exec 'git commit --amend --no-edit -s'
+    git push --force-with-lease
+
+For a single new commit, just use:
+    git commit -s -m "..."
+
+EOF
+        exit 1
+    fi
+done
+
+exit 0
