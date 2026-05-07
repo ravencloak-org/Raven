@@ -28,7 +28,7 @@ async function main() {
   }
   // App-router convention: src/app/favicon.ico (binary 32×32 PNG renamed; Next handles it).
   await sharp(svg, { density: 384 })
-    .resize(32, 32, { fit: 'contain' })
+    .resize(32, 32, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .toFormat('png')
     .toFile(path.join(APP, 'favicon.ico'))
   console.log('wrote', path.join(APP, 'favicon.ico'))

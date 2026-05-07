@@ -38,7 +38,7 @@ export function Logo({
   return (
     <span
       aria-label="Raven"
-      className={clsx('inline-flex items-baseline gap-2', className)}
+      className={clsx('inline-flex items-center gap-2', className)}
     >
       {mark}
       <span
