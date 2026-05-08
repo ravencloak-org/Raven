@@ -73,7 +73,7 @@ Releases are cut from `main` and tagged via the
 Go binaries, Docker images, and (where applicable) the frontend bundle. All
 release artefacts are produced with SLSA Level 3 build provenance per
 [`docs/security/slsa-verification.md`](./docs/security/slsa-verification.md)
-and target the OpenSSF Baseline (`docs/compliance/`) self-assessment.
+and target the OpenSSF Baseline ([`docs/compliance/`](./docs/compliance/)) self-assessment.
 
 `main` is always release-shaped: every PR squash-merges, must pass the
 required-status checks defined in
