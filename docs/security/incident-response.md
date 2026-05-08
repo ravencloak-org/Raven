@@ -107,15 +107,25 @@ personal-data breach notification (WP250 rev.01).
 
 ### T+48h → T+72h: Statutory Notifications
 
+> **REVIEW WITH COUNSEL — DRAFT.** The DPDP Act filing path, recipient,
+> and prescribed notification form below are illustrative pending counsel
+> sign-off. The exact route, addressee, and form may vary with the final
+> DPDP rules and any sectoral guidance in force at the time of the
+> incident. Do not rely on the language below in a live incident before
+> counsel has confirmed the current path; treat it as a starting checklist
+> only.
+
 1. Where Ravencloak is acting as **controller** for the affected data, file
    a **GDPR Article 33** notification with the lead supervisory authority
    within **72 hours of awareness**, unless the breach is unlikely to result
    in a risk to the rights and freedoms of natural persons. Document the
    decision either way.
-2. For data subjects in India, file the **DPDP Act §8(6)** notification with
-   the **Data Protection Board of India** and notify each affected
-   **data principal** in accordance with the form prescribed by the Indian
-   rules.
+2. For data subjects in India, prepare a **DPDP Act § 8(6)** notification
+   to the **Data Protection Board of India** and to each affected **data
+   principal**. The exact recipient, prescribed form, and timing must be
+   confirmed by counsel against the DPDP rules in force at the time of
+   the incident before the notice is dispatched. *(See the REVIEW WITH
+   COUNSEL note above.)*
 3. Where the risk to data subjects is high, prepare and dispatch a
    **GDPR Article 34** communication to affected data subjects without
    undue delay.

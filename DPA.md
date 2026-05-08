@@ -162,9 +162,17 @@ of execution.)*
 ## 11. Return or Deletion
 
 On termination or expiry of the Principal Agreement, Processor shall, at
-Controller's election, **return or delete all personal data within 30
-days**, including all backups, save where retention is required by
-applicable law. Processor shall certify deletion in writing on request.
+Controller's election, **return, delete, or put beyond use all personal
+data within 30 days** of receipt of Controller's instruction. For data
+held in immutable, write-once, or offline backup media, Processor shall
+apply its documented backup lifecycle policy and certify deletion — or
+that the data has been put beyond use — once the backup retention period
+elapses; the backup lifecycle policy specifies the maximum retention
+window and the controls that prevent restoration to an active environment
+in the interim. Retention required by applicable law is excepted, in
+which case Processor shall continue to apply this DPA to the retained
+data until deletion is permitted. Processor shall certify deletion or
+putting beyond use in writing on request.
 
 ## 12. Term and Execution
 
@@ -247,16 +255,26 @@ the authoritative description is `SECURITY.md`.
 The list mirrors `PRIVACY.md` Section 7 and is the authoritative list for
 this DPA. Updates follow the notice procedure in Section 4.
 
-| Sub-processor    | Role                                           | Location |
-| ---------------- | ---------------------------------------------- | -------- |
-| AWS (incl. SES)  | Transactional email delivery                   | US       |
-| PostgreSQL host  | Primary relational + pgvector store            | *(TBD)*  |
-| ClickHouse host  | Analytics and audit-log store                  | *(TBD)*  |
-| Valkey host      | Cache and asynchronous job queue (Asynq)       | *(TBD)*  |
-| SeaweedFS host   | Object storage (attachments, voice audio)      | *(TBD)*  |
-| SuperTokens      | Authentication and session management          | *(TBD)*  |
-| LiveKit          | Real-time voice transport                      | *(TBD)*  |
-| PostHog          | Product analytics                              | *(TBD)*  |
-| Anthropic *(BYOK)* | LLM inference (configured by Customer)       | US       |
-| OpenAI *(BYOK)*    | LLM inference (configured by Customer)       | US       |
-| Cohere *(BYOK)*    | Embeddings / reranking (configured by Customer) | US/CA  |
+> **REVIEW WITH COUNSEL — DRAFT.** Hosting region and applicable transfer
+> mechanism for self-hosted-infrastructure rows are deployment-time
+> decisions and are not yet finalised; rows marked *(TBD — pending
+> hosting decision)* must be completed and counsel-validated before this
+> Annex is offered to a Customer. Transfer mechanisms are listed where
+> the row is known; SCCs Module 2 (controller-to-processor) or Module 3
+> (processor-to-processor) apply by default for transfers out of the
+> EU/EEA, complemented by the UK IDTA and Swiss FADP addenda per
+> Section 5.
+
+| Sub-processor    | Role                                           | Location | Transfer mechanism |
+| ---------------- | ---------------------------------------------- | -------- | ------------------ |
+| AWS (incl. SES)  | Transactional email delivery                   | US       | EU SCCs + UK IDTA + Swiss addendum |
+| PostgreSQL host  | Primary relational + pgvector store            | *(TBD — pending hosting decision)* | *(TBD — counsel to confirm)* |
+| ClickHouse host  | Analytics and audit-log store                  | *(TBD — pending hosting decision)* | *(TBD — counsel to confirm)* |
+| Valkey host      | Cache and asynchronous job queue (Asynq)       | *(TBD — pending hosting decision)* | *(TBD — counsel to confirm)* |
+| SeaweedFS host   | Object storage (attachments, voice audio)      | *(TBD — pending hosting decision)* | *(TBD — counsel to confirm)* |
+| SuperTokens      | Authentication and session management          | *(TBD — pending self-hosted vs managed decision)* | *(TBD — counsel to confirm)* |
+| LiveKit          | Real-time voice transport                      | *(TBD — pending self-hosted vs LiveKit Cloud decision)* | *(TBD — counsel to confirm)* |
+| PostHog          | Product analytics                              | EU (PostHog Cloud EU) or US (PostHog Cloud US) — *deployment selects region* | EU SCCs + UK IDTA + Swiss addendum (US region) / N/A (EU region) |
+| Anthropic *(BYOK)* | LLM inference (configured by Customer)       | US       | Customer is the controlling party for the BYOK contract |
+| OpenAI *(BYOK)*    | LLM inference (configured by Customer)       | US       | Customer is the controlling party for the BYOK contract |
+| Cohere *(BYOK)*    | Embeddings / reranking (configured by Customer) | US / CA | Customer is the controlling party for the BYOK contract |

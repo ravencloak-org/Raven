@@ -112,19 +112,25 @@ sub-processor's privacy notice should be consulted for the data they process
 on our behalf. Where the customer brings their own LLM key (BYOK), the
 provider acts as a sub-processor of the customer, not of Ravencloak.
 
-| Sub-processor    | Role                                           | Privacy policy           |
-| ---------------- | ---------------------------------------------- | ------------------------ |
-| AWS (incl. SES)  | Transactional email delivery (US transfer)     | *(URL placeholder)*      |
-| PostgreSQL host  | Primary relational + pgvector store            | *(URL placeholder)*      |
-| ClickHouse host  | Analytics and audit-log store                  | *(URL placeholder)*      |
-| Valkey host      | Cache and asynchronous job queue (Asynq)       | *(URL placeholder)*      |
-| SeaweedFS host   | Object storage (attachments, voice audio)      | *(URL placeholder)*      |
-| SuperTokens      | Authentication and session management          | *(URL placeholder)*      |
-| LiveKit          | Real-time voice transport for the voice agent  | *(URL placeholder)*      |
-| PostHog          | Product analytics                              | *(URL placeholder)*      |
-| Anthropic *(BYOK)* | LLM inference where the customer configures it | *(URL placeholder)*    |
-| OpenAI *(BYOK)*    | LLM inference where the customer configures it | *(URL placeholder)*    |
-| Cohere *(BYOK)*    | Embeddings and reranking where configured      | *(URL placeholder)*    |
+> URLs below are the vendors' published privacy/DPA notices at the time of
+> drafting. Counsel must verify each URL is current and points to the
+> correct controlling document before the DRAFT banner on this notice is
+> removed. Self-hosted-infrastructure rows depend on the deployment-time
+> hosting choice and are tagged for counsel review.
+
+| Sub-processor    | Role                                           | Privacy / DPA notice |
+| ---------------- | ---------------------------------------------- | -------------------- |
+| AWS (incl. SES)  | Transactional email delivery (US transfer)     | <https://aws.amazon.com/privacy/> &nbsp;·&nbsp; <https://aws.amazon.com/compliance/gdpr-center/> |
+| PostgreSQL host  | Primary relational + pgvector store            | DPA available on request — *REVIEW WITH COUNSEL once hosting provider confirmed* |
+| ClickHouse host  | Analytics and audit-log store                  | DPA available on request — *REVIEW WITH COUNSEL once hosting provider confirmed* |
+| Valkey host      | Cache and asynchronous job queue (Asynq)       | DPA available on request — *REVIEW WITH COUNSEL once hosting provider confirmed* |
+| SeaweedFS host   | Object storage (attachments, voice audio)      | DPA available on request — *REVIEW WITH COUNSEL once hosting provider confirmed* |
+| SuperTokens      | Authentication and session management          | <https://supertokens.com/legal/privacy-policy> *(verify before publication)* |
+| LiveKit          | Real-time voice transport for the voice agent  | <https://livekit.io/legal/privacy-policy> *(verify before publication)* |
+| PostHog          | Product analytics                              | <https://posthog.com/privacy> &nbsp;·&nbsp; <https://posthog.com/dpa> |
+| Anthropic *(BYOK)* | LLM inference where the customer configures it | <https://www.anthropic.com/legal/privacy> |
+| OpenAI *(BYOK)*    | LLM inference where the customer configures it | <https://openai.com/policies/privacy-policy/> |
+| Cohere *(BYOK)*    | Embeddings and reranking where configured      | <https://cohere.com/privacy> |
 
 The current authoritative list of sub-processors is mirrored in Annex III of
 the Data Processing Addendum (`DPA.md`).
@@ -175,10 +181,28 @@ Articles 15–22 and DPDP Act Chapter III, namely:
   residents, their national DPA (e.g. CNIL, ICO); for Indian residents, the
   Data Protection Board of India.
 
-To exercise any right, open a private GitHub issue against
-`ravencloak-org/Raven` or email the DPO at <jobinlawrance@gmail.com>.
-Ravencloak responds to verifiable requests within **30 days**, extendable
-once where strictly necessary under Article 12(3).
+To exercise any right, email the DPO at <jobinlawrance@gmail.com>. A
+dedicated privacy intake address (`privacy@ravencloak.org`) and web form
+will replace the personal mailbox once provisioned; until then, the DPO
+mailbox is the sole intake channel.
+
+GitHub issues, pull requests, and discussions are **not** an authorised
+intake channel for data-subject rights requests; messages sent through
+those channels will be redirected to the DPO mailbox without being acted
+upon, to protect requester confidentiality and to satisfy our identity-
+verification controls.
+
+Each request must be capable of verification. Where a request is unclear
+or where Ravencloak has reasonable doubts about the identity of the
+requester, Ravencloak will request the minimum additional information
+necessary to confirm identity before acting (GDPR Art. 12(6)). All access
+to the resulting case file is restricted to the DPO and personnel
+specifically authorised to assist with the response. Ravencloak responds
+to verifiable requests within **30 days** of receipt, extendable by up to
+two further months where strictly necessary having regard to the
+complexity and number of requests (GDPR Art. 12(3)); any extension and
+its reasons are notified to the requester within the initial 30-day
+window.
 
 ## 11. Children
 
