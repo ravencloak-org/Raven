@@ -122,10 +122,10 @@ personal-data breach notification (WP250 rev.01).
    decision either way.
 2. For data subjects in India, prepare a **DPDP Act § 8(6)** notification
    to the **Data Protection Board of India** and to each affected **data
-   principal**. The exact recipient, prescribed form, and timing must be
-   confirmed by counsel against the DPDP rules in force at the time of
-   the incident before the notice is dispatched. *(See the REVIEW WITH
-   COUNSEL note above.)*
+   principal** *(DPDP term; equivalent to GDPR “data subject”)*. The exact
+   recipient, prescribed form, and timing must be confirmed by counsel
+   against the DPDP rules in force at the time of the incident before the
+   notice is dispatched. *(See the REVIEW WITH COUNSEL note above.)*
 3. Where the risk to data subjects is high, prepare and dispatch a
    **GDPR Article 34** communication to affected data subjects without
    undue delay.
