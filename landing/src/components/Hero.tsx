@@ -1,6 +1,9 @@
+import Image from 'next/image'
+
 import { Button } from '@/components/Button'
 import { Container } from '@/components/Container'
 import { Logo } from '@/components/Logo'
+import wordmark from '@/images/wordmark-raven.svg'
 
 const REPO_URL = 'https://github.com/ravencloak-org/Raven'
 
@@ -12,13 +15,12 @@ export function Hero() {
         markClassName="mx-auto h-32 w-auto md:h-40"
         className="block"
       />
-      <p
-        aria-hidden="true"
-        className="raven-wordmark mt-6 text-6xl leading-none text-[var(--color-ink)] md:text-7xl"
-        style={{ letterSpacing: '0.7em', paddingLeft: '0.7em' }}
-      >
-        RAVEN
-      </p>
+      <Image
+        src={wordmark}
+        alt="Raven"
+        priority
+        className="mx-auto mt-8 h-12 w-auto md:h-16"
+      />
       <h1 className="mx-auto mt-12 max-w-4xl font-display text-4xl font-medium tracking-tight text-[var(--color-ink)] sm:text-6xl">
         Your team&apos;s knowledge, on your infrastructure.
       </h1>

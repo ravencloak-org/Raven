@@ -1,7 +1,9 @@
+import Image from 'next/image'
 import Link from 'next/link'
 
 import { Container } from '@/components/Container'
 import { Logo } from '@/components/Logo'
+import wordmark from '@/images/wordmark-raven.svg'
 
 const REPO_URL = 'https://github.com/ravencloak-org/Raven'
 
@@ -10,7 +12,14 @@ export function Footer() {
     <footer className="bg-[var(--color-ink)] text-[var(--color-bg)]">
       <Container>
         <div className="py-16">
-          <Logo variant="mark" inverted markClassName="h-10 w-auto" className="mx-auto" />
+          <div className="flex flex-col items-center gap-4">
+            <Logo variant="mark" inverted markClassName="h-10 w-auto" />
+            <Image
+              src={wordmark}
+              alt="Raven"
+              className="h-4 w-auto invert"
+            />
+          </div>
           <nav className="mt-10 text-sm" aria-label="Footer">
             <ul className="-my-1 flex flex-wrap justify-center gap-x-6 gap-y-1">
               <li><Link href="/#features" className="hover:text-white">Features</Link></li>
