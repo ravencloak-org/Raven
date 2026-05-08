@@ -1,0 +1,33 @@
+[package]
+name = "raven-local"
+version = "0.1.0"
+description = "Raven Local — native desktop wrapper for the Raven stack"
+authors = []
+license = "MIT"
+repository = "https://github.com/ravencloak-org/Raven"
+edition = "2021"
+rust-version = "1.77"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "raven_local_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "raven-local"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+
+[profile.release]
+panic = "abort"   # strip expensive panic clean-up code
+codegen-units = 1 # allows LLVM to perform better optimization
+lto = true        # enables link-time optimization
+opt-level = "s"   # optimize for binary size
+strip = true      # automatically strip symbols from the binary
