@@ -55,7 +55,9 @@ external notification leaves the building.
 ## Detection Sources
 
 - **OpenObserve alerts** — application traces, logs, security rules.
-- **Beszel host metrics** — host-level anomalies on AWS hosts.
+- **Beszel host metrics** — host-level anomalies on AWS hosts (Beszel is
+  our host monitoring/metrics system; see https://beszel.dev for product
+  documentation and dashboard context).
 - **OSSF Scorecard regressions** — CI-driven supply-chain signal.
 - **CodeQL / Semgrep / Gitleaks** — pre-merge and scheduled scans.
 - **Third-party reports** — disclosures via the GitHub Security Advisory
