@@ -1,5 +1,31 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" fill="none">
-  <rect width="1280" height="720" rx="16" fill="#171717"/>
-  <rect x="440" y="310" width="400" height="40" rx="8" fill="#262626"/>
-  <text x="640" y="338" font-family="system-ui" font-size="16" fill="#737373" text-anchor="middle">AI Chat Interface</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" fill="none" role="img" aria-label="Chat surface mockup">
+  <rect width="1280" height="720" rx="16" fill="#0a0a0a"/>
+  <rect x="40" y="40" width="240" height="22" rx="11" fill="#262626"/>
+  <text x="48" y="56" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#a3a3a3" letter-spacing="0.08em">CHAT  ·  #ENGINEERING</text>
+  <rect x="640" y="100" width="560" height="80" rx="16" fill="#dc2626"/>
+  <rect x="660" y="124" width="380" height="10" rx="5" fill="#fff" opacity="0.85"/>
+  <rect x="660" y="146" width="280" height="10" rx="5" fill="#fff" opacity="0.7"/>
+  <text x="1180" y="194" text-anchor="end" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#737373">jobin · 09:41</text>
+  <rect x="80" y="220" width="720" height="220" rx="16" fill="#171717" stroke="#262626" stroke-width="1"/>
+  <rect x="100" y="244" width="600" height="10" rx="5" fill="#e5e5e5"/>
+  <rect x="100" y="266" width="540" height="10" rx="5" fill="#e5e5e5"/>
+  <rect x="100" y="288" width="660" height="10" rx="5" fill="#e5e5e5"/>
+  <rect x="100" y="310" width="420" height="10" rx="5" fill="#a3a3a3"/>
+  <rect x="100" y="350" width="160" height="28" rx="14" fill="#262626"/>
+  <circle cx="118" cy="364" r="6" fill="#dc2626"/>
+  <text x="132" y="368" font-family="ui-monospace, monospace" font-size="12" fill="#fafafa">runbook.md</text>
+  <rect x="276" y="350" width="220" height="28" rx="14" fill="#262626"/>
+  <circle cx="294" cy="364" r="6" fill="#dc2626"/>
+  <text x="308" y="368" font-family="ui-monospace, monospace" font-size="12" fill="#fafafa">migrations/0019.sql</text>
+  <rect x="512" y="350" width="160" height="28" rx="14" fill="#262626"/>
+  <circle cx="530" cy="364" r="6" fill="#dc2626"/>
+  <text x="544" y="368" font-family="ui-monospace, monospace" font-size="12" fill="#fafafa">PR #318</text>
+  <text x="100" y="416" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#737373">raven · 09:41 · 3 sources cited</text>
+  <rect x="780" y="480" width="420" height="60" rx="16" fill="#dc2626"/>
+  <rect x="800" y="504" width="240" height="10" rx="5" fill="#fff" opacity="0.85"/>
+  <rect x="800" y="522" width="160" height="8" rx="4" fill="#fff" opacity="0.6"/>
+  <rect x="80" y="620" width="1120" height="56" rx="28" fill="#171717" stroke="#262626" stroke-width="1"/>
+  <text x="120" y="654" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" fill="#737373">Reply to thread…</text>
+  <circle cx="1140" cy="648" r="20" fill="#dc2626"/>
+  <path d="M1132 648 L1148 648 M1142 642 L1148 648 L1142 654" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
