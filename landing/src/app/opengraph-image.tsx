@@ -35,7 +35,7 @@ export default async function OG() {
           style={{
             marginTop: 40,
             fontSize: 36,
-            color: '#06b6d4',
+            color: 'rgba(255,255,255,0.7)',
             maxWidth: 980,
             textAlign: 'center',
             fontFamily: 'sans-serif',

@@ -11,8 +11,8 @@
   --color-body: oklch(0.42 0 0);          /* slate-600 */
   --color-bg: oklch(0.98 0.005 75);       /* warm off-white */
   --color-surface: oklch(1 0 0);          /* white */
-  --color-accent: oklch(0.71 0.16 200);   /* cyan-500 */
-  --color-accent-hover: oklch(0.65 0.18 200); /* cyan-600 */
+  --color-accent: oklch(0.578 0.214 27);     /* red-600 (#dc2626) */
+  --color-accent-hover: oklch(0.505 0.213 27); /* red-700 (#b91c1c) */
   --color-border: oklch(0.91 0.005 75);
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;

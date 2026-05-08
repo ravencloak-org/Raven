@@ -1,7 +1,8 @@
 import { Container } from '@/components/Container'
 
-const compose = `# 1. Grab the production Compose file
-curl -fsSL https://raven.ravencloak.org/compose.yml -o docker-compose.yml
+const compose = `# 1. Grab the production Compose file (canonical, pinned to main)
+curl -fsSL https://raw.githubusercontent.com/ravencloak-org/Raven/main/docker-compose.yml \\
+  -o docker-compose.yml
 
 # 2. Generate secrets and start
 docker compose up -d
