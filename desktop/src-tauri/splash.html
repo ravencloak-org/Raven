@@ -84,6 +84,9 @@
     // TODO(#418): replace timer with compose health-check event from the
     // orchestrator once the compose lifecycle integration lands.
     const RAVEN_API_URL = "http://127.0.0.1:8081/";
+    // Temporary fallback delay: 3s gives users a brief startup transition
+    // while local services initialize, and avoids an abrupt redirect flash.
+    // Remove this once health-check driven navigation is implemented.
     const SPLASH_DURATION_MS = 3000;
 
     setTimeout(() => {
