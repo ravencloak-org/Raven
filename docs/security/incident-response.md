@@ -7,7 +7,7 @@
 
 This runbook governs Ravencloak's response to security incidents affecting
 the Raven platform, including personal-data breaches subject to GDPR
-Article 33 and DPDP Act Section 8. It complements `SECURITY.md` (the public
+Article 33 and DPDP Act § 8. It complements `SECURITY.md` (the public
 disclosure path), `PRIVACY.md` (the controller-facing notice), `DPA.md`
 (the contractual processor-to-controller flow), and `GOVERNANCE.md` (the
 escalation chain).
@@ -197,6 +197,7 @@ personal-data breach notification (WP250 rev.01).
   --   {ROW_LIMIT:Int32} (for example: 1000, 10000, 50000)
   SELECT timestamp, actor_id, action, resource, source_ip
   FROM audit_events
+  -- ClickHouse interval units are written in singular form (for example, HOUR) even for values > 1.
   WHERE timestamp >= now() - INTERVAL {LOOKBACK_HOURS:Int32} HOUR
     AND (action LIKE '%export%' OR action LIKE '%delete%')
   ORDER BY timestamp DESC
