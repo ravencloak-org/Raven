@@ -4,12 +4,14 @@
 use std::path::PathBuf;
 
 use raven_local_lib::compose::{ComposeManager, StatusEvent};
+use raven_local_lib::precheck::{run_precheck, skip_requested, RealSystemInfo};
 use tauri::{Emitter, Manager};
 
 const COMPOSE_FILE: &str = "docker-compose.local.yml";
 const API_HEALTH_URL: &str = "http://127.0.0.1:8081/healthz";
 const STATUS_EVENT: &str = "compose:status";
 const LOG_EVENT: &str = "compose:log";
+const PRECHECK_EVENT: &str = "precheck:result";
 
 fn main() {
     tauri::Builder::default()
@@ -28,6 +30,29 @@ fn main() {
 
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
+                // System-requirements precheck. The frontend always receives
+                // the structured result so the splash can render warnings;
+                // RAVEN_LOCAL_SKIP_REQS=true lets power users proceed even
+                // when the host is below thresholds.
+                let precheck = run_precheck(&RealSystemInfo);
+                let _ = handle.emit(PRECHECK_EVENT, &precheck);
+                if !precheck.ok && !skip_requested() {
+                    let summary = precheck
+                        .warnings
+                        .iter()
+                        .map(|w| w.remediation())
+                        .collect::<Vec<_>>()
+                        .join(" / ");
+                    let _ = handle.emit(
+                        STATUS_EVENT,
+                        StatusEvent::error(format!(
+                            "system-requirements precheck failed: {summary} \
+                             (set RAVEN_LOCAL_SKIP_REQS=true to bypass)"
+                        )),
+                    );
+                    return;
+                }
+
                 if let Err(e) = manager_for_setup.detect_docker().await {
                     let _ = handle.emit(STATUS_EVENT, StatusEvent::error(e.to_string()));
                     return;

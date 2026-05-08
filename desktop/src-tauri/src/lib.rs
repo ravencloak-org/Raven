@@ -5,3 +5,4 @@
 //! the orchestrator implementation here so it's available to both.
 
 pub mod compose;
+pub mod precheck;
