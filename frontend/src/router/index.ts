@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useServerConfigStore } from '../stores/server-config'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -7,6 +8,8 @@ const router = createRouter({
     {
       path: '/',
       redirect: () => {
+        const serverConfig = useServerConfigStore()
+        if (serverConfig.singleUser) return '/dashboard'
         const auth = useAuthStore()
         return auth.isAuthenticated ? '/dashboard' : '/login'
       },
@@ -155,7 +158,17 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
+  const serverConfig = useServerConfigStore()
   const auth = useAuthStore()
+
+  // In single-user (Raven Local) mode there is no login flow — the app always
+  // boots directly to the dashboard. Skip the login/callback pages entirely.
+  if (serverConfig.singleUser) {
+    if (to.path === '/login' || to.path === '/callback' || to.path === '/onboarding') {
+      return '/dashboard'
+    }
+    return
+  }
 
   if (to.path === '/login' || to.path === '/callback') return
   if (to.path.startsWith('/legal/')) return

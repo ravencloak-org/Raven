@@ -72,6 +72,67 @@ func TestSessionMiddleware_InvalidSession(t *testing.T) {
 	}
 }
 
+func TestSingleUserMiddleware_SetsLocalIdentity(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(middleware.SingleUserMiddleware())
+	r.GET("/test", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"user_id": c.GetString(string(middleware.ContextKeyUserID)),
+			"org_id":  c.GetString(string(middleware.ContextKeyOrgID)),
+			"role":    c.GetString(string(middleware.ContextKeyOrgRole)),
+			"email":   c.GetString(string(middleware.ContextKeyEmail)),
+		})
+	})
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/test", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != 200 {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+
+	body := w.Body.String()
+	if !contains(body, "00000000-0000-0000-0000-000000000002") {
+		t.Errorf("expected local user_id in response body, got: %s", body)
+	}
+	if !contains(body, "00000000-0000-0000-0000-000000000001") {
+		t.Errorf("expected local org_id in response body, got: %s", body)
+	}
+	if !contains(body, "org_admin") {
+		t.Errorf("expected org_admin role in response body, got: %s", body)
+	}
+}
+
+func TestSingleUserMiddleware_NoAuthHeaderRequired(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(middleware.SingleUserMiddleware())
+	r.GET("/test", func(c *gin.Context) { c.Status(200) })
+
+	// No Authorization header, no cookies — must still succeed.
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/test", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != 200 {
+		t.Errorf("expected 200 with no auth headers, got %d", w.Code)
+	}
+}
+
+func contains(s, sub string) bool {
+	return len(s) >= len(sub) && (s == sub || len(sub) == 0 ||
+		func() bool {
+			for i := 0; i <= len(s)-len(sub); i++ {
+				if s[i:i+len(sub)] == sub {
+					return true
+				}
+			}
+			return false
+		}())
+}
+
 func TestRequireOrg_WithOrg(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()

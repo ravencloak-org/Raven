@@ -59,6 +59,19 @@ export const useAuthStore = defineStore('auth', () => {
     sessionStorage.setItem('raven_org_id', id)
   }
 
+  /**
+   * Called in single-user (Raven Local) mode to mark the session as
+   * authenticated without going through SuperTokens. The backend injects
+   * the local user / org via SingleUserMiddleware so no real token is needed.
+   */
+  function setLocalMode() {
+    sessionExists.value = true
+    // Use the fixed local org UUID from the single-user migration seed.
+    const localOrgId = '00000000-0000-0000-0000-000000000001'
+    orgId.value = localOrgId
+    sessionStorage.setItem('raven_org_id', localOrgId)
+  }
+
   return {
     sessionExists,
     orgId,
@@ -69,5 +82,6 @@ export const useAuthStore = defineStore('auth', () => {
     handleCallback,
     logout,
     setOrgId,
+    setLocalMode,
   }
 })

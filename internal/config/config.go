@@ -245,6 +245,12 @@ type ServerConfig struct {
 	AIWorkerTimeout          time.Duration `mapstructure:"ai_worker_timeout"`
 	AIWorkerBreakerThreshold uint32        `mapstructure:"ai_worker_breaker_threshold"`
 	AIWorkerBreakerCooldown  time.Duration `mapstructure:"ai_worker_breaker_cooldown"`
+
+	// SingleUser enables single-user (Raven Local / desktop) mode. When true,
+	// SessionMiddleware injects a synthetic session for user_id=local,
+	// org_id=local without contacting SuperTokens. The /auth/* routes are not
+	// registered. Default false (standard multi-user mode).
+	SingleUser bool `mapstructure:"single_user"`
 }
 
 // DatabaseConfig holds database connection settings.
@@ -283,6 +289,7 @@ func Load() (*Config, error) {
 	v.SetDefault("server.ai_worker_timeout", "5s")
 	v.SetDefault("server.ai_worker_breaker_threshold", 5)
 	v.SetDefault("server.ai_worker_breaker_cooldown", "30s")
+	v.SetDefault("server.single_user", false)
 	v.SetDefault("grpc.worker_addr", "localhost:50051")
 	v.SetDefault("otel.endpoint", "")
 	v.SetDefault("otel.service_name", "raven-api")
@@ -419,6 +426,7 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("server.ai_worker_timeout", "RAVEN_AI_WORKER_TIMEOUT")
 	_ = v.BindEnv("server.ai_worker_breaker_threshold", "RAVEN_AI_WORKER_BREAKER_THRESHOLD")
 	_ = v.BindEnv("server.ai_worker_breaker_cooldown", "RAVEN_AI_WORKER_BREAKER_COOLDOWN")
+	_ = v.BindEnv("server.single_user", "RAVEN_SINGLE_USER")
 	_ = v.BindEnv("clickhouse.host", "RAVEN_CLICKHOUSE_HOST")
 	_ = v.BindEnv("clickhouse.port", "RAVEN_CLICKHOUSE_PORT")
 	_ = v.BindEnv("clickhouse.database", "RAVEN_CLICKHOUSE_DATABASE")

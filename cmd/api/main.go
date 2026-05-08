@@ -188,15 +188,17 @@ func main() {
 		defer ebpfManager.Stop()
 	}
 
-	// Initialise the SuperTokens Go SDK. This must happen before any route
-	// registration so that supertokens.Middleware can intercept /auth/* paths.
-	if err := auth.InitSuperTokens(auth.SuperTokensInitConfig{
-		ConnectionURI: cfg.SuperTokens.ConnectionURI,
-		APIKey:        cfg.SuperTokens.APIKey,
-		APIDomain:     cfg.SuperTokens.APIDomain,
-		WebsiteDomain: cfg.SuperTokens.WebsiteDomain,
-	}); err != nil {
-		log.Fatalf("failed to initialize SuperTokens: %v", err)
+	// Initialise the SuperTokens Go SDK. Skipped in single-user mode where no
+	// external auth service is required or expected.
+	if !cfg.Server.SingleUser {
+		if err := auth.InitSuperTokens(auth.SuperTokensInitConfig{
+			ConnectionURI: cfg.SuperTokens.ConnectionURI,
+			APIKey:        cfg.SuperTokens.APIKey,
+			APIDomain:     cfg.SuperTokens.APIDomain,
+			WebsiteDomain: cfg.SuperTokens.WebsiteDomain,
+		}); err != nil {
+			log.Fatalf("failed to initialize SuperTokens: %v", err)
+		}
 	}
 
 	// TMDB client for demo seed endpoint.
@@ -506,6 +508,14 @@ func main() {
 	// Excluded from rate limiting.
 	router.GET("/healthz", middleware.Deadline(1*time.Second), handler.HealthCheck)
 
+	// Frontend config endpoint — public, unauthenticated. Returns feature flags
+	// that the frontend reads on boot to decide behaviour (e.g. single-user mode).
+	router.GET("/api/v1/config", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"single_user": cfg.Server.SingleUser,
+		})
+	})
+
 	// One-click unsubscribe — public, authenticated via a signed token embedded
 	// in the link (RFC 8058). Placed outside /api/v1 so email clients can hit
 	// it without triggering CORS/auth middleware.
@@ -517,7 +527,10 @@ func main() {
 
 	// SuperTokens SDK routes — catch-all for /auth/* so the SDK middleware
 	// can intercept signinup, session/refresh, callback, etc.
-	router.Any("/auth/*path", handler.SuperTokensMiddleware())
+	// Not registered in single-user mode (no SuperTokens; no auth flows).
+	if !cfg.Server.SingleUser {
+		router.Any("/auth/*path", handler.SuperTokensMiddleware())
+	}
 
 	// Protected API routes — JWT validation applied per-group, not globally.
 	// This allows health checks and other public endpoints to remain unauthenticated.
@@ -531,9 +544,16 @@ func main() {
 	// WriteTimeout — acceptable for default-CRUD route groups.
 	api := router.Group("/api/v1")
 
-	authProvider := auth.NewSuperTokensProvider()
-	api.Use(middleware.SessionMiddleware(authProvider))
-	api.Use(middleware.UserLookup(&userLookupAdapter{repo: userRepo}))
+	// Single-user mode: inject synthetic local session without SuperTokens.
+	// Multi-user mode: verify session via SuperTokens and resolve DB user.
+	var authProvider auth.Provider
+	if cfg.Server.SingleUser {
+		api.Use(middleware.SingleUserMiddleware())
+	} else {
+		authProvider = auth.NewSuperTokensProvider()
+		api.Use(middleware.SessionMiddleware(authProvider))
+		api.Use(middleware.UserLookup(&userLookupAdapter{repo: userRepo}))
+	}
 	// Per-user and per-org flat rate limits (config-driven defaults).
 	api.Use(middleware.ByUserID(rl, cfg.RateLimit.DefaultUserLimit))
 	api.Use(middleware.ByOrgID(rl, cfg.RateLimit.DefaultOrgLimit))
@@ -857,19 +877,22 @@ func main() {
 	// Auth callback — outside the session-protected /api/v1 group.
 	// We verify the session directly via the SuperTokens SDK rather than
 	// relying on SessionMiddleware (cookies may not be available yet).
+	// Not registered in single-user mode — there is no sign-in flow.
 	demoJoiner := service.NewDemoOrgJoiner(orgSvc, wsSvc)
 	authHandler := handler.NewAuthHandler(userSvc, demoJoiner)
-	router.GET("/api/v1/auth/callback", func(c *gin.Context) {
-		info, err := authProvider.VerifySession(c.Request)
-		if err != nil || info == nil {
-			c.AbortWithStatusJSON(401, gin.H{"error": "invalid_session"})
-			return
-		}
-		c.Set(string(middleware.ContextKeyExternalID), info.ExternalID)
-		c.Set(string(middleware.ContextKeyEmail), info.Email)
-		c.Set(string(middleware.ContextKeyUserName), info.Name)
-		authHandler.Callback(c)
-	})
+	if !cfg.Server.SingleUser {
+		router.GET("/api/v1/auth/callback", func(c *gin.Context) {
+			info, err := authProvider.VerifySession(c.Request)
+			if err != nil || info == nil {
+				c.AbortWithStatusJSON(401, gin.H{"error": "invalid_session"})
+				return
+			}
+			c.Set(string(middleware.ContextKeyExternalID), info.ExternalID)
+			c.Set(string(middleware.ContextKeyEmail), info.Email)
+			c.Set(string(middleware.ContextKeyUserName), info.Name)
+			authHandler.Callback(c)
+		})
+	}
 
 	// Create HTTP server
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
