@@ -12,6 +12,7 @@
 | **Phase 5: Cloud Managed** | AWS Terraform, hosted offering, pricing, i18n, a11y | Future |
 | **Raven Pro: Enterprise Connectors** | Airbyte-powered data connectors, on-prem/hybrid deployment, data classification, ClickHouse + QBit vectors at scale | Future |
 | **Edge Optimization** | eBPF-based XDP pre-filtering, kernel-level observability, security audit trail | Future (post-Phase 2) |
+| **Raven Local (Desktop)** | Tauri-based one-click installer bundling the existing stack with Ollama as a local LLM provider. Single-user mode, no service rewrite. | M11 — active |
 
 ## Phase 1 -- MVP (Chatbot)
 
@@ -76,6 +77,31 @@ Low-level Linux kernel optimizations using eBPF. See `docs/research/ebpf-edge-op
 **1. XDP Pre-filtering (Rate Limiting Offload)** — Drop/throttle traffic at the NIC before TCP stack.
 **2. Kernel-level Observability (Zero-agent Metrics)** — CPU, memory, syscall metrics via kprobes/tracepoints.
 **3. Security Audit Trail (Process + Syscall Monitoring)** — Trace sys_execve and socket calls for GDPR/SOC2.
+
+## Raven Local (Desktop) — M11
+
+A privacy-first desktop edition of Raven for users who want everything to run locally.
+
+**Approach:** Tauri shell wrapping the existing Docker compose. Ollama is bundled as a sidecar so users can pick a local LLM (or supply BYOK keys for cloud providers). No rewrite of the Go API, AI worker, or frontend — single-user mode is a config flag.
+
+**Phase 0 (foundation):**
+- [#417](https://github.com/ravencloak-org/Raven/issues/417) Tauri shell skeleton
+- [#418](https://github.com/ravencloak-org/Raven/issues/418) Compose orchestrator (lifecycle from Tauri)
+- [#419](https://github.com/ravencloak-org/Raven/issues/419) Single-user mode flag
+- [#420](https://github.com/ravencloak-org/Raven/issues/420) System-requirements precheck
+
+**Phase 1 (MVP):**
+- [#421](https://github.com/ravencloak-org/Raven/issues/421) Ollama bundled service + BYOK provider
+- [#422](https://github.com/ravencloak-org/Raven/issues/422) First-run wizard
+- [#423](https://github.com/ravencloak-org/Raven/issues/423) Installer packaging (.dmg / .msi / .AppImage)
+
+**Phase 2 (polish):**
+- [#424](https://github.com/ravencloak-org/Raven/issues/424) Settings panel
+- [#425](https://github.com/ravencloak-org/Raven/issues/425) Tray/menubar status app
+- [#426](https://github.com/ravencloak-org/Raven/issues/426) Auto-update channel
+- [#427](https://github.com/ravencloak-org/Raven/issues/427) CI: cross-platform build + artefact upload
+
+See [Raven-Local](Raven-Local.md) for the architecture overview and the [M11 project board](https://github.com/orgs/ravencloak-org/projects/2) for live status.
 
 ## Milestones
 
