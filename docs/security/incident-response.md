@@ -7,7 +7,7 @@
 
 This runbook governs Ravencloak's response to security incidents affecting
 the Raven platform, including personal-data breaches subject to GDPR
-Article 33 and DPDP Act Section 8. It complements `SECURITY.md` (the public
+Article 33 and DPDP Act § 8. It complements `SECURITY.md` (the public
 disclosure path), `PRIVACY.md` (the controller-facing notice), `DPA.md`
 (the contractual processor-to-controller flow), and `GOVERNANCE.md` (the
 escalation chain).
