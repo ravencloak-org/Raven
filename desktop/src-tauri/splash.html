@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Raven Local</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: #0f1117;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+      user-select: none;
+    }
+
+    .logo {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 24px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #6366f1, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #64748b;
+      margin-bottom: 40px;
+    }
+
+    /* CSS spinner */
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid #1e293b;
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .status {
+      margin-top: 16px;
+      font-size: 12px;
+      color: #475569;
+    }
+  </style>
+</head>
+<body>
+  <div class="logo">🦅</div>
+  <h1>Raven Local</h1>
+  <p class="subtitle">Starting…</p>
+  <div class="spinner"></div>
+  <p class="status" id="status">Waiting for local stack…</p>
+
+  <script>
+    // TODO(#418): replace timer with compose health-check event from the
+    // orchestrator once the compose lifecycle integration lands.
+    const RAVEN_API_URL = "http://127.0.0.1:8081/";
+    const SPLASH_DURATION_MS = 3000;
+
+    setTimeout(() => {
+      document.getElementById("status").textContent = "Connecting to Raven API…";
+      window.location.href = RAVEN_API_URL;
+    }, SPLASH_DURATION_MS);
+  </script>
+</body>
+</html>
