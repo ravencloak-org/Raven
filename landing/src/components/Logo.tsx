@@ -2,6 +2,7 @@ import Image from 'next/image'
 import clsx from 'clsx'
 
 import logoMark from '@/images/logo-mark.svg'
+import wordmark from '@/images/wordmark-raven.svg'
 
 type LogoProps = {
   variant?: 'full' | 'mark'
@@ -9,6 +10,8 @@ type LogoProps = {
   className?: string
   /** Tailwind height class for the bird mark. Defaults to `h-8`. */
   markClassName?: string
+  /** Tailwind height class for the wordmark image. Defaults to `h-5`. */
+  wordmarkClassName?: string
 }
 
 export function Logo({
@@ -16,6 +19,7 @@ export function Logo({
   inverted = false,
   className,
   markClassName = 'h-8 w-auto',
+  wordmarkClassName = 'h-5 w-auto',
 }: LogoProps) {
   const mark = (
     <Image
@@ -38,17 +42,16 @@ export function Logo({
   return (
     <span
       aria-label="Raven"
-      className={clsx('inline-flex items-center gap-2', className)}
+      className={clsx('inline-flex items-center gap-3', className)}
     >
       {mark}
-      <span
-        className={clsx(
-          'raven-wordmark text-2xl leading-none',
-          inverted ? 'text-white' : 'text-[var(--color-ink)]',
-        )}
-      >
-        RAVEN
-      </span>
+      <Image
+        src={wordmark}
+        alt=""
+        aria-hidden="true"
+        className={clsx(wordmarkClassName, inverted && 'invert')}
+        priority
+      />
     </span>
   )
 }
