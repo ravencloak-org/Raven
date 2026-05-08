@@ -241,7 +241,7 @@ Counts cover the criteria enumerated below. "N/A" is reserved for criteria the p
 
 - **Status:** Unmet
 - **Evidence:** Project repo is on `https://github.com/...`; a public project website URL is not yet published/documented from this repo's perspective.
-- **Justification:** The repository is hosted on GitHub over HTTPS. We cannot yet point at a project home page that we control with a verified TLS certificate; needs verification once the landing site is published.
+- **Justification:** This criterion is currently unmet because no public, project-controlled homepage URL with verified HTTPS/TLS is published in the repository documentation or badge evidence.
 - **Gap:** Confirm the landing site (`landing/`) is deployed to a TLS-only domain and add the URL to the README/badge form.
 
 ### dco
@@ -379,7 +379,7 @@ Counts cover the criteria enumerated below. "N/A" is reserved for criteria the p
 - **Status:** Unknown
 - **Evidence:** No public CVEs filed against Raven yet.
 - **Justification:** No vulnerabilities have yet been disclosed; SLA in SECURITY.md commits to 90 days. The 60-day Silver bar is tighter than our public SLA.
-- **Gap:** Tighten SECURITY.md "Fix, disclosure, and release" SLA from 90 days to 60 days, or commit publicly that Critical/High will be fixed within 60 days while overall is 90.
+- **Gap:** Tighten SECURITY.md "Fix, disclosure, and release" SLA from 90 days to 60 days, or document in SECURITY.md that Critical/High vulnerabilities will be fixed within 60 days while the overall SLA remains 90 days.
 
 ### vulnerabilities_critical_fixed
 
@@ -488,7 +488,7 @@ Counts cover the criteria enumerated below. "N/A" is reserved for criteria the p
 - **Status:** Unknown
 - **Evidence:** Go stdlib `crypto/tls` and Python `requests`/`httpx` defaults verify certificates by default, but repository-wide proof of no verification bypasses is not yet documented.
 - **Justification:** Expected safe client defaults exist, but we have not yet completed and recorded a repo-wide audit confirming no `InsecureSkipVerify: true` (or equivalent disablement flags) are present.
-- **Gap:** Run and document a repository grep/audit for certificate-verification bypass settings (for Go, Python, and any other TLS clients), then update this criterion to Met only after results are committed.
+- **Gap:** Run a repository grep/audit for certificate-verification bypass settings (Go, Python, and any other TLS clients) and document the results in `docs/security/certificate-verification-audit.md`, showing no verification bypasses are present; mark this criterion Met only after that file is committed.
 
 ### crypto_verification_private
 

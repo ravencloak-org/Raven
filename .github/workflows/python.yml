@@ -31,9 +31,16 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-          cache-dependency-path: ai-worker/pyproject.toml
+          cache-dependency-path: ai-worker/requirements-dev.txt
 
-      - run: pip install -e ".[dev]"
+      # Hash-pinned deps first, then the local package with --no-deps so the
+      # editable install can't pull anything that wasn't in the lockfile.
+      # Regenerate the lockfile with:
+      #   uv pip compile pyproject.toml --extra dev --generate-hashes \
+      #     --python-version 3.12 -o requirements-dev.txt
+      - run: pip install --require-hashes -r requirements-dev.txt
+
+      - run: pip install --no-deps -e .
 
       - run: ruff check
 
@@ -42,7 +49,14 @@ jobs:
       - run: mypy raven_worker
 
       - name: Install dotenvx
-        run: curl -sfS https://dotenvx.sh | sh
+        env:
+          DOTENVX_VERSION: 1.65.0
+          DOTENVX_INSTALLER_SHA256: a1faad2613cd88286d02a5201c34e880f935558957eb9c09e3c11f27039a6296
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/dotenvx/dotenvx/releases/download/v${DOTENVX_VERSION}/install.sh" -o /tmp/dotenvx-install.sh
+          echo "${DOTENVX_INSTALLER_SHA256}  /tmp/dotenvx-install.sh" | sha256sum -c -
+          sudo sh /tmp/dotenvx-install.sh
 
       - name: Run tests
         run: |
@@ -77,10 +91,19 @@ jobs:
         with:
           python-version: '3.12'
 
-      - run: pip install -e ".[dev]"
+      - run: pip install --require-hashes -r requirements-dev.txt
+
+      - run: pip install --no-deps -e .
 
       - name: Install dotenvx
-        run: curl -sfS https://dotenvx.sh | sh
+        env:
+          DOTENVX_VERSION: 1.65.0
+          DOTENVX_INSTALLER_SHA256: a1faad2613cd88286d02a5201c34e880f935558957eb9c09e3c11f27039a6296
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/dotenvx/dotenvx/releases/download/v${DOTENVX_VERSION}/install.sh" -o /tmp/dotenvx-install.sh
+          echo "${DOTENVX_INSTALLER_SHA256}  /tmp/dotenvx-install.sh" | sha256sum -c -
+          sudo sh /tmp/dotenvx-install.sh
 
       - name: Run LLM provider smoke tests
         env:

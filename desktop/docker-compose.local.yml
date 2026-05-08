@@ -1,0 +1,15 @@
+# Raven Local — desktop-tailored docker compose.
+#
+# This is a placeholder that includes the repo's primary compose file.
+# Issue #421 will replace this with a desktop-tailored variant that
+# adds an Ollama sidecar service and sets RAVEN_SINGLE_USER=true defaults.
+#
+# Used by the Tauri shell's compose orchestrator (desktop/src-tauri/src/compose.rs).
+# When the Tauri app is packaged, this file is bundled as a resource and
+# the orchestrator runs `docker compose -f docker-compose.local.yml up -d`
+# from the resource directory.
+
+include:
+  - ../docker-compose.yml
+
+# TODO(#421): add Ollama sidecar service + RAVEN_SINGLE_USER=true defaults

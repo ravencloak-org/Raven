@@ -5,7 +5,7 @@ go 1.25.7
 toolchain go1.26.2
 
 require (
-	github.com/ClickHouse/clickhouse-go/v2 v2.45.0 // bumped from v2.43.0 by Dependabot (#212); v2.44 adds native protocol improvements
+	github.com/ClickHouse/clickhouse-go/v2 v2.46.0 // bumped from v2.43.0 by Dependabot (#212); v2.44 adds native protocol improvements
 	github.com/alicebob/miniredis/v2 v2.37.0
 	github.com/cilium/ebpf v0.21.0
 	github.com/gin-contrib/cors v1.7.7
@@ -36,7 +36,7 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.43.0
 	go.opentelemetry.io/otel/trace v1.43.0
 	golang.org/x/sys v0.43.0
-	google.golang.org/grpc v1.80.0
+	google.golang.org/grpc v1.81.0
 	google.golang.org/protobuf v1.36.11
 )
 
