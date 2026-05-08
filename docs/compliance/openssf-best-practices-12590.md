@@ -135,7 +135,7 @@ Counts cover the criteria enumerated below. "N/A" is reserved for criteria the p
 
 - **Status:** Met
 - **Evidence:** SECURITY.md "Primary: GitHub Security Advisories (private reporting)" section linking to <https://github.com/ravencloak-org/Raven/security/advisories/new>; explicit instruction not to use public issues.
-- **Justification:** The primary channel is GitHub's private vulnerability reporting, with an email escalation to `jobinlawrance@gmail.com`. Reporters never have to disclose publicly.
+- **Justification:** The primary channel is GitHub's private vulnerability reporting, with an email escalation path via the project security contact documented in SECURITY.md. Reporters never have to disclose publicly.
 
 ### vulnerability_report_response
 
@@ -486,8 +486,9 @@ Counts cover the criteria enumerated below. "N/A" is reserved for criteria the p
 ### crypto_certificate_verification
 
 - **Status:** Unknown
-- **Evidence:** Go stdlib `crypto/tls` and Python `requests`/`httpx` defaults verify certificates; no `InsecureSkipVerify: true` lines in repo (verified via PR template "no insecure code" checklist culture; needs grep audit).
-- **Justification:** Default TLS clients in all languages verify certificates; project policy forbids disabling verification.
+- **Evidence:** Go stdlib `crypto/tls` and Python `requests`/`httpx` defaults verify certificates by default, but repository-wide proof of no verification bypasses is not yet documented.
+- **Justification:** Expected safe client defaults exist, but we have not yet completed and recorded a repo-wide audit confirming no `InsecureSkipVerify: true` (or equivalent disablement flags) are present.
+- **Gap:** Run and document a repository grep/audit for certificate-verification bypass settings (for Go, Python, and any other TLS clients), then update this criterion to Met only after results are committed.
 
 ### crypto_verification_private
 
