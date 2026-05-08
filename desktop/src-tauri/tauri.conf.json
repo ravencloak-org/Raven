@@ -6,7 +6,6 @@
   "build": {
     "beforeDevCommand": "",
     "beforeBuildCommand": "",
-    "devUrl": "desktop/src-tauri/splash.html",
     "frontendDist": "."
   },
   "app": {
@@ -34,6 +33,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": ["splash.html"]
+    "resources": ["splash.html", "../docker-compose.local.yml"]
   }
 }
