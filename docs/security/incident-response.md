@@ -55,9 +55,7 @@ external notification leaves the building.
 ## Detection Sources
 
 - **OpenObserve alerts** — application traces, logs, security rules.
-- **Beszel host metrics** — host-level anomalies on AWS hosts (Beszel is
-  our host monitoring/metrics system; see https://beszel.dev for product
-  documentation and dashboard context).
+- **Beszel host metrics** — host-level anomalies on AWS hosts.
 - **OSSF Scorecard regressions** — CI-driven supply-chain signal.
 - **CodeQL / Semgrep / Gitleaks** — pre-merge and scheduled scans.
 - **Third-party reports** — disclosures via the GitHub Security Advisory
@@ -65,6 +63,11 @@ external notification leaves the building.
 - **Customer reports** — support correspondence escalated to the IC.
 - **Sub-processor notifications** — breach notices received from any
   sub-processor listed in Annex III of `DPA.md`.
+
+## Tools Reference
+
+- **Beszel** — host monitoring/metrics system used for AWS host telemetry.
+  Product documentation and dashboard context: https://beszel.dev
 
 ## Response Timeline
 
