@@ -379,7 +379,7 @@ Counts cover the criteria enumerated below. "N/A" is reserved for criteria the p
 - **Status:** Unknown
 - **Evidence:** No public CVEs filed against Raven yet.
 - **Justification:** No vulnerabilities have yet been disclosed; SLA in SECURITY.md commits to 90 days. The 60-day Silver bar is tighter than our public SLA.
-- **Gap:** Tighten SECURITY.md "Fix, disclosure, and release" SLA from 90 days to 60 days, or commit publicly that Critical/High will be fixed within 60 days while overall is 90.
+- **Gap:** Tighten SECURITY.md "Fix, disclosure, and release" SLA from 90 days to 60 days, or document in SECURITY.md that Critical/High vulnerabilities will be fixed within 60 days while the overall SLA remains 90 days.
 
 ### vulnerabilities_critical_fixed
 
