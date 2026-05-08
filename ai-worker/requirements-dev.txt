@@ -1743,9 +1743,9 @@ openai==2.36.0 \
     # via
     #   raven-worker (pyproject.toml)
     #   livekit-agents
-opentelemetry-api==1.39.1 \
-    --hash=sha256:2edd8463432a7f8443edce90972169b195e7d6a05500cd29e6d13898187c9950 \
-    --hash=sha256:fbde8c80e1b937a2c61f20347e91c0c18a1940cecf012d62e65a7caf08967c9c
+opentelemetry-api==1.41.1 \
+    --hash=sha256:0ad1814d73b875f84494387dae86ce0b12c68556331ce6ce8fe789197c949621 \
+    --hash=sha256:a22df900e75c76dc08440710e51f52f1aa6b451b429298896023e60db5b3139f
     # via
     #   raven-worker (pyproject.toml)
     #   livekit-agents
