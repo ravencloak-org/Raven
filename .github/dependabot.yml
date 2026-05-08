@@ -25,6 +25,19 @@ updates:
       prefix: "deps(py):"
     open-pull-requests-limit: 10
 
+  # Python / pip (CI tooling — semgrep, hash-pinned for Scorecard)
+  - package-ecosystem: "pip"
+    directory: "/.github/requirements"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "python"
+      - "ci"
+    commit-message:
+      prefix: "deps(py-ci):"
+    open-pull-requests-limit: 5
+
   # npm (frontend)
   - package-ecosystem: "npm"
     directory: "/frontend"

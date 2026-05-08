@@ -39,7 +39,11 @@ jobs:
           python-version: '3.12'
 
       - name: Install Semgrep
-        run: pip install "semgrep==1.*"
+        # Hash-pinned via .github/requirements/semgrep.txt. Regenerate with:
+        #   echo 'semgrep==<new-version>' > .github/requirements/semgrep.in
+        #   uv pip compile .github/requirements/semgrep.in --generate-hashes \
+        #     --python-version 3.12 -o .github/requirements/semgrep.txt
+        run: pip install --require-hashes -r ${{ github.workspace }}/.github/requirements/semgrep.txt
 
       - name: Scan
         # --config pulls Semgrep's maintained community rule packs. We

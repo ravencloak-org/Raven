@@ -60,7 +60,14 @@ jobs:
       - run: go mod download
 
       - name: Install dotenvx
-        run: curl -sfS https://dotenvx.sh | sh
+        env:
+          DOTENVX_VERSION: 1.65.0
+          DOTENVX_INSTALLER_SHA256: a1faad2613cd88286d02a5201c34e880f935558957eb9c09e3c11f27039a6296
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/dotenvx/dotenvx/releases/download/v${DOTENVX_VERSION}/install.sh" -o /tmp/dotenvx-install.sh
+          echo "${DOTENVX_INSTALLER_SHA256}  /tmp/dotenvx-install.sh" | sha256sum -c -
+          sudo sh /tmp/dotenvx-install.sh
 
       - name: Install eBPF build tools
         run: sudo apt-get install -y clang llvm libbpf-dev "linux-tools-$(uname -r)" || sudo apt-get install -y clang llvm libbpf-dev
@@ -110,7 +117,14 @@ jobs:
       - run: go mod download
 
       - name: Install dotenvx
-        run: curl -sfS https://dotenvx.sh | sh
+        env:
+          DOTENVX_VERSION: 1.65.0
+          DOTENVX_INSTALLER_SHA256: a1faad2613cd88286d02a5201c34e880f935558957eb9c09e3c11f27039a6296
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/dotenvx/dotenvx/releases/download/v${DOTENVX_VERSION}/install.sh" -o /tmp/dotenvx-install.sh
+          echo "${DOTENVX_INSTALLER_SHA256}  /tmp/dotenvx-install.sh" | sha256sum -c -
+          sudo sh /tmp/dotenvx-install.sh
 
       - name: Install eBPF build tools
         run: sudo apt-get install -y clang llvm libbpf-dev "linux-tools-$(uname -r)" || sudo apt-get install -y clang llvm libbpf-dev
