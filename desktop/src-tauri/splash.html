@@ -88,11 +88,42 @@
     // while local services initialize, and avoids an abrupt redirect flash.
     // Remove this once health-check driven navigation is implemented.
     const SPLASH_DURATION_MS = 3000;
+    const RETRY_INTERVAL_MS = 1000;
+    const MAX_WAIT_MS = 30000;
 
-    setTimeout(() => {
-      document.getElementById("status").textContent = "Connecting to Raven API…";
-      window.location.href = RAVEN_API_URL;
-    }, SPLASH_DURATION_MS);
+    async function isApiReady() {
+      try {
+        const response = await fetch(RAVEN_API_URL, {
+          method: "HEAD",
+          cache: "no-store",
+        });
+        return response.ok;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    async function waitForApiAndRedirect() {
+      const statusEl = document.getElementById("status");
+      const startedAt = Date.now();
+
+      while (Date.now() - startedAt < MAX_WAIT_MS) {
+        statusEl.textContent = "Connecting to Raven API…";
+
+        if (await isApiReady()) {
+          window.location.href = RAVEN_API_URL;
+          return;
+        }
+
+        statusEl.textContent = "Raven API is still starting… retrying.";
+        await new Promise((resolve) => setTimeout(resolve, RETRY_INTERVAL_MS));
+      }
+
+      statusEl.textContent = "Raven API is taking longer than expected. Still retrying…";
+      waitForApiAndRedirect();
+    }
+
+    setTimeout(waitForApiAndRedirect, SPLASH_DURATION_MS);
   </script>
 </body>
 </html>
