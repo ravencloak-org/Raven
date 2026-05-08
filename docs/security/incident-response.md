@@ -189,12 +189,15 @@ personal-data breach notification (WP250 rev.01).
 
   ```sql
   -- ClickHouse SQL dialect
+  -- Set these per incident scope:
+  --   {LOOKBACK_HOURS:Int32} (for example: 1, 24, 72, 168)
+  --   {ROW_LIMIT:Int32} (for example: 1000, 10000, 50000)
   SELECT timestamp, actor_id, action, resource, source_ip
   FROM audit_events
-  WHERE timestamp >= now() - INTERVAL 24 HOUR
+  WHERE timestamp >= now() - INTERVAL {LOOKBACK_HOURS:Int32} HOUR
     AND (action LIKE '%export%' OR action LIKE '%delete%')
   ORDER BY timestamp DESC
-  LIMIT 1000;
+  LIMIT {ROW_LIMIT:Int32};
   ```
 
 - **OpenObserve correlation** — pivot on the `incident_id` tag attached to
