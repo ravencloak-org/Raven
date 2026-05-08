@@ -16,12 +16,13 @@
   <a href="https://codecov.io/gh/ravencloak-org/Raven"><img src="https://codecov.io/gh/ravencloak-org/Raven/branch/main/graph/badge.svg" alt="Coverage" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License: Apache 2.0" /></a>
   <a href="https://baseline.openssf.org/versions/2026-02-19"><img src="https://img.shields.io/badge/OpenSSF%20Baseline-L2%20target-blue" alt="OpenSSF Baseline L2" /></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/ravencloak-org/Raven"><img src="https://api.scorecard.dev/projects/github.com/ravencloak-org/Raven/badge" alt="OpenSSF Scorecard" /></a>
   <img src="https://img.shields.io/badge/PRs-welcome-blue" alt="PRs Welcome" />
 </p>
-<p allign="center">
+<p align="center">
   <a href="https://www.bestpractices.dev/projects/12590"><img src="https://www.bestpractices.dev/projects/12590/badge"></a>
 </p>
-</p>
+
 ---
 
 ## What is Raven?

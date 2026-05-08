@@ -1,0 +1,8 @@
+# Raven security contact information per RFC 9116 (https://www.rfc-editor.org/rfc/rfc9116).
+Contact: https://github.com/ravencloak-org/Raven/security/advisories/new
+Contact: mailto:security@ravencloak.org
+Expires: 2027-05-08T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://raw.githubusercontent.com/ravencloak-org/Raven/main/.well-known/security.txt
+Policy: https://github.com/ravencloak-org/Raven/blob/main/SECURITY.md
+Acknowledgments: https://github.com/ravencloak-org/Raven/security/advisories
