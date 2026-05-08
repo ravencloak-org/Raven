@@ -55,6 +55,31 @@ func SessionMiddleware(provider auth.Provider) gin.HandlerFunc {
 	}
 }
 
+// SingleUserMiddleware returns a Gin handler that injects a synthetic
+// "local" session without calling SuperTokens. Use this in place of
+// SessionMiddleware+UserLookup when RAVEN_SINGLE_USER=true.
+//
+// It sets all context keys that downstream handlers expect so that no
+// handler code needs a separate single-user branch.
+func SingleUserMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Fixed well-known values for the single-user persona.
+		// The migration seeds matching rows in organizations and users.
+		const (
+			localOrgID  = "00000000-0000-0000-0000-000000000001"
+			localUserID = "00000000-0000-0000-0000-000000000002"
+		)
+		c.Set(string(ContextKeyUserID), localUserID)
+		c.Set(string(ContextKeyOrgID), localOrgID)
+		c.Set(string(ContextKeyOrgRole), "org_admin")
+		c.Set(string(ContextKeyWorkspaceRole), "admin")
+		c.Set(string(ContextKeyEmail), "local@raven.localhost")
+		c.Set(string(ContextKeyUserName), "Local User")
+		c.Set(string(ContextKeyExternalID), "local")
+		c.Next()
+	}
+}
+
 // UserResolver is the interface for looking up users by external ID.
 // Returns empty userID when the user is not found (not an error).
 type UserResolver interface {
