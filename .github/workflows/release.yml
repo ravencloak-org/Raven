@@ -78,7 +78,7 @@ jobs:
           OUTPUT: RELEASE_NOTES.md
 
       - name: Upload release notes
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
         with:
           name: release-notes
           path: RELEASE_NOTES.md
@@ -109,16 +109,16 @@ jobs:
           cache: true
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003  # v3.8.1
+        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a  # v3.8.1
 
       - name: Run goreleaser
-        uses: goreleaser/goreleaser-action@1a80836c5c9d9e5755a25cb59ec6f45a3b5f41a8  # v6
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a  # v6
         with:
           version: '~> v2'
           args: release --clean --skip=publish
 
       - name: Upload binary artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
         with:
           name: go-binaries
           path: |
@@ -239,7 +239,7 @@ jobs:
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
         with:
           name: digests-${{ matrix.component }}-${{ matrix.arch }}
           path: /tmp/digests/*
@@ -321,7 +321,7 @@ jobs:
           output-file: sbom-${{ matrix.component }}.spdx.json
 
       - name: Attest SBOM
-        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e  # v3
+        uses: actions/attest-sbom@4651f806c01d8637787e274ac3bdf724ef169f34  # v3
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/${{ matrix.component }}
           subject-digest: ${{ steps.manifest.outputs.digest }}
@@ -329,14 +329,14 @@ jobs:
           push-to-registry: true
 
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@10334b5f1e684784025c3fc0a277c88c19089275  # v3
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a  # v3
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/${{ matrix.component }}
           subject-digest: ${{ steps.manifest.outputs.digest }}
           push-to-registry: true
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003  # v3.8.1
+        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a  # v3.8.1
 
       - name: Sign merged manifest
         env:
@@ -366,7 +366,7 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6
         with:
           node-version: '22'
           cache: npm
@@ -394,7 +394,7 @@ jobs:
           sha256sum "frontend-${VERSION}.tgz" > "frontend-${VERSION}.tgz.sha256"
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003  # v3.8.1
+        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a  # v3.8.1
 
       - name: Sign bundle
         env:
@@ -408,7 +408,7 @@ jobs:
             "frontend-${VERSION}.tgz"
 
       - name: Upload bundle
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
         with:
           name: frontend-bundle
           path: |
