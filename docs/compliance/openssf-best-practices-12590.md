@@ -135,7 +135,7 @@ Counts cover the criteria enumerated below. "N/A" is reserved for criteria the p
 
 - **Status:** Met
 - **Evidence:** SECURITY.md "Primary: GitHub Security Advisories (private reporting)" section linking to <https://github.com/ravencloak-org/Raven/security/advisories/new>; explicit instruction not to use public issues.
-- **Justification:** The primary channel is GitHub's private vulnerability reporting, with an `jobinlawrance@gmail.com` email escalation. Reporters never have to disclose publicly.
+- **Justification:** The primary channel is GitHub's private vulnerability reporting, with an email escalation to `jobinlawrance@gmail.com`. Reporters never have to disclose publicly.
 
 ### vulnerability_report_response
 
