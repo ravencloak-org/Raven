@@ -135,7 +135,7 @@ Counts cover the criteria enumerated below. "N/A" is reserved for criteria the p
 
 - **Status:** Met
 - **Evidence:** SECURITY.md "Primary: GitHub Security Advisories (private reporting)" section linking to <https://github.com/ravencloak-org/Raven/security/advisories/new>; explicit instruction not to use public issues.
-- **Justification:** The primary channel is GitHub's private vulnerability reporting, with an `jobinlawrance@gmail.com` email escalation. Reporters never have to disclose publicly.
+- **Justification:** The primary channel is GitHub's private vulnerability reporting, with an email escalation to `jobinlawrance@gmail.com`. Reporters never have to disclose publicly.
 
 ### vulnerability_report_response
 
@@ -240,7 +240,7 @@ Counts cover the criteria enumerated below. "N/A" is reserved for criteria the p
 ### sites_https
 
 - **Status:** Unmet
-- **Evidence:** Project repo is on `https://github.com/...`; the public website (https://raven.cloak.io or similar) is not yet live with HTTPS-locked redirects from this repo's perspective.
+- **Evidence:** Project repo is on `https://github.com/...`; a public project website URL is not yet published/documented from this repo's perspective.
 - **Justification:** The repository is hosted on GitHub over HTTPS. We cannot yet point at a project home page that we control with a verified TLS certificate; needs verification once the landing site is published.
 - **Gap:** Confirm the landing site (`landing/`) is deployed to a TLS-only domain and add the URL to the README/badge form.
 
@@ -485,7 +485,7 @@ Counts cover the criteria enumerated below. "N/A" is reserved for criteria the p
 
 ### crypto_certificate_verification
 
-- **Status:** Met
+- **Status:** Unknown
 - **Evidence:** Go stdlib `crypto/tls` and Python `requests`/`httpx` defaults verify certificates; no `InsecureSkipVerify: true` lines in repo (verified via PR template "no insecure code" checklist culture; needs grep audit).
 - **Justification:** Default TLS clients in all languages verify certificates; project policy forbids disabling verification.
 
