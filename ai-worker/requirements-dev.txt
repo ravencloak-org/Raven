@@ -1775,9 +1775,9 @@ opentelemetry-exporter-otlp-proto-http==1.39.1 \
     --hash=sha256:31bdab9745c709ce90a49a0624c2bd445d31a28ba34275951a6a362d16a0b9cb \
     --hash=sha256:d9f5207183dd752a412c4cd564ca8875ececba13be6e9c6c370ffb752fd59985
     # via opentelemetry-exporter-otlp
-opentelemetry-instrumentation==0.60b1 \
-    --hash=sha256:04480db952b48fb1ed0073f822f0ee26012b7be7c3eac1a3793122737c78632d \
-    --hash=sha256:57ddc7974c6eb35865af0426d1a17132b88b2ed8586897fee187fd5b8944bd6a
+opentelemetry-instrumentation==0.62b1 \
+    --hash=sha256:90e92a905ba4f84db06ac3aec96701df6c079b2d66e9379f8739f0a1bdcc7f45 \
+    --hash=sha256:976fc6e640f2006599e97429c949e622c108d0c17c2059347d1e6c93c707f257
     # via opentelemetry-instrumentation-grpc
 opentelemetry-instrumentation-grpc==0.60b1 \
     --hash=sha256:049573ddfe4c32af151348d2dbeddaaca788a57c320e70770ec216b7e35ccfd4 \
