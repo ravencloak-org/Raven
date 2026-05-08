@@ -186,6 +186,7 @@ personal-data breach notification (WP250 rev.01).
 - **ClickHouse audit-log triage**
 
   ```sql
+  -- ClickHouse SQL dialect
   SELECT timestamp, actor_id, action, resource, source_ip
   FROM audit_events
   WHERE timestamp >= now() - INTERVAL 24 HOUR
