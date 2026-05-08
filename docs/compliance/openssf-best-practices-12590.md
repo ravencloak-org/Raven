@@ -51,7 +51,7 @@ Counts cover the criteria enumerated below. "N/A" is reserved for criteria the p
 
 - **Status:** Met
 - **Evidence:** <https://github.com/ravencloak-org/Raven/blob/main/LICENSE> (Apache-2.0); README "Licensing" section.
-- **Justification:** The OSS portion of Raven is released under Apache License 2.0, an OSI-approved FLOSS licence. Files prefixed `ee-` are explicitly excluded from the OSS portion.
+- **Justification:** The OSS portion of Raven is released under Apache License 2.0, an OSI-approved FLOSS license. Files prefixed `ee-` are explicitly excluded from the OSS portion.
 
 ### floss_license_osi
 
@@ -63,7 +63,7 @@ Counts cover the criteria enumerated below. "N/A" is reserved for criteria the p
 
 - **Status:** Met
 - **Evidence:** `LICENSE` at the repository root.
-- **Justification:** The licence is in the standard top-level `LICENSE` file.
+- **Justification:** The license is in the standard top-level `LICENSE` file.
 
 ### documentation_basics
 
@@ -297,7 +297,7 @@ Counts cover the criteria enumerated below. "N/A" is reserved for criteria the p
 
 - **Status:** Unknown
 - **Evidence:** Same as above.
-- **Justification:** Per-file licence header presence unverified.
+- **Justification:** Per-file license header presence unverified.
 - **Gap:** Same as above — add SPDX headers.
 
 ### build_reproducible
