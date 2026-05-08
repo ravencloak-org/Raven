@@ -485,7 +485,7 @@ Counts cover the criteria enumerated below. "N/A" is reserved for criteria the p
 
 ### crypto_certificate_verification
 
-- **Status:** Met
+- **Status:** Unknown
 - **Evidence:** Go stdlib `crypto/tls` and Python `requests`/`httpx` defaults verify certificates; no `InsecureSkipVerify: true` lines in repo (verified via PR template "no insecure code" checklist culture; needs grep audit).
 - **Justification:** Default TLS clients in all languages verify certificates; project policy forbids disabling verification.
 
