@@ -12,7 +12,11 @@ export function Hero() {
         markClassName="mx-auto h-32 w-auto md:h-40"
         className="block"
       />
-      <p className="raven-wordmark mt-6 text-6xl leading-none tracking-[0.18em] text-[var(--color-ink)] md:text-7xl">
+      <p
+        aria-hidden="true"
+        className="raven-wordmark mt-6 text-6xl leading-none text-[var(--color-ink)] md:text-7xl"
+        style={{ letterSpacing: '0.7em', paddingLeft: '0.7em' }}
+      >
         RAVEN
       </p>
       <h1 className="mx-auto mt-12 max-w-4xl font-display text-4xl font-medium tracking-tight text-[var(--color-ink)] sm:text-6xl">
