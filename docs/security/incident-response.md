@@ -31,9 +31,9 @@ those cases, the customer is the controller and runs their own runbook.
 
 | Severity | Definition | Examples |
 | -------- | ---------- | -------- |
-| **SEV-1** | Confirmed personal-data breach with risk to rights/freedoms; full or partial production outage; supply-chain compromise; loss of cryptographic material | Database exfiltration confirmed; signing key compromise; ransomware on production host; mass account takeover |
-| **SEV-2** | Probable personal-data breach pending forensic confirmation; degraded but not down service; compromise of a non-production credential with production access; isolated account takeover | Suspicious S3-equivalent egress detected; insider misuse suspected; high-volume authentication anomaly |
-| **SEV-3** | Security-relevant event with no confirmed data exposure; isolated customer-impacting bug under investigation | OSSF Scorecard regression; CVE in a deployed dependency without confirmed exploit; single-tenant misconfiguration discovered and contained |
+| **SEV-1** | Confirmed personal-data breach with risk to rights/freedoms; major production outage; supply-chain or key compromise | Confirmed database exfiltration; signing key compromise; ransomware on production |
+| **SEV-2** | Probable personal-data breach pending forensics; degraded (not down) service; credential misuse with possible production impact | Suspicious storage egress; suspected insider misuse; high-volume auth anomaly |
+| **SEV-3** | Security event with no confirmed data exposure; isolated customer-impacting issue under investigation | Scorecard regression; unexploited deployed CVE; contained tenant misconfiguration |
 
 The **on-call Incident Commander** sets the initial severity at T+0 and
 revises it as evidence develops. Severity is recorded in the incident
@@ -55,7 +55,9 @@ external notification leaves the building.
 ## Detection Sources
 
 - **OpenObserve alerts** — application traces, logs, security rules.
-- **Beszel host metrics** — host-level anomalies on AWS hosts.
+- **Beszel host metrics** — host-level anomalies on AWS hosts (Beszel is
+  our host monitoring/metrics system; see https://beszel.dev for product
+  documentation and dashboard context).
 - **OSSF Scorecard regressions** — CI-driven supply-chain signal.
 - **CodeQL / Semgrep / Gitleaks** — pre-merge and scheduled scans.
 - **Third-party reports** — disclosures via the GitHub Security Advisory
@@ -122,10 +124,10 @@ personal-data breach notification (WP250 rev.01).
    decision either way.
 2. For data subjects in India, prepare a **DPDP Act § 8(6)** notification
    to the **Data Protection Board of India** and to each affected **data
-   principal**. The exact recipient, prescribed form, and timing must be
-   confirmed by counsel against the DPDP rules in force at the time of
-   the incident before the notice is dispatched. *(See the REVIEW WITH
-   COUNSEL note above.)*
+   principal** *(DPDP term; equivalent to GDPR “data subject”)*. The exact
+   recipient, prescribed form, and timing must be confirmed by counsel
+   against the DPDP rules in force at the time of the incident before the
+   notice is dispatched. *(See the REVIEW WITH COUNSEL note above.)*
 3. Where the risk to data subjects is high, prepare and dispatch a
    **GDPR Article 34** communication to affected data subjects without
    undue delay.
@@ -186,6 +188,7 @@ personal-data breach notification (WP250 rev.01).
 - **ClickHouse audit-log triage**
 
   ```sql
+  -- ClickHouse SQL dialect
   SELECT timestamp, actor_id, action, resource, source_ip
   FROM audit_events
   WHERE timestamp >= now() - INTERVAL 24 HOUR
