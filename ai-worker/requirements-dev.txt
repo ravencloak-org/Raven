@@ -1779,9 +1779,9 @@ opentelemetry-instrumentation==0.62b1 \
     --hash=sha256:90e92a905ba4f84db06ac3aec96701df6c079b2d66e9379f8739f0a1bdcc7f45 \
     --hash=sha256:976fc6e640f2006599e97429c949e622c108d0c17c2059347d1e6c93c707f257
     # via opentelemetry-instrumentation-grpc
-opentelemetry-instrumentation-grpc==0.60b1 \
-    --hash=sha256:049573ddfe4c32af151348d2dbeddaaca788a57c320e70770ec216b7e35ccfd4 \
-    --hash=sha256:f7a81a87b2a26842fc62cba0743a475f151e77eb21d5b93902fbfd0518a7cca7
+opentelemetry-instrumentation-grpc==0.62b1 \
+    --hash=sha256:3cff62d91d9ab32f9440343cf4b99d0fa589563e839dfb81fb5480e63b0888f0 \
+    --hash=sha256:dabd3dfd30714e857b2beca05db8ea0059a32ecefad096eedc9aa3db7ee463d0
     # via raven-worker (pyproject.toml)
 opentelemetry-proto==1.41.1 \
     --hash=sha256:0496713b804d127a4147e32849fbaf5683fac8ee98550e8e7679cd706c289720 \
