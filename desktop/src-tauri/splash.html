@@ -119,8 +119,8 @@
         await new Promise((resolve) => setTimeout(resolve, RETRY_INTERVAL_MS));
       }
 
-      statusEl.textContent = "Raven API is taking longer than expected. Still retrying…";
-      waitForApiAndRedirect();
+      statusEl.textContent = "Raven API is taking longer than expected. Please check your local stack and restart the app.";
+      return;
     }
 
     setTimeout(waitForApiAndRedirect, SPLASH_DURATION_MS);
