@@ -241,7 +241,7 @@ Counts cover the criteria enumerated below. "N/A" is reserved for criteria the p
 
 - **Status:** Unmet
 - **Evidence:** Project repo is on `https://github.com/...`; a public project website URL is not yet published/documented from this repo's perspective.
-- **Justification:** The repository is hosted on GitHub over HTTPS. We cannot yet point at a project home page that we control with a verified TLS certificate; needs verification once the landing site is published.
+- **Justification:** This criterion is currently unmet because no public, project-controlled homepage URL with verified HTTPS/TLS is published in the repository documentation or badge evidence.
 - **Gap:** Confirm the landing site (`landing/`) is deployed to a TLS-only domain and add the URL to the README/badge form.
 
 ### dco
