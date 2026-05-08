@@ -63,7 +63,7 @@ Counts cover the criteria enumerated below. "N/A" is reserved for criteria the p
 
 - **Status:** Met
 - **Evidence:** `LICENSE` at the repository root.
-- **Justification:** The licence is in the standard top-level `LICENSE` file.
+- **Justification:** The license is in the standard top-level `LICENSE` file.
 
 ### documentation_basics
 
