@@ -297,7 +297,7 @@ Counts cover the criteria enumerated below. "N/A" is reserved for criteria the p
 
 - **Status:** Unknown
 - **Evidence:** Same as above.
-- **Justification:** Per-file licence header presence unverified.
+- **Justification:** Per-file license header presence unverified.
 - **Gap:** Same as above — add SPDX headers.
 
 ### build_reproducible
