@@ -488,7 +488,7 @@ Counts cover the criteria enumerated below. "N/A" is reserved for criteria the p
 - **Status:** Unknown
 - **Evidence:** Go stdlib `crypto/tls` and Python `requests`/`httpx` defaults verify certificates by default, but repository-wide proof of no verification bypasses is not yet documented.
 - **Justification:** Expected safe client defaults exist, but we have not yet completed and recorded a repo-wide audit confirming no `InsecureSkipVerify: true` (or equivalent disablement flags) are present.
-- **Gap:** Run and document a repository grep/audit for certificate-verification bypass settings (for Go, Python, and any other TLS clients), then update this criterion to Met only after results are committed.
+- **Gap:** Run a repository grep/audit for certificate-verification bypass settings (Go, Python, and any other TLS clients) and document the results in `docs/security/certificate-verification-audit.md`, showing no verification bypasses are present; mark this criterion Met only after that file is committed.
 
 ### crypto_verification_private
 
