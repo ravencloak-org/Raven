@@ -31,9 +31,9 @@ those cases, the customer is the controller and runs their own runbook.
 
 | Severity | Definition | Examples |
 | -------- | ---------- | -------- |
-| **SEV-1** | Confirmed personal-data breach with risk to rights/freedoms; full or partial production outage; supply-chain compromise; loss of cryptographic material | Database exfiltration confirmed; signing key compromise; ransomware on production host; mass account takeover |
-| **SEV-2** | Probable personal-data breach pending forensic confirmation; degraded but not down service; compromise of a non-production credential with production access; isolated account takeover | Suspicious S3-equivalent egress detected; insider misuse suspected; high-volume authentication anomaly |
-| **SEV-3** | Security-relevant event with no confirmed data exposure; isolated customer-impacting bug under investigation | OSSF Scorecard regression; CVE in a deployed dependency without confirmed exploit; single-tenant misconfiguration discovered and contained |
+| **SEV-1** | Confirmed personal-data breach with risk to rights/freedoms; major production outage; supply-chain or key compromise | Confirmed database exfiltration; signing key compromise; ransomware on production |
+| **SEV-2** | Probable personal-data breach pending forensics; degraded (not down) service; credential misuse with possible production impact | Suspicious storage egress; suspected insider misuse; high-volume auth anomaly |
+| **SEV-3** | Security event with no confirmed data exposure; isolated customer-impacting issue under investigation | Scorecard regression; unexploited deployed CVE; contained tenant misconfiguration |
 
 The **on-call Incident Commander** sets the initial severity at T+0 and
 revises it as evidence develops. Severity is recorded in the incident
