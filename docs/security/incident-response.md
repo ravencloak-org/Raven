@@ -197,6 +197,7 @@ personal-data breach notification (WP250 rev.01).
   --   {ROW_LIMIT:Int32} (for example: 1000, 10000, 50000)
   SELECT timestamp, actor_id, action, resource, source_ip
   FROM audit_events
+  -- ClickHouse interval units are written in singular form (for example, HOUR) even for values > 1.
   WHERE timestamp >= now() - INTERVAL {LOOKBACK_HOURS:Int32} HOUR
     AND (action LIKE '%export%' OR action LIKE '%delete%')
   ORDER BY timestamp DESC
