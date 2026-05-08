@@ -55,9 +55,7 @@ external notification leaves the building.
 ## Detection Sources
 
 - **OpenObserve alerts** — application traces, logs, security rules.
-- **Beszel host metrics** — host-level anomalies on AWS hosts (Beszel is
-  our host monitoring/metrics system; see https://beszel.dev for product
-  documentation and dashboard context).
+- **Beszel host metrics** — host-level anomalies on AWS hosts.
 - **OSSF Scorecard regressions** — CI-driven supply-chain signal.
 - **CodeQL / Semgrep / Gitleaks** — pre-merge and scheduled scans.
 - **Third-party reports** — disclosures via the GitHub Security Advisory
@@ -65,6 +63,11 @@ external notification leaves the building.
 - **Customer reports** — support correspondence escalated to the IC.
 - **Sub-processor notifications** — breach notices received from any
   sub-processor listed in Annex III of `DPA.md`.
+
+## Tools Reference
+
+- **Beszel** — host monitoring/metrics system used for AWS host telemetry.
+  Product documentation and dashboard context: https://beszel.dev
 
 ## Response Timeline
 
@@ -124,7 +127,7 @@ personal-data breach notification (WP250 rev.01).
    decision either way.
 2. For data subjects in India, prepare a **DPDP Act § 8(6)** notification
    to the **Data Protection Board of India** and to each affected **data
-   principal** *(DPDP term; equivalent to GDPR “data subject”)*. The exact
+   principal** — DPDP term equivalent to GDPR “data subject”. The exact
    recipient, prescribed form, and timing must be confirmed by counsel
    against the DPDP rules in force at the time of the incident before the
    notice is dispatched. *(See the REVIEW WITH COUNSEL note above.)*
@@ -189,12 +192,15 @@ personal-data breach notification (WP250 rev.01).
 
   ```sql
   -- ClickHouse SQL dialect
+  -- Set these per incident scope:
+  --   {LOOKBACK_HOURS:Int32} (for example: 1, 24, 72, 168)
+  --   {ROW_LIMIT:Int32} (for example: 1000, 10000, 50000)
   SELECT timestamp, actor_id, action, resource, source_ip
   FROM audit_events
-  WHERE timestamp >= now() - INTERVAL 24 HOUR
+  WHERE timestamp >= now() - INTERVAL {LOOKBACK_HOURS:Int32} HOUR
     AND (action LIKE '%export%' OR action LIKE '%delete%')
   ORDER BY timestamp DESC
-  LIMIT 1000;
+  LIMIT {ROW_LIMIT:Int32};
   ```
 
 - **OpenObserve correlation** — pivot on the `incident_id` tag attached to
