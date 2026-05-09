@@ -1,9 +1,13 @@
 import DefaultTheme from "vitepress/theme";
+import { useOpenapi } from "vitepress-openapi/client";
+import "vitepress-openapi/dist/style.css";
 import "./style.css";
+import BetaBanner from "../components/BetaBanner.vue";
 
-// Theme exports. T6 will register the BetaBanner component in this file
-// when it lands; until then we just extend the default theme with brand
-// tokens defined in style.css.
 export default {
   extends: DefaultTheme,
+  enhanceApp({ app }) {
+    useOpenapi();
+    app.component("BetaBanner", BetaBanner);
+  },
 };

@@ -59,6 +59,7 @@
     { "from": "docs-site/stubs/contributing/architecture-decisions.md", "to": "contributing/architecture-decisions.md" },
     { "from": "docs-site/stubs/contributing/release-process.md", "to": "contributing/release-process.md" },
     { "from": "docs-site/stubs/community/support.md", "to": "community/support.md" },
-    { "from": "docs-site/stubs/trust/security.md", "to": "trust/security.md" }
+    { "from": "docs-site/stubs/trust/security.md", "to": "trust/security.md" },
+    { "from": "docs-site/api/overview.md", "to": "api/overview.md" }
   ]
 }

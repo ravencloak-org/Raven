@@ -1,5 +1,6 @@
 import { defineConfig } from "vitepress";
 import { mainSidebar } from "./sidebars/main";
+import { apiSidebar } from "./openapi";
 
 export default defineConfig({
   title: "Raven Docs",
@@ -12,6 +13,14 @@ export default defineConfig({
   // Read content from .tmp/, populated by scripts/sync-content.ts at
   // build time. T2 ships this empty; T4 wires the sync.
   srcDir: ".tmp",
+
+  // The API overview links to per-operation pages that vitepress-openapi
+  // generates dynamically (and to the local-dev server's autolink). Both
+  // are valid at runtime but the static dead-link checker can't see them.
+  ignoreDeadLinks: [
+    /^https?:\/\/localhost(?::\d+)?/,
+    /^\/api\//,
+  ],
 
   head: [
     ["link", { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" }],
@@ -30,7 +39,10 @@ export default defineConfig({
     ],
 
     // Sidebar contributions are merged in by T5 (main IA) and T6 (API).
-    sidebar: { ...mainSidebar },
+    sidebar: {
+      ...mainSidebar,
+      "/api/": apiSidebar,
+    },
 
     socialLinks: [
       { icon: "github", link: "https://github.com/ravencloak-org/Raven" },
