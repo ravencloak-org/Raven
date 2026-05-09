@@ -79,12 +79,15 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Pass user-controlled branch name through env to avoid the
+          # script-injection risk of inlining it into the shell script.
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
         working-directory: docs-site
         run: |
           set -o pipefail
           npx wrangler@4 pages deploy .vitepress/dist \
             --project-name=raven-docs \
-            --branch="${{ github.head_ref || github.ref_name }}" \
+            --branch="$BRANCH_NAME" \
             | tee wrangler.out
           url=$(grep -oE 'https://[a-z0-9-]+\.raven-docs\.pages\.dev' wrangler.out | head -1)
           if [ -z "$url" ]; then
