@@ -2,6 +2,7 @@
   "$schema": "./content-map.schema.json",
   "mappings": [
     { "from": "docs-site/index.md", "to": "index.md" },
+    { "from": "docs-site/404.md", "to": "404.md" },
 
     { "from": "docs/quickstart.md", "to": "get-started/installation.md" },
 
