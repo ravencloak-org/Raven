@@ -1,7 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use raven_local_lib::compose::{ComposeManager, StatusEvent};
 use raven_local_lib::precheck::{run_precheck, skip_requested, RealSystemInfo};
@@ -111,10 +111,10 @@ fn main() {
 /// In dev mode (`cargo tauri dev`), it's at `<repo>/desktop/`. We pick the
 /// first parent containing the compose file, falling back to the resource
 /// dir itself.
-fn resolve_project_dir(resource_dir: &PathBuf) -> PathBuf {
+fn resolve_project_dir(resource_dir: &Path) -> PathBuf {
     let candidate = resource_dir.join(COMPOSE_FILE);
     if candidate.exists() {
-        return resource_dir.clone();
+        return resource_dir.to_path_buf();
     }
     let dev_candidate = std::env::current_dir()
         .ok()
@@ -124,5 +124,5 @@ fn resolve_project_dir(resource_dir: &PathBuf) -> PathBuf {
             return p.parent().unwrap().to_path_buf();
         }
     }
-    resource_dir.clone()
+    resource_dir.to_path_buf()
 }
