@@ -1,6 +1,9 @@
 import { defineConfig } from "vitepress";
 import { mainSidebar } from "./sidebars/main";
-import { apiSidebar } from "./openapi";
+
+// `apiSidebar` from ./openapi will be re-enabled in Phase 2 once we ship the
+// vitepress-openapi dynamic-route file that materialises per-operation pages.
+// Until then, /api/ shows only the Overview link to avoid dead-link UX.
 
 export default defineConfig({
   title: "Raven Docs",
@@ -64,10 +67,15 @@ export default defineConfig({
       { text: "Contributing", link: "/contributing/overview" },
     ],
 
-    // Sidebar contributions are merged in by T5 (main IA) and T6 (API).
+    // Sidebar: main IA from T5; /api/ shows only the Overview link in Phase 1.
     sidebar: {
       ...mainSidebar,
-      "/api/": apiSidebar,
+      "/api/": [
+        {
+          text: "API",
+          items: [{ text: "Overview", link: "/api/overview" }],
+        },
+      ],
     },
 
     socialLinks: [

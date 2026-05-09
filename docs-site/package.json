@@ -8,7 +8,7 @@
     "predev": "npm run sync",
     "dev": "vitepress dev",
     "prebuild": "npm run sync",
-    "build": "vitepress build && tsx scripts/copy-spec.ts && pagefind --site .vitepress/dist",
+    "build": "vitepress build && tsx scripts/copy-spec.ts && pagefind --site .vitepress/dist --output-subdir _pagefind",
     "preview": "vitepress preview"
   },
   "devDependencies": {
