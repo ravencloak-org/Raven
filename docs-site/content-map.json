@@ -1,0 +1,34 @@
+{
+  "$schema": "./content-map.schema.json",
+  "mappings": [
+    { "from": "docs-site/index.md", "to": "index.md" },
+
+    { "from": "docs/quickstart.md", "to": "get-started/installation.md" },
+
+    { "from": "docs/architecture.md", "to": "concepts/architecture.md" },
+    { "from": "docs/wiki/Architecture-Overview.md", "to": "concepts/system-overview.md" },
+    { "from": "docs/wiki/Data-Model.md", "to": "concepts/data-model.md" },
+
+    { "from": "docs/dependency-policy.md", "to": "contributing/dependency-policy.md" },
+    { "from": "CONTRIBUTING.md", "to": "contributing/overview.md" },
+
+    { "from": "SECURITY.md", "to": "reference/security-policy.md" },
+    { "from": "CODE_OF_CONDUCT.md", "to": "community/code-of-conduct.md" },
+    { "from": "GOVERNANCE.md", "to": "community/governance.md" },
+    { "from": "MAINTAINERS.md", "to": "community/maintainers.md" },
+
+    { "from": "docs/security/slsa-verification.md", "to": "trust/slsa-level-3.md" },
+    { "from": "docs/compliance/osps-l2-2026-02-19.md", "to": "trust/openssf-baseline.md" },
+    { "from": "docs/compliance/openssf-best-practices-12590.md", "to": "trust/openssf-best-practices.md" }
+  ],
+  "linkRewrites": [
+    { "match": "^docs/quickstart\\.md$", "replace": "/get-started/installation/" },
+    { "match": "^docs/architecture\\.md$", "replace": "/concepts/architecture/" },
+    { "match": "^docs/wiki/Architecture-Overview\\.md$", "replace": "/concepts/system-overview/" },
+    { "match": "^docs/wiki/Data-Model\\.md$", "replace": "/concepts/data-model/" },
+    { "match": "^docs/security/slsa-verification\\.md$", "replace": "/trust/slsa-level-3/" },
+    { "match": "^docs/compliance/osps-l2-2026-02-19\\.md$", "replace": "/trust/openssf-baseline/" },
+    { "match": "^docs/compliance/openssf-best-practices-12590\\.md$", "replace": "/trust/openssf-best-practices/" }
+  ],
+  "stubMappings": "_filled-by-T5_"
+}

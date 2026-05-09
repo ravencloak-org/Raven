@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "sync": "tsx scripts/sync-content.ts",
+    "predev": "npm run sync",
     "dev": "vitepress dev",
+    "prebuild": "npm run sync",
     "build": "vitepress build && pagefind --site .vitepress/dist",
     "preview": "vitepress preview"
   },
