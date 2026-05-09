@@ -94,7 +94,10 @@ jobs:
             --project-name=raven-docs \
             --branch="$BRANCH_NAME" \
             | tee wrangler.out
-          url=$(grep -oE 'https://[a-z0-9-]+\.raven-docs\.pages\.dev' wrangler.out | head -1)
+          # Cloudflare may auto-suffix the project subdomain (e.g.
+          # `raven-docs-28s.pages.dev`) when the bare name is already
+          # taken globally; allow the optional suffix in the regex.
+          url=$(grep -oE 'https://[a-z0-9-]+\.raven-docs(-[a-z0-9]+)?\.pages\.dev' wrangler.out | head -1)
           if [ -z "$url" ]; then
             echo "::error::Could not parse preview URL from wrangler output"
             exit 1
