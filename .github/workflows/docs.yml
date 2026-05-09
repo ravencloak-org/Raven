@@ -1,0 +1,104 @@
+name: Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "docs-site/**"
+      - "contracts/**"
+      - "CHANGELOG.md"
+      - "CONTRIBUTING.md"
+      - "SECURITY.md"
+      - "CODE_OF_CONDUCT.md"
+      - "GOVERNANCE.md"
+      - "MAINTAINERS.md"
+      - "README.md"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "docs-site/**"
+      - "contracts/**"
+      - "CHANGELOG.md"
+      - "CONTRIBUTING.md"
+      - "SECURITY.md"
+      - "CODE_OF_CONDUCT.md"
+      - "GOVERNANCE.md"
+      - "MAINTAINERS.md"
+      - "README.md"
+      - ".github/workflows/docs.yml"
+
+permissions: {}
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      deployments: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903  # v6.0.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: docs-site/package-lock.json
+
+      - name: Lint OpenAPI spec
+        run: |
+          npx -y @stoplight/spectral-cli@6 lint \
+            contracts/openapi.yaml \
+            --ruleset contracts/.spectral.yaml \
+            --fail-severity=error
+
+      - name: Install dependencies
+        working-directory: docs-site
+        run: npm ci
+
+      - name: Build site
+        working-directory: docs-site
+        run: npm run build
+
+      - name: Deploy to Cloudflare Pages
+        id: deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        working-directory: docs-site
+        run: |
+          set -o pipefail
+          npx wrangler@4 pages deploy .vitepress/dist \
+            --project-name=raven-docs \
+            --branch="${{ github.head_ref || github.ref_name }}" \
+            | tee wrangler.out
+          url=$(grep -oE 'https://[a-z0-9-]+\.raven-docs\.pages\.dev' wrangler.out | head -1)
+          if [ -z "$url" ]; then
+            echo "::error::Could not parse preview URL from wrangler output"
+            exit 1
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Comment preview URL on PR
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@331f8f5b4215f0445d3c07b4967662a32a2d3e31  # v2.9.0
+        with:
+          header: docs-preview
+          message: |
+            📚 Docs preview: ${{ steps.deploy.outputs.url }}
+
+            Built from `${{ github.sha }}`. Updated automatically on every push to this PR.
