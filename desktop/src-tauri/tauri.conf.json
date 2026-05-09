@@ -26,6 +26,12 @@
   "bundle": {
     "active": true,
     "targets": ["dmg", "msi", "appimage", "deb"],
+    "category": "Productivity",
+    "shortDescription": "Self-contained Raven for local use",
+    "longDescription": "Privacy-first desktop edition of Raven that runs the entire stack locally with Ollama as a bundled LLM provider. No cloud, no telemetry by default.",
+    "copyright": "© 2026 Raven Contributors",
+    "homepage": "https://github.com/ravencloak-org/Raven",
+    "publisher": "Raven Contributors",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
