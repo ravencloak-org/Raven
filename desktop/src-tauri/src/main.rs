@@ -89,7 +89,10 @@ fn main() {
             let _ = manager_for_shutdown;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![])
+        .invoke_handler(tauri::generate_handler![
+            raven_local_lib::ollama::ollama_pull_model,
+            raven_local_lib::ollama::ollama_list_models
+        ])
         .build(tauri::generate_context!())
         .expect("error while building Raven Local")
         .run(|app, event| {
