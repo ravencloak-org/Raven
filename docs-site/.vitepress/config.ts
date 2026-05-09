@@ -1,11 +1,12 @@
 import { defineConfig } from "vitepress";
+import { withMermaid } from "vitepress-plugin-mermaid";
 import { mainSidebar } from "./sidebars/main";
 
 // `apiSidebar` from ./openapi will be re-enabled in Phase 2 once we ship the
 // vitepress-openapi dynamic-route file that materialises per-operation pages.
 // Until then, /api/ shows only the Overview link to avoid dead-link UX.
 
-export default defineConfig({
+export default withMermaid(defineConfig({
   title: "Raven Docs",
   description:
     "Open-source multi-tenant knowledge base platform with AI chat, voice, and WhatsApp.",
@@ -101,4 +102,8 @@ export default defineConfig({
       provider: "local",
     },
   },
-});
+
+  mermaid: {
+    theme: "default",
+  },
+}));
