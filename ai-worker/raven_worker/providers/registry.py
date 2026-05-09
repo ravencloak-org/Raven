@@ -19,7 +19,12 @@ logger = structlog.get_logger(__name__)
 _provider_cache: dict[tuple[str, str, str], EmbeddingProvider] = {}
 
 # Supported provider names (must match the ``llm_provider`` enum in Postgres)
-_SUPPORTED_PROVIDERS = {"openai", "cohere", "anthropic"}
+_SUPPORTED_PROVIDERS = {"openai", "cohere", "anthropic", "ollama"}
+
+# Providers that don't require an API key — the local Ollama sidecar in
+# Raven Local has no auth surface. The registry skips ``decrypt_api_key``
+# when the provider is in this set so an empty encrypted blob is fine.
+_KEYLESS_PROVIDERS = {"ollama"}
 
 
 async def get_provider_for_request(
@@ -96,11 +101,14 @@ async def get_provider_for_request(
     if row is None:
         raise ValueError(f"No active '{provider_lower}' provider config found for org '{org_id}'")
 
-    api_key = decrypt_api_key(
-        encrypted=bytes(row["api_key_encrypted"]),
-        iv=bytes(row["api_key_iv"]),
-        key_b64=settings.encryption_key,
-    )
+    if provider_lower in _KEYLESS_PROVIDERS:
+        api_key = ""
+    else:
+        api_key = decrypt_api_key(
+            encrypted=bytes(row["api_key_encrypted"]),
+            iv=bytes(row["api_key_iv"]),
+            key_b64=settings.encryption_key,
+        )
     base_url: str | None = row["base_url"]
 
     provider = _build_provider(provider_lower, api_key, model, base_url)
@@ -149,6 +157,12 @@ def _build_provider(
         from raven_worker.providers.anthropic_provider import AnthropicEmbeddingProvider
 
         return AnthropicEmbeddingProvider(api_key=api_key, model=model)
+
+    if provider_name == "ollama":
+        from raven_worker.providers.ollama_provider import OllamaEmbeddingProvider
+
+        # Ollama doesn't take an api_key; it talks to a local sidecar.
+        return OllamaEmbeddingProvider(model=model, base_url=base_url)
 
     raise ValueError(f"Unsupported provider: '{provider_name}'")
 

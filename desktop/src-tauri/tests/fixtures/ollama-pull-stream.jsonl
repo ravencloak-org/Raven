@@ -1,0 +1,8 @@
+{"status":"pulling manifest"}
+{"status":"pulling abc123","digest":"sha256:abc123","total":1000000,"completed":250000}
+{"status":"pulling abc123","digest":"sha256:abc123","total":1000000,"completed":750000}
+{"status":"pulling abc123","digest":"sha256:abc123","total":1000000,"completed":1000000}
+{"status":"verifying sha256 digest"}
+{"status":"writing manifest"}
+{"status":"removing any unused layers"}
+{"status":"success"}

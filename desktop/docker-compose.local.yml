@@ -1,15 +1,46 @@
 # Raven Local — desktop-tailored docker compose.
 #
-# This is a placeholder that includes the repo's primary compose file.
-# Issue #421 will replace this with a desktop-tailored variant that
-# adds an Ollama sidecar service and sets RAVEN_SINGLE_USER=true defaults.
-#
-# Used by the Tauri shell's compose orchestrator (desktop/src-tauri/src/compose.rs).
-# When the Tauri app is packaged, this file is bundled as a resource and
-# the orchestrator runs `docker compose -f docker-compose.local.yml up -d`
-# from the resource directory.
+# Adds an Ollama sidecar to the standard Raven stack and forces
+# RAVEN_SINGLE_USER=true on the API. Bundled by the Tauri shell as a
+# resource and started/stopped by `desktop/src-tauri/src/compose.rs`.
 
 include:
   - ../docker-compose.yml
 
-# TODO(#421): add Ollama sidecar service + RAVEN_SINGLE_USER=true defaults
+services:
+  # Local LLM — serves both chat completions (OpenAI-compatible /v1/*)
+  # and embeddings (/api/embeddings) for the AI worker's OllamaProvider.
+  ollama:
+    image: ollama/ollama:latest
+    pull_policy: missing
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - raven-internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    # Host-bound so the Tauri shell can reach /api/pull for streaming
+    # model-download progress. Other compose services use the internal
+    # network.
+    ports:
+      - "127.0.0.1:11434:11434"
+
+  # Force single-user mode on the API.
+  go-api:
+    environment:
+      RAVEN_SINGLE_USER: "true"
+      RAVEN_OLLAMA_BASE_URL: "http://ollama:11434"
+
+  # AI worker reads the same env so its OllamaProvider knows where to look.
+  ai-worker:
+    environment:
+      RAVEN_OLLAMA_BASE_URL: "http://ollama:11434"
+      RAVEN_OLLAMA_DEFAULT_EMBEDDING_MODEL: "nomic-embed-text"
+
+volumes:
+  ollama-models:
