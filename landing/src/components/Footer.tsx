@@ -6,6 +6,7 @@ import { Logo } from '@/components/Logo'
 import wordmark from '@/images/wordmark-raven.svg'
 
 const REPO_URL = 'https://github.com/ravencloak-org/Raven'
+const DOCS_URL = 'https://docs.raven.ravencloak.org'
 
 export function Footer() {
   return (
@@ -25,6 +26,7 @@ export function Footer() {
               <li><Link href="/#features" className="hover:text-white">Features</Link></li>
               <li><Link href="/pricing" className="hover:text-white">Pricing</Link></li>
               <li><Link href="/self-host" className="hover:text-white">Self-host</Link></li>
+              <li><Link href={DOCS_URL} className="hover:text-white">Docs</Link></li>
               <li><Link href="/about" className="hover:text-white">About</Link></li>
               <li><Link href={REPO_URL} className="hover:text-white">GitHub</Link></li>
             </ul>

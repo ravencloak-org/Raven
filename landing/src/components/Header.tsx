@@ -10,6 +10,7 @@ import { Logo } from '@/components/Logo'
 import { NavLink } from '@/components/NavLink'
 
 const REPO_URL = 'https://github.com/ravencloak-org/Raven'
+const DOCS_URL = 'https://docs.raven.ravencloak.org'
 
 function MobileNavLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
@@ -54,6 +55,7 @@ function MobileNavigation() {
         <MobileNavLink href="/#features">Features</MobileNavLink>
         <MobileNavLink href="/pricing">Pricing</MobileNavLink>
         <MobileNavLink href="/self-host">Self-host</MobileNavLink>
+        <MobileNavLink href={DOCS_URL}>Docs</MobileNavLink>
         <MobileNavLink href="/about">About</MobileNavLink>
         <hr className="my-2 border-[var(--color-border)]" />
         <MobileNavLink href={REPO_URL}>GitHub</MobileNavLink>
@@ -68,22 +70,33 @@ export function Header() {
       <Container>
         <nav className="relative z-50 flex justify-between">
           <div className="flex items-center md:gap-x-12">
-            <Link href="/" aria-label="Home">
-              <Logo variant="mark" markClassName="h-8 w-auto md:hidden" />
-              <Logo variant="full" markClassName="h-8 w-auto" className="hidden md:inline-flex" />
+            <Link href="/" aria-label="Home" className="inline-flex items-center">
+              <span className="md:hidden">
+                <Logo variant="mark" markClassName="h-8 w-auto" />
+              </span>
+              <span className="hidden md:inline-flex">
+                <Logo variant="full" markClassName="h-8 w-auto" />
+              </span>
             </Link>
             <div className="hidden md:flex md:gap-x-6">
               <NavLink href="/#features">Features</NavLink>
               <NavLink href="/pricing">Pricing</NavLink>
               <NavLink href="/self-host">Self-host</NavLink>
+              <NavLink href={DOCS_URL}>Docs</NavLink>
               <NavLink href="/about">About</NavLink>
             </div>
           </div>
           <div className="flex items-center gap-x-5 md:gap-x-8">
-            <Button href={REPO_URL} variant="outline" color="ink" className="hidden md:inline-flex">
-              GitHub
-            </Button>
-            <Button href="/self-host">Self-host in 5 min</Button>
+            <span className="hidden md:inline-flex">
+              <Button href={REPO_URL} variant="outline" color="ink">
+                GitHub
+              </Button>
+            </span>
+            <span className="hidden md:inline-flex">
+              <Button href="/self-host" className="whitespace-nowrap">
+                Self-host in 5 min
+              </Button>
+            </span>
             <div className="-mr-1 md:hidden">
               <MobileNavigation />
             </div>
