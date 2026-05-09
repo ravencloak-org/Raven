@@ -1,6 +1,52 @@
 <template>
   <div class="min-h-screen flex items-center justify-center bg-white dark:bg-black p-4">
     <div class="w-full max-w-md">
+      <!-- Desktop branch (single-user mode): model picker → optional BYOK → workspace -->
+      <template v-if="isDesktop">
+        <!-- Progress dots (3 steps) -->
+        <div class="flex justify-center gap-2 mb-8">
+          <div
+            v-for="step in 3"
+            :key="step"
+            class="w-2.5 h-2.5 rounded-full transition-colors duration-200"
+            :class="step <= desktopStepIndex ? 'bg-amber-500' : 'bg-neutral-300 dark:bg-neutral-700'"
+          />
+        </div>
+
+        <ModelPickerStep
+          v-if="desktopStep === 'model'"
+          @complete="onModelComplete"
+          @skip="onModelSkip"
+        />
+        <OptionalBYOKStep
+          v-else-if="desktopStep === 'byok'"
+          @saved="onByokDone"
+          @skip="onByokDone"
+        />
+        <div v-else-if="desktopStep === 'workspace'">
+          <h2 class="text-2xl font-bold text-neutral-900 dark:text-white mb-2">Name your workspace</h2>
+          <p class="text-neutral-500 text-sm mb-6">A workspace holds your knowledge bases.</p>
+          <input
+            id="ws-name"
+            v-model="workspaceName"
+            type="text"
+            placeholder="Personal"
+            class="w-full rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 mb-6"
+            @keyup.enter="completeDesktopOnboarding"
+          />
+          <button
+            :disabled="loading || workspaceName.length < 1"
+            class="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors"
+            @click="completeDesktopOnboarding"
+          >
+            {{ loading ? 'Setting up…' : 'Get Started' }}
+          </button>
+          <p v-if="error" class="text-red-500 text-sm mt-3">{{ error }}</p>
+        </div>
+      </template>
+
+      <!-- Cloud branch (multi-user): existing org-creation + KB flow -->
+      <template v-else>
       <!-- Progress dots -->
       <div class="flex justify-center gap-2 mb-8">
         <div
@@ -80,26 +126,90 @@
         </button>
         <p v-if="error" id="kb-error" class="text-red-500 text-sm mt-3">{{ error }}</p>
       </div>
+      </template>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
+import { useServerConfigStore } from '../../stores/server-config'
+import { useOnboardingStore } from '../../stores/onboarding'
+import ModelPickerStep from './ModelPickerStep.vue'
+import OptionalBYOKStep from './OptionalBYOKStep.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
+const serverConfig = useServerConfigStore()
+const onboarding = useOnboardingStore()
 const apiUrl = import.meta.env.VITE_API_BASE_URL
 
 const currentStep = ref(1)
 const loading = ref(false)
 const error = ref('')
 
-// If user already has an org, skip onboarding
+// Desktop (single-user) branch state. Step machine: model → byok → workspace.
+const isDesktop = computed(() => serverConfig.singleUser)
+type DesktopStep = 'model' | 'byok' | 'workspace'
+const desktopStep = ref<DesktopStep>('model')
+const desktopStepIndex = computed(() =>
+  desktopStep.value === 'model' ? 1 : desktopStep.value === 'byok' ? 2 : 3,
+)
+const workspaceName = ref('Personal')
+
+function onModelComplete() {
+  desktopStep.value = 'byok'
+}
+function onModelSkip() {
+  desktopStep.value = 'byok'
+}
+function onByokDone() {
+  desktopStep.value = 'workspace'
+}
+
+async function completeDesktopOnboarding() {
+  if (workspaceName.value.length < 1) return
+  loading.value = true
+  error.value = ''
+  try {
+    // The local org/user already exist (seeded by migration 00038). The first
+    // workspace is created here. The repo creates a default workspace for new
+    // orgs; we POST and tolerate "already exists" by fetching the list.
+    const localOrgId = auth.orgId || ''
+    if (!localOrgId) {
+      // Single-user mode pins org to the local UUID via setLocalMode in main.ts.
+      throw new Error('Local org not initialised — restart the app')
+    }
+    const res = await fetch(`${apiUrl}/api/v1/orgs/${localOrgId}/workspaces`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: workspaceName.value }),
+    })
+    if (!res.ok && res.status !== 409) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.message || data.error || `Failed (${res.status})`)
+    }
+    onboarding.markComplete()
+    router.replace('/dashboard')
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Something went wrong'
+  } finally {
+    loading.value = false
+  }
+}
+
+// If user already has an org, skip onboarding (cloud branch only — the
+// desktop branch's "completion" is gated by the onboarding store flag, not
+// org presence, since the local org always exists).
 onMounted(() => {
-  if (auth.hasOrg) {
+  if (!isDesktop.value && auth.hasOrg) {
+    router.replace('/dashboard')
+    return
+  }
+  if (isDesktop.value && onboarding.completed) {
     router.replace('/dashboard')
   }
 })

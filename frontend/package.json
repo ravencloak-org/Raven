@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.19",
+    "@tauri-apps/api": "^2.11.0",
     "@vueuse/core": "^14.3.0",
     "livekit-client": "^2.18.9",
     "pinia": "^3.0.4",
