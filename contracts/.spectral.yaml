@@ -1,0 +1,32 @@
+# Spectral ruleset for Raven's OpenAPI contract.
+# Extends the standard OAS rules with a few project conventions.
+extends:
+  - "spectral:oas"
+
+rules:
+  # Every operation must declare an operationId — needed by oapi-codegen
+  # and used as the URL slug by vitepress-openapi.
+  operation-operationId: error
+
+  # Every operation must declare at least one tag — drives the docs sidebar
+  # grouping in vitepress-openapi.
+  operation-tag-defined: error
+
+  # Top-level info must include license + contact for OSS hygiene.
+  info-license: warn
+  info-contact: warn
+
+  # Servers block is mandatory; the docs render the production URL.
+  oas3-server-not-example.com: error
+
+  # Operations must declare a summary so the sidebar entry is human-readable.
+  # spectral:oas has no built-in `operation-summary` rule, so we define one
+  # locally with the same intent.
+  operation-summary:
+    description: Operation must have a non-empty summary.
+    message: "Operation must have a non-empty summary."
+    given: "$.paths[*][get,put,post,delete,options,head,patch,trace]"
+    severity: error
+    then:
+      field: summary
+      function: truthy

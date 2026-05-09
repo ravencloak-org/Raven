@@ -78,6 +78,16 @@ The admin dashboard is available at `http://localhost:3000` once all containers 
 
 For local development without Docker, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
+## Documentation
+
+Full documentation is at **[docs.raven.ravencloak.org](https://docs.raven.ravencloak.org)** —
+quickstart, self-hosting guide, concepts, API reference, contributing.
+
+Source markdown lives in [`docs/`](./docs/); the public site is built from it
+via VitePress in [`docs-site/`](./docs-site/) and deployed to Cloudflare Pages.
+Open a PR against `main` and the docs CI will post a preview URL on the PR
+within ~2 minutes.
+
 ## Testing
 
 ```bash

@@ -11,6 +11,16 @@ servers:
   - url: /api/v1
     description: Local dev
 
+tags:
+  - name: Organizations
+    description: Organization lifecycle and membership.
+  - name: Workspaces
+    description: Workspace lifecycle and membership inside an organization.
+  - name: KnowledgeBases
+    description: Knowledge base lifecycle inside a workspace.
+  - name: Users
+    description: Authenticated user profile endpoints.
+
 security:
   - bearerAuth: []
 
@@ -127,6 +137,7 @@ paths:
   /orgs:
     post:
       summary: Create organization
+      operationId: createOrganization
       tags: [Organizations]
       requestBody:
         required: true
@@ -148,6 +159,7 @@ paths:
   /orgs/{org_id}:
     get:
       summary: Get organization
+      operationId: getOrganization
       tags: [Organizations]
       parameters:
         - name: org_id
@@ -167,6 +179,7 @@ paths:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
     put:
       summary: Update organization
+      operationId: updateOrganization
       tags: [Organizations]
       parameters:
         - name: org_id
@@ -186,6 +199,7 @@ paths:
               schema: { $ref: '#/components/schemas/Organization' }
     delete:
       summary: Soft-delete organization
+      operationId: deleteOrganization
       tags: [Organizations]
       parameters:
         - name: org_id
@@ -199,6 +213,7 @@ paths:
   /orgs/{org_id}/members:
     get:
       summary: List organization members
+      operationId: listOrganizationMembers
       tags: [Organizations]
       parameters:
         - name: org_id
@@ -217,6 +232,7 @@ paths:
   /orgs/{org_id}/workspaces:
     get:
       summary: List workspaces
+      operationId: listWorkspaces
       tags: [Workspaces]
       parameters:
         - name: org_id
@@ -237,6 +253,7 @@ paths:
               schema: { $ref: '#/components/schemas/PaginatedList' }
     post:
       summary: Create workspace
+      operationId: createWorkspace
       tags: [Workspaces]
       parameters:
         - name: org_id
@@ -258,6 +275,7 @@ paths:
   /orgs/{org_id}/workspaces/{ws_id}:
     get:
       summary: Get workspace
+      operationId: getWorkspace
       tags: [Workspaces]
       parameters:
         - name: org_id
@@ -276,6 +294,7 @@ paths:
               schema: { $ref: '#/components/schemas/Workspace' }
     delete:
       summary: Soft-delete workspace
+      operationId: deleteWorkspace
       tags: [Workspaces]
       parameters:
         - name: org_id
@@ -293,6 +312,7 @@ paths:
   /orgs/{org_id}/workspaces/{ws_id}/members:
     post:
       summary: Add workspace member
+      operationId: addWorkspaceMember
       tags: [Workspaces]
       parameters:
         - name: org_id
@@ -320,6 +340,7 @@ paths:
   /orgs/{org_id}/workspaces/{ws_id}/knowledge-bases:
     get:
       summary: List knowledge bases
+      operationId: listKnowledgeBases
       tags: [KnowledgeBases]
       parameters:
         - name: org_id
@@ -340,6 +361,7 @@ paths:
                 items: { $ref: '#/components/schemas/KnowledgeBase' }
     post:
       summary: Create knowledge base
+      operationId: createKnowledgeBase
       tags: [KnowledgeBases]
       parameters:
         - name: org_id
@@ -370,6 +392,7 @@ paths:
   /me:
     get:
       summary: Get current user profile
+      operationId: getCurrentUser
       tags: [Users]
       responses:
         '200':

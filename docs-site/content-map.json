@@ -1,0 +1,66 @@
+{
+  "$schema": "./content-map.schema.json",
+  "mappings": [
+    { "from": "docs-site/index.md", "to": "index.md" },
+    { "from": "docs-site/404.md", "to": "404.md" },
+
+    { "from": "docs/quickstart.md", "to": "get-started/installation.md" },
+
+    { "from": "docs/architecture.md", "to": "concepts/architecture.md" },
+    { "from": "docs/wiki/Architecture-Overview.md", "to": "concepts/system-overview.md" },
+    { "from": "docs/wiki/Data-Model.md", "to": "concepts/data-model.md" },
+
+    { "from": "docs/dependency-policy.md", "to": "contributing/dependency-policy.md" },
+    { "from": "CONTRIBUTING.md", "to": "contributing/overview.md" },
+
+    { "from": "SECURITY.md", "to": "reference/security-policy.md" },
+    { "from": "CODE_OF_CONDUCT.md", "to": "community/code-of-conduct.md" },
+    { "from": "GOVERNANCE.md", "to": "community/governance.md" },
+    { "from": "MAINTAINERS.md", "to": "community/maintainers.md" },
+
+    { "from": "docs/security/slsa-verification.md", "to": "trust/slsa-level-3.md" },
+    { "from": "docs/compliance/osps-l2-2026-02-19.md", "to": "trust/openssf-baseline.md" },
+    { "from": "docs/compliance/openssf-best-practices-12590.md", "to": "trust/openssf-best-practices.md" }
+  ],
+  "linkRewrites": [
+    { "match": "^docs/quickstart\\.md$", "replace": "/get-started/installation/" },
+    { "match": "^docs/architecture\\.md$", "replace": "/concepts/architecture/" },
+    { "match": "^docs/wiki/Architecture-Overview\\.md$", "replace": "/concepts/system-overview/" },
+    { "match": "^docs/wiki/Data-Model\\.md$", "replace": "/concepts/data-model/" },
+    { "match": "^docs/security/slsa-verification\\.md$", "replace": "/trust/slsa-level-3/" },
+    { "match": "^docs/compliance/osps-l2-2026-02-19\\.md$", "replace": "/trust/openssf-baseline/" },
+    { "match": "^docs/compliance/openssf-best-practices-12590\\.md$", "replace": "/trust/openssf-best-practices/" }
+  ],
+  "stubMappings": [
+    { "from": "docs-site/stubs/get-started/first-knowledge-base.md", "to": "get-started/first-knowledge-base.md" },
+    { "from": "docs-site/stubs/get-started/embed-the-chat-widget.md", "to": "get-started/embed-the-chat-widget.md" },
+    { "from": "docs-site/stubs/get-started/try-the-voice-agent.md", "to": "get-started/try-the-voice-agent.md" },
+    { "from": "docs-site/stubs/guides/workspaces-and-tenancy.md", "to": "guides/workspaces-and-tenancy.md" },
+    { "from": "docs-site/stubs/guides/ingestion.md", "to": "guides/ingestion.md" },
+    { "from": "docs-site/stubs/guides/retrieval.md", "to": "guides/retrieval.md" },
+    { "from": "docs-site/stubs/guides/llm-providers.md", "to": "guides/llm-providers.md" },
+    { "from": "docs-site/stubs/guides/voice.md", "to": "guides/voice.md" },
+    { "from": "docs-site/stubs/guides/webhooks-and-events.md", "to": "guides/webhooks-and-events.md" },
+    { "from": "docs-site/stubs/guides/billing.md", "to": "guides/billing.md" },
+    { "from": "docs-site/stubs/guides/self-hosting/docker-compose.md", "to": "guides/self-hosting/docker-compose.md" },
+    { "from": "docs-site/stubs/guides/self-hosting/edge-and-raspberry-pi.md", "to": "guides/self-hosting/edge-and-raspberry-pi.md" },
+    { "from": "docs-site/stubs/guides/self-hosting/traefik-and-tls.md", "to": "guides/self-hosting/traefik-and-tls.md" },
+    { "from": "docs-site/stubs/guides/self-hosting/observability.md", "to": "guides/self-hosting/observability.md" },
+    { "from": "docs-site/stubs/guides/self-hosting/backups.md", "to": "guides/self-hosting/backups.md" },
+    { "from": "docs-site/stubs/guides/self-hosting/upgrades.md", "to": "guides/self-hosting/upgrades.md" },
+    { "from": "docs-site/stubs/guides/self-hosting/hardening.md", "to": "guides/self-hosting/hardening.md" },
+    { "from": "docs-site/stubs/concepts/multi-tenancy.md", "to": "concepts/multi-tenancy.md" },
+    { "from": "docs-site/stubs/concepts/hybrid-retrieval.md", "to": "concepts/hybrid-retrieval.md" },
+    { "from": "docs-site/stubs/concepts/deployment-models.md", "to": "concepts/deployment-models.md" },
+    { "from": "docs-site/stubs/concepts/ai-worker-design.md", "to": "concepts/ai-worker-design.md" },
+    { "from": "docs-site/stubs/reference/configuration.md", "to": "reference/configuration.md" },
+    { "from": "docs-site/stubs/reference/cli.md", "to": "reference/cli.md" },
+    { "from": "docs-site/stubs/reference/changelog.md", "to": "reference/changelog.md" },
+    { "from": "docs-site/stubs/contributing/dev-setup.md", "to": "contributing/dev-setup.md" },
+    { "from": "docs-site/stubs/contributing/architecture-decisions.md", "to": "contributing/architecture-decisions.md" },
+    { "from": "docs-site/stubs/contributing/release-process.md", "to": "contributing/release-process.md" },
+    { "from": "docs-site/stubs/community/support.md", "to": "community/support.md" },
+    { "from": "docs-site/stubs/trust/security.md", "to": "trust/security.md" },
+    { "from": "docs-site/api/overview.md", "to": "api/overview.md" }
+  ]
+}

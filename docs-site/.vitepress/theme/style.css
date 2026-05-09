@@ -1,0 +1,32 @@
+/**
+ * Raven docs brand tokens — black on white, white on near-black, with a
+ * single red accent. The chosen red passes WCAG AA against both the light
+ * and dark VitePress backgrounds.
+ */
+
+:root {
+  /* Brand red (rose-600 family). Verified WCAG AA on light + dark. */
+  --vp-c-brand-1: #e11d48;
+  --vp-c-brand-2: #be123c;
+  --vp-c-brand-3: #9f1239;
+  --vp-c-brand-soft: rgba(225, 29, 72, 0.14);
+
+  /* Neutralise the default purple-leaning hover/active accents so the
+     red is the only chromatic colour on the page. */
+  --vp-c-accent: var(--vp-c-brand-1);
+  --vp-c-accent-hover: var(--vp-c-brand-2);
+  --vp-c-accent-active: var(--vp-c-brand-3);
+}
+
+.dark {
+  --vp-c-brand-1: #fb7185;
+  --vp-c-brand-2: #f43f5e;
+  --vp-c-brand-3: #e11d48;
+  --vp-c-brand-soft: rgba(251, 113, 133, 0.16);
+}
+
+/* Tighten the homepage hero so the three feature cards line up with the
+   nav above. */
+.VPHome .VPFeatures {
+  padding-top: 0;
+}
