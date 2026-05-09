@@ -1,4 +1,5 @@
 import { defineConfig } from "vitepress";
+import { mainSidebar } from "./sidebars/main";
 
 export default defineConfig({
   title: "Raven Docs",
@@ -29,7 +30,7 @@ export default defineConfig({
     ],
 
     // Sidebar contributions are merged in by T5 (main IA) and T6 (API).
-    sidebar: {},
+    sidebar: { ...mainSidebar },
 
     socialLinks: [
       { icon: "github", link: "https://github.com/ravencloak-org/Raven" },

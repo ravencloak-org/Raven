@@ -7,6 +7,7 @@ interface LinkRewrite { match: string; replace: string }
 
 interface ContentMap {
   mappings: Mapping[];
+  stubMappings?: Mapping[];
   linkRewrites: LinkRewrite[];
 }
 
@@ -108,12 +109,12 @@ async function main() {
   await fs.rm(TMP_DIR, { recursive: true, force: true });
   await fs.mkdir(TMP_DIR, { recursive: true });
 
-  for (const m of map.mappings) {
+  for (const m of [...map.mappings, ...(map.stubMappings ?? [])]) {
     await copyFile(m.from, m.to, map.linkRewrites);
   }
 
   console.log(
-    `sync-content: copied ${map.mappings.length} files to ${path.relative(REPO_ROOT, TMP_DIR)}/`,
+    `sync-content: copied ${map.mappings.length} mapped + ${(map.stubMappings ?? []).length} stub files to ${path.relative(REPO_ROOT, TMP_DIR)}/`,
   );
 }
 
