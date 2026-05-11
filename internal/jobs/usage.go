@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -35,10 +34,9 @@ func NewUsageAggregationHandler(pool *pgxpool.Pool, logger *slog.Logger) *UsageA
 }
 
 // ProcessTask implements asynq.Handler for the usage aggregation scheduled job.
+// The per-task-type deadline is applied by DeadlineMiddleware via mux.Use
+// in scheduler.go, so this handler does not wrap ctx itself.
 func (h *UsageAggregationHandler) ProcessTask(ctx context.Context, task *asynq.Task) error {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
 	var payload UsageAggregationPayload
 	if err := json.Unmarshal(task.Payload(), &payload); err != nil {
 		return fmt.Errorf("unmarshal UsageAggregationPayload: %w", err)

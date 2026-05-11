@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
@@ -60,10 +59,9 @@ func NewVoiceUsageHandler(pool *pgxpool.Pool, logger *slog.Logger) *VoiceUsageHa
 }
 
 // ProcessTask implements asynq.Handler for the voice usage aggregation job.
+// The per-task-type deadline is applied by DeadlineMiddleware via mux.Use
+// in scheduler.go, so this handler does not wrap ctx itself.
 func (h *VoiceUsageHandler) ProcessTask(ctx context.Context, task *asynq.Task) error {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
 	var payload VoiceUsagePayload
 	if err := json.Unmarshal(task.Payload(), &payload); err != nil {
 		return fmt.Errorf("unmarshal VoiceUsagePayload: %w", err)

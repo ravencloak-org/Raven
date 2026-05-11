@@ -5,6 +5,9 @@ import (
 	"errors"
 
 	"github.com/sony/gobreaker/v2"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // ErrCircuitOpen is returned by a Breaker when the underlying state machine
@@ -18,8 +21,43 @@ type Breaker struct {
 	cb *gobreaker.CircuitBreaker[any]
 }
 
+// BreakerOption configures NewBreaker.
+type BreakerOption func(*breakerOpts)
+
+type breakerOpts struct {
+	isSuccessful func(error) bool
+	meter        metric.Meter
+	tracer       trace.Tracer
+}
+
+// WithIsSuccessful classifies errors that should NOT count as breaker
+// failures (e.g. gRPC InvalidArgument is a caller bug, not a server fault).
+// The error still propagates to the caller; the breaker just ignores it.
+// The predicate must return true for nil.
+func WithIsSuccessful(fn func(error) bool) BreakerOption {
+	return func(o *breakerOpts) { o.isSuccessful = fn }
+}
+
+// WithObservability wires gobreaker's OnStateChange callback to OTel.
+// Emits a Gauge `resilience.breaker.state` (0=Closed, 1=HalfOpen, 2=Open)
+// labeled by policy name, plus a span event `resilience.breaker.transition`
+// on every transition. If meter or tracer is nil this option is a no-op.
+func WithObservability(meter metric.Meter, tracer trace.Tracer) BreakerOption {
+	return func(o *breakerOpts) {
+		if meter != nil && tracer != nil {
+			o.meter = meter
+			o.tracer = tracer
+		}
+	}
+}
+
 // NewBreaker constructs a Breaker from a validated Policy.
-func NewBreaker(p *Policy) *Breaker {
+func NewBreaker(p *Policy, opts ...BreakerOption) *Breaker {
+	o := &breakerOpts{}
+	for _, opt := range opts {
+		opt(o)
+	}
+
 	settings := gobreaker.Settings{
 		Name:        p.Name,
 		MaxRequests: p.BreakerHalfOpenMax,
@@ -29,6 +67,32 @@ func NewBreaker(p *Policy) *Breaker {
 			return counts.ConsecutiveFailures >= p.BreakerThreshold
 		},
 	}
+	if o.isSuccessful != nil {
+		settings.IsSuccessful = o.isSuccessful
+	}
+	if o.meter != nil {
+		var currentState gobreaker.State
+		gauge, err := o.meter.Int64ObservableGauge("resilience.breaker.state",
+			metric.WithDescription("Circuit breaker state: 0=Closed, 1=HalfOpen, 2=Open"))
+		if err == nil {
+			_, _ = o.meter.RegisterCallback(func(_ context.Context, obs metric.Observer) error {
+				obs.ObserveInt64(gauge, int64(currentState),
+					metric.WithAttributes(attribute.String("policy_name", p.Name)))
+				return nil
+			}, gauge)
+		}
+		settings.OnStateChange = func(name string, from, to gobreaker.State) {
+			currentState = to
+			_, span := o.tracer.Start(context.Background(), "resilience.breaker.transition")
+			span.SetAttributes(
+				attribute.String("policy_name", name),
+				attribute.String("from", from.String()),
+				attribute.String("to", to.String()),
+			)
+			span.End()
+		}
+	}
+
 	return &Breaker{cb: gobreaker.NewCircuitBreaker[any](settings)}
 }
 

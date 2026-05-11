@@ -29,9 +29,13 @@ func (f *fakeInvoker) invoke(ctx context.Context, _ string, _, _ any, _ *grpc.Cl
 	return f.err
 }
 
+func newGRPCBreaker(p *Policy) *Breaker {
+	return NewBreaker(p, WithIsSuccessful(IsGRPCCallerError))
+}
+
 func TestUnaryClientInterceptor_AppliesTimeout(t *testing.T) {
 	p, _ := NewPolicy("svc", WithTimeout(20*time.Millisecond))
-	icpt := UnaryClientInterceptor(p, NewBreaker(p))
+	icpt := UnaryClientInterceptor(p, newGRPCBreaker(p))
 
 	inv := &fakeInvoker{delay: 100 * time.Millisecond}
 	err := icpt(context.Background(), "/svc/Method", nil, nil, nil, inv.invoke)
@@ -47,16 +51,14 @@ func TestUnaryClientInterceptor_OpensBreakerOnUnavailable(t *testing.T) {
 		WithBreakerThreshold(2),
 		WithBreakerCooldown(100*time.Millisecond),
 	)
-	br := NewBreaker(p)
+	br := newGRPCBreaker(p)
 	icpt := UnaryClientInterceptor(p, br)
 
 	inv := &fakeInvoker{err: status.Error(codes.Unavailable, "down")}
 
-	// Two UNAVAILABLE failures should open the breaker.
 	for i := 0; i < 2; i++ {
 		_ = icpt(context.Background(), "/svc/Method", nil, nil, nil, inv.invoke)
 	}
-	// Third call short-circuits without invoking.
 	preCalls := inv.calls
 	err := icpt(context.Background(), "/svc/Method", nil, nil, nil, inv.invoke)
 	if !errors.Is(err, ErrCircuitOpen) {
@@ -69,20 +71,38 @@ func TestUnaryClientInterceptor_OpensBreakerOnUnavailable(t *testing.T) {
 
 func TestUnaryClientInterceptor_CallerErrorsDoNotTrip(t *testing.T) {
 	p, _ := NewPolicy("svc", WithBreakerThreshold(2))
-	br := NewBreaker(p)
+	br := newGRPCBreaker(p)
 	icpt := UnaryClientInterceptor(p, br)
 
 	inv := &fakeInvoker{err: status.Error(codes.InvalidArgument, "bad")}
 
-	// Five caller errors must NOT open the breaker.
 	for i := 0; i < 5; i++ {
 		_ = icpt(context.Background(), "/svc/Method", nil, nil, nil, inv.invoke)
 	}
 
-	// A subsequent call should still be invoked (not short-circuited).
 	preCalls := inv.calls
 	_ = icpt(context.Background(), "/svc/Method", nil, nil, nil, inv.invoke)
 	if inv.calls == preCalls {
 		t.Errorf("breaker tripped on caller errors")
+	}
+}
+
+// Regression: caller errors must propagate to the caller verbatim.
+// Pre-fix the interceptor returned nil for caller-classified errors, which
+// caused handlers to deref nil reply and panic.
+func TestUnaryClientInterceptor_CallerErrorsPropagate(t *testing.T) {
+	p, _ := NewPolicy("svc")
+	br := newGRPCBreaker(p)
+	icpt := UnaryClientInterceptor(p, br)
+
+	want := status.Error(codes.InvalidArgument, "bad input")
+	inv := &fakeInvoker{err: want}
+
+	got := icpt(context.Background(), "/svc/Method", nil, nil, nil, inv.invoke)
+	if got == nil {
+		t.Fatal("interceptor returned nil; want the caller error to propagate")
+	}
+	if status.Code(got) != codes.InvalidArgument {
+		t.Errorf("propagated code = %v, want InvalidArgument", status.Code(got))
 	}
 }

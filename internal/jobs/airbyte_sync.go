@@ -32,7 +32,10 @@ func NewAirbyteSyncHandler(pool *pgxpool.Pool, repo *repository.AirbyteRepositor
 }
 
 // ProcessTask implements asynq.Handler for Airbyte sync tasks.
-func (h *AirbyteSyncHandler) ProcessTask(_ context.Context, t *asynq.Task) error {
+// The per-task-type deadline is applied by DeadlineMiddleware via mux.Use
+// in cmd/worker/main.go, so this handler does not wrap ctx itself; it must,
+// however, propagate the supplied ctx to every cancellable downstream call.
+func (h *AirbyteSyncHandler) ProcessTask(ctx context.Context, t *asynq.Task) error {
 	var payload queue.AirbyteSyncPayload
 	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
 		return fmt.Errorf("unmarshal AirbyteSyncPayload: %w", err)
@@ -44,7 +47,11 @@ func (h *AirbyteSyncHandler) ProcessTask(_ context.Context, t *asynq.Task) error
 		"kb_id", payload.KnowledgeBaseID,
 	)
 
-	ctx := context.Background()
+	// Honour cancellation between distinct phases so a deadline-exceeded ctx
+	// short-circuits before issuing additional database work.
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("airbyte sync cancelled before start: %w", err)
+	}
 
 	// Step 1: Create a sync history record (status: running).
 	var syncRunID string
@@ -72,6 +79,10 @@ func (h *AirbyteSyncHandler) ProcessTask(_ context.Context, t *asynq.Task) error
 	//   - Chunk text content
 	//   - Compute chunk_hash (SHA-256 of content) for dedup
 	//   - Upsert chunks with dedup on (org_id, knowledge_base_id, source_id, chunk_hash)
+
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("airbyte sync cancelled before completion: %w", err)
+	}
 
 	// Step 4: Complete the sync run.
 	err = db.WithOrgID(ctx, h.pool, payload.OrgID, func(tx pgx.Tx) error {

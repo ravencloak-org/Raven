@@ -125,10 +125,9 @@ func NewWebhookDeliveryHandler(pool *pgxpool.Pool, repo *repository.WebhookRepos
 }
 
 // ProcessTask implements asynq.Handler for webhook delivery tasks.
+// The per-task-type deadline is applied by DeadlineMiddleware via mux.Use
+// in cmd/worker/main.go, so this handler does not wrap ctx itself.
 func (h *WebhookDeliveryHandler) ProcessTask(ctx context.Context, t *asynq.Task) error {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
 	var p queue.WebhookDeliveryPayload
 	if err := json.Unmarshal(t.Payload(), &p); err != nil {
 		return fmt.Errorf("unmarshal WebhookDeliveryPayload: %w", err)
