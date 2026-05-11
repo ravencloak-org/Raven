@@ -3,6 +3,10 @@ package repository_test
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -169,15 +173,16 @@ func TestRLS_MigrationVersion_AllApplied(t *testing.T) {
 	pool := testutil.NewTestDB(t)
 	ctx := context.Background()
 
-	// The highest migration version_id should match whichever migration
-	// file sits at the tip of `migrations/`. Bump this when adding a new
-	// migration.
+	// The highest applied version_id must match the highest version prefix
+	// of any *.sql file in migrations/. Discovered at test time so adding a
+	// new migration doesn't require touching this assertion.
+	wantVersion := highestMigrationVersion(t)
 	var maxVersion int64
 	err := pool.QueryRow(ctx,
 		"SELECT MAX(version_id) FROM goose_db_version WHERE is_applied = true",
 	).Scan(&maxVersion)
 	require.NoError(t, err)
-	assert.EqualValues(t, 37, maxVersion, "latest migration version must be applied")
+	assert.EqualValues(t, wantVersion, maxVersion, "latest migration version must be applied")
 
 	// Spot-check critical tables exist.
 	for _, table := range []string{
@@ -192,4 +197,35 @@ func TestRLS_MigrationVersion_AllApplied(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 1, count, "table %s must exist after migrations", table)
 	}
+}
+
+// highestMigrationVersion returns the largest numeric prefix among
+// migrations/*.sql files. Walks up from the test's working directory
+// (internal/repository/) to find the migrations dir at the repo root.
+func highestMigrationVersion(t *testing.T) int64 {
+	t.Helper()
+
+	migrationsDir := filepath.Join("..", "..", "migrations")
+	entries, err := os.ReadDir(migrationsDir)
+	require.NoError(t, err, "read migrations directory")
+
+	var max int64
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".sql") {
+			continue
+		}
+		prefix, _, ok := strings.Cut(e.Name(), "_")
+		if !ok {
+			continue
+		}
+		v, err := strconv.ParseInt(prefix, 10, 64)
+		if err != nil {
+			continue
+		}
+		if v > max {
+			max = v
+		}
+	}
+	require.Greater(t, max, int64(0), "no numbered migrations found in %s", migrationsDir)
+	return max
 }
