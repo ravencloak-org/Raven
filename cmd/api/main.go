@@ -35,6 +35,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"go.opentelemetry.io/otel"
 
 	"github.com/jackc/pgx/v5"
 
@@ -321,7 +322,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("invalid AI worker resilience policy: %v", err)
 	}
-	aiBreaker := resilience.NewBreaker(aiPolicy)
+	aiBreaker := resilience.NewBreaker(aiPolicy,
+		resilience.WithIsSuccessful(resilience.IsGRPCCallerError),
+		resilience.WithObservability(
+			otel.Meter("github.com/ravencloak-org/Raven/internal/resilience"),
+			otel.Tracer("github.com/ravencloak-org/Raven/internal/resilience"),
+		),
+	)
 
 	grpcClient, err := rpcClient.NewClient(cfg.GRPC.WorkerAddr, aiPolicy, aiBreaker)
 	if err != nil {
