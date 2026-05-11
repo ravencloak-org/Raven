@@ -12,6 +12,8 @@
 
 **Branch:** `feat/resilience-layer` (worktree from `origin/main`).
 
+**Revised:** 2026-05-11 after `/grill-with-docs` session. Eight design branches resolved against the actual codebase; see the **Revision change log** at the end of this file. The spec was authored against several assumptions that don't match the repo (apierror lives at `pkg/apierror/`, not `internal/apierror/`; `/readyz`, `/api/v1/upload/*`, `/api/v1/voice/*` route groups don't exist; Asynq handlers come in two shapes, not one). Tasks below incorporate the corrections. Task 5 (HTTP factory) is dropped entirely; remaining task numbers are unchanged for traceability.
+
 ## Parallel-execution map
 
 Tasks group into phases. Tasks within a phase can run in parallel (disjoint file ownership). Tasks across phases are sequential.
@@ -20,10 +22,10 @@ Tasks group into phases. Tasks within a phase can run in parallel (disjoint file
 |-------|-------|----------------|-------|
 | 0 — Bootstrap | 1 | no | Worktree + dep + survey |
 | 1 — Primitives | 2, 3, 6, 7, 8 | **yes (5 agents)** | All write disjoint files |
-| 2 — Composite primitives | 4, 5 | **yes (2 agents)** | Depend on 2+3; mutually disjoint |
+| 2 — Composite primitives | 4 | no | Task 5 dropped — see revision log |
 | 3 — Wire | 9, 10 | **yes (2 agents)** | Depend on 2+3+4 |
 | 4 — Main wiring | 11 | no | Touches cmd/api/main.go (single owner) — depends on 6, 9 |
-| 5 — Asynq + integration | 12, 13 | **yes (2 agents)** | 12 owns jobs/, 13 owns integration/ |
+| 5 — Asynq + integration | 12, 13 | **yes (2 agents)** | 12 owns jobs/ + scheduler.go middleware, 13 owns integration/ |
 | 6 — Finish | 14, 15 | no | Sequential close-out |
 
 ---
@@ -87,11 +89,17 @@ Run these and capture output into `docs/superpowers/plans/2026-05-08-resilience-
 {
   echo "# Resilience plan — codebase survey ($(date -u +%FT%TZ))"
   echo
-  echo "## apierror package"
-  grep -rn 'package apierror\|func ErrorHandler' --include='*.go' internal/ cmd/ | head
+  echo "## apierror package (NOTE: lives at pkg/apierror/, NOT internal/apierror/)"
+  grep -rn 'package apierror\|func ErrorHandler' --include='*.go' pkg/ internal/ cmd/ | head
   echo
-  echo "## Asynq handler files (ProcessTask receivers)"
-  grep -rn 'func .* ProcessTask(ctx context.Context' --include='*.go' internal/ | head -30
+  echo "## Asynq handlers — ProcessTask methods (some use _ context.Context)"
+  grep -rEn 'func .* ProcessTask\((ctx|_) context.Context' --include='*.go' internal/jobs/
+  echo
+  echo "## Asynq handlers — HandlerFunc factories (return asynq.HandlerFunc)"
+  grep -rEn 'asynq\.HandlerFunc' --include='*.go' internal/jobs/ | grep -v _test
+  echo
+  echo "## Asynq mux registration site (where mux.Use can be called)"
+  grep -rEn 'asynq\.NewServeMux|mux\.Handle\b' --include='*.go' internal/jobs/ cmd/api/
   echo
   echo "## Config: ServerConfig fields"
   awk '/type ServerConfig struct/,/^}/' internal/config/config.go
@@ -104,10 +112,20 @@ Run these and capture output into `docs/superpowers/plans/2026-05-08-resilience-
   echo
   echo "## main.go gRPC client construction (line ~313)"
   sed -n '305,330p' cmd/api/main.go
+  echo
+  echo "## OTel meter + tracer construction (needed by Task 3 observability)"
+  grep -rEn 'otel\.Meter\(|otel\.Tracer\(|InstrumentationName|Meter\(\)|Tracer\(\)' --include='*.go' cmd/api/ internal/ | head -20
+  echo
+  echo "## Route groups in cmd/api/main.go (referenced by Task 11 deadline table)"
+  grep -nE 'router\.Group|\.Group\(|router\.GET|router\.POST' cmd/api/main.go
 } > docs/superpowers/plans/2026-05-08-resilience-survey.md
 ```
 
-Read the resulting file. Subsequent tasks reference these paths; if any path differs from what tasks below assume (e.g., `apierror` lives in a different package), update the affected task before executing it.
+Read the resulting file. Confirmed paths (verified in grilling 2026-05-11):
+
+- `pkg/apierror/apierror.go` already defines `ErrorHandler()` middleware that switches on `*AppError` / `*QuotaError` type assertions.
+- `internal/jobs/` has 6 `ProcessTask` methods (one with `_ context.Context` — `airbyte_sync.go:35`) and 3 `asynq.HandlerFunc` factories (`document_process.go`, `email_summary.go`, `send_email.go`). Task 12 covers ALL of them via mux middleware.
+- Real route structure differs from the spec — see Task 11 step 2 for the corrected table.
 
 - [ ] **Step 6: Commit the bootstrap**
 
@@ -331,13 +349,18 @@ git commit -m "feat(resilience): add Policy with functional options + validation
 
 ---
 
-## Task 3: `resilience.Breaker` adapter (parallel-safe)
+## Task 3: `resilience.Breaker` adapter + OTel observability (parallel-safe)
 
 **Files:**
 - Create: `internal/resilience/breaker.go`
 - Test: `internal/resilience/breaker_test.go`
 
 Owns only files in `internal/resilience/breaker*.go` — disjoint from Tasks 2, 6, 7, 8.
+
+**Two adjustments from the original spec, both surfaced in grilling:**
+
+1. The breaker accepts an `IsSuccessful` predicate via `WithIsSuccessful(...)`. This is the hook gobreaker already provides for "this error doesn't count toward the breaker." Task 4's gRPC interceptor passes a predicate that classifies caller-side gRPC codes (`InvalidArgument`, `NotFound`, etc.) as success-equivalent, so those errors propagate to the caller AND don't trip the breaker. Without this hook, the original Task 4 design swallowed caller errors entirely (correctness bug).
+2. The breaker wires `gobreaker.OnStateChange` to OTel — gauge `resilience.breaker.state` (0=Closed, 1=HalfOpen, 2=Open) and span event `resilience.breaker.transition`. The spec listed these under "Error handling" but no original task implemented them. Folded in here because OnStateChange is set inside `gobreaker.Settings`, which is built inside `NewBreaker` — there's no clean separate file to put it in.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -448,6 +471,9 @@ import (
 	"errors"
 
 	"github.com/sony/gobreaker/v2"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // ErrCircuitOpen is returned by a Breaker when the underlying state machine
@@ -461,8 +487,44 @@ type Breaker struct {
 	cb *gobreaker.CircuitBreaker[any]
 }
 
+// BreakerOption configures NewBreaker. All options are optional; defaults
+// match the upstream gobreaker behaviour with our error classification.
+type BreakerOption func(*breakerOpts)
+
+type breakerOpts struct {
+	isSuccessful func(error) bool
+	meter        metric.Meter
+	tracer       trace.Tracer
+}
+
+// WithIsSuccessful classifies errors that should NOT count as breaker
+// failures (e.g. gRPC InvalidArgument is a caller bug, not a server fault).
+// The error still propagates to the caller; the breaker just ignores it.
+func WithIsSuccessful(fn func(error) bool) BreakerOption {
+	return func(o *breakerOpts) { o.isSuccessful = fn }
+}
+
+// WithObservability wires gobreaker's OnStateChange callback to OTel.
+// Emits a Gauge `resilience.breaker.state` (0=Closed, 1=HalfOpen, 2=Open)
+// labeled by policy name, plus a span event `resilience.breaker.transition`
+// on every transition. Both meter and tracer must be non-nil; if either
+// is nil this option is a no-op.
+func WithObservability(meter metric.Meter, tracer trace.Tracer) BreakerOption {
+	return func(o *breakerOpts) {
+		if meter != nil && tracer != nil {
+			o.meter = meter
+			o.tracer = tracer
+		}
+	}
+}
+
 // NewBreaker constructs a Breaker from a validated Policy.
-func NewBreaker(p *Policy) *Breaker {
+func NewBreaker(p *Policy, opts ...BreakerOption) *Breaker {
+	o := &breakerOpts{}
+	for _, opt := range opts {
+		opt(o)
+	}
+
 	settings := gobreaker.Settings{
 		Name:        p.Name,
 		MaxRequests: p.BreakerHalfOpenMax,
@@ -472,6 +534,34 @@ func NewBreaker(p *Policy) *Breaker {
 			return counts.ConsecutiveFailures >= p.BreakerThreshold
 		},
 	}
+	if o.isSuccessful != nil {
+		settings.IsSuccessful = o.isSuccessful
+	}
+	if o.meter != nil {
+		// Build a current-state holder closed over by both the gauge
+		// observer and the OnStateChange callback.
+		var currentState gobreaker.State
+		gauge, err := o.meter.Int64ObservableGauge("resilience.breaker.state",
+			metric.WithDescription("Circuit breaker state: 0=Closed, 1=HalfOpen, 2=Open"))
+		if err == nil {
+			_, _ = o.meter.RegisterCallback(func(_ context.Context, obs metric.Observer) error {
+				obs.ObserveInt64(gauge, int64(currentState),
+					metric.WithAttributes(attribute.String("policy_name", p.Name)))
+				return nil
+			}, gauge)
+		}
+		settings.OnStateChange = func(name string, from, to gobreaker.State) {
+			currentState = to
+			_, span := o.tracer.Start(context.Background(), "resilience.breaker.transition")
+			span.SetAttributes(
+				attribute.String("policy_name", name),
+				attribute.String("from", from.String()),
+				attribute.String("to", to.String()),
+			)
+			span.End()
+		}
+	}
+
 	return &Breaker{cb: gobreaker.NewCircuitBreaker[any](settings)}
 }
 
@@ -490,6 +580,40 @@ func (b *Breaker) Execute(ctx context.Context, fn func(context.Context) (any, er
 	return out, err
 }
 ```
+
+Add at least one new test to `breaker_test.go` covering the `WithIsSuccessful` predicate:
+
+```go
+func TestBreaker_IsSuccessfulPredicate(t *testing.T) {
+	p, _ := NewPolicy("svc", WithBreakerThreshold(2))
+	br := NewBreaker(p, WithIsSuccessful(func(err error) bool {
+		return errors.Is(err, errCallerFault)
+	}))
+
+	callerFail := func(context.Context) (any, error) { return nil, errCallerFault }
+
+	// Five caller-classified failures must NOT trip the breaker.
+	for i := 0; i < 5; i++ {
+		_, err := br.Execute(context.Background(), callerFail)
+		if !errors.Is(err, errCallerFault) {
+			t.Fatalf("err = %v, want errCallerFault to propagate", err)
+		}
+	}
+
+	// Verify the breaker is still closed: a real failure flips it.
+	realFail := func(context.Context) (any, error) { return nil, errors.New("server boom") }
+	for i := 0; i < 2; i++ {
+		_, _ = br.Execute(context.Background(), realFail)
+	}
+	if _, err := br.Execute(context.Background(), realFail); !errors.Is(err, ErrCircuitOpen) {
+		t.Errorf("breaker did not open after 2 server failures; err = %v", err)
+	}
+}
+
+var errCallerFault = errors.New("caller fault")
+```
+
+(OTel observability is exercised end-to-end in Task 13's integration tests via the metric reader; a unit test would mostly assert plumbing.)
 
 - [ ] **Step 4: Run the test — expect pass**
 
@@ -550,9 +674,13 @@ func (f *fakeInvoker) invoke(ctx context.Context, _ string, _, _ any, _ *grpc.Cl
 	return f.err
 }
 
+func newGRPCBreaker(p *Policy) *Breaker {
+	return NewBreaker(p, WithIsSuccessful(IsGRPCCallerError))
+}
+
 func TestUnaryClientInterceptor_AppliesTimeout(t *testing.T) {
 	p, _ := NewPolicy("svc", WithTimeout(20*time.Millisecond))
-	icpt := UnaryClientInterceptor(p, NewBreaker(p))
+	icpt := UnaryClientInterceptor(p, newGRPCBreaker(p))
 
 	inv := &fakeInvoker{delay: 100 * time.Millisecond}
 	err := icpt(context.Background(), "/svc/Method", nil, nil, nil, inv.invoke)
@@ -568,7 +696,7 @@ func TestUnaryClientInterceptor_OpensBreakerOnUnavailable(t *testing.T) {
 		WithBreakerThreshold(2),
 		WithBreakerCooldown(100*time.Millisecond),
 	)
-	br := NewBreaker(p)
+	br := newGRPCBreaker(p)
 	icpt := UnaryClientInterceptor(p, br)
 
 	inv := &fakeInvoker{err: status.Error(codes.Unavailable, "down")}
@@ -590,7 +718,7 @@ func TestUnaryClientInterceptor_OpensBreakerOnUnavailable(t *testing.T) {
 
 func TestUnaryClientInterceptor_CallerErrorsDoNotTrip(t *testing.T) {
 	p, _ := NewPolicy("svc", WithBreakerThreshold(2))
-	br := NewBreaker(p)
+	br := newGRPCBreaker(p)
 	icpt := UnaryClientInterceptor(p, br)
 
 	inv := &fakeInvoker{err: status.Error(codes.InvalidArgument, "bad")}
@@ -605,6 +733,27 @@ func TestUnaryClientInterceptor_CallerErrorsDoNotTrip(t *testing.T) {
 	_ = icpt(context.Background(), "/svc/Method", nil, nil, nil, inv.invoke)
 	if inv.calls == preCalls {
 		t.Errorf("breaker tripped on caller errors")
+	}
+}
+
+// Regression: caller errors must propagate to the caller verbatim.
+// The original (pre-grilling) interceptor returned nil to the caller for
+// caller-classified errors, which would cause handlers to dereference a
+// nil reply and panic.
+func TestUnaryClientInterceptor_CallerErrorsPropagate(t *testing.T) {
+	p, _ := NewPolicy("svc")
+	br := newGRPCBreaker(p)
+	icpt := UnaryClientInterceptor(p, br)
+
+	want := status.Error(codes.InvalidArgument, "bad input")
+	inv := &fakeInvoker{err: want}
+
+	got := icpt(context.Background(), "/svc/Method", nil, nil, nil, inv.invoke)
+	if got == nil {
+		t.Fatal("interceptor returned nil; want the caller error to propagate")
+	}
+	if status.Code(got) != codes.InvalidArgument {
+		t.Errorf("propagated code = %v, want InvalidArgument", status.Code(got))
 	}
 }
 ```
@@ -633,49 +782,21 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// UnaryClientInterceptor returns a gRPC unary client interceptor that:
+// IsGRPCCallerError reports whether err is a gRPC status that represents
+// a caller-side fault (bad input, missing resource, missing auth) rather
+// than a server-side failure. Pass this to NewBreaker via WithIsSuccessful
+// so caller errors propagate to the caller AND don't trip the breaker.
 //
-//   - Applies policy.Timeout to each call (only if no shorter deadline is set).
-//   - Routes the call through the breaker.
-//   - Counts only server-side failures (Unavailable, DeadlineExceeded,
-//     Internal, ResourceExhausted) toward the breaker's failure tally;
-//     caller errors (InvalidArgument, NotFound, PermissionDenied,
-//     Unauthenticated) are not counted.
-func UnaryClientInterceptor(p *Policy, br *Breaker) grpc.UnaryClientInterceptor {
-	return func(
-		ctx context.Context,
-		method string,
-		req, reply any,
-		cc *grpc.ClientConn,
-		invoker grpc.UnaryInvoker,
-		opts ...grpc.CallOption,
-	) error {
-		// Apply policy timeout unless a shorter deadline already exists.
-		callCtx, cancel := withTimeoutIfShorter(ctx, p.Timeout)
-		defer cancel()
-
-		_, err := br.Execute(callCtx, func(c context.Context) (any, error) {
-			invErr := invoker(c, method, req, reply, cc, opts...)
-			if isCallerError(invErr) {
-				// Tell gobreaker the call succeeded so caller errors don't trip it.
-				return nil, nil
-			}
-			return nil, invErr
-		})
-		return err
-	}
-}
-
-func withTimeoutIfShorter(ctx context.Context, d time.Duration) (context.Context, context.CancelFunc) {
-	if dl, ok := ctx.Deadline(); ok && time.Until(dl) <= d {
-		return context.WithCancel(ctx)
-	}
-	return context.WithTimeout(ctx, d)
-}
-
-func isCallerError(err error) bool {
+// Codes treated as caller errors:
+//   InvalidArgument, NotFound, AlreadyExists, PermissionDenied,
+//   Unauthenticated, FailedPrecondition, OutOfRange.
+//
+// Codes counted as breaker failures (caller WILL see them too):
+//   Unavailable, DeadlineExceeded, Internal, ResourceExhausted, Unknown,
+//   Aborted, Canceled, DataLoss.
+func IsGRPCCallerError(err error) bool {
 	if err == nil {
-		return false
+		return true // nil counts as success for IsSuccessful
 	}
 	switch status.Code(err) {
 	case codes.InvalidArgument,
@@ -689,7 +810,43 @@ func isCallerError(err error) bool {
 	}
 	return false
 }
+
+// UnaryClientInterceptor returns a gRPC unary client interceptor that:
+//
+//   - Applies policy.Timeout to each call (only if no shorter deadline is set).
+//   - Routes the call through the breaker.
+//   - Returns the invoker's error verbatim — the breaker decides via its
+//     IsSuccessful predicate (set in NewBreaker via WithIsSuccessful) whether
+//     the error counts toward the failure tally. Caller errors propagate
+//     to handlers AND don't trip the breaker.
+func UnaryClientInterceptor(p *Policy, br *Breaker) grpc.UnaryClientInterceptor {
+	return func(
+		ctx context.Context,
+		method string,
+		req, reply any,
+		cc *grpc.ClientConn,
+		invoker grpc.UnaryInvoker,
+		opts ...grpc.CallOption,
+	) error {
+		callCtx, cancel := withTimeoutIfShorter(ctx, p.Timeout)
+		defer cancel()
+
+		_, err := br.Execute(callCtx, func(c context.Context) (any, error) {
+			return nil, invoker(c, method, req, reply, cc, opts...)
+		})
+		return err
+	}
+}
+
+func withTimeoutIfShorter(ctx context.Context, d time.Duration) (context.Context, context.CancelFunc) {
+	if dl, ok := ctx.Deadline(); ok && time.Until(dl) <= d {
+		return context.WithCancel(ctx)
+	}
+	return context.WithTimeout(ctx, d)
+}
 ```
+
+The breaker constructed with `NewBreaker(policy, WithIsSuccessful(IsGRPCCallerError))` calls `IsGRPCCallerError(err)` for every result; if it returns true, the call is counted as success for breaker accounting and the error still flows back through `br.Execute` to the interceptor and the caller.
 
 - [ ] **Step 4: Run the test — expect pass**
 
@@ -708,11 +865,18 @@ git commit -m "feat(resilience): add UnaryClientInterceptor with caller-error fi
 
 ---
 
-## Task 5: `resilience` HTTP factory (depends on Tasks 2, 3)
+## Task 5: ~~`resilience` HTTP factory~~ — DROPPED
 
-**Files:**
-- Create: `internal/resilience/http.go`
-- Test: `internal/resilience/http_test.go`
+**Status: removed in 2026-05-11 grilling revision.**
+
+The original Task 5 shipped `internal/resilience/http.go` (`HTTPClient`, `HTTPClientWithBreaker`, `breakerTransport`) with no callers — the spec explicitly defers the outbound-HTTP audit to a follow-up, and no task in this plan modifies any HTTP-calling site. That meant ~150 LOC of dead code on merge, plus a non-trivial bug-prone branch in `breakerTransport.RoundTrip` (the success-with-5xx-response case where the wrapped fn returns `(resp, syntheticErr)` and the code type-asserts back out) verified against zero real callers.
+
+The HTTP factory will be designed and shipped with the follow-up audit, where a real caller (LiveKit, SeaweedFS, or Razorpay) shapes the contract.
+
+Skip to **Task 6** below. Task numbers 6–15 unchanged; only Task 5 is removed.
+
+<details>
+<summary>Original Task 5 content (for archival reference; do not implement)</summary>
 
 - [ ] **Step 1: Write the failing test**
 
@@ -880,6 +1044,8 @@ Expected: PASS.
 git add internal/resilience/http.go internal/resilience/http_test.go
 git commit -m "feat(resilience): add HTTPClient + breaker-aware RoundTripper"
 ```
+
+</details>
 
 ---
 
@@ -1084,25 +1250,27 @@ git commit -m "feat(config): add HTTP server + AI worker resilience knobs to Ser
 
 Disjoint from all Go source files.
 
-- [ ] **Step 1: Read current `.golangci.yml`**
+**Scope decision (2026-05-11 grilling):** apply globally to ALL production Go, not the spec's narrower `internal/grpc + internal/handler + internal/service` carve-out. Verified blast radius locally:
 
-Current state (from survey):
-
-```yaml
-linters:
-  enable:
-    - govet
-    - errcheck
-    - staticcheck
-    - ineffassign
-    - revive
+```
+golangci-lint run --no-config --default=none -E noctx -E contextcheck \
+  ./internal/handler/... ./internal/service/... ./internal/grpc/... ./internal/jobs/...
+# EXIT=0 for every package
 ```
 
-- [ ] **Step 2: Add the two new linters**
+The codebase is already clean. The wider scope catches future regressions in `cmd/api/`, `internal/middleware/`, `internal/repository/`, and `pkg/` (where `apierror` is about to start importing `internal/resilience`).
 
-Edit `.golangci.yml` so the `linters.enable` list reads:
+- [ ] **Step 1: Read current `.golangci.yml`**
+
+Current state from the actual file (NOT the simplified survey listing):
 
 ```yaml
+version: "2"
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
 linters:
   enable:
     - govet
@@ -1110,39 +1278,42 @@ linters:
     - staticcheck
     - ineffassign
     - revive
+  settings:
+    revive:
+      rules:
+        - name: exported
+        - name: blank-imports
+        # ... etc.
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+```
+
+- [ ] **Step 2: Add the two new linters globally**
+
+Append to the `linters.enable` list:
+
+```yaml
     - noctx
     - contextcheck
 ```
 
-(Order does not matter; alphabetised is fine.)
+No `issues.exclude-rules` needed — tests are excluded by golangci-lint's defaults; production Go is uniformly clean today.
 
-- [ ] **Step 3: Run golangci-lint locally to baseline existing violations**
-
-```bash
-golangci-lint run ./internal/grpc/... ./internal/handler/... ./internal/service/...
-```
-
-If pre-existing code triggers violations, do **not** suppress them globally. Instead:
-
-1. Capture the count and locations.
-2. Decide per finding whether to fix inline (preferred) or add a narrowly-scoped `//nolint:noctx // <reason>` directive on the offending line.
-3. Document the rationale for any nolint directives in the commit message.
-
-The CI gate must be green at error severity by the end of Task 15.
-
-- [ ] **Step 4: Verify lint passes on the resilience + middleware packages**
+- [ ] **Step 3: Verify lint passes across the whole repo**
 
 ```bash
-golangci-lint run ./internal/resilience/... ./internal/middleware/...
+golangci-lint run ./...
 ```
 
-Expected: PASS (these are new and clean).
+Expected: zero new findings. If anything trips, fix the call site rather than adding a `//nolint` — the audit confirmed there's nothing to suppress.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add .golangci.yml
-git commit -m "ci(lint): enable noctx and contextcheck for resilience compliance gate"
+git commit -m "ci(lint): enable noctx and contextcheck repo-wide for resilience compliance gate"
 ```
 
 ---
@@ -1262,56 +1433,96 @@ git commit -m "feat(grpc): wire resilience.Policy + Breaker into AI worker clien
 
 ---
 
-## Task 10: Map `ErrCircuitOpen` → HTTP 503 in apierror
+## Task 10: Map `ErrCircuitOpen` → HTTP 503 in `pkg/apierror`
 
-**Depends on Task 3.** **Path was surveyed in Task 1 step 5** — read `docs/superpowers/plans/2026-05-08-resilience-survey.md` to confirm the apierror file path before editing.
+**Depends on Task 3.**
 
 **Files:**
-- Modify: the file in the apierror package that defines `ErrorHandler` (likely `internal/apierror/handler.go` or `internal/apierror/middleware.go`).
+- Modify: `pkg/apierror/apierror.go` — extend the existing `ErrorHandler()` middleware.
+- Modify: `pkg/apierror/apierror_test.go` — add the new case.
 
-- [ ] **Step 1: Locate `ErrorHandler`**
-
-```bash
-grep -rn 'func ErrorHandler' internal/ --include='*.go' | grep -v _test
-```
-
-Note the file path. Subsequent steps refer to it as `<errfile>`.
-
-- [ ] **Step 2: Read the existing handler to understand its dispatch shape**
-
-Read `<errfile>` and identify how it maps Go errors to HTTP status codes (likely `errors.Is`/`errors.As` switch).
-
-- [ ] **Step 3: Add the ErrCircuitOpen → 503 mapping**
-
-Add an import:
+**Note from grilling (2026-05-11):** the spec said `internal/apierror/`. The package actually lives at `pkg/apierror/` and an `ErrorHandler()` already exists (line 100). Its dispatch shape is **type assertion**, not `errors.Is`:
 
 ```go
-import "github.com/ravencloak-org/Raven/internal/resilience"
+if quotaErr, ok := err.(*QuotaError); ok { c.JSON(quotaErr.Code, quotaErr) }
+else if appErr, ok := err.(*AppError); ok { c.JSON(appErr.Code, appErr) }
+else { /* 500 fallback */ }
 ```
 
-Add a branch in the error-mapping switch (place before the generic fallback):
+We add an `errors.Is` branch BEFORE the type assertions so `ErrCircuitOpen` is routed to a 503 response with `Retry-After` set as a real HTTP header (not a JSON field). `pkg/apierror` will import `internal/resilience` — Go's `internal` rule allows this because `pkg/` is a sibling of `internal/` under the module root.
+
+- [ ] **Step 1: Update `pkg/apierror/apierror.go`**
+
+Add to the import block:
 
 ```go
-case errors.Is(err, resilience.ErrCircuitOpen):
-    c.Header("Retry-After", "30")
-    c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{
-        "error": "service temporarily unavailable",
-        "code":  "circuit_open",
-    })
-    return
+import (
+	"errors"
+	"net/http"
+	"strconv"
+
+	"github.com/gin-gonic/gin"
+	"github.com/ravencloak-org/Raven/internal/resilience"
+)
 ```
 
-If the handler uses a custom error response shape, match the existing shape rather than `gin.H` literal.
+(Adjust the module path to match `go.mod` if different.)
 
-- [ ] **Step 4: Add a unit test**
-
-Add to the apierror package's `*_test.go` (create one if missing):
+Replace the body of `ErrorHandler` so the resilience branch fires first:
 
 ```go
-func TestErrorHandler_CircuitOpenReturns503(t *testing.T) {
+// ErrorHandler is a Gin middleware that catches errors set via c.Error()
+// and returns a JSON error response.
+func ErrorHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Next()
+
+		if len(c.Errors) == 0 {
+			return
+		}
+		err := c.Errors.Last().Err
+
+		// Resilience errors map to HTTP transport semantics, not the
+		// AppError type assertions below.
+		if errors.Is(err, resilience.ErrCircuitOpen) {
+			// Retry-After in seconds. The breaker cooldown is a Policy
+			// field, but pkg/apierror doesn't see the policy here, so
+			// we use a sane default that matches the AI worker policy
+			// default (30s). If a more precise value is needed later,
+			// thread it via a typed error that carries the cooldown.
+			c.Header("Retry-After", strconv.Itoa(30))
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, &AppError{
+				Code:    http.StatusServiceUnavailable,
+				Message: "Service Unavailable",
+				Detail:  "upstream temporarily unavailable; circuit breaker open",
+			})
+			return
+		}
+
+		if quotaErr, ok := err.(*QuotaError); ok {
+			c.JSON(quotaErr.Code, quotaErr)
+		} else if appErr, ok := err.(*AppError); ok {
+			c.JSON(appErr.Code, appErr)
+		} else {
+			c.JSON(http.StatusInternalServerError, &AppError{
+				Code:    http.StatusInternalServerError,
+				Message: "Internal Server Error",
+				Detail:  err.Error(),
+			})
+		}
+	}
+}
+```
+
+- [ ] **Step 2: Add a unit test**
+
+Add to `pkg/apierror/apierror_test.go`:
+
+```go
+func TestErrorHandler_CircuitOpenReturns503WithRetryAfter(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Use(ErrorHandler())
+	r.Use(apierror.ErrorHandler())
 	r.GET("/", func(c *gin.Context) {
 		_ = c.Error(resilience.ErrCircuitOpen)
 	})
@@ -1329,18 +1540,20 @@ func TestErrorHandler_CircuitOpenReturns503(t *testing.T) {
 }
 ```
 
-- [ ] **Step 5: Run the test**
+Plus the matching imports.
+
+- [ ] **Step 3: Run the test**
 
 ```bash
-go test ./internal/apierror/... -v
+go test ./pkg/apierror/... -v
 ```
 
-Expected: PASS.
+Expected: PASS, including the existing tests.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add internal/apierror/
+git add pkg/apierror/
 git commit -m "feat(apierror): map resilience.ErrCircuitOpen to 503 with Retry-After"
 ```
 
@@ -1372,33 +1585,72 @@ aiPolicy, err := resilience.NewPolicy("ai-worker",
 if err != nil {
     log.Fatalf("invalid AI worker resilience policy: %v", err)
 }
-aiBreaker := resilience.NewBreaker(aiPolicy)
+aiBreaker := resilience.NewBreaker(aiPolicy,
+    resilience.WithIsSuccessful(resilience.IsGRPCCallerError),
+    resilience.WithObservability(meter, tracer),
+)
 
 grpcClient, err := rpcClient.NewClient(cfg.GRPC.WorkerAddr, aiPolicy, aiBreaker)
 ```
+
+Where `meter` and `tracer` are the OTel `metric.Meter` and `trace.Tracer` already constructed elsewhere in `main.go` (see Task 1 step 5 survey output for their names — search for `otel.Meter(` / `otel.Tracer(`). If they're not yet in scope at line 313, hoist their construction up.
 
 Add the import: `"github.com/ravencloak-org/Raven/internal/resilience"` (adjust module path to match `go.mod`).
 
 - [ ] **Step 2: Apply Deadline middleware per route group**
 
-Locate each route group definition (search for `router.Group(` and `api := ...`). Add a `Deadline` middleware call right after the group is created, e.g.:
+The original spec table referenced routes that don't exist (`/readyz`, `/api/v1/upload/*`, `/api/v1/voice/*`). The corrected mapping, anchored to actual line numbers in `cmd/api/main.go`:
+
+| Real route / group (line)                                                    | Budget | Notes                                                      |
+|------------------------------------------------------------------------------|--------|------------------------------------------------------------|
+| `router.GET("/healthz", ...)` (line 496)                                     | 1s     | Standalone — apply via per-route middleware list           |
+| `chatAPI := router.Group("/api/v1/chat")` (line 794)                         | 30s    | Streaming chat                                             |
+| `voice := api.Group("/orgs/:org_id/voice-sessions")` (line 717)              | 30s    | Voice session endpoints — applied at this nested group     |
+| `doc := kb.Group("/:kb_id/documents")` (line 586)                            | 60s    | Document upload-shaped endpoints                           |
+| `src := kb.Group("/:kb_id/sources")` (line 576)                              | 60s    | Source ingestion (large payloads)                          |
+| `api := router.Group("/api/v1")` (line 517)                                  | 10s    | Default for everything not overridden above                |
+| `admin := router.Group("/api/v1/admin")` (line 825)                          | 10s    | Admin CRUD                                                 |
+| `router.POST("/api/v1/billing/webhook", ...)` (line 817)                     | 10s    | Stripe/Razorpay webhook receiver                           |
+| `router.GET("/webhooks/meta", ...)` / `POST` (lines 821–822)                 | 10s    | Meta WhatsApp webhook                                      |
+| `router.GET("/api/v1/auth/callback", ...)` (line 841)                        | 10s    | OAuth callback                                             |
+| `router.GET/POST("/api/v1/notifications/unsubscribe", ...)` (lines 501–502)  | 10s    | Unsubscribe link handler                                   |
+
+Apply order: outer `api` group gets the 10s default first (line 517 area), then the inner `voice`, `doc`, `src` groups override with their longer budgets at their respective definitions. Since `context.WithTimeout` only shortens, an inner `Deadline(60s)` on a route already wrapped in `Deadline(10s)` would actually clamp at 10s. To work around this:
+
+- Define the inner groups (`doc`, `src`, `voice`) BEFORE applying `api.Use(middleware.Deadline(10*time.Second))`, OR
+- Skip the outer-`api` Deadline and apply per-leaf-group budgets explicitly.
+
+Recommended approach: skip the outer-`api` Deadline; apply Deadline per-leaf-group:
 
 ```go
-api := router.Group("/api/v1")
-api.Use(middleware.Deadline(10 * time.Second)) // default budget
+// Inside api := router.Group("/api/v1"):
+//   - Each leaf endpoint group gets its own Deadline.
+//   - No outer api.Use(Deadline(...)) — would clamp inner overrides.
+
+// Standalone routes get the middleware in their per-route handler chain:
+router.GET("/healthz", middleware.Deadline(1*time.Second), handler.HealthCheck)
+router.POST("/api/v1/billing/webhook", middleware.Deadline(10*time.Second), billingHandler.Webhook)
+router.GET("/webhooks/meta", middleware.Deadline(10*time.Second), metaWebhookHandler.VerifyWebhook)
+router.POST("/webhooks/meta", middleware.Deadline(10*time.Second), metaWebhookHandler.HandleEvent)
+router.GET("/api/v1/auth/callback", middleware.Deadline(10*time.Second), authCallback)
+router.GET("/api/v1/notifications/unsubscribe", middleware.Deadline(10*time.Second), notifPrefsHandler.Unsubscribe)
+router.POST("/api/v1/notifications/unsubscribe", middleware.Deadline(10*time.Second), notifPrefsHandler.UnsubscribePost)
+
+// Inner leaf groups get their tailored budgets:
+chatAPI := router.Group("/api/v1/chat")
+chatAPI.Use(middleware.Deadline(30 * time.Second))
+
+voice := api.Group("/orgs/:org_id/voice-sessions")
+voice.Use(middleware.Deadline(30 * time.Second))
+
+doc := kb.Group("/:kb_id/documents")
+doc.Use(middleware.Deadline(60 * time.Second))
+
+src := kb.Group("/:kb_id/sources")
+src.Use(middleware.Deadline(60 * time.Second))
 ```
 
-Sized per spec:
-
-| Route group           | Budget                                |
-|-----------------------|---------------------------------------|
-| `/healthz`, `/readyz` | `1 * time.Second`                     |
-| `/api/v1/chat/*`      | `30 * time.Second`                    |
-| `/api/v1/upload/*`    | `60 * time.Second`                    |
-| `/api/v1/voice/*`     | `30 * time.Second`                    |
-| Default `/api/v1/*`   | `10 * time.Second`                    |
-
-For sub-groups that need a different budget than their parent, call `chatAPI.Use(middleware.Deadline(30 * time.Second))` on the sub-group — Gin's `Use` is additive but the inner Deadline will override the outer one because `context.WithTimeout` only shortens.
+For all OTHER endpoints under `api` (CRUD-style: `webhooks`, `leads`, `org`, `billing`, `connectors`, `llm-providers`, etc.), accept that they have NO per-route Gin deadline and rely instead on the `http.Server.WriteTimeout` (60s in step 3) as the upper bound. This is a conscious trade-off — the spec's "default 10s on all of `/api/v1/*`" would have required restructuring how nested groups attach Deadline, and the inheritance vs. shortening semantics make a single outer Deadline brittle. The 60s `WriteTimeout` is the safety net.
 
 - [ ] **Step 3: Set explicit `http.Server` timeouts (around line 855)**
 
@@ -1443,59 +1695,185 @@ git commit -m "feat(api): wire resilience policy + http.Server timeouts + per-ro
 
 ---
 
-## Task 12: Asynq handler timeouts (parallel-safe with Task 13)
+## Task 12: Asynq per-task deadlines via `mux.Use` middleware (parallel-safe with Task 13)
 
-**Depends on Task 1.** Owns only files under `internal/jobs/`.
+**Depends on Task 1.** Owns `internal/jobs/scheduler.go` (where the mux is built), a new `internal/jobs/deadline.go` (the middleware + budget table), and `internal/jobs/airbyte_sync.go` (one independent bug fix).
 
-**Files:**
-- Modify: every file in `internal/jobs/` that defines a `ProcessTask(ctx context.Context, task *asynq.Task)` method.
+**Why this shape (decided in 2026-05-11 grilling):** the original per-handler `ProcessTask` wrapping pattern would have missed 4 of the 9 handlers in `internal/jobs/`:
 
-- [ ] **Step 1: Survey ProcessTask implementations**
+| File | Shape | Caught by original grep? |
+|---|---|---|
+| `voice_usage.go`, `usage.go`, `cleanup.go`, `recrawl.go`, `webhook_delivery.go` | `func (h *X) ProcessTask(ctx context.Context, ...)` | ✅ |
+| `airbyte_sync.go` | `func (h *X) ProcessTask(_ context.Context, ...)` (drops ctx) | ❌ — also has independent ctx-drop bug |
+| `document_process.go`, `email_summary.go`, `send_email.go` | `func HandleX(deps) asynq.HandlerFunc` (returns a closure) | ❌ |
 
-```bash
-grep -rln 'ProcessTask(ctx context.Context, task \*asynq.Task)' internal/jobs/
-```
+A single `asynq.MiddlewareFunc` registered via `mux.Use(...)` wraps every handler regardless of shape, plus catches future handlers automatically. A small per-task-type budget table preserves the spec's per-handler granularity without 9 file edits.
 
-For each handler file:
+- [ ] **Step 1: Add `internal/jobs/deadline.go`**
 
-- [ ] **Step 2: Wrap each `ProcessTask` body with a per-handler timeout**
-
-For a representative file like `internal/jobs/voice_usage.go` — at the top of the `ProcessTask` method, before any other logic:
+Create the file:
 
 ```go
-ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-defer cancel()
+package jobs
+
+import (
+	"context"
+	"time"
+
+	"github.com/hibiken/asynq"
+)
+
+// taskBudgets maps a task type to its per-execution deadline.
+// Keys come from the TypeXxx constants in tasks.go. Anything not in
+// the map gets defaultBudget. Tune empirically.
+var taskBudgets = map[string]time.Duration{
+	TypeDocumentProcess:       5 * time.Minute,
+	TypeEmailSummary:          2 * time.Minute,
+	TypeSendEmail:             30 * time.Second,
+	TypeVoiceUsageAggregation: 30 * time.Second,
+	TypeUsageAggregation:      30 * time.Second,
+	TypeWebhookDelivery:       30 * time.Second,
+	TypeRecrawlSources:        2 * time.Minute,
+	TypeCleanupSessions:       2 * time.Minute,
+	TypeAirbyteSync:           5 * time.Minute,
+}
+
+const defaultBudget = 1 * time.Minute
+
+// DeadlineMiddleware wraps every Asynq handler with a per-task-type
+// context.WithTimeout. Apply via mux.Use(DeadlineMiddleware) so it
+// covers handlers regardless of whether they're method receivers or
+// HandlerFunc factories.
+func DeadlineMiddleware(next asynq.Handler) asynq.Handler {
+	return asynq.HandlerFunc(func(ctx context.Context, t *asynq.Task) error {
+		budget, ok := taskBudgets[t.Type()]
+		if !ok {
+			budget = defaultBudget
+		}
+		ctx, cancel := context.WithTimeout(ctx, budget)
+		defer cancel()
+		return next.ProcessTask(ctx, t)
+	})
+}
 ```
 
-Sizing per handler:
+If any of the `TypeXxx` constants in the budget map don't exist yet (check `internal/jobs/tasks.go` and the per-handler files), use the literal string instead and leave a `// TODO: hoist to a TypeXxx constant` comment.
 
-| Handler                      | Timeout |
-|------------------------------|---------|
-| Document processing          | 5m      |
-| Voice usage aggregation      | 30s     |
-| Webhook delivery             | 30s     |
-| Email summary generation     | 2m      |
-| Default (anything else)      | 1m      |
+- [ ] **Step 2: Wire the middleware in `scheduler.go`**
 
-If unsure, use 1m and leave a `// TODO(resilience): tune per workload` comment (this is the **only** acceptable TODO in this plan, because Asynq retention/timeout tuning is genuinely empirical).
+After `mux := asynq.NewServeMux()` (around line 103) and before the `mux.Handle(...)` calls:
 
-- [ ] **Step 3: Add a unit test asserting a slow handler is bounded**
+```go
+mux.Use(DeadlineMiddleware)
+```
 
-Pick one representative handler (e.g., `VoiceUsageHandler`) and add a test that injects a stub dependency which sleeps longer than the configured timeout, asserting the handler returns `context.DeadlineExceeded` within the budget.
+- [ ] **Step 3: Fix `airbyte_sync.go`'s ctx drop (independent bug)**
 
-- [ ] **Step 4: Run the jobs tests**
+Currently:
+
+```go
+func (h *AirbyteSyncHandler) ProcessTask(_ context.Context, t *asynq.Task) error {
+```
+
+Change `_` to `ctx` and thread it into the work loop. Without this, the new middleware sets a deadline on a context the handler ignores, so the budget never fires. Pattern:
+
+```go
+func (h *AirbyteSyncHandler) ProcessTask(ctx context.Context, t *asynq.Task) error {
+    // ... existing work, with any blocking calls accepting ctx ...
+}
+```
+
+If the existing body has long-running calls (HTTP, DB) that don't take a context, refactor them to accept one. If that's beyond the resilience milestone scope, at minimum check `ctx.Err()` between iterations of any loop.
+
+- [ ] **Step 4: Add a middleware unit test**
+
+Create `internal/jobs/deadline_test.go`:
+
+```go
+package jobs
+
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/hibiken/asynq"
+)
+
+func TestDeadlineMiddleware_AppliesPerTypeBudget(t *testing.T) {
+	// Stub a slow handler that observes its ctx.
+	var observedErr error
+	slow := asynq.HandlerFunc(func(ctx context.Context, _ *asynq.Task) error {
+		select {
+		case <-time.After(2 * time.Second):
+			return nil
+		case <-ctx.Done():
+			observedErr = ctx.Err()
+			return ctx.Err()
+		}
+	})
+
+	wrapped := DeadlineMiddleware(slow)
+
+	// Use a task type with a short budget by injecting a temporary entry.
+	const testType = "test:fast"
+	taskBudgets[testType] = 50 * time.Millisecond
+	t.Cleanup(func() { delete(taskBudgets, testType) })
+
+	task := asynq.NewTask(testType, nil)
+	start := time.Now()
+	err := wrapped.ProcessTask(context.Background(), task)
+	elapsed := time.Since(start)
+
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("err = %v, want DeadlineExceeded", err)
+	}
+	if !errors.Is(observedErr, context.DeadlineExceeded) {
+		t.Errorf("handler did not observe DeadlineExceeded; got %v", observedErr)
+	}
+	if elapsed > 200*time.Millisecond {
+		t.Errorf("elapsed = %v; deadline did not fire", elapsed)
+	}
+}
+
+func TestDeadlineMiddleware_UnknownTypeUsesDefault(t *testing.T) {
+	called := false
+	h := asynq.HandlerFunc(func(ctx context.Context, _ *asynq.Task) error {
+		called = true
+		dl, ok := ctx.Deadline()
+		if !ok {
+			t.Errorf("handler ctx had no deadline")
+		}
+		if remaining := time.Until(dl); remaining > defaultBudget+time.Second {
+			t.Errorf("deadline too far away: %v", remaining)
+		}
+		return nil
+	})
+
+	wrapped := DeadlineMiddleware(h)
+	if err := wrapped.ProcessTask(context.Background(), asynq.NewTask("test:unknown", nil)); err != nil {
+		t.Fatalf("err = %v", err)
+	}
+	if !called {
+		t.Error("handler not invoked")
+	}
+}
+```
+
+- [ ] **Step 5: Run the jobs tests**
 
 ```bash
 go test ./internal/jobs/... -v
 ```
 
-Expected: PASS.
+Expected: PASS, including the existing tests.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add internal/jobs/
-git commit -m "feat(jobs): apply per-handler context.WithTimeout to all Asynq processors"
+git add internal/jobs/deadline.go internal/jobs/deadline_test.go internal/jobs/scheduler.go internal/jobs/airbyte_sync.go
+git commit -m "feat(jobs): apply per-task-type Asynq deadlines via mux middleware"
 ```
 
 ---
@@ -1527,7 +1905,7 @@ func TestResilience_SlowAIWorker_HitsClientDeadline(t *testing.T) {
 	policy, _ := resilience.NewPolicy("ai-worker",
 		resilience.WithTimeout(200*time.Millisecond),
 	)
-	breaker := resilience.NewBreaker(policy)
+	breaker := resilience.NewBreaker(policy, resilience.WithIsSuccessful(resilience.IsGRPCCallerError))
 	client, err := rpcClient.NewClient(addr, policy, breaker)
 	if err != nil {
 		t.Fatal(err)
@@ -1555,7 +1933,7 @@ func TestResilience_RepeatedUnavailable_OpensBreaker(t *testing.T) {
 		resilience.WithBreakerThreshold(3),
 		resilience.WithBreakerCooldown(2*time.Second),
 	)
-	breaker := resilience.NewBreaker(policy)
+	breaker := resilience.NewBreaker(policy, resilience.WithIsSuccessful(resilience.IsGRPCCallerError))
 	client, err := rpcClient.NewClient(addr, policy, breaker)
 	if err != nil {
 		t.Fatal(err)
@@ -1586,7 +1964,7 @@ func TestResilience_HalfOpenProbe_ClosesBreaker(t *testing.T) {
 		resilience.WithBreakerCooldown(100*time.Millisecond),
 		resilience.WithBreakerHalfOpenMax(1),
 	)
-	breaker := resilience.NewBreaker(policy)
+	breaker := resilience.NewBreaker(policy, resilience.WithIsSuccessful(resilience.IsGRPCCallerError))
 	client, err := rpcClient.NewClient(addr, policy, breaker)
 	if err != nil {
 		t.Fatal(err)
@@ -1746,7 +2124,31 @@ Expected: auto-merge enqueued; PR will squash-merge automatically once CI passes
 
 ## Self-review notes
 
-- All spec sections covered: resilience package ✓ (Tasks 2–5), Deadline middleware ✓ (Task 6), config knobs ✓ (Task 7), CI gate ✓ (Task 8), gRPC wiring ✓ (Task 9), apierror mapping ✓ (Task 10), main.go wiring ✓ (Task 11), Asynq ✓ (Task 12), integration tests ✓ (Task 13), env docs ✓ (Task 14), close-out ✓ (Task 15).
-- Type consistency: `*resilience.Policy` and `*resilience.Breaker` referenced consistently; `ErrCircuitOpen` and `ErrInvalidPolicy` used uniformly.
-- Placeholders: only the Asynq sizing TODO is allowed (genuinely empirical); all other steps contain complete code or exact commands.
-- Out-of-scope items confirmed deferred: bulkheads, retries, full outbound-HTTP audit, observability dashboards.
+- All spec sections covered: resilience package ✓ (Tasks 2–4; Task 5 dropped), OTel observability ✓ (folded into Task 3), Deadline middleware ✓ (Task 6), config knobs ✓ (Task 7), CI gate ✓ (Task 8), gRPC wiring ✓ (Task 9), apierror mapping ✓ (Task 10), main.go wiring ✓ (Task 11), Asynq ✓ (Task 12), integration tests ✓ (Task 13), env docs ✓ (Task 14), close-out ✓ (Task 15).
+- Type consistency: `*resilience.Policy` and `*resilience.Breaker` referenced consistently; `ErrCircuitOpen`, `ErrInvalidPolicy`, `IsGRPCCallerError` used uniformly.
+- Placeholders: only the Asynq sizing tunables are empirical; all other steps contain complete code or exact commands.
+- Out-of-scope items confirmed deferred: bulkheads, retries, full outbound-HTTP audit, the HTTP factory itself (now Task 5 dropped), observability dashboards (the metric + span event ARE shipped; dashboards are operational follow-up).
+
+---
+
+## Revision change log (2026-05-11)
+
+After a `/grill-with-docs` session, eight design branches were resolved against the actual codebase:
+
+| # | Topic | Resolution | Tasks affected |
+|---|---|---|---|
+| 1 | Error mapping package | Reuse existing `pkg/apierror` (NOT spec's `internal/apierror/`). Verified `ErrorHandler()` already exists at `pkg/apierror/apierror.go:100`. | Task 1 step 5, Task 10 |
+| 2 | `ErrCircuitOpen` wiring | Add `errors.Is` branch at top of existing `ErrorHandler`; `pkg/apierror` imports `internal/resilience` (Go's `internal` rule allows it; pkg is sibling of internal under module root). | Task 10 |
+| 3 | Caller-error swallowing | Use `gobreaker.Settings.IsSuccessful` predicate. Original Task 4 returned `nil` to caller for caller-classified errors → handlers would deref nil reply and panic. New `IsGRPCCallerError` exported from resilience pkg; passed via new `WithIsSuccessful(...)` option on `NewBreaker`. Regression test added. | Task 3, Task 4, Task 11 step 1, Task 13 |
+| 4 | Asynq coverage | `mux.Use` middleware + per-task-type budget map in new `internal/jobs/deadline.go`. Catches all 9 handlers (5 ProcessTask methods, 1 underscore-ctx variant, 3 HandlerFunc factories). Also fixes independent ctx-drop bug in `airbyte_sync.go`. | Task 12 (rewritten) |
+| 5 | Lint scope | Widen `noctx` + `contextcheck` to all production Go (NOT just the spec's 3-package carve-out). Verified blast radius = 0 locally. No `exclude-rules` needed. | Task 8 (simplified) |
+| 6 | Route deadline table | Spec referenced `/readyz`, `/api/v1/upload/*`, `/api/v1/voice/*` — none exist. Real groups documented with line numbers in Task 11 step 2. Inner-group budget overrides require defining inner groups before any outer `api.Use(Deadline(...))`, which the new step covers; a single outer `api` Deadline was abandoned in favor of explicit per-leaf-group + standalone-route Deadlines. | Task 11 step 2 (rewritten) |
+| 7 | HTTP factory | Task 5 DROPPED. ~150 LOC of dead code (no callers in this milestone, spec defers HTTP audit). Will be designed with the follow-up audit when a real caller (LiveKit / SeaweedFS / Razorpay) shapes the contract. | Task 5 (dropped) |
+| 8 | OTel observability | Spec required `resilience.breaker.state` gauge + `resilience.breaker.transition` span event but no original task implemented them. Folded into Task 3 via `gobreaker.OnStateChange` + new `WithObservability(meter, tracer)` option on `NewBreaker`. | Task 3 |
+
+ADRs offered but **declined** by the user during the grilling session:
+
+- ADR-A: "Resilience errors map to HTTP via `pkg/apierror.ErrorHandler` branch" (decision #2 above) — captured in this plan instead.
+- ADR-B: "Asynq per-task deadlines via `mux.Use` middleware, not `asynq.Timeout` at NewTask sites" (decision #4) — captured in this plan instead.
+
+If those decisions later prove load-bearing, the rationale for re-opening them lives in this change log.
