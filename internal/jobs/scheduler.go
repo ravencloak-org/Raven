@@ -102,6 +102,11 @@ func NewScheduler(cfg SchedulerConfig) (*Scheduler, error) {
 	// Build a ServeMux with handlers for each scheduled task type.
 	mux := asynq.NewServeMux()
 
+	// Apply per-task-type deadlines to every handler registered on this mux.
+	// Centralising the deadline here means new handlers automatically inherit
+	// a budget without needing per-handler context.WithTimeout boilerplate.
+	mux.Use(DeadlineMiddleware)
+
 	recrawlHandler := NewRecrawlHandler(cfg.Pool, cfg.QueueClient, cfg.Logger)
 	mux.Handle(TypeRecrawlSources, recrawlHandler)
 
