@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+var errCallerFault = errors.New("caller fault")
+
 func TestBreaker_OpensAfterThreshold(t *testing.T) {
 	p, _ := NewPolicy("svc",
 		WithBreakerThreshold(3),
@@ -16,12 +18,10 @@ func TestBreaker_OpensAfterThreshold(t *testing.T) {
 
 	failing := func(context.Context) (any, error) { return nil, errors.New("boom") }
 
-	// Three failures should open the breaker.
 	for i := 0; i < 3; i++ {
 		_, _ = br.Execute(context.Background(), failing)
 	}
 
-	// Fourth call should short-circuit with ErrCircuitOpen.
 	_, err := br.Execute(context.Background(), failing)
 	if !errors.Is(err, ErrCircuitOpen) {
 		t.Fatalf("err = %v, want ErrCircuitOpen", err)
@@ -39,7 +39,6 @@ func TestBreaker_HalfOpenRecovers(t *testing.T) {
 	failing := func(context.Context) (any, error) { return nil, errors.New("boom") }
 	succ := func(context.Context) (any, error) { return "ok", nil }
 
-	// Open the breaker.
 	for i := 0; i < 2; i++ {
 		_, _ = br.Execute(context.Background(), failing)
 	}
@@ -47,15 +46,12 @@ func TestBreaker_HalfOpenRecovers(t *testing.T) {
 		t.Fatalf("expected ErrCircuitOpen while open, got %v", err)
 	}
 
-	// Wait for cooldown.
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(40 * time.Millisecond)
 
-	// Half-open probe succeeds → breaker closes.
 	if _, err := br.Execute(context.Background(), succ); err != nil {
 		t.Fatalf("half-open probe err = %v, want nil", err)
 	}
 
-	// Subsequent call should pass.
 	if _, err := br.Execute(context.Background(), succ); err != nil {
 		t.Fatalf("post-recovery err = %v, want nil", err)
 	}
@@ -78,5 +74,30 @@ func TestBreaker_RespectsContextCancellation(t *testing.T) {
 	}
 	if called {
 		t.Errorf("function called despite cancelled context")
+	}
+}
+
+// IsSuccessful predicate: caller-classified errors propagate AND don't trip the breaker.
+func TestBreaker_IsSuccessfulPredicate(t *testing.T) {
+	p, _ := NewPolicy("svc", WithBreakerThreshold(2))
+	br := NewBreaker(p, WithIsSuccessful(func(err error) bool {
+		return err == nil || errors.Is(err, errCallerFault)
+	}))
+
+	callerFail := func(context.Context) (any, error) { return nil, errCallerFault }
+
+	for i := 0; i < 5; i++ {
+		_, err := br.Execute(context.Background(), callerFail)
+		if !errors.Is(err, errCallerFault) {
+			t.Fatalf("err = %v, want errCallerFault to propagate", err)
+		}
+	}
+
+	realFail := func(context.Context) (any, error) { return nil, errors.New("server boom") }
+	for i := 0; i < 2; i++ {
+		_, _ = br.Execute(context.Background(), realFail)
+	}
+	if _, err := br.Execute(context.Background(), realFail); !errors.Is(err, ErrCircuitOpen) {
+		t.Errorf("breaker did not open after 2 server failures; err = %v", err)
 	}
 }
