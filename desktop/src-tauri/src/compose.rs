@@ -9,7 +9,7 @@ use std::process::Stdio;
 use std::sync::Arc;
 use std::time::Duration;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
@@ -18,7 +18,7 @@ use tokio::sync::Mutex;
 const HEALTH_POLL_INTERVAL: Duration = Duration::from_secs(1);
 const HEALTH_POLL_TIMEOUT: Duration = Duration::from_secs(60);
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ComposeStatus {
     Starting,
@@ -27,7 +27,7 @@ pub enum ComposeStatus {
     Error,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StatusEvent {
     pub status: ComposeStatus,
     pub message: Option<String>,

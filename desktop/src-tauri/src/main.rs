@@ -5,7 +5,8 @@ use std::path::{Path, PathBuf};
 
 use raven_local_lib::compose::{ComposeManager, StatusEvent};
 use raven_local_lib::precheck::{run_precheck, skip_requested, RealSystemInfo};
-use tauri::{Emitter, Manager};
+use raven_local_lib::tray::{self, TrayStatus};
+use tauri::{Emitter, Listener, Manager};
 
 const COMPOSE_FILE: &str = "docker-compose.local.yml";
 const API_HEALTH_URL: &str = "http://127.0.0.1:8081/healthz";
@@ -27,6 +28,59 @@ fn main() {
             let manager_for_setup = manager.clone();
             let manager_for_shutdown = manager.clone();
             app.manage(manager);
+
+            // Install the tray icon up front so users see status as soon as
+            // the app launches (before compose has finished coming up).
+            tray::install(app.handle())?;
+
+            // Update the tray on compose:status events so the tooltip reflects
+            // the live state. We listen on the same channel the frontend uses.
+            let tray_handle = app.handle().clone();
+            app.listen("compose:status", move |event| {
+                if let Ok(payload) = serde_json::from_str::<StatusEvent>(event.payload()) {
+                    let status = match payload.status {
+                        raven_local_lib::compose::ComposeStatus::Starting => TrayStatus::Starting,
+                        raven_local_lib::compose::ComposeStatus::Ready => TrayStatus::Ready,
+                        raven_local_lib::compose::ComposeStatus::Stopped => TrayStatus::Stopped,
+                        raven_local_lib::compose::ComposeStatus::Error => TrayStatus::Error,
+                    };
+                    tray::apply_status(&tray_handle, status);
+                }
+            });
+
+            // Wire the tray menu's Pause/Resume into the compose orchestrator.
+            let pause_manager = manager_for_setup.clone();
+            let pause_handle = app.handle().clone();
+            app.listen("tray:pause-requested", move |_| {
+                let mgr = pause_manager.clone();
+                let handle = pause_handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = mgr.down().await {
+                        let _ = handle.emit(STATUS_EVENT, StatusEvent::error(e.to_string()));
+                    } else {
+                        tray::apply_status(&handle, TrayStatus::Paused);
+                        let _ = handle.emit(STATUS_EVENT, StatusEvent::stopped());
+                    }
+                });
+            });
+            let resume_manager = manager_for_setup.clone();
+            let resume_handle = app.handle().clone();
+            app.listen("tray:resume-requested", move |_| {
+                let mgr = resume_manager.clone();
+                let handle = resume_handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = handle.emit(STATUS_EVENT, StatusEvent::starting());
+                    if let Err(e) = mgr.up().await {
+                        let _ = handle.emit(STATUS_EVENT, StatusEvent::error(e.to_string()));
+                        return;
+                    }
+                    if let Err(e) = mgr.poll_health().await {
+                        let _ = handle.emit(STATUS_EVENT, StatusEvent::error(e.to_string()));
+                    } else {
+                        let _ = handle.emit(STATUS_EVENT, StatusEvent::ready());
+                    }
+                });
+            });
 
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
