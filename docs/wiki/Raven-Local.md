@@ -76,3 +76,4 @@ Raven Local ships with telemetry **off by default**. The optional opt-in (added 
 - [Architecture-Overview](Architecture-Overview.md) — the underlying Raven architecture (cloud + self-hosted + local share this)
 - [Hardware-Requirements](Hardware-Requirements.md) — the broader Raven hardware story
 - [Roadmap](Roadmap.md) — milestone-level plan
+- [Release QA checklist](../qa/raven-local-release-checklist.md) — manual pre-release validation steps
