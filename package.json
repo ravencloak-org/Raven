@@ -1,5 +1,7 @@
 {
-  "dependencies": {},
+  "dependencies": {
+    "svgtofont": "^6.5.2"
+  },
   "devDependencies": {
     "wrangler": "^4.82.0"
   }
