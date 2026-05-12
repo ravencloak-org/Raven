@@ -119,3 +119,25 @@ jobs:
           done
           echo "Health check never went green"
           exit 1
+
+  notify:
+    needs: deploy
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send result email via Resend API
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+          OUTCOME: ${{ needs.deploy.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          curl -fsS -X POST https://api.resend.com/emails \
+            -H "Authorization: Bearer $RESEND_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"from\": \"noreply@ravencloak.org\",
+              \"to\": [\"jobinlawrance@gmail.com\"],
+              \"subject\": \"[demo] $TAG deploy $OUTCOME\",
+              \"text\": \"Tag: $TAG\\nResult: $OUTCOME\\nRun: $RUN_URL\"
+            }"
