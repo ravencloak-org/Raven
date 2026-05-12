@@ -67,6 +67,24 @@ PostgreSQL serves as the single source of truth -- storing relational data, vect
 
 ## Quick Start
 
+### As a desktop app (Raven Local)
+
+The fastest way to try Raven — one installer, single-user mode, no SaaS sign-up.
+
+```bash
+# macOS (recommended — no Gatekeeper friction)
+brew tap ravencloak-org/Raven https://github.com/ravencloak-org/Raven.git
+brew install --cask raven-local
+```
+
+For Windows, Linux, and manual macOS install instructions see:
+
+- [docs/install/macos.md](docs/install/macos.md) — Homebrew + manual DMG + Gatekeeper workaround
+- [docs/install/windows.md](docs/install/windows.md) — MSI + SmartScreen workaround
+- [docs/install/linux.md](docs/install/linux.md) — AppImage + .deb
+
+### As a self-hosted server
+
 ```bash
 git clone https://github.com/ravencloak-org/Raven.git
 cd Raven
