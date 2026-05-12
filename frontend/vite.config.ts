@@ -8,7 +8,9 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        // Go API defaults to RAVEN_SERVER_PORT=8081 (`internal/config/config.go`);
+        // earlier 8080 was a leftover from pre-Phase-1 wiring.
+        target: 'http://localhost:8081',
         changeOrigin: true,
       },
     },
