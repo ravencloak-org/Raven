@@ -76,6 +76,162 @@ jobs:
         working-directory: desktop
         run: cargo tauri build
 
+      # ── Installer smoke (M12/02 — install, launch, screenshot) ───────────
+      #
+      # Best-effort: verify the bundled installer is runnable and the binary
+      # at least launches without immediate crash. Compose + healthz is too
+      # heavy for CI (Docker isn't preinstalled on macOS/Windows runners),
+      # so we just check the splash window renders.
+      #
+      # Each smoke step is `continue-on-error` so a smoke failure annotates
+      # the run but doesn't prevent the artefact upload — the build itself
+      # is still the source of truth for release readiness.
+
+      - name: Smoke install + launch (macOS)
+        if: matrix.os == 'macos-latest'
+        continue-on-error: true
+        run: |
+          set -e
+          DMG=$(ls desktop/target/universal-apple-darwin/release/bundle/dmg/*.dmg | head -1)
+          echo "DMG: $DMG"
+
+          # Mount the DMG, copy the .app to /Applications, eject.
+          hdiutil attach -nobrowse -readonly "$DMG"
+          VOL=$(ls -d /Volumes/Raven* | head -1)
+          cp -R "$VOL"/Raven*.app /Applications/
+          hdiutil detach "$VOL" || true
+
+          # Launch the app non-interactively. Gatekeeper will reject an
+          # unsigned bundle on a real user's machine; in a CI runner it's
+          # permissive enough to launch. If launch fails, the test step
+          # below catches it.
+          open -a "Raven Local" || echo "::warning::open -a failed"
+
+          # Wait for the process to appear.
+          for i in {1..15}; do
+            if pgrep -f "Raven Local" >/dev/null; then
+              echo "App process is alive"
+              break
+            fi
+            sleep 1
+          done
+
+          # Screenshot the entire desktop for the artefact.
+          mkdir -p smoke-out
+          screencapture -x smoke-out/macos-launch.png || true
+
+          # Verify the process is still running 10 s after launch (catches
+          # immediate-crash regressions).
+          sleep 10
+          if pgrep -f "Raven Local" >/dev/null; then
+            echo "Process still alive after 10 s — smoke OK"
+          else
+            echo "::error::App process died within 10 s of launch"
+            exit 1
+          fi
+
+          # Tear down.
+          pkill -f "Raven Local" || true
+
+      - name: Smoke install + launch (Windows)
+        if: matrix.os == 'windows-latest'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem -Path desktop/target/release/bundle/msi/*.msi | Select-Object -First 1
+          Write-Host "MSI: $($msi.FullName)"
+
+          # /quiet install.
+          $proc = Start-Process msiexec.exe -ArgumentList "/i `"$($msi.FullName)`" /quiet /norestart" -Wait -PassThru
+          Write-Host "msiexec exit: $($proc.ExitCode)"
+          if ($proc.ExitCode -ne 0) { Write-Error "msiexec failed: $($proc.ExitCode)"; exit 1 }
+
+          # The MSI installs to Program Files\Raven Local\.
+          $exe = Get-ChildItem -Path "C:\Program Files\Raven Local\*.exe" -Recurse | Select-Object -First 1
+          if (-not $exe) { Write-Error "Installed exe not found"; exit 1 }
+          Write-Host "Launching $($exe.FullName)"
+
+          $app = Start-Process $exe.FullName -PassThru
+          Start-Sleep -Seconds 5
+
+          # Screenshot (PowerShell can grab the screen via System.Drawing).
+          New-Item -ItemType Directory -Path smoke-out -Force | Out-Null
+          Add-Type -AssemblyName System.Windows.Forms
+          Add-Type -AssemblyName System.Drawing
+          $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bmp = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
+          $g = [System.Drawing.Graphics]::FromImage($bmp)
+          $g.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+          $bmp.Save('smoke-out/windows-launch.png', [System.Drawing.Imaging.ImageFormat]::Png)
+          $g.Dispose()
+          $bmp.Dispose()
+
+          # Verify still running 10 s in.
+          Start-Sleep -Seconds 10
+          if ($app.HasExited) {
+            Write-Error "App exited within 10 s — code $($app.ExitCode)"
+            exit 1
+          }
+          Write-Host "Process still alive — smoke OK"
+          Stop-Process -Id $app.Id -Force
+
+      - name: Smoke install + launch (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        continue-on-error: true
+        run: |
+          set -e
+          sudo apt-get install -y --no-install-recommends xvfb x11-apps imagemagick
+
+          APPIMAGE=$(ls desktop/target/release/bundle/appimage/*.AppImage | head -1)
+          echo "AppImage: $APPIMAGE"
+          chmod +x "$APPIMAGE"
+
+          # AppImage needs FUSE; if unavailable, extract and run the
+          # squashfs-root binary directly.
+          if ! "$APPIMAGE" --appimage-extract >/dev/null 2>&1; then
+            echo "::error::AppImage --appimage-extract failed"
+            exit 1
+          fi
+          APPRUN=$(realpath squashfs-root/AppRun)
+          [ -x "$APPRUN" ] || { echo "::error::AppRun missing"; exit 1; }
+
+          # Launch under Xvfb on display :99.
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1280x800x24 &
+          XVFB_PID=$!
+          sleep 2
+
+          "$APPRUN" &
+          APP_PID=$!
+
+          # Wait for window to render.
+          sleep 10
+
+          mkdir -p smoke-out
+          import -display :99 -window root smoke-out/linux-launch.png || true
+
+          # Verify still alive.
+          if kill -0 "$APP_PID" 2>/dev/null; then
+            echo "Process still alive — smoke OK"
+          else
+            wait "$APP_PID" || true
+            echo "::error::App exited within 10 s"
+            exit 1
+          fi
+
+          # Tear down.
+          kill "$APP_PID" 2>/dev/null || true
+          kill "$XVFB_PID" 2>/dev/null || true
+
+      - name: Upload smoke artefacts
+        if: always()
+        uses: actions/upload-artifact@b04ad4d27f4f9bdfcd3e87a5f6cf9c0e9c9c5e07 # v4
+        with:
+          name: smoke-${{ matrix.os }}
+          path: smoke-out/
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Attest build provenance
         uses: actions/attest-build-provenance@173725a1209d09b31f9d30a3890cf2757ebbff0d # v1.4.4
         with:
