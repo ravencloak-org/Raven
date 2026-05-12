@@ -526,8 +526,8 @@ func main() {
 	// One-click unsubscribe — public, authenticated via a signed token embedded
 	// in the link (RFC 8058). Placed outside /api/v1 so email clients can hit
 	// it without triggering CORS/auth middleware.
-	router.GET("/api/v1/notifications/unsubscribe", notifPrefsHandler.Unsubscribe)
-	router.POST("/api/v1/notifications/unsubscribe", notifPrefsHandler.UnsubscribePost)
+	router.GET("/api/v1/notifications/unsubscribe", middleware.Deadline(10*time.Second), notifPrefsHandler.Unsubscribe)
+	router.POST("/api/v1/notifications/unsubscribe", middleware.Deadline(10*time.Second), notifPrefsHandler.UnsubscribePost)
 
 	// Swagger UI — served at /api/docs (unauthenticated; disable in prod via env).
 	router.GET("/api/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
@@ -618,6 +618,7 @@ func main() {
 
 				// Source routes (nested under knowledge base)
 				src := kb.Group("/:kb_id/sources")
+				src.Use(middleware.Deadline(60 * time.Second))
 				{
 					src.POST("", middleware.RequireWorkspaceRole("member"), sourceHandler.Create)
 					src.GET("", sourceHandler.List)
@@ -628,6 +629,7 @@ func main() {
 
 				// Document routes (nested under knowledge base)
 				doc := kb.Group("/:kb_id/documents")
+				doc.Use(middleware.Deadline(60 * time.Second))
 				{
 					doc.GET("", docHandler.List)
 					doc.GET("/:doc_id", docHandler.Get)
@@ -862,15 +864,16 @@ func main() {
 	}
 
 	// --- Hyperswitch Billing Webhook (public, no JWT — uses HMAC signature verification) ---
-	router.POST("/api/v1/billing/webhook", billingHandler.Webhook)
+	router.POST("/api/v1/billing/webhook", middleware.Deadline(10*time.Second), billingHandler.Webhook)
 
 	// --- Meta Graph API Webhook (public, no JWT — Meta sends to a single URL) ---
 	metaWebhookHandler := handler.NewMetaWebhookHandler(cfg.Meta.AppSecret, cfg.Meta.WebhookToken, nil)
-	router.GET("/webhooks/meta", metaWebhookHandler.VerifyWebhook)
-	router.POST("/webhooks/meta", metaWebhookHandler.HandleEvent)
+	router.GET("/webhooks/meta", middleware.Deadline(10*time.Second), metaWebhookHandler.VerifyWebhook)
+	router.POST("/webhooks/meta", middleware.Deadline(10*time.Second), metaWebhookHandler.HandleEvent)
 
 	// --- Admin routes (seed key auth required) ---
 	admin := router.Group("/api/v1/admin")
+	admin.Use(middleware.Deadline(10 * time.Second))
 	admin.Use(func(c *gin.Context) {
 		seedKey := c.GetHeader("X-Seed-Key")
 		if cfg.Seed.Key != "" && seedKey == cfg.Seed.Key {
@@ -888,7 +891,7 @@ func main() {
 	demoJoiner := service.NewDemoOrgJoiner(orgSvc, wsSvc)
 	authHandler := handler.NewAuthHandler(userSvc, demoJoiner)
 	if !cfg.Server.SingleUser {
-		router.GET("/api/v1/auth/callback", func(c *gin.Context) {
+		router.GET("/api/v1/auth/callback", middleware.Deadline(10*time.Second), func(c *gin.Context) {
 			info, err := authProvider.VerifySession(c.Request)
 			if err != nil || info == nil {
 				c.AbortWithStatusJSON(401, gin.H{"error": "invalid_session"})
