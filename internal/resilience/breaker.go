@@ -3,6 +3,8 @@ package resilience
 import (
 	"context"
 	"errors"
+	"fmt"
+	"time"
 
 	"github.com/sony/gobreaker/v2"
 	"go.opentelemetry.io/otel/attribute"
@@ -10,15 +12,37 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// ErrCircuitOpen is returned by a Breaker when the underlying state machine
-// is Open (or in Half-Open with the probe quota exhausted). Callers should
-// surface this as HTTP 503 with Retry-After.
-var ErrCircuitOpen = errors.New("resilience: circuit breaker open")
+// CircuitOpenError is returned by a Breaker when the underlying state machine
+// is Open (or in Half-Open with the probe quota exhausted). It carries the
+// PolicyName and the RetryAfter duration so callers can emit a precise
+// Retry-After HTTP header without relying on a hardcoded constant.
+type CircuitOpenError struct {
+	PolicyName string
+	RetryAfter time.Duration
+}
+
+// Error implements the error interface.
+func (e *CircuitOpenError) Error() string {
+	return fmt.Sprintf("resilience: circuit breaker %q open", e.PolicyName)
+}
+
+// Is reports whether target is a *CircuitOpenError, enabling errors.Is
+// comparisons against the ErrCircuitOpen sentinel for back-compat.
+func (e *CircuitOpenError) Is(target error) bool {
+	_, ok := target.(*CircuitOpenError)
+	return ok
+}
+
+// ErrCircuitOpen is a zero-value sentinel kept for errors.Is back-compat.
+// New code should use errors.As to obtain RetryAfter from *CircuitOpenError.
+var ErrCircuitOpen = &CircuitOpenError{}
 
 // Breaker is a thin adapter over sony/gobreaker that maps its sentinel
-// errors to ErrCircuitOpen and respects context cancellation up front.
+// errors to *CircuitOpenError and respects context cancellation up front.
 type Breaker struct {
-	cb *gobreaker.CircuitBreaker[any]
+	cb         *gobreaker.CircuitBreaker[any]
+	policyName string
+	cooldown   time.Duration
 }
 
 // BreakerOption configures NewBreaker.
@@ -67,6 +91,8 @@ func NewBreaker(p *Policy, opts ...BreakerOption) *Breaker {
 			return counts.ConsecutiveFailures >= p.BreakerThreshold
 		},
 	}
+	policyName := p.Name
+	cooldown := p.BreakerCooldown
 	if o.isSuccessful != nil {
 		settings.IsSuccessful = o.isSuccessful
 	}
@@ -93,7 +119,11 @@ func NewBreaker(p *Policy, opts ...BreakerOption) *Breaker {
 		}
 	}
 
-	return &Breaker{cb: gobreaker.NewCircuitBreaker[any](settings)}
+	return &Breaker{
+		cb:         gobreaker.NewCircuitBreaker[any](settings),
+		policyName: policyName,
+		cooldown:   cooldown,
+	}
 }
 
 // Execute runs fn through the breaker. It checks ctx cancellation first
@@ -106,7 +136,7 @@ func (b *Breaker) Execute(ctx context.Context, fn func(context.Context) (any, er
 	switch {
 	case errors.Is(err, gobreaker.ErrOpenState),
 		errors.Is(err, gobreaker.ErrTooManyRequests):
-		return nil, ErrCircuitOpen
+		return nil, &CircuitOpenError{PolicyName: b.policyName, RetryAfter: b.cooldown}
 	}
 	return out, err
 }

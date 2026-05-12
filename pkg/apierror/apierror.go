@@ -2,7 +2,10 @@ package apierror
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -106,12 +109,17 @@ func ErrorHandler() gin.HandlerFunc {
 
 		if len(c.Errors) > 0 {
 			err := c.Errors.Last().Err
-			if errors.Is(err, resilience.ErrCircuitOpen) {
-				c.Header("Retry-After", "30")
+			var cOpen *resilience.CircuitOpenError
+			if errors.As(err, &cOpen) {
+				retryAfter := int(cOpen.RetryAfter.Round(time.Second).Seconds())
+				if retryAfter < 1 {
+					retryAfter = 1
+				}
+				c.Header("Retry-After", strconv.Itoa(retryAfter))
 				c.JSON(http.StatusServiceUnavailable, &AppError{
 					Code:    http.StatusServiceUnavailable,
 					Message: "Service Unavailable",
-					Detail:  "circuit breaker open; please retry after 30 seconds",
+					Detail:  fmt.Sprintf("upstream service temporarily unavailable; retry after %ds", retryAfter),
 				})
 			} else if quotaErr, ok := err.(*QuotaError); ok {
 				c.JSON(quotaErr.Code, quotaErr)
