@@ -9,6 +9,10 @@ export default defineConfig({
   use: {
     baseURL: process.env.CI ? 'http://localhost:4173' : 'http://localhost:3000',
     trace: 'on-first-retry',
+    // Components in this repo use `data-test="..."` (not the Playwright
+    // default `data-testid`). Tell `getByTestId(...)` to look for our
+    // attribute so the existing convention works.
+    testIdAttribute: 'data-test',
   },
   projects: [
     {
