@@ -5,6 +5,11 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
 var errCallerFault = errors.New("caller fault")
@@ -141,4 +146,62 @@ func TestBreaker_IsSuccessfulPredicate(t *testing.T) {
 	if _, err := br.Execute(context.Background(), realFail); !errors.Is(err, ErrCircuitOpen) {
 		t.Errorf("breaker did not open after 2 server failures; err = %v", err)
 	}
+}
+
+// TestBreaker_WithObservability_NoRaceOnStateChange verifies that concurrent
+// access to the internal state variable shared between the OTel metric
+// callback goroutine and the gobreaker OnStateChange callback does not
+// produce a data race under -race.
+func TestBreaker_WithObservability_NoRaceOnStateChange(t *testing.T) {
+	// Use an in-memory manual reader so metric collection can be triggered
+	// synchronously from a goroutine, racing against state transitions.
+	reader := sdkmetric.NewManualReader()
+	meterProvider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
+	defer func() { _ = meterProvider.Shutdown(context.Background()) }()
+	meter := meterProvider.Meter("test")
+
+	spanRecorder := tracetest.NewSpanRecorder()
+	traceProvider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(spanRecorder))
+	defer func() { _ = traceProvider.Shutdown(context.Background()) }()
+	tracer := traceProvider.Tracer("test")
+
+	p, _ := NewPolicy("race-test",
+		WithBreakerThreshold(2),
+		WithBreakerCooldown(5*time.Millisecond),
+		WithBreakerHalfOpenMax(1),
+	)
+	br := NewBreaker(p, WithObservability(meter, tracer))
+
+	failing := func(context.Context) (any, error) { return nil, errors.New("fail") }
+	succ := func(context.Context) (any, error) { return "ok", nil }
+
+	deadline := time.Now().Add(200 * time.Millisecond)
+
+	// Goroutine 1: repeatedly drive state changes (Closed→Open→HalfOpen→Closed).
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for time.Now().Before(deadline) {
+			// Trip the breaker (threshold=2).
+			for i := 0; i < 3; i++ {
+				_, _ = br.Execute(context.Background(), failing)
+			}
+			// Let cooldown expire so it transitions to HalfOpen.
+			time.Sleep(10 * time.Millisecond)
+			// Probe success → back to Closed.
+			_, _ = br.Execute(context.Background(), succ)
+		}
+	}()
+
+	// Goroutine 2: repeatedly collect metrics, which triggers the OTel observe
+	// callback that reads currentState — the racy read site.
+	go func() {
+		var rm metricdata.ResourceMetrics
+		for time.Now().Before(deadline) {
+			_ = reader.Collect(context.Background(), &rm)
+			time.Sleep(time.Millisecond)
+		}
+	}()
+
+	<-done
 }

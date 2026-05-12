@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/sony/gobreaker/v2"
@@ -97,18 +98,23 @@ func NewBreaker(p *Policy, opts ...BreakerOption) *Breaker {
 		settings.IsSuccessful = o.isSuccessful
 	}
 	if o.meter != nil {
-		var currentState gobreaker.State
+		// currentState is accessed from two concurrent goroutines:
+		//   • the OTel metric collector calls the RegisterCallback closure to read it, and
+		//   • gobreaker's OnStateChange callback (called under gobreaker's internal mutex)
+		//     writes it after every state transition.
+		// Use atomic.Int32 (Go 1.19+) to eliminate the data race.
+		var currentState atomic.Int32
 		gauge, err := o.meter.Int64ObservableGauge("resilience.breaker.state",
 			metric.WithDescription("Circuit breaker state: 0=Closed, 1=HalfOpen, 2=Open"))
 		if err == nil {
 			_, _ = o.meter.RegisterCallback(func(_ context.Context, obs metric.Observer) error {
-				obs.ObserveInt64(gauge, int64(currentState),
+				obs.ObserveInt64(gauge, int64(currentState.Load()),
 					metric.WithAttributes(attribute.String("policy_name", p.Name)))
 				return nil
 			}, gauge)
 		}
 		settings.OnStateChange = func(name string, from, to gobreaker.State) {
-			currentState = to
+			currentState.Store(int32(to))
 			_, span := o.tracer.Start(context.Background(), "resilience.breaker.transition")
 			span.SetAttributes(
 				attribute.String("policy_name", name),
