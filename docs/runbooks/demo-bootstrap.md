@@ -54,3 +54,19 @@ terraform apply demo.tfplan
 - Use SSM Session Manager to connect: `aws ssm start-session --target <instance_id>`.
 - Tail cloud-init log: `tail -f /var/log/cloud-init-output.log` until "raven-stack: ok" appears.
 - Visit `https://demo.raven.ravencloak.org` — Cloudflare Access should prompt for your email (Phase 1 gate).
+
+## Terraform backend (one-time, before first `terraform init`)
+
+```bash
+aws s3api create-bucket --region ap-south-1 --bucket raven-tf-state \
+  --create-bucket-configuration LocationConstraint=ap-south-1
+aws s3api put-bucket-versioning --bucket raven-tf-state \
+  --versioning-configuration Status=Enabled
+aws s3api put-bucket-encryption --bucket raven-tf-state \
+  --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
+aws dynamodb create-table --region ap-south-1 \
+  --table-name raven-tf-locks \
+  --attribute-definitions AttributeName=LockID,AttributeType=S \
+  --key-schema AttributeName=LockID,KeyType=HASH \
+  --billing-mode PAY_PER_REQUEST
+```

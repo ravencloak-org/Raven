@@ -73,3 +73,9 @@ bin/api-cover
 
 # Test results
 frontend/test-results/
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfplan
