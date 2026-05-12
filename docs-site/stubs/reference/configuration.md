@@ -106,6 +106,7 @@ Durations accept Go `time.Duration` syntax (`5s`, `500ms`, `2m`).
 | Env var | Type | Default | Required | Description |
 |---|---|---|---|---|
 | `RAVEN_DATABASE_URL` | URL | — | yes | PostgreSQL DSN (with `pgvector`). Validated as non-empty in `Load()`. |
+| `RAVEN_DB_AUTO_MIGRATE` | bool | `false` | no | When `true`, the API runs all pending goose migrations against `RAVEN_DATABASE_URL` on startup before serving traffic. Migrations are embedded in the binary via `//go:embed`; no on-disk `migrations/` directory required. **Leave off in multi-replica production**; see [Upgrades — Auto-migrate](/guides/self-hosting/upgrades#auto-migrate-opt-in). |
 | `RAVEN_VALKEY_URL` | URL | — | no | Valkey/Redis DSN, used by Asynq + rate-limit buckets + cache. |
 
 `config.Load()` returns an error if `RAVEN_DATABASE_URL` is unset:
