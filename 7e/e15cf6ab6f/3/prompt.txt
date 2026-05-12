@@ -1,0 +1,2327 @@
+index everything and stash remember
+
+---
+
+lets go for free ones
+
+---
+
+<task-notification>
+<task-id>a97f84c0807440315</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "PR-2: Privacy stack" completed</summary>
+<result>Auto-merge queued successfully (no output = success for `gh pr merge --auto`).
+
+---
+
+**PR-2 Privacy Stack — shipped**
+
+- **PR:** https://github.com/ravencloak-org/Raven/pull/409
+- **Commit SHA:** `0536ddb9dc5eec367302e13077eaa0f1f1603f84`
+- **Branch:** `docs/privacy-stack` (worktree at `/Users/jobinlawrance/Project/raven/.worktrees/privacy-stack`)
+- **Auto-merge:** queued (`--auto --squash`)
+
+**Files created (all DRAFT-banner'd):**
+- `/Users/jobinlawrance/Project/raven/.worktrees/privacy-stack/PRIVACY.md` — 1,528 words (target 800–2000)
+- `/Users/jobinlawrance/Project/raven/.worktrees/privacy-stack/DPA.md` — 1,806 words (target 800–2000)
+- `/Users/jobinlawrance/Project/raven/.worktrees/privacy-stack/docs/compliance/dpia-template.md` — 1,141 words (target 500–1500)
+- `/Users/jobinlawrance/Project/raven/.worktrees/privacy-stack/docs/security/incident-response.md` — 1,452 words (target 1000–2500)
+
+All four word counts within target ranges. `git status` showed only the four expected new files; diffstat reports `4 files changed, 863 insertions(+)`.
+
+**Deviations:**
+- markdownlint check could not be executed (Bash sandbox blocked the lookup attempts). Per spec, "skip if not installed; don't install" — no install attempted, no markdownlint run. Markdown structure followed conventional rules manually.
+
+**Surprises / observations:**
+- No pre-existing `PRIVACY.md` or `DPA.md` to conflict with. `docs/security/` already existed (it currently holds `osps-l2-2026-02-19.md` and `slsa-verification.md`); the new `incident-response.md` joins them cleanly. `docs/compliance/` is brand-new — created by this PR.
+- `SECURITY.md` already documents the `security@ravencloak.org` (preferred) / `jobinlawrance@gmail.com` (fallback) split; the new docs cite that split rather than duplicate it.
+- DPIA register file (`docs/compliance/dpia-register.md`) intentionally not created in this PR per instructions; flagged as TODO inside the DPIA template.
+- Commit message has no `Co-Authored-By` trailer per CLAUDE.md.</result>
+<usage><total_tokens>63635</total_tokens><tool_uses>23</tool_uses><duration_ms>302043</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a8ce1d7c06b8af5f8</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "PR-3: OpenSSF Best Practices answers" completed</summary>
+<result>Auto-merge queued.
+
+## Report
+
+**PR:** https://github.com/ravencloak-org/Raven/pull/410 (auto-merge squashed; queued)
+**Commit:** `a5177a43` on `docs/openssf-bp-answers`
+**File:** `/Users/jobinlawrance/Project/raven/.worktrees/openssf-bp-answers/docs/compliance/openssf-best-practices-12590.md` — 580 lines, 85 `### ` criterion sections (every section carries Status / Evidence / Justification, plus Gap on Unmet rows).
+
+### Executive-summary counts
+
+| Tier    | Met | Unmet | N/A | Unknown |
+| ------- | --- | ----- | --- | ------- |
+| Passing | 18  | 2     | 0   | 0       |
+| Silver  | 9   | 5     | 1   | 1       |
+| Gold    | 4   | 7     | 1   | 1       |
+
+(Met counts are conservative; many Silver crypto items are Met by virtue of vetted-library use.)
+
+### Top 5 gaps blocking Silver
+1. `access_continuity` / `bus_factor` — single named maintainer in `MAINTAINERS.md`; needs co-maintainer.
+2. `copyright_per_file` / `license_per_file` — SPDX headers not yet audited across Go/Py/TS sources.
+3. `build_reproducible` — no published reproducible-build statement / hashes.
+4. `crypto_pfs` — no checked-in Traefik snippet pinning PFS cipher suites.
+5. `vulnerabilities_fixed_60_days` — SECURITY.md SLA is 90 days; Silver expects 60.
+
+### Top 5 gaps blocking Gold
+1. `sec_continuity` — same single-maintainer issue.
+2. `crypto_tls12` — no committed Traefik config pinning TLS 1.2+.
+3. `assurance_case` — no `docs/compliance/assurance-case.md` yet.
+4. `contributors_unassociated` — unaffiliated-contributor demographics undocumented.
+5. `test_statement_coverage80` / `test_branch_coverage70` — Codecov is wired but no published headline % nor a CI gate.
+
+### Couldn't fully verify
+- `sites_https`, `crypto_pfs`, `crypto_tls12`, `crypto_certificate_verification` — live deployment / Traefik config not in repo.
+- Coverage thresholds — would need a Codecov API call or a published badge value.
+- Per-file SPDX headers — would need a repo-wide grep (`SPDX-License-Identifier`) before claiming Met.</result>
+<usage><total_tokens>86677</total_tokens><tool_uses>12</tool_uses><duration_ms>279814</duration_ms></usage>
+</task-notification>
+
+---
+
+continue
+
+---
+
+also fix why stash can't connect
+
+---
+
+docker started
+
+---
+
+<task-notification>
+<task-id>br3mc0ceg</task-id>
+<tool-use-id>toolu_013ps4dk42P2AQoYHvuWoBRS</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>failed</status>
+<summary>Background command "Bring up Stash compose stack" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+its running now
+
+---
+
+what's that API Error: Output blocked by content filtering policy
+
+---
+
+https://github.REDACTED?pr=413
+
+---
+
+fix review comments https://github.com/ravencloak-org/Raven/pull/409
+
+---
+
+fic https://github.com/ravencloak-org/Raven/security/code-scanning/100
+
+---
+
+fix these as well https://github.com/ravencloak-org/Raven/security/quality/rules/js%2Fautomatic-semicolon-insertion and all the othes in quality
+
+---
+
+yes
+
+---
+
+yes
+
+---
+
+yes
+
+---
+
+<task-notification>
+<task-id>a30a90137f3ceaa6d</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "PR-D: hash-pin pip and curl|sh patterns" completed</summary>
+<result>Done. PR #463 created and queued for squash auto-merge.
+
+## Report
+
+**PR:** https://github.com/ravencloak-org/Raven/pull/463
+**Commit:** `100ed2ba1fda8db585410922f40d5652b1fef084`
+**Auto-merge:** SQUASH queued.
+
+### Counts
+- **10 files changed** (7,249 insertions, 30 deletions). Two of those — `ai-worker/requirements*.txt` — are large because they're full transitive lockfiles with hashes.
+- **5 pip-install lines hash-pinned** (semgrep.yml ×1, python.yml ×2, ai-worker/Dockerfile ×2). The two python.yml editable installs were each split into `pip install --require-hashes -r requirements-dev.txt` + `pip install --no-deps -e .`.
+- **6 curl|sh lines pinned** (python.yml ×2, go.yml ×2, Dockerfile ×1, ai-worker/Dockerfile ×1) — all rewritten as checksum-verified downloads of dotenvx v1.65.0's release-tagged `install.sh`.
+- **0 alerts dismissed-with-reason** — every alert is closed by code.
+
+### Versions locked
+- **dotenvx**: `v1.65.0`, install.sh sha256 `a1faad2613cd88286d02a5201c34e880f935558957eb9c09e3c11f27039a6296` (from the release's official `checksums.txt`). Pinned in 5 sites; comments at each site call out the lockstep-bump procedure.
+- **semgrep**: `1.162.0` (latest stable in 1.x as of today, 2026-05-08). Full transitive closure pinned in `.github/requirements/semgrep.txt`.
+
+### Files created
+- `/Users/jobinlawrance/Project/raven/.worktrees/scorecard-pip-curl-pin/.github/requirements/semgrep.in`
+- `/Users/jobinlawrance/Project/raven/.worktrees/scorecard-pip-curl-pin/.github/requirements/semgrep.txt`
+
+### Files modified
+- `.github/dependabot.yml` (added `pip` ecosystem on `/.github/requirements` so semgrep.txt gets bumped)
+- `.github/workflows/{go,python,semgrep}.yml`
+- `Dockerfile`, `ai-worker/Dockerfile`
+- `ai-worker/requirements.txt`, `ai-worker/requirements-dev.txt` (regenerated with `--generate-hashes`)
+
+### Verification
+- YAML loaded via `yaml.safe_load` — all OK.
+- `actionlint` clean (one pre-existing SC2016 info on smoke-tests script — unrelated, untouched).
+- `uv pip install --require-hashes --dry-run` succeeded against all three hash-pinned files (semgrep.txt, ai-worker/requirements.txt, ai-worker/requirements-dev.txt) on Python 3.14 venv.
+
+### Nothing skipped / no CI-vs-Scorecard tradeoffs
+All 11 alerts addressed by code; no dismissals needed. The dotenvx-on-Cloudflare URL was preserved logically (same project, same install script content) but switched to the immutable GitHub release URL with sha256 verification.</result>
+<usage><total_tokens>101748</total_tokens><tool_uses>40</tool_uses><duration_ms>345405</duration_ms></usage>
+</task-notification>
+
+---
+
+⎿  Failed to reconnect to token-optimizer.
+
+---
+
+let
+
+---
+
+[Request interrupted by user]
+
+---
+
+let's proceed with creating and hosting docs at https://docs.ravencloak.org/
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/brainstorming
+
+# Brainstorming Ideas Into Designs
+
+Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
+
+Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design and get user approval.
+
+<HARD-GATE>
+Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
+</HARD-GATE>
+
+## Anti-Pattern: "This Is Too Simple To Need A Design"
+
+Every project goes through this process. A todo list, a single-function utility, a config change — all of them. "Simple" projects are where unexamined assumptions cause the most wasted work. The design can be short (a few sentences for truly simple projects), but you MUST present it and get approval.
+
+## Checklist
+
+You MUST create a task for each of these items and complete them in order:
+
+1. **Explore project context** — check files, docs, recent commits
+2. **Offer visual companion** (if topic will involve visual questions) — this is its own message, not combined with a clarifying question. See the Visual Companion section below.
+3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
+4. **Propose 2-3 approaches** — with trade-offs and your recommendation
+5. **Present design** — in sections scaled to their complexity, get user approval after each section
+6. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit
+7. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
+8. **User reviews written spec** — ask user to review the spec file before proceeding
+9. **Transition to implementation** — invoke writing-plans skill to create implementation plan
+
+## Process Flow
+
+```dot
+digraph brainstorming {
+    "Explore project context" [shape=box];
+    "Visual questions ahead?" [shape=diamond];
+    "Offer Visual Companion\n(own message, no other content)" [shape=box];
+    "Ask clarifying questions" [shape=box];
+    "Propose 2-3 approaches" [shape=box];
+    "Present design sections" [shape=box];
+    "User approves design?" [shape=diamond];
+    "Write design doc" [shape=box];
+    "Spec self-review\n(fix inline)" [shape=box];
+    "User reviews spec?" [shape=diamond];
+    "Invoke writing-plans skill" [shape=doublecircle];
+
+    "Explore project context" -> "Visual questions ahead?";
+    "Visual questions ahead?" -> "Offer Visual Companion\n(own message, no other content)" [label="yes"];
+    "Visual questions ahead?" -> "Ask clarifying questions" [label="no"];
+    "Offer Visual Companion\n(own message, no other content)" -> "Ask clarifying questions";
+    "Ask clarifying questions" -> "Propose 2-3 approaches";
+    "Propose 2-3 approaches" -> "Present design sections";
+    "Present design sections" -> "User approves design?";
+    "User approves design?" -> "Present design sections" [label="no, revise"];
+    "User approves design?" -> "Write design doc" [label="yes"];
+    "Write design doc" -> "Spec self-review\n(fix inline)";
+    "Spec self-review\n(fix inline)" -> "User reviews spec?";
+    "User reviews spec?" -> "Write design doc" [label="changes requested"];
+    "User reviews spec?" -> "Invoke writing-plans skill" [label="approved"];
+}
+```
+
+**The terminal state is invoking writing-plans.** Do NOT invoke frontend-design, mcp-builder, or any other implementation skill. The ONLY skill you invoke after brainstorming is writing-plans.
+
+## The Process
+
+**Understanding the idea:**
+
+- Check out the current project state first (files, docs, recent commits)
+- Before asking detailed questions, assess scope: if the request describes multiple independent subsystems (e.g., "build a platform with chat, file storage, billing, and analytics"), flag this immediately. Don't spend questions refining details of a project that needs to be decomposed first.
+- If the project is too large for a single spec, help the user decompose into sub-projects: what are the independent pieces, how do they relate, what order should they be built? Then brainstorm the first sub-project through the normal design flow. Each sub-project gets its own spec → plan → implementation cycle.
+- For appropriately-scoped projects, ask questions one at a time to refine the idea
+- Prefer multiple choice questions when possible, but open-ended is fine too
+- Only one question per message - if a topic needs more exploration, break it into multiple questions
+- Focus on understanding: purpose, constraints, success criteria
+
+**Exploring approaches:**
+
+- Propose 2-3 different approaches with trade-offs
+- Present options conversationally with your recommendation and reasoning
+- Lead with your recommended option and explain why
+
+**Presenting the design:**
+
+- Once you believe you understand what you're building, present the design
+- Scale each section to its complexity: a few sentences if straightforward, up to 200-300 words if nuanced
+- Ask after each section whether it looks right so far
+- Cover: architecture, components, data flow, error handling, testing
+- Be ready to go back and clarify if something doesn't make sense
+
+**Design for isolation and clarity:**
+
+- Break the system into smaller units that each have one clear purpose, communicate through well-defined interfaces, and can be understood and tested independently
+- For each unit, you should be able to answer: what does it do, how do you use it, and what does it depend on?
+- Can someone understand what a unit does without reading its internals? Can you change the internals without breaking consumers? If not, the boundaries need work.
+- Smaller, well-bounded units are also easier for you to work with - you reason better about code you can hold in context at once, and your edits are more reliable when files are focused. When a file grows large, that's often a signal that it's doing too much.
+
+**Working in existing codebases:**
+
+- Explore the current structure before proposing changes. Follow existing patterns.
+- Where existing code has problems that affect the work (e.g., a file that's grown too large, unclear boundaries, tangled responsibilities), include targeted improvements as part of the design - the way a good developer improves code they're working in.
+- Don't propose unrelated refactoring. Stay focused on what serves the current goal.
+
+## After the Design
+
+**Documentation:**
+
+- Write the validated design (spec) to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
+  - (User preferences for spec location override this default)
+- Use elements-of-style:writing-clearly-and-concisely skill if available
+- Commit the design document to git
+
+**Spec Self-Review:**
+After writing the spec document, look at it with fresh eyes:
+
+1. **Placeholder scan:** Any "TBD", "TODO", incomplete sections, or vague requirements? Fix them.
+2. **Internal consistency:** Do any sections contradict each other? Does the architecture match the feature descriptions?
+3. **Scope check:** Is this focused enough for a single implementation plan, or does it need decomposition?
+4. **Ambiguity check:** Could any requirement be interpreted two different ways? If so, pick one and make it explicit.
+
+Fix any issues inline. No need to re-review — just fix and move on.
+
+**User Review Gate:**
+After the spec review loop passes, ask the user to review the written spec before proceeding:
+
+> "Spec written and committed to `<path>`. Please review it and let me know if you want to make any changes before we start writing out the implementation plan."
+
+Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
+
+**Implementation:**
+
+- Invoke the writing-plans skill to create a detailed implementation plan
+- Do NOT invoke any other skill. writing-plans is the next step.
+
+## Key Principles
+
+- **One question at a time** - Don't overwhelm with multiple questions
+- **Multiple choice preferred** - Easier to answer than open-ended when possible
+- **YAGNI ruthlessly** - Remove unnecessary features from all designs
+- **Explore alternatives** - Always propose 2-3 approaches before settling
+- **Incremental validation** - Present design, get approval before moving on
+- **Be flexible** - Go back and clarify when something doesn't make sense
+
+## Visual Companion
+
+A browser-based companion for showing mockups, diagrams, and visual options during brainstorming. Available as a tool — not a mode. Accepting the companion means it's available for questions that benefit from visual treatment; it does NOT mean every question goes through the browser.
+
+**Offering the companion:** When you anticipate that upcoming questions will involve visual content (mockups, layouts, diagrams), offer it once for consent:
+> "Some of what we're working on might be easier to explain if I can show it to you in a web browser. I can put together mockups, diagrams, comparisons, and other visuals as we go. This feature is still new and can be token-intensive. Want to try it? (Requires opening a local URL)"
+
+**This offer MUST be its own message.** Do not combine it with clarifying questions, context summaries, or any other content. The message should contain ONLY the offer above and nothing else. Wait for the user's response before continuing. If they decline, proceed with text-only brainstorming.
+
+**Per-question decision:** Even after the user accepts, decide FOR EACH QUESTION whether to use the browser or the terminal. The test: **would the user understand this better by seeing it than reading it?**
+
+- **Use the browser** for content that IS visual — mockups, wireframes, layout comparisons, architecture diagrams, side-by-side visual designs
+- **Use the terminal** for content that is text — requirements questions, conceptual choices, tradeoff lists, A/B/C/D text options, scope decisions
+
+A question about a UI topic is not automatically a visual question. "What does personality mean in this context?" is a conceptual question — use the terminal. "Which wizard layout works better?" is a visual question — use the browser.
+
+If they agree to the companion, read the detailed guide before proceeding:
+`skills/brainstorming/visual-companion.md`
+
+
+ARGUMENTS: Create and host public documentation at https://docs.ravencloak.org/. Existing `docs/` directory in Raven repo has architecture.md, compliance/, design/, dependency-policy.md, project-status.md, quickstart.md, research/, schema/, security/, superpowers/, swagger/, voice-agent-webrtc-research.md, wiki/. Stack context: Vue 3 frontend, Next.js 16 landing site (deployed to Cloudflare Pages), Cloudflare Pages already in use. User is India-based, prefers minimal infra footprint, edge-deployable. Want to scope and pick a stack before implementing.
+
+---
+
+yes
+
+---
+
+yes
+
+---
+
+hosted?
+
+---
+
+no, you need to launch the raven so that people can try it out, i think i had setup imdb or tmdb demo. check once
+
+---
+
+Everything is done then deployed using Cloudflare CLI.
+
+---
+
+npx wrangler@4 pages project domain add raven-docs docs.ravencloak.org
+
+✘ [ERROR] Unknown arguments: domain, add, raven-docs, docs.ravencloak.org
+
+
+wrangler pages project
+
+Interact with your Pages projects
+
+COMMANDS
+  wrangler pages project list                   List your Cloudflare Pages projects
+  wrangler pages project create <project-name>  Create a new Cloudflare Pages project
+  wrangler pages project delete <project-name>  Delete a Cloudflare Pages project
+
+GLOBAL FLAGS
+      --cwd       Run as if Wrangler was started in the specified directory instead of the current working directory  [string]
+      --env-file  Path to an .env file to load - can be specified multiple times - values from earlier files are overridden by values in later files  [array]
+  -h, --help      Show help  [boolean]
+  -v, --version   Show version number  [boolean]
+🪵  Logs were written to "/Users/jobinlawrance/Library/Preferences/.wrangler/logs/wrangler-2026-05-08_13-47-12_763.log"
+
+---
+
+also the domain should be docs.raven.ravencloak.org
+
+---
+
+color, blacn and white with red accent color, 2 ok 3. recommended, 4 go for it 5. cool, 6. recommended 7. cool
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/writing-plans
+
+# Writing Plans
+
+## Overview
+
+Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code, testing, docs they might need to check, how to test it. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD. Frequent commits.
+
+Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they don't know good test design very well.
+
+**Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
+
+**Context:** If working in an isolated worktree, it should have been created via the `superpowers:using-git-worktrees` skill at execution time.
+
+**Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`
+- (User preferences for plan location override this default)
+
+## Scope Check
+
+If the spec covers multiple independent subsystems, it should have been broken into sub-project specs during brainstorming. If it wasn't, suggest breaking this into separate plans — one per subsystem. Each plan should produce working, testable software on its own.
+
+## File Structure
+
+Before defining tasks, map out which files will be created or modified and what each one is responsible for. This is where decomposition decisions get locked in.
+
+- Design units with clear boundaries and well-defined interfaces. Each file should have one clear responsibility.
+- You reason best about code you can hold in context at once, and your edits are more reliable when files are focused. Prefer smaller, focused files over large ones that do too much.
+- Files that change together should live together. Split by responsibility, not by technical layer.
+- In existing codebases, follow established patterns. If the codebase uses large files, don't unilaterally restructure - but if a file you're modifying has grown unwieldy, including a split in the plan is reasonable.
+
+This structure informs the task decomposition. Each task should produce self-contained changes that make sense independently.
+
+## Bite-Sized Task Granularity
+
+**Each step is one action (2-5 minutes):**
+- "Write the failing test" - step
+- "Run it to make sure it fails" - step
+- "Implement the minimal code to make the test pass" - step
+- "Run the tests and make sure they pass" - step
+- "Commit" - step
+
+## Plan Document Header
+
+**Every plan MUST start with this header:**
+
+```markdown
+# [Feature Name] Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** [One sentence describing what this builds]
+
+**Architecture:** [2-3 sentences about approach]
+
+**Tech Stack:** [Key technologies/libraries]
+
+---
+```
+
+## Task Structure
+
+````markdown
+### Task N: [Component Name]
+
+**Files:**
+- Create: `exact/path/to/file.py`
+- Modify: `exact/path/to/existing.py:123-145`
+- Test: `tests/exact/path/to/test.py`
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+def test_specific_behavior():
+    result = function(input)
+    assert result == expected
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `pytest tests/path/test.py::test_name -v`
+Expected: FAIL with "function not defined"
+
+- [ ] **Step 3: Write minimal implementation**
+
+```python
+def function(input):
+    return expected
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `pytest tests/path/test.py::test_name -v`
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add tests/path/test.py src/path/file.py
+git commit -m "feat: add specific feature"
+```
+````
+
+## No Placeholders
+
+Every step must contain the actual content an engineer needs. These are **plan failures** — never write them:
+- "TBD", "TODO", "implement later", "fill in details"
+- "Add appropriate error handling" / "add validation" / "handle edge cases"
+- "Write tests for the above" (without actual test code)
+- "Similar to Task N" (repeat the code — the engineer may be reading tasks out of order)
+- Steps that describe what to do without showing how (code blocks required for code steps)
+- References to types, functions, or methods not defined in any task
+
+## Remember
+- Exact file paths always
+- Complete code in every step — if a step changes code, show the code
+- Exact commands with expected output
+- DRY, YAGNI, TDD, frequent commits
+
+## Self-Review
+
+After writing the complete plan, look at the spec with fresh eyes and check the plan against it. This is a checklist you run yourself — not a subagent dispatch.
+
+**1. Spec coverage:** Skim each section/requirement in the spec. Can you point to a task that implements it? List any gaps.
+
+**2. Placeholder scan:** Search your plan for red flags — any of the patterns from the "No Placeholders" section above. Fix them.
+
+**3. Type consistency:** Do the types, method signatures, and property names you used in later tasks match what you defined in earlier tasks? A function called `clearLayers()` in Task 3 but `clearFullLayers()` in Task 7 is a bug.
+
+If you find issues, fix them inline. No need to re-review — just fix and move on. If you find a spec requirement with no task, add the task.
+
+## Execution Handoff
+
+After saving the plan, offer execution choice:
+
+**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Two execution options:**
+
+**1. Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
+
+**2. Inline Execution** - Execute tasks in this session using executing-plans, batch execution with checkpoints
+
+**Which approach?"**
+
+**If Subagent-Driven chosen:**
+- **REQUIRED SUB-SKILL:** Use superpowers:subagent-driven-development
+- Fresh subagent per task + two-stage review
+
+**If Inline Execution chosen:**
+- **REQUIRED SUB-SKILL:** Use superpowers:executing-plans
+- Batch execution with checkpoints for review
+
+
+ARGUMENTS: Implementation plan for the Raven docs-site spec at docs/superpowers/specs/2026-05-09-docs-site-design.md (commit 811d28d6 on branch docs/spec-docs-site-design, worktree .worktrees/docs-site). The plan should decompose into INDEPENDENT parallel tasks suitable for subagent-driven-development, since the user explicitly requested parallel agent execution. Track follow-up items but DO NOT plan SP1 (hosting), SP2 (demo seed/widget activation), or the domain migration ticket — those are separate specs. Plan covers only the docs-site MVP that ships docs.raven.ravencloak.org with the current contents of contracts/openapi-stub.yaml renamed to contracts/openapi.yaml.
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/subagent-driven-development
+
+# Subagent-Driven Development
+
+Execute plan by dispatching fresh subagent per task, with two-stage review after each: spec compliance review first, then code quality review.
+
+**Why subagents:** You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions and context, you ensure they stay focused and succeed at their task. They should never inherit your session's context or history — you construct exactly what they need. This also preserves your own context for coordination work.
+
+**Core principle:** Fresh subagent per task + two-stage review (spec then quality) = high quality, fast iteration
+
+**Continuous execution:** Do not pause to check in with your human partner between tasks. Execute all tasks from the plan without stopping. The only reasons to stop are: BLOCKED status you cannot resolve, ambiguity that genuinely prevents progress, or all tasks complete. "Should I continue?" prompts and progress summaries waste their time — they asked you to execute the plan, so execute it.
+
+## When to Use
+
+```dot
+digraph when_to_use {
+    "Have implementation plan?" [shape=diamond];
+    "Tasks mostly independent?" [shape=diamond];
+    "Stay in this session?" [shape=diamond];
+    "subagent-driven-development" [shape=box];
+    "executing-plans" [shape=box];
+    "Manual execution or brainstorm first" [shape=box];
+
+    "Have implementation plan?" -> "Tasks mostly independent?" [label="yes"];
+    "Have implementation plan?" -> "Manual execution or brainstorm first" [label="no"];
+    "Tasks mostly independent?" -> "Stay in this session?" [label="yes"];
+    "Tasks mostly independent?" -> "Manual execution or brainstorm first" [label="no - tightly coupled"];
+    "Stay in this session?" -> "subagent-driven-development" [label="yes"];
+    "Stay in this session?" -> "executing-plans" [label="no - parallel session"];
+}
+```
+
+**vs. Executing Plans (parallel session):**
+- Same session (no context switch)
+- Fresh subagent per task (no context pollution)
+- Two-stage review after each task: spec compliance first, then code quality
+- Faster iteration (no human-in-loop between tasks)
+
+## The Process
+
+```dot
+digraph process {
+    rankdir=TB;
+
+    subgraph cluster_per_task {
+        label="Per Task";
+        "Dispatch implementer subagent (./implementer-prompt.md)" [shape=box];
+        "Implementer subagent asks questions?" [shape=diamond];
+        "Answer questions, provide context" [shape=box];
+        "Implementer subagent implements, tests, commits, self-reviews" [shape=box];
+        "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [shape=box];
+        "Spec reviewer subagent confirms code matches spec?" [shape=diamond];
+        "Implementer subagent fixes spec gaps" [shape=box];
+        "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [shape=box];
+        "Code quality reviewer subagent approves?" [shape=diamond];
+        "Implementer subagent fixes quality issues" [shape=box];
+        "Mark task complete in TodoWrite" [shape=box];
+    }
+
+    "Read plan, extract all tasks with full text, note context, create TodoWrite" [shape=box];
+    "More tasks remain?" [shape=diamond];
+    "Dispatch final code reviewer subagent for entire implementation" [shape=box];
+    "Use superpowers:finishing-a-development-branch" [shape=box style=filled fillcolor=lightgreen];
+
+    "Read plan, extract all tasks with full text, note context, create TodoWrite" -> "Dispatch implementer subagent (./implementer-prompt.md)";
+    "Dispatch implementer subagent (./implementer-prompt.md)" -> "Implementer subagent asks questions?";
+    "Implementer subagent asks questions?" -> "Answer questions, provide context" [label="yes"];
+    "Answer questions, provide context" -> "Dispatch implementer subagent (./implementer-prompt.md)";
+    "Implementer subagent asks questions?" -> "Implementer subagent implements, tests, commits, self-reviews" [label="no"];
+    "Implementer subagent implements, tests, commits, self-reviews" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)";
+    "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" -> "Spec reviewer subagent confirms code matches spec?";
+    "Spec reviewer subagent confirms code matches spec?" -> "Implementer subagent fixes spec gaps" [label="no"];
+    "Implementer subagent fixes spec gaps" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [label="re-review"];
+    "Spec reviewer subagent confirms code matches spec?" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="yes"];
+    "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" -> "Code quality reviewer subagent approves?";
+    "Code quality reviewer subagent approves?" -> "Implementer subagent fixes quality issues" [label="no"];
+    "Implementer subagent fixes quality issues" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="re-review"];
+    "Code quality reviewer subagent approves?" -> "Mark task complete in TodoWrite" [label="yes"];
+    "Mark task complete in TodoWrite" -> "More tasks remain?";
+    "More tasks remain?" -> "Dispatch implementer subagent (./implementer-prompt.md)" [label="yes"];
+    "More tasks remain?" -> "Dispatch final code reviewer subagent for entire implementation" [label="no"];
+    "Dispatch final code reviewer subagent for entire implementation" -> "Use superpowers:finishing-a-development-branch";
+}
+```
+
+## Model Selection
+
+Use the least powerful model that can handle each role to conserve cost and increase speed.
+
+**Mechanical implementation tasks** (isolated functions, clear specs, 1-2 files): use a fast, cheap model. Most implementation tasks are mechanical when the plan is well-specified.
+
+**Integration and judgment tasks** (multi-file coordination, pattern matching, debugging): use a standard model.
+
+**Architecture, design, and review tasks**: use the most capable available model.
+
+**Task complexity signals:**
+- Touches 1-2 files with a complete spec → cheap model
+- Touches multiple files with integration concerns → standard model
+- Requires design judgment or broad codebase understanding → most capable model
+
+## Handling Implementer Status
+
+Implementer subagents report one of four statuses. Handle each appropriately:
+
+**DONE:** Proceed to spec compliance review.
+
+**DONE_WITH_CONCERNS:** The implementer completed the work but flagged doubts. Read the concerns before proceeding. If the concerns are about correctness or scope, address them before review. If they're observations (e.g., "this file is getting large"), note them and proceed to review.
+
+**NEEDS_CONTEXT:** The implementer needs information that wasn't provided. Provide the missing context and re-dispatch.
+
+**BLOCKED:** The implementer cannot complete the task. Assess the blocker:
+1. If it's a context problem, provide more context and re-dispatch with the same model
+2. If the task requires more reasoning, re-dispatch with a more capable model
+3. If the task is too large, break it into smaller pieces
+4. If the plan itself is wrong, escalate to the human
+
+**Never** ignore an escalation or force the same model to retry without changes. If the implementer said it's stuck, something needs to change.
+
+## Prompt Templates
+
+- `./implementer-prompt.md` - Dispatch implementer subagent
+- `./spec-reviewer-prompt.md` - Dispatch spec compliance reviewer subagent
+- `./code-quality-reviewer-prompt.md` - Dispatch code quality reviewer subagent
+
+## Example Workflow
+
+```
+You: I'm using Subagent-Driven Development to execute this plan.
+
+[Read plan file once: docs/superpowers/plans/feature-plan.md]
+[Extract all 5 tasks with full text and context]
+[Create TodoWrite with all tasks]
+
+Task 1: Hook installation script
+
+[Get Task 1 text and context (already extracted)]
+[Dispatch implementation subagent with full task text + context]
+
+Implementer: "Before I begin - should the hook be installed at user or system level?"
+
+You: "User level (~/.config/superpowers/hooks/)"
+
+Implementer: "Got it. Implementing now..."
+[Later] Implementer:
+  - Implemented install-hook command
+  - Added tests, 5/5 passing
+  - Self-review: Found I missed --force flag, added it
+  - Committed
+
+[Dispatch spec compliance reviewer]
+Spec reviewer: ✅ Spec compliant - all requirements met, nothing extra
+
+[Get git SHAs, dispatch code quality reviewer]
+Code reviewer: Strengths: Good test coverage, clean. Issues: None. Approved.
+
+[Mark Task 1 complete]
+
+Task 2: Recovery modes
+
+[Get Task 2 text and context (already extracted)]
+[Dispatch implementation subagent with full task text + context]
+
+Implementer: [No questions, proceeds]
+Implementer:
+  - Added verify/repair modes
+  - 8/8 tests passing
+  - Self-review: All good
+  - Committed
+
+[Dispatch spec compliance reviewer]
+Spec reviewer: ❌ Issues:
+  - Missing: Progress reporting (spec says "report every 100 items")
+  - Extra: Added --json flag (not requested)
+
+[Implementer fixes issues]
+Implementer: Removed --json flag, added progress reporting
+
+[Spec reviewer reviews again]
+Spec reviewer: ✅ Spec compliant now
+
+[Dispatch code quality reviewer]
+Code reviewer: Strengths: Solid. Issues (Important): Magic number (100)
+
+[Implementer fixes]
+Implementer: Extracted PROGRESS_INTERVAL constant
+
+[Code reviewer reviews again]
+Code reviewer: ✅ Approved
+
+[Mark Task 2 complete]
+
+...
+
+[After all tasks]
+[Dispatch final code-reviewer]
+Final reviewer: All requirements met, ready to merge
+
+Done!
+```
+
+## Advantages
+
+**vs. Manual execution:**
+- Subagents follow TDD naturally
+- Fresh context per task (no confusion)
+- Parallel-safe (subagents don't interfere)
+- Subagent can ask questions (before AND during work)
+
+**vs. Executing Plans:**
+- Same session (no handoff)
+- Continuous progress (no waiting)
+- Review checkpoints automatic
+
+**Efficiency gains:**
+- No file reading overhead (controller provides full text)
+- Controller curates exactly what context is needed
+- Subagent gets complete information upfront
+- Questions surfaced before work begins (not after)
+
+**Quality gates:**
+- Self-review catches issues before handoff
+- Two-stage review: spec compliance, then code quality
+- Review loops ensure fixes actually work
+- Spec compliance prevents over/under-building
+- Code quality ensures implementation is well-built
+
+**Cost:**
+- More subagent invocations (implementer + 2 reviewers per task)
+- Controller does more prep work (extracting all tasks upfront)
+- Review loops add iterations
+- But catches issues early (cheaper than debugging later)
+
+## Red Flags
+
+**Never:**
+- Start implementation on main/master branch without explicit user consent
+- Skip reviews (spec compliance OR code quality)
+- Proceed with unfixed issues
+- Dispatch multiple implementation subagents in parallel (conflicts)
+- Make subagent read plan file (provide full text instead)
+- Skip scene-setting context (subagent needs to understand where task fits)
+- Ignore subagent questions (answer before letting them proceed)
+- Accept "close enough" on spec compliance (spec reviewer found issues = not done)
+- Skip review loops (reviewer found issues = implementer fixes = review again)
+- Let implementer self-review replace actual review (both are needed)
+- **Start code quality review before spec compliance is ✅** (wrong order)
+- Move to next task while either review has open issues
+
+**If subagent asks questions:**
+- Answer clearly and completely
+- Provide additional context if needed
+- Don't rush them into implementation
+
+**If reviewer finds issues:**
+- Implementer (same subagent) fixes them
+- Reviewer reviews again
+- Repeat until approved
+- Don't skip the re-review
+
+**If subagent fails task:**
+- Dispatch fix subagent with specific instructions
+- Don't try to fix manually (context pollution)
+
+## Integration
+
+**Required workflow skills:**
+- **superpowers:using-git-worktrees** - Ensures isolated workspace (creates one or verifies existing)
+- **superpowers:writing-plans** - Creates the plan this skill executes
+- **superpowers:requesting-code-review** - Code review template for reviewer subagents
+- **superpowers:finishing-a-development-branch** - Complete development after all tasks
+
+**Subagents should use:**
+- **superpowers:test-driven-development** - Subagents follow TDD for each task
+
+**Alternative workflow:**
+- **superpowers:executing-plans** - Use for parallel session instead of same-session execution
+
+
+ARGUMENTS: Execute the plan at /Users/jobinlawrance/Project/raven/.worktrees/docs-site/docs/superpowers/plans/2026-05-09-docs-site-implementation.md. Branch is docs/spec-docs-site-design in worktree .worktrees/docs-site. The plan has 3 waves: Wave 1 (T1, T2, T3) parallel; Wave 2 (T4, T5, T6, T7) parallel after Wave 1 lands; Wave 3 (T8) sequential after Wave 2. User explicitly requested parallel agent execution. Dispatch Wave 1 immediately as concurrent background subagents. Each subagent must read the plan file directly for its task definition and follow CLAUDE.md (signed commits, no AI attribution, never push to main, never --no-verify).
+
+---
+
+<task-notification>
+<task-id>af51bf25ebcf195e3</task-id>
+<tool-use-id>toolu_01PmhKAg3jUh6QDVUxAj1zrj</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Wave 1 T3: README docs section" completed</summary>
+<result>All acceptance checks pass.
+
+**Status: DONE**
+
+- **Branch:** `wave1/t3`
+- **Commit SHA:** `41480527` (full: `414805278f9af9f349cc60188647d5e558a8d519`)
+- **Signed-off-by:** present (Jobin Lawrance), no AI attribution
+- **Section order:** What is Raven? → Key Features → Architecture Overview → Tech Stack → Quick Start → **Documentation** → Testing → Roadmap → Contributing → Security → Licensing
+- **Lines added:** 10 (only `README.md` modified)
+- **Working tree:** clean
+- **URL check:** section text uses `docs.raven.ravencloak.org` (full subdomain, with the `raven.` segment)
+
+**Deviation from plan:** The plan's Step 2 Edit (replace `## Quick Start` with the new section followed by `## Quick Start`) would have placed Documentation *before* Quick Start, contradicting the plan's own goal/Step-3 verification. I used the plan's documented Step-3 fallback directly — anchoring on the line `For local development without Docker, see [DEVELOPMENT.md](DEVELOPMENT.md).` and inserting the Documentation section after it but before `## Testing`. This landed Documentation between Quick Start and Testing in one shot, matching the plan's stated expected section order.
+
+Not pushed to origin (per instructions; parent will cherry-pick).</result>
+<usage><total_tokens>44512</total_tokens><tool_uses>11</tool_uses><duration_ms>54786</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ab2b9f012755ff316</task-id>
+<tool-use-id>toolu_01MVZpHbiryrt3ctsdeZqKH7</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Wave 1 T2: VitePress scaffolding" completed</summary>
+<result>All acceptance checks pass. Here is the report.
+
+---
+
+**Status:** DONE
+
+- **Branch:** `wave1/t2`
+- **Commit SHA:** `abfd41e95726c0c19d7cce0647677ef7712a739d`
+- **VitePress resolved version:** `1.6.4` (satisfies `^1.5.0`)
+- **Build smoke-test:** PASSED — `vitepress build` produced `index.html`, `404.html`, `assets/`, `pagefind/` in `.vitepress/dist/`; PageFind indexed 1 page / 75 words.
+- **Lockfile size:** 3214 lines (`docs-site/package-lock.json`)
+- **Working tree:** clean after `.tmp` cleanup; `git status` shows nothing pending. `node_modules/` and `.vitepress/dist/` correctly ignored.
+- **Signed-off-by trailer:** present (verified via `git log -1 --format=fuller`).
+- **No `Co-Authored-By:` trailer.** No `--no-verify` used. Nothing pushed.
+
+**Files created:**
+- `/Users/jobinlawrance/Project/raven/.worktrees/wave1-t2/docs-site/package.json`
+- `/Users/jobinlawrance/Project/raven/.worktrees/wave1-t2/docs-site/package-lock.json`
+- `/Users/jobinlawrance/Project/raven/.worktrees/wave1-t2/docs-site/.gitignore`
+- `/Users/jobinlawrance/Project/raven/.worktrees/wave1-t2/docs-site/.vitepress/config.ts`
+- `/Users/jobinlawrance/Project/raven/.worktrees/wave1-t2/docs-site/.vitepress/theme/index.ts`
+- `/Users/jobinlawrance/Project/raven/.worktrees/wave1-t2/docs-site/.vitepress/theme/style.css`
+- `/Users/jobinlawrance/Project/raven/.worktrees/wave1-t2/docs-site/index.md`
+
+**Deviations from plan:** None. Followed every step verbatim, including the exact commit message body. `npm install` reported 3 moderate-severity vulnerabilities in transitive deps and 134 packages added — informational only; not addressed since the plan does not request `npm audit fix` and these don't block the build.</result>
+<usage><total_tokens>54624</total_tokens><tool_uses>30</tool_uses><duration_ms>185951</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a95fdef9406c6c0fa</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Wave 1 T1: Spec ingestion" completed</summary>
+<result>All acceptance checks pass.
+
+---
+
+**Branch:** `wave1/t1`
+**Commit SHA:** `e7a14c7f94a261edc3f52422d80cb247a248ba78`
+**Signed-off-by:** `Jobin Lawrance &lt;jobinlawrance@gmail.com&gt;` (verified)
+
+**Spectral lint output summary:** 0 errors, 16 warnings, 0 infos. Exit code 0.
+- Warnings: `info-license` (1), `info-contact` (1), `oas3-unused-component` (1), `operation-description` (13). All acceptable per the plan ("Phase 1, errors are not").
+
+**Files changed:**
+- `contracts/openapi-stub.yaml` -&gt; `contracts/openapi.yaml` (via `git mv`, 92% similarity preserved by git rename detection even after content edits)
+- `contracts/.spectral.yaml` (new)
+- `contracts/openapi.yaml` content updated to add a global `tags` block (Organizations / Workspaces / KnowledgeBases / Users) and `operationId` on all 13 operations.
+
+**Deviations from the plan:**
+1. The plan's ruleset listed `operation-summary: error` as if it were a built-in `spectral:oas` rule, but Spectral 6 has no such built-in (the lint refused to start with `Cannot extend non-existing rule`). I defined `operation-summary` as a custom rule in `contracts/.spectral.yaml` with the same intent (severity error, JSONPath over all operation methods, requires `summary` truthy). The rule still fires on missing summaries; the existing spec already declares one on every operation, so it passes.
+2. Beyond the strict plan steps, I added `tags` block and `operationId` fields to the spec to clear the existing `operation-tag-defined` and `operation-operationId` errors. The plan explicitly authorises this ("fix the spec content rather than relax the rule").
+
+Working tree clean. Commit lives only on local `wave1/t1`; not pushed (per instructions).
+
+**Status: DONE_WITH_CONCERNS** — task complete and acceptance checks pass; the one concern is the `operation-summary` rule definition in `.spectral.yaml` differs structurally from the plan's snippet (custom rule vs. extends-only one-liner) because the latter is invalid against `spectral:oas`.</result>
+<usage><total_tokens>63552</total_tokens><tool_uses>44</tool_uses><duration_ms>241646</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a6816252f245c1478</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Wave 2 T4: Content sync" completed</summary>
+<result>Signed-off, no Co-Authored-By, clean diff matching acceptance #5. All criteria met.
+
+---
+
+**Status: DONE_WITH_CONCERNS**
+
+**Branch:** `wave2/t4`  
+**Commit SHA:** `117ae544af91bfd5d8d22f1bea5655ad80302204`
+
+**Sync output:** `sync-content: copied 14 files to docs-site/.tmp/` — zero warnings (every source file in `mappings` exists in the repo, including `MAINTAINERS.md`).
+
+**Build outcome:** PASSED. `vitepress build` produced 14 pages + `index.html`; pagefind indexed 14 pages / 2,215 words in `.vitepress/dist/pagefind/`.
+
+**Deviations from the plan (and why):**
+
+The plan's literal sync-content.ts produced two real failures against actual repo content that the plan never piloted (T2 step 8 only smoke-tested with `index.md`):
+
+1. **Vue `{{ }}` interpolation** — `docs/security/slsa-verification.md` and `docs/compliance/osps-l2-2026-02-19.md` contain `${{ github.event.* }}` and `{{ json .Manifest.Digest }}` inside backtick code spans. VitePress's Vue compiler parses every markdown file as a Vue template, so these break the build even inside backticks. Added `escapeVueInterpolation()` that replaces `{{` with `&amp;#123;&amp;#123;` post-rewrite (Markdown renders the entities back, output text identical).
+
+2. **Dead links** — synced sources (especially `GOVERNANCE.md`, `MAINTAINERS.md`, `openssf-baseline.md`) contain 45+ relative links pointing to repo files outside the IA (`./LICENSE`, `./MAINTAINERS`, `../../README`, `./SECURITY`, etc.). VitePress's dead-link checker fails the build. Extended `rewriteLinks()` to: (a) resolve relative targets against the source's repo-relative directory before matching, (b) drop trailing `/` on rewritten paths so cleanUrls doesn't look for `index.md`, and (c) absolutise unmatched relative targets to `https://github.com/ravencloak-org/Raven/blob/main/&lt;path&gt;`.
+
+These changes stay inside `scripts/sync-content.ts` — `config.ts` was not touched, `content-map.json` matches the plan verbatim (incl. `"stubMappings": "_filled-by-T5_"`). All other acceptance criteria (clean `git status`, signed-off-by, no Co-Authored-By, only the 3 expected files in the diff stat, scripts block exactly as specified) verified passing.
+
+**Concern:** the deviations are functional necessities, not stylistic. T5 should run an end-to-end build after registering its stubs to confirm nothing regresses.</result>
+<usage><total_tokens>95197</total_tokens><tool_uses>33</tool_uses><duration_ms>281558</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a14f28a6d14c470a6</task-id>
+<tool-use-id>toolu_01MvSVTLWWmDY3LvzpBoAimk</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Wave 2 T5: Stub IA + sidebar" completed</summary>
+<result>Committed cleanly with `Signed-off-by` and no `Co-Authored-By` trailer. Working tree is clean.
+
+## Task 5 Report
+
+**Branch:** `wave2/t5`  
+**Commit SHA:** `2519a7578bf88a02cdfcec5241ff89057a729583`  
+**Commit author:** Jobin Lawrance, signed-off; no `Co-Authored-By` trailer.
+
+### Sync output
+```
+sync-content: copied 14 mapped + 29 stub files to docs-site/.tmp/
+```
+
+### Build outcome
+- `npm ci`: 135 packages installed cleanly.
+- `npm run build` (vitepress + pagefind): SUCCESS in ~2s.
+- T4's helpers (`escapeVueInterpolation`, extended `rewriteLinks` with GitHub-blob fallback, missing-source skip) preserved verbatim — only `ContentMap` and `main()` updated per Step 6.
+
+### PageFind indexed page count
+**43 pages** (well above T4 baseline of 14).
+
+### HTML page count in dist
+`find .vitepress/dist -name '*.html' | wc -l` -&gt; **44** (43 routes + `404.html`).
+
+### Sidebar verification
+Parsed `mainSidebar` -&gt; 42 link entries. Cross-checked every link against `.vitepress/dist/&lt;path&gt;.html`: **0 missing**.
+
+### Files created/modified
+- Created: `docs-site/.vitepress/sidebars/main.ts` — full `mainSidebar` from plan.
+- Created: `docs-site/stubs/_template.md` and 29 stub pages under `docs-site/stubs/{get-started,guides,guides/self-hosting,concepts,reference,contributing,community,trust}/`. Changelog stub uses the alternate body linking to `CHANGELOG.md` and GitHub Releases.
+- Modified: `docs-site/.vitepress/config.ts` — added `import { mainSidebar }` + `sidebar: { ...mainSidebar }`.
+- Modified: `docs-site/content-map.json` — replaced `"_filled-by-T5_"` with the populated 29-entry `stubMappings` array.
+- Modified: `docs-site/scripts/sync-content.ts` — added optional `stubMappings` to `ContentMap`, updated `main()` to iterate `[...mappings, ...(stubMappings ?? [])]` with the new log message; T4 helpers untouched.
+
+### Deviations
+None. Plan followed exactly. Did not push to origin (per instructions).
+
+**Status: DONE**</result>
+<usage><total_tokens>79381</total_tokens><tool_uses>32</tool_uses><duration_ms>189397</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aa8f3e1e220e095d7</task-id>
+<tool-use-id>toolu_013qMjCi3qediqyXrDfor8xb</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Wave 2 T7: 404 + robots + sitemap + footer" completed</summary>
+<result>Committed with `Signed-off-by`, no `Co-Authored-By`. Working tree clean (build outputs are gitignored).
+
+---
+
+## Report
+
+**Branch:** `wave2/t7`
+**Commit SHA:** `748802c9`
+**Status:** **DONE_WITH_CONCERNS** (small plan deviations explained below)
+
+**Build outcome:** `npm run build` succeeds. Verified files exist:
+- `docs-site/.vitepress/dist/404.html`
+- `docs-site/.vitepress/dist/robots.txt`
+- `docs-site/.vitepress/dist/sitemap.xml` (host = `https://docs.raven.ravencloak.org`)
+
+**Sitemap URL count:** 43 (after filtering out the 404 page).
+
+**Footer rendering:** `grep "Apache 2.0" dist/index.html` → 2 hits.
+
+**Files modified/created:**
+- `/Users/jobinlawrance/Project/raven/.worktrees/wave2-t7/docs-site/404.md` (new)
+- `/Users/jobinlawrance/Project/raven/.worktrees/wave2-t7/docs-site/public/robots.txt` (new)
+- `/Users/jobinlawrance/Project/raven/.worktrees/wave2-t7/docs-site/.vitepress/config.ts` (added `vite.publicDir`, `vite.build.rollupOptions.external`, top-level `sitemap`, footer fields — `sidebar:` line untouched)
+- `/Users/jobinlawrance/Project/raven/.worktrees/wave2-t7/docs-site/content-map.json` (added 404.md mapping)
+
+**Deviations from the plan (necessary to make the build pass):**
+1. **`vite.publicDir: "../public"`** — VitePress resolves `public/` relative to srcDir, but our srcDir is `.tmp/` (synthetic). Pointing Vite at `docs-site/public/` makes `robots.txt` actually land in `dist/`.
+2. **`vite.build.rollupOptions.external: [/^\/_pagefind\//]`** — Rollup tried to bundle the 404's runtime dynamic `import("/_pagefind/pagefind-ui.js")` despite the `@vite-ignore` hint and failed because PageFind generates that file *after* `vitepress build`. Externalizing the URL fixes it.
+3. **`content-map.json` mapping `docs-site/404.md → 404.md`** — sync-content.ts is allowlist-driven; without this entry the 404 file never reaches `.tmp/`.
+4. **Sitemap filter regex `/(^|\/)404(\.html)?$/`** — the plan's `i.url.includes("/404")` doesn't match VitePress's relative `i.url` (`"404"` with no slash); the regex covers all formats. Verified by URL count dropping from 44 → 43.
+
+**Working tree clean.** No `Co-Authored-By` trailer; `Signed-off-by: Jobin Lawrance` present. Did not push to origin.</result>
+<usage><total_tokens>73436</total_tokens><tool_uses>43</tool_uses><duration_ms>226905</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a694f2dc0e40c95e9</task-id>
+<tool-use-id>toolu_01DTTiQpf5fXiC92fPPADPcA</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Wave 2 T6: API ref + spec hosting" completed</summary>
+<result>Signed-off, no Co-Authored-By, clean tree. Task complete.
+
+---
+
+**Branch + commit:** `wave2/t6` @ `4a2a2408`
+
+**vitepress-openapi version:** `0.1.20` (resolved from `^0.1.20`). Plan import paths were correct as written — `vitepress-openapi`, `vitepress-openapi/client`, `vitepress-openapi/dist/style.css` all match the package's `exports` field. No deviation needed.
+
+**Build:** PASSED. `vitepress build` → `tsx scripts/copy-spec.ts` → `pagefind` chain runs end-to-end. 45 HTML pages indexed (44 by Pagefind + the dist root index).
+
+**`/api/` dist contents:** `overview.html`, `openapi.yaml`, `openapi.json`. **0 per-operation HTML pages emitted** — the plan does not include a VitePress dynamic-route file (e.g. `api/[operation].paths.ts`) that vitepress-openapi requires to materialise per-operation routes; only `useSidebar` is wired. The acceptance criteria explicitly permit this case ("don't fail if there are none").
+
+**JSON parse check:** OK (valid JSON).
+
+**Plan deviations:**
+1. Added `{ from: "docs-site/api/overview.md", to: "api/overview.md" }` to `docs-site/content-map.json` because `srcDir: ".tmp"` and `sync-content.ts` wipes `.tmp` on every build, so the hand-authored `docs-site/api/overview.md` would otherwise never reach the build. `sync-content.ts` itself was not modified.
+2. Added `ignoreDeadLinks: [/^https?:\/\/localhost(?::\d+)?/, /^\/api\//]` in `config.ts`. The plan's overview.md contains an `&lt;http://localhost:8080&gt;` autolink and a `/api/authentication` link; both are intentionally future-resolved (per-operation pages, dev server) but VitePress's static dead-link checker hard-fails on them.
+
+**Acceptance:**
+- All required files created with plan content
+- `BetaBanner` registered globally; rendered (`beta-banner` div present in `overview.html`)
+- `config.ts` imports both `mainSidebar` and `apiSidebar`; `themeConfig.sidebar` is `{ ...mainSidebar, "/api/": apiSidebar }`
+- `package.json` has `vitepress-openapi` + `js-yaml` in deps, `@types/js-yaml` in devDeps, build chain matches spec
+- Working tree clean, commit signed off, no `Co-Authored-By` trailer, no force/skip-hook flags used
+
+**Status:** DONE_WITH_CONCERNS — concerns are the two minor deviations above (content-map.json mapping + ignoreDeadLinks). Both are necessary to make the plan actually build; neither weakens the design. A follow-up task should add a `[operation].paths.ts` dynamic route to materialise per-operation pages so `apiSidebar` entries become live links.</result>
+<usage><total_tokens>73356</total_tokens><tool_uses>46</tool_uses><duration_ms>253925</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a799295acd022166b</task-id>
+<tool-use-id>toolu_01AFmGy9TxSeJTJCePuFHdKx</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Wave 3 T8: CI workflow + Cloudflare deploy" completed</summary>
+<result>All acceptance criteria verified. Final report.
+
+---
+
+**Status: DONE_WITH_CONCERNS** (minor: actionlint blocked by sandbox)
+
+**Branch:** `wave3/t8`
+**Commit SHA:** `da5f2401f6e1f2cc1c40beb79410cc1b302401b6`
+**File created:** `/Users/jobinlawrance/Project/raven/.worktrees/wave3-t8/.github/workflows/docs.yml` (104 lines)
+
+**Resolved 40-char SHAs (all direct commit refs, no annotated-tag dereferencing needed):**
+- `actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8` # v5.0.0
+- `actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903` # v6.0.0
+- `marocchino/sticky-pull-request-comment@331f8f5b4215f0445d3c07b4967662a32a2d3e31` # v2.9.0
+
+**actionlint result:** Installed at `/opt/homebrew/bin/actionlint` (verified via `which`), but the agent's Bash sandbox denied execution of the binary on every variation tried (direct path, via PATH, from cwd, with `command -v`). Could not capture lint output. The file mirrors the plan's YAML verbatim plus the SHA substitutions; CI's first run on GitHub will be the authoritative gate.
+
+**Acceptance checklist:**
+1. Workflow exists with full plan structure, all `&lt;SHA&gt;` placeholders replaced with real 40-char commit SHAs and `# vN.N.N` trailing comments — yes
+2. Wrangler `--branch` is `${{ github.head_ref || github.ref_name }}` — yes
+3. `concurrency:` group `docs-${{ github.ref }}`, cancel-in-progress true — yes
+4. Top-level `permissions: {}`; job grants only `contents: read`, `deployments: write`, `pull-requests: write` — yes
+5. Path triggers cover docs/, docs-site/, contracts/, all six mirrored root files plus README, and the workflow file itself — yes (push and pull_request)
+6. actionlint — blocked by sandbox (binary present, exec denied)
+7. Commit message matches plan; `Signed-off-by: Jobin Lawrance &lt;jobinlawrance@gmail.com&gt;` present; no `Co-Authored-By` — yes
+8. `git status` clean on `wave3/t8` — yes
+
+**Did not push** (per instructions: parent agent will cherry-pick onto `docs/spec-docs-site-design`).
+
+**Deviations:** None from the plan content. Only deviation from process is the inability to run actionlint locally due to sandbox; flagging this so the parent can run it before push if desired.</result>
+<usage><total_tokens>52135</total_tokens><tool_uses>18</tool_uses><duration_ms>87210</duration_ms></usage>
+</task-notification>
+
+---
+
+it's merged and project created, add the docs.raven subdomain using mpx
+
+---
+
+done but can't acceess
+
+---
+
+it's merged
+
+---
+
+use gh cli and add
+
+---
+
+which template token should be created
+
+---
+
+done
+
+---
+
+merged
+
+---
+
+mermaid diagram is not rendering and let's remove placeholders and add docs that actually make sense
+
+---
+
+<task-notification>
+<task-id>a04663aec54a945d2</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "T1: Self-Hosting Docker Compose" completed</summary>
+<result>Commit landed cleanly with sign-off, working tree is clean.
+
+---
+
+## Report
+
+**Branch:** `docs/content/compose`
+**Commit:** `ecd45871b9fe73cc3cff2b9e97d7dadcf0036106` — `docs(self-hosting): real Docker Compose guide` (signed-off-by Jobin Lawrance)
+**File:** `/Users/jobinlawrance/Project/raven/.worktrees/docs-compose/docs-site/stubs/guides/self-hosting/docker-compose.md`
+**Final line count:** 304 lines
+
+**Source files read:** `docker-compose.yml`, `docker-compose.edge.yml`, `docker-compose.ebpf.yml`, `docker-compose.chartdb.yml`, `Dockerfile`, `frontend/Dockerfile`, `ai-worker/Dockerfile`, `.env.example`, `internal/config/config.go`, `docs/quickstart.md`, `docs-site/stubs/_template.md`, `docs-site/.vitepress/config.ts`, `docs-site/package.json`, `docs-site/scripts/sync-content.ts`, `docs-site/stubs/guides/self-hosting/traefik-and-tls.md`.
+
+**Build verification:** `npm ci` + `npm run build` in `docs-site/` succeeded — VitePress 1.6.4, 44 pages, 0 dead links, Pagefind index built. The first build attempt surfaced 10 dead links because I'd used trailing slashes on cross-links; I switched to the no-trailing-slash convention used elsewhere in the site (`/get-started/installation`, etc.) and the build went green.
+
+**Things I qualified rather than invented:**
+- The Compose file has **no `frontend` service** — the SPA ships via Cloudflare Pages. The `frontend/Dockerfile` exists for CI/self-hosters; I called this out explicitly rather than pretending the service was in compose.
+- Resource-footprint figures ("~3 GB RAM", "~1 GB RAM" on edge) are reasonable estimates from the configured Valkey cap and edge `deploy.resources.limits.memory` numbers; framed as approximations.
+- Go API host port is `8081` (not `8080`). The edge variant uses `8080`. Both are documented from the actual port mappings.
+
+**Status:** DONE.
+
+Note: I did not push to origin (CLAUDE.md forbids it). The branch is one commit ahead of `origin/main` and ready for a PR when you want one.</result>
+<usage><total_tokens>95660</total_tokens><tool_uses>21</tool_uses><duration_ms>246429</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ac8db32860af3dce1</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "T2: Dev Setup" completed</summary>
+<result>Commit lands cleanly with `Signed-off-by:` only — no `Co-Authored-By:` trailer.
+
+---
+
+**Status: DONE_WITH_CONCERNS**
+
+- **Branch:** `docs/content/dev-setup`
+- **Commit SHA:** `986d6872b55bda8af0e37c0cef0af3705c4c3682`
+- **File:** `/Users/jobinlawrance/Project/raven/.worktrees/docs-dev-setup/docs-site/stubs/contributing/dev-setup.md`
+- **Line count:** 319 (within 200–400 target)
+- **Build:** `npm ci &amp;&amp; npm run build` succeeds (vitepress + pagefind, 44 pages indexed)
+
+**Sources read:** `DEVELOPMENT.md`, `Makefile`, `Makefile.edge`, `ai-worker/Makefile`, `ai-worker/pyproject.toml`, `ai-worker/raven_worker/config.py`, `ai-worker/raven_worker/server.py`, `.githooks/pre-commit`, `.githooks/pre-push`, `frontend/package.json`, `frontend/vite.config.ts`, `frontend/playwright.config.ts`, `go.mod`, `cmd/api/main.go`, `internal/config/config.go`, `CONTRIBUTING.md`, `CLAUDE.md`, `docker-compose.yml`, `docs-site/.vitepress/sidebars/main.ts`, `docs-site/index.md`, `.env.example`.
+
+**Concerns / corrections vs. brief:**
+
+1. **API default port is 8081, not 8080.** Verified in `internal/config/config.go:283` (`v.SetDefault("server.port", 8081)`) and `.env.example` (`RAVEN_SERVER_PORT=8081`). I documented 8081 and noted that the Vite proxy in `frontend/vite.config.ts` still targets `localhost:8080` — this is a real codebase mismatch the page now flags so users know to either set `RAVEN_SERVER_PORT=8080` or update the proxy.
+2. **Stack uses SuperTokens, not Keycloak.** Updated `docker compose up -d postgres valkey supertokens` per `docker-compose.yml`; `DEVELOPMENT.md` is stale on this point.
+3. **AI worker entry is `python -m raven_worker`**, not `python -m raven_worker.server` — verified in `ai-worker/Makefile` and the existence of `raven_worker/__main__.py`.
+4. **Frontend dev port: vite.config.ts hard-codes `3000`, but `playwright.config.ts` references `5173` (Vite default).** This is a pre-existing inconsistency; the page documents 3000 as the dev URL and notes that Playwright uses 5173 in CI via `vite preview`.
+5. `make run` and `make dev` use `dotenvx`; documented both that path and the bare `go run ./cmd/api` fallback.
+6. No push performed (per house rules).</result>
+<usage><total_tokens>85242</total_tokens><tool_uses>34</tool_uses><duration_ms>173938</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a95b56dcb33f37ac5</task-id>
+<tool-use-id>toolu_01Wbph44ExFpN47dTrQ6nJ1T</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "T2: Architecture Decisions" completed</summary>
+<result>Done.
+
+**Branch / commit:** `docs/content/adr` @ `168315e3`
+**Specs found / listed:** 18 in `docs/superpowers/specs/`; 10 cited by filename in the Examples section (all grep-able in the directory).
+**Final line count:** 146 lines.
+**Build:** `npm ci` + `npm run build` succeeded (44 pages indexed by Pagefind, no dead-link errors).
+**Commit:** signed off by Jobin, no `Co-Authored-By`, no `--no-verify`. Not pushed.
+
+Page covers: intro framing specs as ADRs (no `docs/adr/` tree, no MADR), When-to-write-a-spec table, Naming/location, Structure table (Status/Date/Author/Supersedes/Summary/Goals/Non-goals/Architecture/IA/API/Build &amp; deploy/Risks/Acceptance criteria/Tracking items), Workflow (`brainstorming` → `writing-plans` → `subagent-driven-development`/`executing-plans`), 10 real example specs with one-line summaries, Failure post-mortems (citing the real SuperTokens-supersedes-Zitadel example), Do-not section, and cross-links to `/contributing/dev-setup` and `/contributing/release-process`.
+
+**Status:** DONE</result>
+<usage><total_tokens>69482</total_tokens><tool_uses>14</tool_uses><duration_ms>199063</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a83bbe66d4989bb2a</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "T1: Observability" completed</summary>
+<result>All done. Concise report below.
+
+## Report
+
+**Status:** DONE
+
+**Branch:** `docs/content/observability`
+**Commit SHA:** `6ef969a113d1af9df9a5920bf6ff388c55b0aab1`
+**Final line count:** 263 lines (target 150–300)
+
+**Source files read:**
+- `docker-compose.yml` (openobserve service block + RAVEN_OTEL_* env)
+- `internal/telemetry/telemetry.go` + `metrics.go` + `internal/middleware/otel.go`
+- `internal/config/config.go` (OTel config struct + bindings)
+- `cmd/api/main.go` (telemetry init wiring)
+- `ai-worker/raven_worker/telemetry.py` + `config.py` + `pyproject.toml`
+- `.env.example` (OTLP env vars)
+- `deploy/observability/dashboards/{api-overview,alerts,chat-completions,voice-sessions,whatsapp}.json`
+- `deploy/ansible/files/docker-compose.admin.yml` (Beszel hub)
+- `deploy/ansible/roles/admin-tools/tasks/main.yml` (Beszel agent)
+- `deploy/ansible/roles/cloudflared/templates/config.yml.j2` (monitor.* tunnel)
+- `deploy/ansible/files/glance/config/glance.yml` (Beszel URL)
+
+**Beszel bundling:** **Out-of-band.** Hub is in `deploy/ansible/files/docker-compose.admin.yml` (separate compose file, deployed by Ansible to `/opt/raven-admin/`). Agent runs as a standalone container started directly by `community.docker.docker_container` in `roles/admin-tools/tasks/main.yml`, not via any compose file. Image versions: `henrygd/beszel:0.18.7` and `henrygd/beszel-agent:0.18.7`. Beszel is intentionally separate from the main `docker-compose.yml` so it survives application stack restarts.
+
+**Build verification:** `cd docs-site &amp;&amp; npm ci &amp;&amp; npm run build` succeeded — 44 pages indexed, sitemap + Pagefind + OpenAPI spec all generated.
+
+**Honesty notes:** Page explicitly states (a) `deploy/observability/` ships only dashboards, no retention config (defaults left to OpenObserve UI); (b) bundled alert JSON must be manually imported and `${ALERT_WEBHOOK_URL}` configured before alerts fire; (c) bundled dashboard JSON is custom format, not OpenObserve native exports — recreatable via UI/API; (d) Python worker only emits OTLP traces, not logs/metrics.
+
+Per CLAUDE.md: signed commit, no Co-Authored-By trailer, no `--no-verify`, no push.</result>
+<usage><total_tokens>82651</total_tokens><tool_uses>52</tool_uses><duration_ms>281117</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ae3dfad880f8e78bc</task-id>
+<tool-use-id>toolu_01LVsjz6XZxK6jLfCVaGfHK2</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "T1: Backups" completed</summary>
+<result>Done. Working tree clean, commit signed off, no AI attribution.
+
+---
+
+**Report**
+
+- **Branch:** `docs/content/backups`
+- **Commit SHA:** `934511b8ac93e5799a41dc376e08c77ba868fd61`
+- **Source files read:**
+  - `/Users/jobinlawrance/Project/raven/.worktrees/docs-backups/docker-compose.yml` (postgres, pgbackrest, valkey, seaweedfs, clickhouse, supertokens, volumes)
+  - `/Users/jobinlawrance/Project/raven/.worktrees/docs-backups/backup/pgbackrest.conf`
+  - `/Users/jobinlawrance/Project/raven/.worktrees/docs-backups/backup/backup.sh`
+  - `/Users/jobinlawrance/Project/raven/.worktrees/docs-backups/backup/restore.sh`
+  - `/Users/jobinlawrance/Project/raven/.worktrees/docs-backups/deploy/postgres/init.sql`
+  - `/Users/jobinlawrance/Project/raven/.worktrees/docs-backups/internal/queue/client.go` and `server.go` (Asynq Valkey backend)
+  - `/Users/jobinlawrance/Project/raven/.worktrees/docs-backups/migrations/` (30 goose files)
+  - `/Users/jobinlawrance/Project/raven/.worktrees/docs-backups/docs-site/stubs/guides/self-hosting/observability.md` (front-matter convention)
+- **Final line count:** 293 lines (within the 150–300 target).
+- **ClickHouse backup wired in repo?** **No.** Searched `docker-compose.yml`, `backup/`, `deploy/` — no `clickhouse-backup` service or `BACKUP TABLE` automation. Page documents this explicitly and points to upstream ClickHouse `BACKUP` docs and Altinity `clickhouse-backup`.
+- **Off-host pgBackRest backup wired?** **No — recommended only.** `repo1-type=posix` writes to a local `pgbackrest-repo` Docker volume on the same host. Page documents an example `repo2-s3-*` block and links to upstream pgBackRest S3 quickstart.
+- **Build:** `npm ci &amp;&amp; npm run build` succeeds cleanly with no language-fallback warnings (changed `cron` fence to `bash`).
+- **Status:** **DONE**</result>
+<usage><total_tokens>101920</total_tokens><tool_uses>28</tool_uses><duration_ms>386935</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ad208a6ce0a934ef7</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "T1: Configuration" completed</summary>
+<result>Commit landed with sign-off and no AI attribution. Build verified.
+
+---
+
+## Report
+
+**Status:** DONE
+
+**Branch:** `docs/content/config`
+**Commit:** `acdc06dedaf7a69832e55f8410eccdc37688d02a` — `docs(reference): real Configuration reference` (signed-off, no AI attribution)
+
+**Source files read:**
+- `internal/config/config.go` (full — Config struct, all `SetDefault`, all `BindEnv`, validation logic in `Load()`)
+- `cmd/api/main.go`, `cmd/worker/main.go` (env-var consumption)
+- `ai-worker/raven_worker/config.py` (full — pydantic Settings with `env_prefix="RAVEN_"`)
+- `ai-worker/pyproject.toml` (version 0.3.0)
+- `frontend/.env.example`, `frontend/.env.production`, `frontend/src/api/client.ts`, plus a grep over all `import.meta.env.VITE_*` usages
+- `deploy/cloudflare-pages.json`, `deploy/edge/.env.example`, `deploy/ec2/.env.example`, root `.env.example`
+- `docker-compose.yml`, `docker-compose.edge.yml`
+
+**File modified:** `/Users/jobinlawrance/Project/raven/.worktrees/docs-config/docs-site/stubs/reference/configuration.md` — 485 lines (within 300–600 target).
+
+**Env vars documented:** approximately 110 across Go API/worker, Python AI worker, frontend Vite, and edge compose deltas. Each table cites the actual struct field, env-tag, default, and required status.
+
+**Vars seen but omitted:** None — every variable referenced in the source maps to a clear meaning. I deliberately scoped Meta WhatsApp env-var names to what `RAVEN_&lt;SECTION&gt;_&lt;FIELD&gt;` resolves to via Viper's `EnvKeyReplacer`/`SetEnvPrefix` (these aren't additionally `BindEnv`-ed) and added an explicit note to that effect rather than guessing.
+
+**Build verification:** `cd docs-site &amp;&amp; npm ci &amp;&amp; npm run build` succeeded (Vitepress 1.6.4, 45 HTML files, Pagefind index built). One initial dead-link failure was fixed by removing trailing slashes from `/guides/self-hosting/...` cross-links to satisfy `cleanUrls: true`.</result>
+<usage><total_tokens>154561</total_tokens><tool_uses>22</tool_uses><duration_ms>320158</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a66033f168bc27287</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "T1: Hardening" completed</summary>
+<result>All done.
+
+---
+
+**Status: DONE**
+
+- **Branch:** `docs/content/hardening`
+- **Commit SHA:** `6612d1fdceff752e5eb7ef1b55379c7ef11cb95c` (signed off, no Co-Authored-By)
+- **Final line count:** 406
+- **Build:** `npm ci &amp;&amp; npm run build` passes (12 dead links fixed by dropping trailing slashes; build output indexed 44 pages)
+- **git status:** clean, branch ahead of `origin/main` by 1 commit, not pushed
+
+**Source files actually read:**
+- `SECURITY.md`
+- `internal/middleware/cors.go`, `ratelimit.go`, `auth.go`, `security.go`
+- `internal/auth/supertokens.go`, `supertokens_init.go`
+- `internal/crypto/aes.go`
+- `internal/db/db.go`
+- `internal/config/config.go` (relevant sections)
+- `migrations/00015_rls_policies.sql`, `migrations/00022_security_rules.sql`
+- `Dockerfile`, `ai-worker/Dockerfile`, `frontend/Dockerfile`
+- `deploy/traefik/traefik.yml`, `deploy/traefik/dynamic/tls.yml`
+- `deploy/clickhouse/init.sql`
+- `docker-compose.yml` + `docker-compose.edge.yml`
+- `.github/workflows/codeql.yml`, `python.yml` (pin styles, `--require-hashes`)
+- `cmd/api/main.go`, `internal/service/seed.go` (seed gating)
+- `Makefile` (dotenvx integration)
+- existing `docs-site/stubs/_template.md` and `docs-site/index.md` (style/link conventions), `content-map.json` (link rewrites)
+
+**Things I qualified rather than asserted:**
+- The brief mentioned a ClickHouse `audit_events` table — that does **not** exist in the OSS migrations or `deploy/clickhouse/init.sql`. The actual audit table is Postgres `security_events` from `migrations/00022_security_rules.sql`. I cited the real one and noted the EE `internal/ee/audit/audit.go` package separately.
+- The brief said "only Traefik should publish ports" — the bundled `docker-compose.yml` actually publishes ports for `go-api`, `livekit-server`, `clickhouse` (loopback), `seaweedfs-filer`, `openobserve`, and `traefik`. I listed every published port and recommended overriding all but Traefik's 80/443 (and LiveKit UDP) in production.
+- `docker-compose.yml` has **no** `security_opt`, `read_only`, or `cap_drop` blocks. I marked these as "recommended, not bundled" with a copy-pasteable override snippet.
+- WAF, fail2ban, OS-CIS benchmark, secrets-manager integration — all flagged as recommended/not-bundled.
+- SuperTokens session/token TTLs are configured in SuperTokens Core, not in `internal/config/config.go::SuperTokensConfig`; said so explicitly.
+- MFA: SuperTokens supports it but `InitSuperTokens` does not register the recipe today; flagged as recommended.</result>
+<usage><total_tokens>122651</total_tokens><tool_uses>87</tool_uses><duration_ms>399925</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a3f3e1f45b7cbdcfa</task-id>
+<tool-use-id>toolu_01XerSbktbcnHJ36iSi1ChN6</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "T2: Release Process" completed</summary>
+<result>Done. Final report:
+
+---
+
+**Status:** DONE
+
+**Branch:** `docs/content/release`
+**Commit SHA:** `12c145a5e30d436d0118c3f36bace7e5dcdecb06`
+**Final line count:** 263 lines (target 150–300)
+**Build:** `cd docs-site &amp;&amp; npm ci &amp;&amp; npm run build` succeeds (44 pages indexed by pagefind, no dead links)
+
+**Source files read:**
+- `.github/workflows/release.yml` (466 lines — preflight, changelog, go-binaries, docker-build, docker-merge, frontend-bundle, publish-release)
+- `.github/workflows/docker.yml` (main-branch / PR-gate only; tag builds delegated to release.yml)
+- `.github/workflows/{pages,landing,docs}.yml` (Cloudflare Pages deploys are NOT release-triggered — they fire on `push` to `main` paths)
+- `cliff.toml` (commit_parsers, tag_pattern, body template)
+- `CHANGELOG.md` (v0.3.0 dated 2026-04-23, Notes section explains v0.2.0 skip)
+- `.goreleaser.yaml` (project_name: raven, builds raven-api + raven-worker, archives, cosign-keyless on checksums, `release.disable: true`)
+- `docs/security/slsa-verification.md` (cosign + gh attestation verify recipes)
+- `docs-site/stubs/contributing/{dev-setup,release-process}.md`, `docs-site/stubs/_template.md`, `docs-site/index.md`, `docs-site/content-map.json`
+- `frontend/package.json` (`"version": "0.3.0"`), `ai-worker/pyproject.toml` (`version = "0.3.0"`)
+- Tag list: `v0.3.0` (2026-04-23), `v0.1.0` (2026-04-20), `v0.2.0` (older pre-pipeline)
+
+**Release tooling:** Uses **GoReleaser v2** for the Go binaries (`raven-api`, `raven-worker`) — `goreleaser release --clean --skip=publish` with `release.disable: true` so the workflow's `publish-release` job (using `softprops/action-gh-release`) creates the GitHub Release. Docker images use a **custom matrix** (per component × per arch on native runners), not GoReleaser. The "How to cut a release" section documents this split.
+
+**TODO/unfinished items observed:** The `Notes` block in `slsa-verification.md` flags two follow-ups: (1) "A CycloneDX variant is not produced" — only SPDX is supported by `actions/attest-sbom@v3`/`v4`, and (2) "Per-platform SBOM attestation is a tracked follow-up" — Syft runs against one platform when generating the SBOM that's attached to the multi-arch manifest.
+
+**Deviation from the brief:** The brief said "Triggers Cloudflare Pages production deploys for frontend, landing, docs" as a release-workflow step. That is not what the YAML does — the three Pages workflows trigger on push to `main` (paths-filtered), independent of tags. I documented this honestly: the docs page states Pages deploys are continuous and not part of `release.yml`, and rollback is via the Cloudflare dashboard. Brief also said v0.3.0 was cut on 2026-05-08; the actual tag (`git for-each-ref` + CHANGELOG) shows 2026-04-23 — used the actual date.
+
+**File modified:** `/Users/jobinlawrance/Project/raven/.worktrees/docs-release/docs-site/stubs/contributing/release-process.md`</result>
+<usage><total_tokens>96750</total_tokens><tool_uses>48</tool_uses><duration_ms>311898</duration_ms></usage>
+</task-notification>
+
+---
+
+its merged
+
+---
+
+yes
+
+---
+
+<task-notification>
+<task-id>a6f192babac75e839</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "T3: Deployment Models concept" completed</summary>
+<result>Done.
+
+**Branch:** `docs/content/deployment-models`
+**Commit SHA:** `3b69a27589ed42819e9827c9639840ec32b9e3bf` (signed off, no AI attribution)
+**Final line count:** 214 lines (within 200–350 target)
+
+**Source files read:**
+- `docker-compose.yml` (14 services confirmed: go-api, python-worker, python-agent, livekit-server, postgres, clickhouse, valkey, supertokens, seaweedfs-master/volume/filer, traefik, openobserve, pgbackrest)
+- `docker-compose.edge.yml` (3 services: go-api, postgres, traefik — memory caps 256M/512M/128M)
+- `docker-compose.ebpf.yml`, `docker-compose.chartdb.yml`
+- `Makefile`, `Makefile.edge` (cross-compile ARM64/AMD64 with `CGO_ENABLED=0 -ldflags="-s -w"`)
+- `Dockerfile`
+- `deploy/edge/`, `deploy/ec2/` (setup.sh + cloudflared), `deploy/ansible/` (roles: base, docker, nodejs, cloudflared, admin-tools, raven-stack)
+- `deploy/cloudflare-pages.json`
+- `internal/config/config.go`
+- `README.md`
+
+**Binary size:** `Dockerfile` and `Makefile.edge` use `LDFLAGS := -s -w` (strip + DWARF removal) with `CGO_ENABLED=0` for the non-eBPF static build — the actual final binary size is **not encoded** as a literal target in either file; the "~25 MB ARM64 binary" figure comes from `README.md` line 45. The doc reports it as "roughly 25 MB" and cites `Makefile.edge` for the flags that produce it.
+
+**Key verified env var:** `RAVEN_GRPC_WORKER_ADDR` (not `RAVEN_AI_WORKER_ENDPOINT` as the brief suggested — the actual variable name in `docker-compose.edge.yml` is `RAVEN_GRPC_WORKER_ADDR`, sourced from `GRPC_AI_WORKER_ADDR`). The doc uses the verbatim repo name.
+
+**Build:** `npm ci` + `npm run build` succeeded — 44 pages rendered, Pagefind index built.
+
+**Status:** DONE</result>
+<usage><total_tokens>77176</total_tokens><tool_uses>10</tool_uses><duration_ms>151580</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a9d83ef7a89605b79</task-id>
+<tool-use-id>toolu_01UmNJUpvrZvCaD1bpgjvqKR</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "T6: Community Support page" completed</summary>
+<result>The commit **is** SSH-signed (`gpgsig` header present) — verification just complains about `gpg.ssh.allowedSignersFile` not being set, which is a local trust-anchor issue, not a signing issue. GitHub will validate it fine. All acceptance criteria met.
+
+Per CLAUDE.md, I should not push — agent task says "never push". Done.
+
+---
+
+**Report**
+
+- **Branch:** `docs/content/support`
+- **Commit SHA:** `9d452d7eceefdd4c9df5751428496dc3ee8ccd5f` (SSH-signed, `Signed-off-by` trailer, no AI attribution)
+- **GitHub Discussions enabled?** **N** (`has_discussions: false` from `gh api`) — page routes Q&amp;A to Issues with `question` label.
+- **Issue templates present:** **None** — `.github/ISSUE_TEMPLATE/` directory does not exist. Page documents this honestly and lists a manual checklist for bug/feature reports.
+- **Final line count:** 102 lines (within 100–200 target).
+- **Build:** `npm run build` succeeds (VitePress + Pagefind), no dead-link errors, 45 pages rendered.
+- **File:** `/Users/jobinlawrance/Project/raven/.worktrees/docs-support/docs-site/stubs/community/support.md`
+
+Page sections delivered: quick router table, issue templates section (with manual checklist), response expectations (non-security best-effort + security SLA table 72h/7d/90d quoted from `SECURITY.md`), commercial support (none, honest), stay in touch (Releases + Issues only, explicit "no Slack/Discord yet"), related cross-links to `/reference/security-policy`, `/community/code-of-conduct`, `/contributing/overview`, `/community/maintainers`. No stub banner.
+
+**Status: DONE**</result>
+<usage><total_tokens>68852</total_tokens><tool_uses>15</tool_uses><duration_ms>186214</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aa62f4b5fad944c2e</task-id>
+<tool-use-id>toolu_01YBX9Dw6RUXhbagrwnXwK5h</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "T6: Changelog page" completed</summary>
+<result>Done.
+
+**Report**
+
+- **Option used: A (@include).** VitePress 1.6.4's `&lt;!--@include: ../../../CHANGELOG.md--&gt;` directive resolves from `.tmp/reference/changelog.md` up three levels to the repo-root `CHANGELOG.md` and inlines it verbatim at build time. The directive worked first try; only fix needed was dropping trailing slashes on `/contributing/release-process` and `/trust/slsa-level-3` cross-links to satisfy VitePress's dead-link checker (matches the convention used by other stubs).
+- **Branch:** `docs/content/changelog`
+- **Commit SHA:** `e234679e5b140b3ba653bd1c4c65ec083799fd1f` (signed-off, no AI attribution)
+- **Final line count:** 13 lines (stub source)
+- **Build outcome:** SUCCESS — `vitepress build` + `copy-spec` + `pagefind` all completed (build complete in 26.44s, 44 pages indexed).
+- **Grep result:** `grep -c "v0.3.0\|v0.1.0\|0.3.0\|0.1.0" .vitepress/dist/reference/changelog.html` → **1** match for the version heading. Additionally `2026-04-23` appears 4 times and entry text "email summaries" / "semantic response cache" render correctly in the HTML. The only "Placeholder" occurrence in the HTML is Pagefind's search-box ARIA label, not a stub banner.
+- **Files modified (absolute path):** `/Users/jobinlawrance/Project/raven/.worktrees/docs-changelog/docs-site/stubs/reference/changelog.md`
+
+**Status: DONE**</result>
+<usage><total_tokens>57407</total_tokens><tool_uses>26</tool_uses><duration_ms>199996</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a065172250c6d4a4f</task-id>
+<tool-use-id>toolu_017L6WjANu8Tqz4isAeF7yAW</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "T6: CLI reference link-out" completed</summary>
+<result>Sign-off present, no AI attribution, no force-push, no `--no-verify`. Build clean.
+
+---
+
+**Branch:** `docs/content/cli`
+**Commit:** `15f75326e17bea67a32ded899c8a444b26252db5`
+**File:** `/Users/jobinlawrance/Project/raven/.worktrees/docs-cli/docs-site/stubs/reference/cli.md` (111 lines)
+
+**Binaries enumerated:** `cmd/api` (Gin HTTP server, port from `RAVEN_SERVER_PORT` default `8081`) and `cmd/worker` (Asynq job runner). **No `cmd/update-check` exists** — corrected the brief's assumption in the page text.
+
+**Flags discovered per binary:** None — `grep -n 'flag\.' cmd/` returns zero matches. Both binaries are pure env-var driven via `internal/config.Load()` (Viper, `RAVEN_` prefix). No positional sub-commands either. The only argv-like control is `SIGINT`/`SIGTERM` graceful shutdown, which both `main()` handlers wire up. The page is explicit that `--help`, `migrate`, and `seed-demo` args are no-ops. Seed-demo is the HTTP endpoint `POST /api/v1/admin/seed-demo` with `X-Seed-Key` header — not a CLI flag.
+
+**Scripts cited:** all 7 from `scripts/` (coverage.sh, test-compose.sh, test-ci-workflows.sh, validate-migrations.sh, chartdb-query.sh, dev-agent.py, test-keycloak-realm.py), with one-line purposes verified against script headers.
+
+**Cross-links:** `/api/overview`, `/get-started/first-knowledge-base`, `/guides/self-hosting/docker-compose`, `/guides/self-hosting/edge-and-raspberry-pi`, `/reference/configuration`, `/reference/security-policy`, `/contributing/architecture-decisions`, `/concepts/ai-worker-design` — all match the sidebar in `.vitepress/sidebars/main.ts`.
+
+**Build:** `npm run build` succeeded in the `docs-site/` workspace (vitepress + pagefind, 44 pages indexed, no dead-link errors, no warnings on the new page). Pre-existing `promql` highlighter fallbacks are unrelated.
+
+**Final line count:** 111
+**Status:** DONE</result>
+<usage><total_tokens>81008</total_tokens><tool_uses>18</tool_uses><duration_ms>223154</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a669aab8c3dc3431d</task-id>
+<tool-use-id>toolu_01AcFt1hwzsFAE4NwuJJ9Nw5</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "T3: AI Worker Design concept" completed</summary>
+<result>Commit landed and signed off. Final status:
+
+**Status:** DONE
+
+**Branch:** `docs/content/ai-worker-design`
+**Commit SHA:** `cc61e6314698b4126d5c13caba6921f5b33df623`
+**File:** `/Users/jobinlawrance/Project/raven/.worktrees/docs-ai-worker-design/docs-site/stubs/concepts/ai-worker-design.md`
+**Final line count:** 317 lines (within 250–400 target)
+**Build:** `npm ci &amp;&amp; npm run build` succeeded — VitePress rendered 44 pages, Pagefind indexed 4276 words, no errors.
+
+**RPCs enumerated (3):**
+1. `ParseAndEmbed(ParseRequest) → ParseResponse`
+2. `QueryRAG(RAGRequest) → stream RAGChunk`
+3. `GetEmbedding(EmbeddingRequest) → EmbeddingResponse`
+
+These are the three (and only three) RPCs defined under `service AIWorker` in `proto/ai_worker.proto`.
+
+**Verification of key facts cited:**
+- `raven-worker` package, version `0.3.0`, Python `&gt;=3.12` — `ai-worker/pyproject.toml`
+- gRPC port `50051`, HTTP port `8090`, `127.0.0.1` bind default — `raven_worker/config.py`
+- Provider Protocol + `_SUPPORTED_PROVIDERS = {"openai", "cohere", "anthropic", "ollama"}` — `providers/base.py`, `providers/registry.py`
+- Encryption env var `RAVEN_ENCRYPTION_KEY`, not a single "switch provider" var — corrected the brief's framing because provider is selected per-request
+- RAG 8-step pipeline copied straight from `services/rag.py` docstring
+- `livekit-agents&gt;=1.0.0` dep version — `pyproject.toml`
+- Coverage `fail_under = 70`, `asyncio_mode = "auto"` — `pyproject.toml`
+- EE carve-out — `ai-worker/raven_worker/ee/README.md` + `ee-LICENSE`
+- Telemetry OTLP/gRPC only traces wired — `raven_worker/telemetry.py`
+
+**Did NOT push** per CLAUDE.md rules. No PR created — task brief only required the commit. Ready for caller to push / open PR.</result>
+<usage><total_tokens>93946</total_tokens><tool_uses>14</tool_uses><duration_ms>256338</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a37abca66de602738</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "T3: Multi-Tenancy concept" completed</summary>
+<result>Commit `ab2c83dc` created, signed-off, no AI attribution, no force-push.
+
+## Report
+
+**Branch:** `docs/content/multitenancy`
+**Commit SHA:** `ab2c83dc2f3ee650acdae7b7989e106032ac0820`
+**Status:** DONE
+
+**Files written:** `docs-site/stubs/concepts/multi-tenancy.md` (326 lines, target was 200-350)
+
+**Source files read:** `migrations/00002_roles.sql`, `00003_organizations.sql`, `00005_workspaces.sql`, `00007_knowledge_bases.sql`, `00008_documents.sql`, `00015_rls_policies.sql`, `00022_security_rules.sql`, `00032_billing_rls_and_payment_events.sql`; `internal/db/db.go`, `internal/db/db_test.go`; `internal/middleware/auth.go`; `internal/model/org.go`, `workspace.go`, `kb.go`, `document.go`, `conversation.go`; `internal/service/seed.go`; `internal/repository/airbyte.go` (representative); listed all of `internal/integration/*_test.go`; `cmd/api/main.go` (db.New wiring); `docs-site/.vitepress/config.ts`; existing concept stubs for format reference; `migrations/list` (00001–00039).
+
+**Tables with RLS:** 35 tables documented in the page (users, workspaces, workspace_members, knowledge_bases, documents, sources, chunks, embeddings, llm_provider_configs, api_keys, chat_sessions, chat_messages, processing_events, routing_rules, catalog_metadata, airbyte_connectors, airbyte_sync_history, security_rules, security_events, lead_profiles, webhook_configs, webhook_deliveries, stranger_users, notification_configs, notification_log, response_cache, user_identities, voice_sessions, voice_turns, voice_usage_summaries, whatsapp_phone_numbers, whatsapp_calls, subscriptions, payment_events, payment_intents, conversation_sessions). `organizations` intentionally excluded (it is the tenant boundary).
+
+**Build:** `cd docs-site &amp;&amp; npm ci &amp;&amp; npm run build` succeeds (vitepress 1.6.4 build + pagefind indexing, exit 0).
+
+**Items I corrected vs. the brief:**
+- The brief says "the auth middleware extracts org-id from the SuperTokens session". The codebase actually does this in two steps — `SessionMiddleware` only injects identity fields (`ExternalID`, `Email`, `Name`); a separate `UserLookup` middleware resolves the external ID to `ContextKeyOrgID`. I documented the real two-step flow.
+- The brief mentions `BYPASSRLS`. The codebase does NOT use the Postgres `BYPASSRLS` role attribute. Bypass is implemented as a per-table `CREATE POLICY admin_bypass ... FOR ALL TO raven_admin USING (true)` plus, in newer migrations, a `current_setting('app.bypass_rls', true) = 'true'` GUC. I documented this accurately.
+
+**Could not verify:** `/concepts/data-model` and `/api/authentication` cross-links — neither stub currently exists under `docs-site/stubs/`. The links are kept per the brief; they will resolve once those pages land. VitePress build emitted no dead-link warnings, so this is benign.
+
+**Not pushed.** Branch remains local to the worktree per CLAUDE.md rules.</result>
+<usage><total_tokens>110596</total_tokens><tool_uses>17</tool_uses><duration_ms>314164</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>acd3b02f3cc37ed06</task-id>
+<tool-use-id>toolu_01PR9SkvzXMdByoMBsKosjR1</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "T3: Hybrid Retrieval concept" completed</summary>
+<result>Commit landed with `Signed-off-by` trailer and no `Co-Authored-By`. Done.
+
+---
+
+## Report
+
+**Branch / commit:** `docs/content/hybrid-retrieval` @ `088267a1`
+
+**Status:** DONE
+
+**Files read (source-of-truth):**
+- `internal/service/search.go` (`SearchService.HybridSearch`, `fuseRRF`, `rrfK = 60`, `defaultSearchLimit`, `maxSearchLimit`)
+- `internal/service/hybrid_retrieval.go` (ClickHouse-backend variant)
+- `internal/repository/search.go` (`VectorSearch`, `BM25Search` SQL)
+- `internal/model/search.go` (`HybridSearchResult` shape)
+- `internal/integration/benchmark_test.go` (`TestBenchmarkBM25Threshold`, `TestBenchmarkHybridThreshold`)
+- `internal/integration/search_test.go` (RRF overlap assertion)
+- `migrations/00001_extensions_and_types.sql`, `00010_chunks_and_embeddings.sql`, `00017_bm25_heading_index.sql`
+- `proto/ai_worker.proto`
+- `ai-worker/raven_worker/retrieval/{rrf,vector_search,bm25_search,reranker,cache_repo}.py`
+- `ai-worker/raven_worker/services/rag.py`
+- `ai-worker/raven_worker/config.py`
+- `internal/config/config.go`
+- `README.md`, `docs-site/.vitepress/{config.ts,sidebars/main.ts}`, `docs-site/package.json`
+
+**Final line count:** 407 lines (target 250–400; 7 over for code fidelity).
+
+**Sparse search:** **`tsvector` + `ts_rank_cd`** (vanilla PostgreSQL FTS), not a BM25 extension. The README's "BM25" label refers to BM25-*style* lexical ranking via `ts_rank_cd`. The doc states this explicitly to reconcile the README claim with the actual SQL. Indexes: `idx_chunks_content_fts`, `idx_chunks_heading_fts`, `idx_chunks_content_heading_fts` (all GIN over `to_tsvector('english', …)`).
+
+**RRF k constant:** **`k = 60`** in both implementations (`rrfK = 60` in `internal/service/search.go`, default `k: int = 60` in `ai-worker/raven_worker/retrieval/rrf.py`).
+
+**Build verification:** `cd docs-site &amp;&amp; npm ci &amp;&amp; npm run build` succeeded (44 pages indexed, 20.9s build). The non-blocking `promql` syntax warning is preexisting.
+
+**Other findings:**
+- HNSW params are pgvector defaults: `m = 16, ef_construction = 64` with `vector_cosine_ops`; similarity = `1 - (&lt;=&gt;)`.
+- Reranker default: Cohere `rerank-english-v3.0` via `cohere.AsyncClientV2`; off unless `RAGRequest.filters["rerank"] == "cohere"` AND org has Cohere BYOK key. Graceful degradation (returns `None`) if package missing or call fails.
+- No env vars for top-K, RRF k, or hybrid weights — all hard-coded constants. `candidateK = topK * 3`, clamped to `maxSearchLimit = 100`.
+- Commit was made with `git commit -s` (DCO trailer present); no `Co-Authored-By` trailer; no `--no-verify`; no push performed.</result>
+<usage><total_tokens>125178</total_tokens><tool_uses>25</tool_uses><duration_ms>334850</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a6708b48da83ed148</task-id>
+<tool-use-id>toolu_01NpN5E1n11uXcEdAjz6GVZu</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "T6: Trust Security summary" completed</summary>
+<result>Done. Status: **DONE**
+
+- **Branch:** `docs/content/trust-security`
+- **Commit:** `7a068c9314fcde7170a10556048deda8b1879080` (signed off, no AI attribution)
+- **File:** `/Users/jobinlawrance/Project/raven/.worktrees/docs-trust-security/docs-site/stubs/trust/security.md` — 103 lines
+- **Build:** `npm run build` in `docs-site/` passes — 44 pages indexed, zero dead-link errors
+
+**Sources read:**
+- `SECURITY.md`, `MAINTAINERS.md`, `.well-known/security.txt`, `README.md`
+- `docs/security/slsa-verification.md`
+- `docs/compliance/osps-l2-2026-02-19.md`
+- `docs/compliance/openssf-best-practices-12590.md`
+- `.github/workflows/{codeql,semgrep,gitleaks,scorecard,security,docker}.yml`
+- `docs-site/content-map.json` (to confirm `/trust/*` and `/reference/security-policy` resolve via the `mappings`)
+- `docs-site/.vitepress/sidebars/main.ts` (Trust section already lists Security)
+- `docs-site/scripts/sync-content.ts` (to understand stub → built-site routing)
+
+**Key findings / decisions:**
+- VitePress dead-link checker rejects trailing slashes in internal links (appends `/index`); used the form `/trust/openssf-baseline` instead of `/trust/openssf-baseline/`. Build now clean.
+- Honest claims throughout: no audit/pentest commissioned, no paid bug bounty, single-maintainer pre-1.0 stated explicitly.
+- Privacy compliance page (`/trust/privacy/`) is referenced as "scheduled for publication once counsel review completes" per the brief — that page does not yet exist as a doc route, so the reference is in prose only, not as a Markdown link, which avoids a dead-link failure.
+- All link targets (`/trust/slsa-level-3`, `/trust/openssf-baseline`, `/trust/openssf-best-practices`, `/reference/security-policy`, `/community/maintainers`) resolve to existing pages mapped via `content-map.json`.
+- PR not created — brief said "never push" and `gh pr create` was out of scope.</result>
+<usage><total_tokens>82877</total_tokens><tool_uses>40</tool_uses><duration_ms>316689</duration_ms></usage>
+</task-notification>
+
+---
+
+https://docs.raven.ravencloak.org/ it's working now, continue
+
+---
+
+<task-notification>
+<task-id>a7fe326324e0c8d62</task-id>
+<tool-use-id>toolu_012jgbBi7TasAsjxkJ1oj1eU</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Embed Chat Widget tutorial" completed</summary>
+<result>All acceptance criteria met. Reporting back.
+
+---
+
+**Status: DONE_WITH_CONCERNS**
+
+**Branch / commit:** `docs/content/embed-widget` @ `7a71401b73e7104358be8cf8ffb9a0b1acab9664`
+**Subject:** `docs(get-started): real Embed the Chat Widget tutorial`
+**Signed-off-by:** present (Jobin Lawrance). No Co-Authored-By trailer. Not pushed.
+
+**File:** `/Users/jobinlawrance/Project/raven/.worktrees/docs-embed-widget/docs-site/stubs/get-started/embed-the-chat-widget.md`
+**Line count:** 298 (target 200–350)
+**Build:** `npm run build` succeeded (VitePress + copy-spec + Pagefind, 22.5s, 44 indexed pages).
+
+**Web-component name (verified):** `raven-chat`, registered in `frontend/src/components/chat-widget/index.ts` via `customElements.define('raven-chat', RavenChat)`, defined in `frontend/src/components/chat-widget/RavenChat.ce.ts`.
+
+**Attribute list (verified from `observedAttributes`):** `api-key`, `api-url`, `theme-color`, `avatar-url`, `welcome-text`, `position`, `voice-enabled`, `livekit-url`. All eight are documented in the page; none invented.
+
+**Widget bundle distribution:** Not yet a separately published, dedicated build target. There is no `build:widget` script in `frontend/package.json` and no widget-only entry in `frontend/vite.config.ts`. The e2e sandbox loads it from the Vite dev server as `http://localhost:5173/chat-widget.js`. The page documents the embed using `https://&lt;your-api&gt;/chat-widget.js` (matching the sandbox filename) and notes that the bundle is served from the API origin — accurate for current behaviour, but a dedicated CDN bundle pipeline is not in place.
+
+**Concerns flagged in the doc itself (not invented):**
+1. Per-key `allowed_domains` is stored and returned but not yet joined into the CORS check — explicitly called out, citing `TODO(M2)` in `internal/middleware/cors.go`. The workspace-level `RAVEN_CORS_ALLOWED_ORIGINS` is what's enforced today.
+2. The task brief referenced `rk_pub_` / `rk_sk_` key prefixes; the actual model (`internal/model/apikey.go`) has a single `key_prefix` plus a one-shot `raw_key`. I wrote the doc against what exists (single public key, scoped to one KB, public-safe by virtue of scoping + domain allowlist + revocation), and explained the trust model accordingly.</result>
+<usage><total_tokens>85594</total_tokens><tool_uses>17</tool_uses><duration_ms>236572</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aa54c3af0335067a0</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "First Knowledge Base tutorial" completed</summary>
+<result>## Report
+
+**Branch:** `docs/content/first-kb`
+**Commit:** `da62d577f8be9ff8d336c8b2bb565d524935306d` (DCO signed-off; no AI attribution; hooks not bypassed)
+
+**Source files read:**
+- `docs/quickstart.md` (handoff point)
+- `frontend/src/api/knowledge-bases.ts` and `frontend/src/api/conversations.ts`
+- `frontend/src/pages/knowledge-bases/KBListPage.vue`
+- `internal/handler/kb.go`, `workspace.go`, `upload.go`, `source.go`, `search.go`, `chat.go`, `conversation.go`, `routing.go`
+- `cmd/api/main.go` (router setup — verified actual mounted routes)
+- `internal/service/seed.go`
+- `internal/model/document.go`, `kb.go`, `workspace.go`, `source.go`, `chat.go`, `search.go`
+- `contracts/openapi.yaml`
+- `docs-site/.vitepress/sidebars/main.ts`, `config.ts`, `package.json`, `content-map.json`, `stubs/_template.md`
+
+**Final line count:** 415 lines (within the 250–400 target band, slightly over because the brief listed nine top-level sections — kept it tight).
+
+**Endpoints cited:** 9 distinct paths, all verified in code:
+- `POST /api/v1/orgs/{org_id}/workspaces`
+- `POST /api/v1/orgs/{org_id}/workspaces/{ws_id}/knowledge-bases`
+- `POST .../knowledge-bases/{kb_id}/documents/upload` (multipart)
+- `POST .../knowledge-bases/{kb_id}/sources`
+- `GET  .../knowledge-bases/{kb_id}/documents` (status polling)
+- `GET  .../knowledge-bases/{kb_id}/search?q=` (NOT POST — corrected from brief; code is GET)
+- `POST .../knowledge-bases/{kb_id}/completions` (SSE chat)
+- `GET  /api/v1/orgs/{org_id}/kbs/{kb_id}/conversations`
+- `GET  /api/v1/me`
+
+**Deviations from brief:** Search is `GET`, not `POST` — the brief was wrong; I cited the actual code (`internal/handler/search.go`). Called this out explicitly in-page. The chat endpoint is `.../completions`, not `.../conversations` (conversations is the history-listing endpoint).
+
+**Build:** `cd docs-site &amp;&amp; npm ci &amp;&amp; npm run build` succeeds (24.2s, 44 pages indexed by Pagefind). One render error caught and fixed mid-build: an unfenced `&lt;token&gt;` placeholder in a blockquote was parsed as a Vue tag; replaced with `$TOKEN`.
+
+**Status:** DONE</result>
+<usage><total_tokens>119131</total_tokens><tool_uses>23</tool_uses><duration_ms>285422</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a36d355d42ce9f5f1</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Webhooks &amp; Events guide" completed</summary>
+<result>Commit landed: `cd4d4ad4`, signed (SSH), signed-off, no AI attribution.
+
+## Report
+
+**Status:** DONE_WITH_CONCERNS — the docs are complete and the build passes, but the underlying feature has a real gap that the doc now calls out honestly.
+
+**Branch / commit:** `docs/content/webhooks` @ `cd4d4ad4` (SSH-signed, `Signed-off-by` trailer present, no Co-Authored-By).
+
+**File:** `/Users/jobinlawrance/Project/raven/.worktrees/docs-webhooks/docs-site/stubs/guides/webhooks-and-events.md`, **273 lines** (within 150–300 target). VitePress build: `build complete in 27.73s`, 44 pages indexed by Pagefind, no errors.
+
+**Outbound delivery — implemented or schema-only?** A hybrid that the page calls out plainly:
+- Schema (`migrations/00024_webhook_configs.sql`), CRUD API (`POST/GET/PUT/DELETE /orgs/:org_id/webhooks`), list-deliveries endpoint, HMAC-SHA256 signing with `X-Raven-Signature` / `X-Raven-Event` headers, SSRF-guarded HTTP client, failure-count tracking, auto-pause at `max_retries`: **all real** in `internal/jobs/webhook_delivery.go`, `internal/service/webhook.go`, `internal/handler/webhook.go`.
+- `WebhookService.Dispatch` is defined and unit-tested but has **zero production call sites** — no feature code emits events yet. The `internal/ee/webhooks` package is a doc-comment placeholder.
+- `next_retry_at` column exists but is never written; no scheduled-retry path; no replay endpoint.
+
+**Event types enumerated** (from `internal/model/webhook.go` + `supportedWebhookEvents`): `lead.generated`, `conversation.escalated`, `document.processed`, `sync.completed`. Inbound webhooks (`/webhooks/meta`, `/webhooks/whatsapp`, `/api/v1/billing/webhook`) are explicitly excluded as a separate concern.
+
+**Key sections delivered:** What's wired (table), Event types (table), Configure a webhook (with validation rules), Full endpoint table, Payload shape, Signing + verification (with Node verifier), Delivery semantics (at-least-once on `id`, Asynq, `MaxRetry(0)` with handler-managed retries), Inspecting deliveries, Replaying (marked not implemented), Rate limits (none), Best practices, cross-links to `../reference/api-overview.md` and `../reference/configuration.md`.
+
+Not pushed (per rules).</result>
+<usage><total_tokens>101412</total_tokens><tool_uses>14</tool_uses><duration_ms>212525</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a3c3a8159fde3a496</task-id>
+<tool-use-id>toolu_01Uoiar8VfsdMpENWrWg1Lja</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Voice Agent tutorial" completed</summary>
+<result>Commit landed with DCO signoff, no AI attribution, build green.
+
+---
+
+**Branch:** `docs/content/voice-agent`
+**Commit SHA:** `49938032412436b5cc5de6b809291a7471e231ff`
+**Final line count:** 329 lines (target 200–350)
+
+**STT/TTS providers actually wired in `python-agent`:** **None yet.**
+`ai-worker/raven_worker/agent.py` builds a `livekit.agents.voice.AgentSession` and joins the room, but the STT and TTS plugins inside `_entrypoint` are explicit TODOs — the source carries `TODO (#59): Add STT plugin (Deepgram or faster-whisper)` and `TODO (#60): Add TTS plugin (Cartesia or Piper)`. The Go side (`internal/config/config.go`, `internal/tts/`) does ship Cartesia + Piper TTS for an HTTP path and configures Deepgram/Whisper STT keys, but those are not consumed by the LiveKit agent yet. The tutorial documents this honestly rather than overclaiming.
+
+**Key sources verified:**
+- `ai-worker/raven_worker/agent.py` — agent entrypoint, WorkerOptions, env vars
+- `internal/handler/voice.go` + `internal/service/voice.go` — endpoints, quota, token gen
+- `internal/model/voice.go` + `migrations/...voice...` — schema, state enum
+- `docker-compose.yml` lines 76–124 — python-agent + livekit-server
+- `docker-compose.edge.yml` — confirmed neither service is present
+- `frontend/src/api/voice-sessions.ts` + `frontend/src/pages/voice/*.vue` + `frontend/src/router/index.ts` — UI walkthrough
+- `PRIVACY.md` — voice audio retention + sub-processor row
+- `docs-site/content-map.json` — confirms stub maps to `get-started/try-the-voice-agent.md`
+
+**Build:** `npm run build` in `docs-site/` succeeds; `try-the-voice-agent.html` renders into `.vitepress/dist/get-started/`, 44 pages indexed by Pagefind.
+
+**Status: DONE**
+
+Per CLAUDE.md, branch is **not pushed**; no PR created. The commit is signed off (`Signed-off-by: Jobin Lawrance &lt;jobinlawrance@gmail.com&gt;`), no `Co-Authored-By` trailer, no `--no-verify`.</result>
+<usage><total_tokens>123116</total_tokens><tool_uses>18</tool_uses><duration_ms>303302</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aa5feacd3421a83bc</task-id>
+<tool-use-id>toolu_016KWT7YnGxogF1rUr7Mxbrf</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Billing guide" completed</summary>
+<result>Commit landed with sign-off. Done.
+
+---
+
+**Branch:** `docs/content/billing`
+**Commit SHA:** `3ac53296ff64f583fcb5eff685eb0c04cf9e23dc`
+**File:** `/Users/jobinlawrance/Project/raven/.worktrees/docs-billing/docs-site/stubs/guides/billing.md`
+**Final line count:** 269 (target was 200–350)
+**Build:** `npm run build` succeeded; VitePress rendered 44 pages, Pagefind indexed cleanly.
+
+**Subscription lifecycle wiring status: partially-MVP.** Schema (`migrations/00019_subscriptions.sql`) defines six statuses (`active`, `canceled`, `past_due`, `trialing`, `paused`, `expired`) and `model.SubscriptionStatus` mirrors them, but the service today only:
+- Inserts as `active` on subscription create
+- Transitions to `canceled` on `subscription_cancelled` webhook / `DELETE /billing/subscriptions/:id`
+- Logs `payment_failed` to `payment_events` (does not itself flip status to `past_due`)
+- Extends `current_period_end` on `payment_succeeded`
+
+`trialing`, `paused`, `expired` are schema-ready but no service code path emits them. Tax/invoice/proration/dunning are all unimplemented and the guide says so. Webhook signature is strict (HMAC-SHA256, rejects everything if `RAVEN_HYPERSWITCH_WEBHOOK_SECRET` is empty).
+
+Hyperswitch runs as a **separate compose stack** (`deploy/hyperswitch/docker-compose.hyperswitch.yml`), not part of the main `docker-compose.yml`. Page documents this and cross-links to `/reference/configuration`, `/guides/workspaces-and-tenancy`, `/guides/llm-providers`, `/guides/webhooks-and-events`, `/guides/self-hosting/docker-compose`.
+
+Did **not** push — per CLAUDE.md rules.
+
+**Status: DONE**</result>
+<usage><total_tokens>93175</total_tokens><tool_uses>11</tool_uses><duration_ms>317550</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a4ccf5fe78bbdf762</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Traefik &amp; TLS guide" completed</summary>
+<result>---
+
+**Report**
+
+- **Branch:** `docs/content/traefik`
+- **Commit SHA:** `9a22ce4c0262f7627d3858b9a126bb20758a79f4` (signed off, no AI attribution)
+- **Final line count:** 437 lines (target 200–350; runs long because of the labelled router-rule table, full ACME block, and per-section verbatim YAML snippets — kept whole to stay code-grounded as the brief asks)
+- **Traefik image version:** `traefik:v3.3` (same in both `docker-compose.yml` and `docker-compose.edge.yml`; edge pins `platform: linux/arm64`)
+- **ACME storage path:** `/acme/acme.json` inside the named volume `acme-data` (`acme-data:/acme` mount); CA defaults to Let's Encrypt prod `https://acme-v02.api.letsencrypt.org/directory`, **DNS-01** challenge via Cloudflare (`CF_API_EMAIL` + `CF_DNS_API_TOKEN`)
+- **File path:** `/Users/jobinlawrance/Project/raven/.worktrees/docs-traefik/docs-site/stubs/guides/self-hosting/traefik-and-tls.md`
+- **Build:** `npm run build` succeeded (vitepress + pagefind, 44 pages, 35s). Only warnings were unrelated `promql` highlighter fallbacks and a chunk-size warning.
+- **Honesty calls:** I documented only the two services that actually have Traefik labels today (`go-api`, `livekit-server`) rather than listing aspirational `app/auth/logs/monitor` routers — flagged the `*.raven.ravencloak.org` subdomain migration as tracked separately. mTLS section is honest that there is none. Dashboard section warns about `api.insecure: true` shipped default. Cloudflare section notes that no `trustedIPs` list is shipped by default.
+
+**Status: DONE_WITH_CONCERNS** — content is real, code-grounded, build green, signed-off; the only concern is the final length (437 vs 200–350). Trim candidates if you want: the per-label table, troubleshooting block, or the dynamic-config quoted YAML.</result>
+<usage><total_tokens>84029</total_tokens><tool_uses>13</tool_uses><duration_ms>300523</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a5fda362a205e44f3</task-id>
+<tool-use-id>toolu_01SMYTc4Qedd6ozSJM6bPaBd</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Retrieval guide" completed</summary>
+<result>Commit signed, no AI attribution, hooks passed. Reporting back.
+
+---
+
+**Branch:** `docs/content/retrieval`
+**Commit SHA:** `cfdb958f5bf9c3d2ce7b1d604bc81f589adacb8d`
+**Final line count:** 351
+**`maxSearchLimit` value:** `100` (constant in `internal/service/search.go`; also notes `defaultSearchLimit = 10`, `rrfK = 60`, `candidateK = topK * 3`)
+**Status:** DONE_WITH_CONCERNS
+
+**Concerns (read before merging):**
+1. The brief asked for `POST /api/v1/.../search` but the actual route in `cmd/api/main.go:609` is **`GET /api/v1/orgs/{org_id}/workspaces/{ws_id}/knowledge-bases/{kb_id}/search`** with query params (`q`, `limit`, `doc_ids`). The guide documents what the code does, not the brief.
+2. The standalone hybrid-search REST endpoint **does not exist publicly yet** — `SearchService.HybridSearch` is wired in `main.go` only as `_ = hybridRetrievalSvc // TODO: wire into chat handler`. The guide documents this honestly: the BM25-only `/search` route is the public surface; hybrid is reached *through* `POST /api/v1/chat/{kb_id}/completions`. The hybrid result fields (`vector_score`, `bm25_score`, `rrf_score`, ranks) are documented as the internal shape for when the route is exposed.
+3. There is **no `debug: true` flag** on either endpoint — the brief suggested one. The guide documents the actual debug surface (structured logs from `rag.py`: `vector_search_start`, `bm25_search_start`, `chunks_fetched`, `rerank_applied`).
+4. The rerank flag is `filters.rerank = "cohere"` (a map entry on the chat-completions body), not a top-level toggle.
+
+**File:** `/Users/jobinlawrance/Project/raven/.worktrees/docs-retrieval/docs-site/stubs/guides/retrieval.md`
+**VitePress build:** success (134s, 44 pages indexed, no broken links).</result>
+<usage><total_tokens>119254</total_tokens><tool_uses>17</tool_uses><duration_ms>406500</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ae4937972d42ad357</task-id>
+<tool-use-id>toolu_01BMcHSSTSFFAQtQjn3rdry3</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "LLM Providers guide" completed</summary>
+<result>Commit is signed off (Signed-off-by trailer present), no Co-Authored-By, no `--no-verify`, build verified.
+
+## Report
+
+- **Branch / commit:** `docs/content/llm-providers` @ `fa4e5455b7f89ab99430704e371a8d98ed52c331`
+- **File:** `/Users/jobinlawrance/Project/raven/.worktrees/docs-llm-providers/docs-site/stubs/guides/llm-providers.md`
+- **Final line count:** 327 lines
+- **Build:** VitePress build + pagefind index succeeded (44 pages indexed, 42s).
+
+**Providers wired (with capability map):**
+
+| Provider | chat | embed | rerank |
+|---|---|---|---|
+| `anthropic` | yes | no (stub raises `NotImplementedError`) | no |
+| `openai` | yes | yes (`text-embedding-3-small`, 1536 dims) | no |
+| `cohere` | yes | yes (`embed-english-v3.0`, 1024 dims) | **yes** (`rerank-english-v3.0`, default) |
+| `ollama` | yes | yes (`nomic-embed-text`, 768 dims) | no |
+
+The Go enum also reserves `google`, `azure_openai`, `custom` but they have no Python provider class yet — flagged in the doc.
+
+**Encryption:** AES-256-GCM via `internal/crypto/aes.go`. Master key = **32 bytes** (errors with `ErrInvalidKeyLength` otherwise), provided as `RAVEN_ENCRYPTION_AES_KEY` (conventionally a 64-char hex string from `openssl rand -hex 32`). 12-byte random nonce per row stored in `api_key_iv`. Ciphertext lives in `api_key_encrypted BYTEA`.
+
+**Key facts captured from real code:** API routes (`cmd/api/main.go` group + `/default` endpoint), `CreateLLMProviderRequest` schema, `_KEYLESS_PROVIDERS = {"ollama"}`, the registry's `ORDER BY is_default DESC LIMIT 1` selection, the Ollama seed migration (`00039`), and Asynq `MaxRetry` default of 5 (`RAVEN_QUEUE_MAX_RETRY`, with webhook delivery as the deliberate exception).
+
+**Status:** DONE</result>
+<usage><total_tokens>104997</total_tokens><tool_uses>25</tool_uses><duration_ms>454164</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a739b885cd6f61654</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Workspaces &amp; Tenancy guide" completed</summary>
+<result>Sign-off present. Build succeeded. Task complete.
+
+---
+
+**Report**
+
+- **Branch / commit:** `docs/content/workspaces` @ `0bae75736d4ecbb44f4ebd341abc88ff62fd2953`
+- **Real role names enumerated:**
+  - Workspace `workspace_role` ENUM (`migrations/00001_extensions_and_types.sql`): `owner`, `admin`, `member`, `viewer` — ranked 3/2/1/0 in `internal/middleware/rbac.go`.
+  - Org-level role (JWT claim, `internal/middleware/auth.go`): `org_admin` — bypasses all workspace checks.
+- **File:** `/Users/jobinlawrance/Project/raven/.worktrees/docs-workspaces/docs-site/stubs/guides/workspaces-and-tenancy.md`
+- **Final line count:** 334 lines (within 200-350 target).
+- **Build:** `npm run build` succeeded — VitePress + Pagefind indexed 44 pages.
+- **Status: DONE_WITH_CONCERNS**
+
+**Concerns / deviations from the brief:**
+1. The brief asked for an "Invite members" section citing AWS SES email delivery, but **no invitation endpoint exists** in the codebase (`grep` confirmed no `InviteMember`/`invitation` handler). I documented the actual flow (direct `POST .../members` by user_id) and noted the email-invite flow is on the roadmap rather than inventing it.
+2. The brief said `security_events` audits "every CRUD op", but the actual table (`migrations/00022_security_rules.sql`) records only security-rule hits (IP/geo blocks, pattern matches, rate overrides) — `event_type` is one of `blocked`/`throttled`/`alert`/`suspicious`. I documented what it really does and noted no generic CRUD audit table exists yet; OpenObserve access logs are the fallback.
+3. The brief pointed at `migrations/00002_roles.sql` for role names — that file actually creates the *Postgres* roles `raven_app` / `raven_admin`, not application roles. The real app roles live in `migrations/00001_extensions_and_types.sql` as the `workspace_role` ENUM; I cited that instead.</result>
+<usage><total_tokens>119501</total_tokens><tool_uses>31</tool_uses><duration_ms>506546</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a3651cecfa6f40abd</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Ingestion guide" completed</summary>
+<result>Done.
+
+**Branch:** `docs/content/ingestion` (in worktree `/Users/jobinlawrance/Project/raven/.worktrees/docs-ingestion`)
+**Commit SHA:** `e8c596cbd26811779a8784a6187cd96fc3d9aefc` (signed off, no AI attribution)
+**Splitter:** `langchain_text_splitters.RecursiveCharacterTextSplitter` with paragraph→line→sentence→clause→word→char separator ladder
+**Default chunk size:** 2048 chars (~512 tokens), 200 char overlap (~50 tokens); from `ai-worker/raven_worker/processors/chunker.py`
+**Embedding model default:** OpenAI `text-embedding-3-small` (1536 dimensions; matches `embeddings.embedding vector(1536)` in `migrations/00010_chunks_and_embeddings.sql`); BYOK via per-org provider lookup in `ai-worker/raven_worker/services/embedding.py`
+**Final line count:** 395 lines (within the 250–400 target)
+**Build:** VitePress build succeeded (`build complete in 45.82s`), `docs-site/.vitepress/dist/guides/ingestion.html` renders at 70 KB and Pagefind indexed it.
+**Status:** DONE
+
+Key cited paths in the guide: `internal/handler/upload.go`, `internal/handler/source.go`, `internal/queue/tasks.go`, `internal/queue/client.go`, `internal/jobs/document_process.go`, `internal/service/seed.go`, `internal/storage/seaweedfs.go`, `internal/model/source.go`, `migrations/00008_documents.sql`, `migrations/00010_chunks_and_embeddings.sql`, `ai-worker/raven_worker/processors/{parser,chunker,scraper}.py`, `ai-worker/raven_worker/services/embedding.py`, `ai-worker/pyproject.toml`. Cross-links land on `/concepts/hybrid-retrieval`, `/guides/retrieval`, `/guides/self-hosting/observability`, and `/reference/configuration` per brief.</result>
+<usage><total_tokens>135959</total_tokens><tool_uses>26</tool_uses><duration_ms>486889</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a0fe3781c3dfeebe3</task-id>
+<tool-use-id>toolu_01CGoA3PVtkYGCi4ACHvNfeo</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Upgrades guide" completed</summary>
+<result>Committed cleanly with sign-off, no AI attribution, hooks ran (or skipped silently).
+
+---
+
+**Report**
+
+- **Branch:** `docs/content/upgrades`
+- **Commit SHA:** `95d19d3a7d64b37c34abfe14cb1345ec71440c4e`
+- **Final line count:** 377 lines (`docs-site/stubs/guides/self-hosting/upgrades.md`)
+- **Migration mechanism:** **NOT auto-run on boot.** Confirmed by reading `cmd/api/main.go` (no goose import, no migration call), and `grep -r 'github.com/pressly/goose'` across `cmd/` + non-test `internal/` returned only `internal/testutil/db.go` (a test helper). The Dockerfile does not COPY `migrations/` into the runtime image either — only `/app/api` is shipped. Operators run `make migrate-up`, which delegates to `dotenvx run -- goose -dir migrations postgres "$DATABASE_URL" up`. The page documents this explicitly and orders the upgrade procedure as: pull → `make migrate-up` → `docker compose down/up`.
+- **Build:** `npm run build` in `docs-site/` completed in 33s and indexed 44 pages — page renders.
+- **Cross-links:** `/contributing/release-process`, `/reference/changelog`, `/guides/self-hosting/backups`, `/trust/slsa-level-3` — all four targets exist.
+- **Image tag strategy:** verified from `.github/workflows/release.yml` — `type=semver,pattern={{version}}`, `type=semver,pattern={{major}}.{{minor}}`, plus `type=raw,value=latest` gated by `!contains(...'-rc')`. Documented.
+- **Slight length overshoot:** target was 200–350 lines; landed at 377. The pre-1.0 caveats, LiveKit, rollback, and post-upgrade checklist sections were each non-trivial to cover honestly.
+
+**Status:** DONE</result>
+<usage><total_tokens>91150</total_tokens><tool_uses>16</tool_uses><duration_ms>369609</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ac528cb62bd540b6b</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Edge &amp; Raspberry Pi guide" completed</summary>
+<result>Commit landed cleanly with signoff and no AI attribution. Build succeeded.
+
+---
+
+**Report**
+
+- **Branch:** `docs/content/edge-pi`
+- **Commit SHA:** `c162c794`
+- **Final line count:** 352 lines
+- **3 services confirmed:** Yes — `go-api` (256 MB), `postgres` pgvector:pg18 (512 MB), `traefik:v3.3` (128 MB). Total reserved ~896 MB, cited directly from `docker-compose.edge.yml`.
+- **`deploy/edge/` shipped artefacts:** Real and runnable. Contains `install.sh` (prereq checks, arch detection, RAM warning, data dir creation, optional image pulls) and `.env.example` (POSTGRES_*, DATABASE_URL, GRPC_AI_WORKER_ADDR, RAVEN_EDGE_MODE, RAVEN_API_IMAGE, DOMAIN/ACME_EMAIL). Wired into the guide's bootstrap section.
+- **Verifiable claims grounded:** Compose service count + memory caps, `Makefile.edge` build command (`CGO_ENABLED=0 GOOS=linux GOARCH=arm64`, `-ldflags="-s -w ..."`), ~25 MB binary from README line 45, cloudflared Ansible role at `deploy/ansible/roles/cloudflared/` with `config.yml.j2` template, env var name mapping `GRPC_AI_WORKER_ADDR` → `RAVEN_GRPC_WORKER_ADDR`.
+- **Build:** `npm run build` in `docs-site/` succeeded — 44 pages rendered, sitemap generated, Pagefind indexed. Only pre-existing warnings (`env`/`promql` syntax highlighters not loaded — affects other pages, not this one).
+- **Cross-links added:** `/concepts/deployment-models`, `/guides/self-hosting/docker-compose`, `/guides/self-hosting/traefik-and-tls`, `/guides/self-hosting/backups`, `/guides/self-hosting/upgrades`, `/reference/configuration`.
+- **CLAUDE.md compliance:** Signed-off-by present, no Co-Authored-By, no `--no-verify`, no push.
+
+**Status: DONE**</result>
+<usage><total_tokens>92340</total_tokens><tool_uses>13</tool_uses><duration_ms>407890</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aa1c926d73698fd1f</task-id>
+<tool-use-id>toolu_017dgSEDCCFsyudftfGua7AH</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Voice guide" completed</summary>
+<result>Committed with sign-off. No push performed (per CLAUDE.md).
+
+---
+
+**Branch + SHA:** `docs/content/voice` @ `345e7e12a01c08264f2fc7dc98eeb2e973c3bdda`
+**Final line count:** 350 (within 200-350 target)
+**STT/TTS providers wired:** Config layer wires **STT = `deepgram` | `whisper`** and **TTS = `cartesia` | `piper`** (`internal/config/config.go` + `RAVEN_STT_*` / `RAVEN_TTS_*` env vars). The python-agent process itself (`ai-worker/raven_worker/agent.py`) currently constructs an empty `AgentSession()` with `auto_subscribe=AUDIO_ONLY` and has TODO markers for plugin attachment (tracked as issues #59 STT and #60 TTS). The guide documents both honestly.
+**Build:** `npm run build` succeeded — VitePress emitted 45 pages, Pagefind indexed 44.
+**Commit:** signed off (`Signed-off-by: Jobin Lawrance &lt;jobinlawrance@gmail.com&gt;`), no AI attribution, no push.
+
+**Status: DONE_WITH_CONCERNS**
+
+Concerns to surface for the reviewer:
+1. The agent's STT/TTS plugins are **not actually wired yet** (#59/#60 are open). The guide frames the env-var section as a "target contract" and clearly states no audio answer happens until those issues land. If the reviewer wants this guide to defer entirely until #59/#60 ship, this section can be cut, but I judged operator-readable env-var reference now to be more valuable than silence.
+2. `voice_usage_summaries` only stores `total_sessions` and `total_duration_seconds` — no token/character/cost columns yet. Guide says so explicitly; if a richer schema is in flight, the Usage section needs a follow-up.
+
+Files modified: `/Users/jobinlawrance/Project/raven/.worktrees/docs-voice/docs-site/stubs/guides/voice.md`</result>
+<usage><total_tokens>128366</total_tokens><tool_uses>22</tool_uses><duration_ms>452652</duration_ms></usage>
+</task-notification>
+
+---
+
+1
+
+---
+
+<task-notification>
+<task-id>a6c44548b598ad2d5</task-id>
+<tool-use-id>toolu_01KQhLo3Y43EoyBTPBjr5Bns</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Bucket B: Widget allowed_domains CORS" completed</summary>
+<result>Changes are staged. Build, vet, and tests all pass; the lint passes when run outside the hook. The hook itself is being killed (signal 9, OOM) by the OS.
+
+---
+
+## Report
+
+**Status:** DONE_WITH_CONCERNS — implementation complete and verified; the pre-commit hook is OS-OOM-killing on this sandbox so the commit is staged but not landed. The user can finalise with `git commit -s` once the sandbox has more headroom (lint passes cleanly when invoked directly).
+
+**Branch:** `fix/widget-cors` (worktree at `/Users/jobinlawrance/Project/raven/.worktrees/docs-fixes-a/.worktrees/fix-widget-cors`) — staged on top of `ae2bb24f`. No new commit SHA yet (see concerns).
+
+**Files modified (all staged):**
+- `internal/middleware/cors.go` — removed `TODO(M2)`; added `APIKeyOriginLookup`, variadic-arg `CORSMiddleware`, `AllowOriginWithContextFunc`, and `isOriginAllowedByDomains`/`originHost` helpers.
+- `internal/middleware/cors_test.go` — 6 new tests + helpers.
+- `cmd/api/main.go` (line 511) — passes `apiKeyLookupAdapter` into `CORSMiddleware`.
+- `docs-site/stubs/get-started/embed-the-chat-widget.md` — replaces the `TODO(M2)` note with the actual two-layer enforcement description and the wildcard table.
+
+**Wildcard syntax:** `*.example.com` matches apex `example.com`, direct sub-domains (`www.example.com`), and deeper (`a.b.example.com`). Mirrors the rule already used by `APIKeyAuth` so the two layers stay consistent. Other wildcards (e.g. `foo.*.example.com`) are treated as literal and never match.
+
+**Middleware reordering:** None. The lookup is performed inside `AllowOriginWithContextFunc`, justified by a doc-comment: CORS preflights must run before any auth middleware (the browser strips `X-API-Key` from the OPTIONS probe), and CORS remains the single global gate.
+
+**Hardening doc:** No update needed — `hardening.md` only references widget rate-limit tiers; it never mentioned the unimplemented per-key allowlist.
+
+**Tests added (all pass, `go test ./internal/middleware/...` clean, 1.225s):**
+- `TestCORSPerKey_NoKeyOnRequest_FallsBackToServerAllowlist`
+- `REDACTED`
+- `TestCORSPerKey_MatchingOrigin_Allowed`
+- `TestCORSPerKey_NonMatchingOrigin_Rejected` (covers attacker.com case)
+- `TestCORSPerKey_WildcardMatch` (apex / sub / deeper / non-match)
+- `TestCORSPerKey_LookupError_FailsClosed`
+
+**Verification:** `go build ./...` clean, `go vet` clean, `golangci-lint run --concurrency=1 ./...` clean, full middleware suite passes.
+
+**Concern:** the `.githooks/pre-commit` runs `golangci-lint run ./...` with default concurrency and gets `Killed: 9` (OOM) from the kernel inside the sandboxed git context. Running the same lint directly succeeds. Per CLAUDE.md I did not use `--no-verify`. Suggest the user run `git commit -s` from their own shell, or temporarily set `GOMEMLIMIT`/`--concurrency=1` in the hook.</result>
+<usage><total_tokens>119819</total_tokens><tool_uses>75</tool_uses><duration_ms>581752</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ab16b80a0c5f9d3d2</task-id>
+<tool-use-id>toolu_01BfXZetu8M7SncQ9o8SU8FG</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Bucket B: Retrieval env vars" completed</summary>
+<result>All Bash calls are denied. The pre-commit hook reliably OOMs `golangci-lint` under the ctx_execute sandbox, even though lint passes when run alone (because ctx_execute keeps the same parent process which is already loaded). I can confirm lint passes; the hook is the only blocker.
+
+I'll finalize the report. The work is complete on disk; the user just needs to run `git commit -s` outside the sandbox to land it.
+
+---
+
+**Branch:** `fix/retrieval-env` at `/Users/jobinlawrance/Project/raven/.worktrees/docs-fixes-a/.worktrees/fix-retrieval-env/` (worktree base HEAD `ae2bb24f`).
+
+**Commit SHA(s):** None — all 9 files are staged but the commit could not be created from this session. The pre-commit hook (`golangci-lint run ./...`) was OOM-killed inside the harness sandbox every time. I verified lint passes cleanly when invoked directly (`golangci-lint run ./...` returned no output, exit 0). To land it, run from a normal shell:
+
+```
+cd /Users/jobinlawrance/Project/raven/.worktrees/docs-fixes-a/.worktrees/fix-retrieval-env
+git commit -s -m "feat(retrieval): make hybrid-search tuning env-configurable" -m "Closes finding #4 from the docs audit. ..."
+```
+
+**Files modified (all staged):**
+- `internal/config/config.go` — new `RetrievalConfig` struct, defaults, BindEnv mappings, validation.
+- `internal/service/search.go` — `SearchService` now carries `config.RetrievalConfig`; `HybridSearch` reads `DefaultLimit`/`MaxLimit`/`CandidateMultiplier` from cfg; new `fuseRRFWith(k, vw, bw)` used by the service; `fuseRRF` kept as 3-arg shim for existing tests; `clampLimitWith` parameterised; `normaliseRetrievalConfig` backfills zero values.
+- `cmd/api/main.go` — wires `cfg.Retrieval` into `NewSearchService`.
+- `internal/integration/setup_test.go` — updated to pass `config.RetrievalConfig{}` (zero → defaults via normalise).
+- `internal/service/search_test.go` — adds `TestRetrievalConfigEnvOverride`, `TestRetrievalConfigDefaults`, `TestClampLimitWithConfig`, `TestFuseRRFWith_RespectsWeights`, `TestNormaliseRetrievalConfig`, `TestRetrievalConfigValidationRejectsBadValues`.
+- `ai-worker/raven_worker/config.py` — adds `retrieval_rrf_k: int = 60` and `retrieval_default_top_n: int = 10`.
+- `ai-worker/raven_worker/services/rag.py` — RRF call now reads both from `settings`.
+- `docs-site/stubs/concepts/hybrid-retrieval.md` — Configuration + RRF + Tradeoffs sections updated.
+- `docs-site/stubs/reference/configuration.md` — new `### Retrieval (hybrid search tuning)` block and two new Python rows.
+
+**Test outcome:**
+- `go build ./...` — pass.
+- `go test ./internal/service/... ./internal/config/... ./cmd/...` — `ok`, all pass.
+- `go vet ./...` — clean.
+- `golangci-lint run ./...` — clean (verified standalone).
+- `gofmt -l` flags only `cmd/api/main.go`, which was already not gofmt-clean before my one-line edit (out of scope).
+- Python: `uv run pytest tests/retrieval/test_rrf.py` — 10/10 pass. `ruff check` on edited files — clean. Env-override smoke verified (`RAVEN_RETRIEVAL_RRF_K=42` → `settings.retrieval_rrf_k=42`).
+
+**Python side:** Done. `retrieval_rrf_k` and `retrieval_default_top_n` added to `Settings`; `rag.py` reads them at the fusion call site. Function default `k=60` kept so the existing `tests/retrieval/test_rrf.py` is untouched.
+
+**Status:** DONE_WITH_CONCERNS — implementation is complete and verified clean, but the commit needs to be created outside the harness sandbox because the `golangci-lint` pre-commit hook gets OOM-killed (subprocess memory limit), not because of any real lint failure. The user should run `git commit -s` in a normal shell to land the staged changes.</result>
+<usage><total_tokens>173549</total_tokens><tool_uses>83</tool_uses><duration_ms>680826</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a047b6d1c23df2ad4</task-id>
+<tool-use-id>toolu_014k2Wrjdu2AGZmk4zqG3A1L</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Bucket B: Container hardening" completed</summary>
+<result>Commit landed. SHA `00f1fcab`, signed off, no AI attribution. Not pushed.
+
+## Report
+
+**Branch / commit:** `fix/hardening-compose` @ `00f1fcab` (signed-off, no Co-Authored-By, not pushed).
+
+**Per-service summary** (main `docker-compose.yml` — 14 services):
+
+| service | cap_drop | cap_add | verified |
+|---|---|---|---|
+| go-api | ALL | (none) | image not built in-sandbox; static Go non-root binary |
+| python-worker | ALL | (none) | image not built; non-root Python |
+| python-agent | ALL | (none) | image not built; non-root Python |
+| livekit-server | ALL | (none) | host-port clash with running stack — not started here |
+| postgres | ALL | CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID | standalone `pgvector/pgvector:pg18` started, `pg_isready` OK |
+| clickhouse | ALL | CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID, IPC_LOCK, SYS_NICE | standalone `clickhouse-server:25.6` started cleanly |
+| valkey | ALL | CHOWN, DAC_OVERRIDE, SETGID, SETUID | in-compose run healthy |
+| supertokens | ALL | CHOWN, DAC_OVERRIDE, SETGID, SETUID | standalone JVM image started, listening on 3567 |
+| seaweedfs-master/volume/filer | ALL | SETGID, SETUID, SETPCAP | in-compose run; without SETPCAP fails with "su-exec: setgroups: Operation not permitted" — fix applied |
+| traefik | ALL | NET_BIND_SERVICE | standalone bound to :80 OK |
+| openobserve | ALL | (none) | standalone HTTP server on 5080 OK |
+| pgbackrest | ALL | CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID | base image `pgbackrest/pgbackrest:latest` not available publicly (pre-existing compose issue, unrelated) |
+
+`docker-compose.edge.yml` — same treatment for go-api / postgres / traefik.
+
+**Verification snapshot:**
+- `docker compose -f docker-compose.yml config --quiet` → exit 0
+- `docker compose -f docker-compose.edge.yml config --quiet` → exit 0
+- Full stack `up -d` not feasible inside this sandbox: pre-existing issues block it (pg18 `/var/lib/postgresql/data` mount-path bug, `clickhouse-server:25` manifest missing, `pgbackrest/pgbackrest:latest` does not exist publicly, plus host-port collisions with the user's already-running raven/openobserve/wordpress containers). All capability lists were therefore verified by running each image standalone with the same `--cap-drop ALL --cap-add …` set used in the compose file.
+
+**Docs:** `docs-site/stubs/guides/self-hosting/hardening.md` "Container hardening" section rewritten — replaced "not bundled — recommended overrides" with a per-service cap_add table and notes that `read_only` / `tmpfs` remain a deferred follow-up.
+
+**Status:** DONE_WITH_CONCERNS — capabilities verified standalone, but a full `docker compose up -d` for all 14 services could not complete in-sandbox due to three pre-existing compose issues and host-port clashes; please run the full bring-up on a clean host to confirm before merging.</result>
+<usage><total_tokens>134625</total_tokens><tool_uses>105</tool_uses><duration_ms>754588</duration_ms></usage>
+</task-notification>
+
+---
+
+done
