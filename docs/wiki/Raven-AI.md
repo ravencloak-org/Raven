@@ -1,4 +1,4 @@
-# Raven Local (Desktop)
+# Raven AI (Desktop)
 
 A self-contained desktop edition of Raven for users who want everything to run locally — no cloud, no telemetry by default, no multi-tenancy. Built as a thin [Tauri](https://tauri.app/) shell over the existing Docker compose, with [Ollama](https://ollama.com/) bundled as a local LLM provider.
 
@@ -6,7 +6,7 @@ A self-contained desktop edition of Raven for users who want everything to run l
 
 ## Why
 
-Raven's cloud SaaS is the primary product, but the architecture has always been edge-deployable (the same stack runs on a Raspberry Pi). Raven Local turns that into a one-click experience for:
+Raven's cloud SaaS is the primary product, but the architecture has always been edge-deployable (the same stack runs on a Raspberry Pi). Raven AI turns that into a one-click experience for:
 
 - Privacy-conscious users who don't want any data leaving their machine
 - Regulated industries with on-prem mandates
@@ -60,20 +60,20 @@ The system-requirements precheck ([#420](https://github.com/ravencloak-org/Raven
 
 ## Upgrade path
 
-A user who outgrows Raven Local — needs multiple users, remote access, scaling — can graduate to:
+A user who outgrows Raven AI — needs multiple users, remote access, scaling — can graduate to:
 
 1. **Self-hosted Raven** — same compose, run it on a server, switch off `RAVEN_SINGLE_USER`, point users at the host's URL.
-2. **Raven Cloud (managed SaaS)** — export the workspace from Raven Local, import into the hosted offering.
+2. **Raven Cloud (managed SaaS)** — export the workspace from Raven AI, import into the hosted offering.
 
 The data model is identical across all three; the differences are deployment topology and the auth flag.
 
 ## Telemetry
 
-Raven Local ships with telemetry **off by default**. The optional opt-in (added in [#424](https://github.com/ravencloak-org/Raven/issues/424)) sends only anonymous usage counters (e.g., "Ollama model downloaded") via the existing OpenObserve pipeline pointed at our public endpoint. No content, no prompts, no PII.
+Raven AI ships with telemetry **off by default**. The optional opt-in (added in [#424](https://github.com/ravencloak-org/Raven/issues/424)) sends only anonymous usage counters (e.g., "Ollama model downloaded") via the existing OpenObserve pipeline pointed at our public endpoint. No content, no prompts, no PII.
 
 ## See also
 
 - [Architecture-Overview](Architecture-Overview.md) — the underlying Raven architecture (cloud + self-hosted + local share this)
 - [Hardware-Requirements](Hardware-Requirements.md) — the broader Raven hardware story
 - [Roadmap](Roadmap.md) — milestone-level plan
-- [Release QA checklist](../qa/raven-local-release-checklist.md) — manual pre-release validation steps
+- [Release QA checklist](../qa/raven-ai-release-checklist.md) — manual pre-release validation steps

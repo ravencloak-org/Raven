@@ -300,7 +300,7 @@ onMounted(async () => {
       <p class="text-xs text-neutral-500">
         Export and factory-reset workflows are deferred to a follow-up issue.
         For now, you can manually back up the docker compose volumes:
-        <code class="font-mono">~/Library/Containers/io.ravencloak.local/Data/docker/volumes/</code>
+        <code class="font-mono">~/Library/Containers/io.ravencloak.ai/Data/docker/volumes/</code>
         on macOS, or the equivalent docker volumes on Windows/Linux.
       </p>
     </section>

@@ -1,4 +1,4 @@
-"""Ollama embedding provider for Raven Local.
+"""Ollama embedding provider for Raven AI.
 
 Talks to a local Ollama daemon's ``/api/embeddings`` endpoint. Used in
 single-user (desktop) mode where embeddings stay on the host.
@@ -16,7 +16,7 @@ from raven_worker.providers.base import EmbeddingProvider
 logger = structlog.get_logger(__name__)
 
 # Default model and dimensions for nomic-embed-text — the bundled local
-# embedding model spec'd for Raven Local.
+# embedding model spec'd for Raven AI.
 _DEFAULT_MODEL = "nomic-embed-text"
 _DEFAULT_DIMENSIONS = 768
 _DEFAULT_BASE_URL = "http://ollama:11434"
@@ -39,7 +39,7 @@ class OllamaEmbeddingProvider:
     """Generate embeddings using a locally-running Ollama daemon.
 
     No API key is required — connectivity is to a local sidecar within the
-    Raven Local docker compose network.
+    Raven AI docker compose network.
 
     Implements the :class:`~raven_worker.providers.base.EmbeddingProvider` protocol.
     """

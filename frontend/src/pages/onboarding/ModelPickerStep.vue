@@ -94,7 +94,7 @@ async function pullSelected() {
       Pick a local model
     </h2>
     <p class="text-neutral-500 text-sm mb-6">
-      Raven Local will download an Ollama model to run chat on your machine.
+      Raven AI will download an Ollama model to run chat on your machine.
     </p>
 
     <ul class="space-y-2 mb-6">

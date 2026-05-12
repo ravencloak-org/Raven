@@ -1,4 +1,4 @@
-//! System-requirements precheck for Raven Local.
+//! System-requirements precheck for Raven AI.
 //!
 //! Verifies the host meets the minimum thresholds (RAM, free disk, CPU
 //! cores) before launching the compose stack. A failure surfaces a

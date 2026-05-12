@@ -167,7 +167,7 @@ router.beforeEach(async (to) => {
   const serverConfig = useServerConfigStore()
   const auth = useAuthStore()
 
-  // In single-user (Raven Local) mode there is no login flow — the app always
+  // In single-user (Raven AI) mode there is no login flow — the app always
   // boots directly to the dashboard. Skip the login/callback pages entirely.
   if (serverConfig.singleUser) {
     if (to.path === '/login' || to.path === '/callback' || to.path === '/onboarding') {

@@ -1,4 +1,4 @@
-//! Compose lifecycle orchestrator for Raven Local.
+//! Compose lifecycle orchestrator for Raven AI.
 //!
 //! Detects Docker, brings the bundled `docker-compose.local.yml` up on
 //! launch, polls `/healthz` until ready, streams logs to a frontend

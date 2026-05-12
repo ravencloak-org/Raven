@@ -1,5 +1,5 @@
 /**
- * End-to-end test for the Raven Local first-run wizard.
+ * End-to-end test for the Raven AI first-run wizard.
  *
  * Scope (v1, per M12/01):
  *   - Stubbed Tauri bridge in window so the wizard runs in plain Chromium
@@ -118,7 +118,7 @@ async function installTauriBridge(
   )
 }
 
-test.describe('Raven Local — first-run onboarding wizard', () => {
+test.describe('Raven AI — first-run onboarding wizard', () => {
   test.beforeEach(async ({ page }) => {
     // Block all SuperTokens calls (single-user mode means they shouldn't fire,
     // but defensive: a bug that lets them through should fail the test, not

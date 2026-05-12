@@ -1,4 +1,4 @@
-//! Library entry point for `raven-local`.
+//! Library entry point for `raven-ai`.
 //!
 //! Tauri 2 templates split between `main.rs` (binary) and `lib.rs` so
 //! mobile targets (iOS/Android) can link the same code. For now we keep

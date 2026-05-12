@@ -3,13 +3,13 @@ name: Desktop release
 on:
   push:
     tags:
-      - 'raven-local-v*'
+      - 'raven-ai-v*'
   workflow_dispatch:
     inputs:
       tag:
         description: 'Tag to label the build (testing only — no release upload)'
         required: false
-        default: 'raven-local-v0.0.0-test'
+        default: 'raven-ai-v0.0.0-test'
 
 permissions: {}
 
@@ -105,11 +105,11 @@ jobs:
           # unsigned bundle on a real user's machine; in a CI runner it's
           # permissive enough to launch. If launch fails, the test step
           # below catches it.
-          open -a "Raven Local" || echo "::warning::open -a failed"
+          open -a "Raven AI" || echo "::warning::open -a failed"
 
           # Wait for the process to appear.
           for i in {1..15}; do
-            if pgrep -f "Raven Local" >/dev/null; then
+            if pgrep -f "Raven AI" >/dev/null; then
               echo "App process is alive"
               break
             fi
@@ -123,7 +123,7 @@ jobs:
           # Verify the process is still running 10 s after launch (catches
           # immediate-crash regressions).
           sleep 10
-          if pgrep -f "Raven Local" >/dev/null; then
+          if pgrep -f "Raven AI" >/dev/null; then
             echo "Process still alive after 10 s — smoke OK"
           else
             echo "::error::App process died within 10 s of launch"
@@ -131,7 +131,7 @@ jobs:
           fi
 
           # Tear down.
-          pkill -f "Raven Local" || true
+          pkill -f "Raven AI" || true
 
       - name: Smoke install + launch (Windows)
         if: matrix.os == 'windows-latest'
@@ -146,8 +146,8 @@ jobs:
           Write-Host "msiexec exit: $($proc.ExitCode)"
           if ($proc.ExitCode -ne 0) { Write-Error "msiexec failed: $($proc.ExitCode)"; exit 1 }
 
-          # The MSI installs to Program Files\Raven Local\.
-          $exe = Get-ChildItem -Path "C:\Program Files\Raven Local\*.exe" -Recurse | Select-Object -First 1
+          # The MSI installs to Program Files\Raven AI\.
+          $exe = Get-ChildItem -Path "C:\Program Files\Raven AI\*.exe" -Recurse | Select-Object -First 1
           if (-not $exe) { Write-Error "Installed exe not found"; exit 1 }
           Write-Host "Launching $($exe.FullName)"
 
@@ -238,7 +238,7 @@ jobs:
           subject-path: ${{ matrix.artifact_glob }}
 
       - name: Upload to draft release
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/raven-local-v')
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/raven-ai-v')
         uses: softprops/action-gh-release@e7a8f85e1c67a31e6ed99a94b41bd0b71bbee6b8 # v2.0.9
         with:
           draft: true
