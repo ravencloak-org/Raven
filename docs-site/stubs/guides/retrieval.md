@@ -14,19 +14,96 @@ Fusion, optionally reranked — read
 [Concepts → Hybrid Retrieval](/concepts/hybrid-retrieval) first. This
 page assumes you already know what those words mean.
 
-Raven exposes retrieval through two endpoints:
+Raven exposes retrieval through three endpoints:
 
 | Use case | Endpoint | Pipeline |
 |---|---|---|
 | Get raw chunks ranked by relevance | `GET …/knowledge-bases/{kb_id}/search` | BM25 only (`ts_rank_cd`) |
+| Get raw chunks ranked by **fused vector + BM25** | `POST …/knowledge-bases/{kb_id}/hybrid-search` | pgvector + BM25 → RRF |
 | Ask a question, get a streamed LLM answer with citations | `POST /api/v1/chat/{kb_id}/completions` | Embed → vector + BM25 → RRF → (optional rerank) → LLM |
 
-The standalone hybrid search service (`SearchService.HybridSearch` in
-`internal/service/search.go`) exists in the Go service but is not yet
-wired into a public HTTP route — see `main.go`:
-`// TODO: wire into chat handler for enterprise hybrid search`. For now,
-hybrid search is reached *through* the chat completions endpoint, which
-runs the full RAG pipeline in `ai-worker`.
+The hybrid endpoint is the standalone `SearchService.HybridSearch` in
+`internal/service/search.go` exposed over HTTP. It runs the same RRF
+fusion as the chat path but stops short of LLM generation — useful when
+you want to plug Raven's retrieval into a downstream pipeline (a custom
+LLM, an analytics dashboard, a Python notebook) without paying for token
+generation. The chat completions endpoint still owns the full
+embed → retrieve → rerank → generate flow that lives in `ai-worker`.
+
+## Hybrid search endpoint
+
+Source: `internal/handler/search.go` (`SearchHandler.HybridSearch`),
+mounted in `cmd/api/main.go`:
+
+```
+POST /api/v1/orgs/{org_id}/workspaces/{ws_id}/knowledge-bases/{kb_id}/hybrid-search
+```
+
+Unlike `/search`, this is a **POST** with a JSON body so callers can
+supply a pre-computed query embedding for the vector leg. Raven's Go API
+service does *not* embed text itself (embedding lives inside the Python
+`ai-worker`), so to get a true hybrid response the caller must embed the
+query upstream (typically by calling the same provider that ingestion
+used) and pass the float vector in. If you omit `embedding` the request
+still succeeds — the vector leg is silently skipped and the response
+degrades to a BM25-only RRF ranking, identical in ordering (modulo `k`)
+to what `/search` returns.
+
+```bash
+curl -s -X POST \
+  -H "Authorization: Bearer $RAVEN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "refund window for enterprise customers",
+    "top_k": 10,
+    "embedding": [0.0123, -0.0456, /* … 1536 dims … */]
+  }' \
+  "https://api.example.com/api/v1/orgs/$ORG/workspaces/$WS/knowledge-bases/$KB/hybrid-search"
+```
+
+### Request body
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `query` | string | yes | The user query. Trimmed; an empty or whitespace-only value returns `400`. |
+| `top_k` | int | no | Top-K after fusion. `0`/omitted uses `retrieval.default_limit` (default 10). Values above `retrieval.max_limit` (default 100) are **clamped server-side, not rejected**. |
+| `filters` | map\<string,string\> | no | Free-form bag, mirroring the chat-completions shape. Today these are not pushed into the SQL — they exist so the same client code can target both endpoints. |
+| `doc_ids` | string[] | no | Restrict to specific document IDs. Currently informational; document-scoped hybrid filtering is on the roadmap (see [Filters](#filters)). |
+| `embedding` | float[] | no | Pre-computed query embedding, length = the dimension the KB was ingested with (1536 for the default OpenAPI provider). Empty / omitted disables the vector leg. |
+
+### Response
+
+The response carries the full `HybridSearchResult` shape — both leg
+scores, both ranks, and the fused RRF score, exactly as the chat
+pipeline sees them internally:
+
+```json
+{
+  "query": "refund window for enterprise customers",
+  "top_k": 10,
+  "results": [
+    {
+      "chunk_id": "01J...",
+      "org_id": "01H...",
+      "knowledge_base_id": "01H...",
+      "document_id": "01J...",
+      "content": "Refunds are processed within 14 days...",
+      "chunk_index": 7,
+      "heading": "Refunds & cancellations",
+      "chunk_type": "text",
+      "created_at": "2026-04-19T11:22:01Z",
+      "vector_score": 0.8521,
+      "bm25_score": 12.34,
+      "rrf_score": 0.0312,
+      "vector_rank": 1,
+      "bm25_rank": 3
+    }
+  ]
+}
+```
+
+`top_k` in the response is the **effective** top_k after server-side
+clamping — useful for detecting that you asked for 999 and got 100.
 
 ## Search endpoint
 
@@ -143,9 +220,10 @@ fused score, which is what makes the pipeline debuggable end to end:
 
 For the chat endpoint, only a flattened subset surfaces in the SSE
 `source` events — `document_id`, `document_name`, `chunk_text` (first 500
-chars), and `score`. To see the full hybrid result shape, consume the
-internal `HybridSearchResponse` directly from the Go service (no public
-route — yet).
+chars), and `score`. To see the full hybrid result shape from outside
+the worker, call the
+[`/hybrid-search` endpoint](#hybrid-search-endpoint) — it returns the
+unflattened `HybridSearchResult` array verbatim.
 
 ## Filters
 
