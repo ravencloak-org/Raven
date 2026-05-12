@@ -1,6 +1,6 @@
-# Raven Local — Release QA Checklist
+# Raven AI — Release QA Checklist
 
-Manual pre-release validation for every `raven-local-v*` tag. Used until [#515 (Playwright e2e)](https://github.com/ravencloak-org/Raven/issues/515) and [#516 (Installer smoke)](https://github.com/ravencloak-org/Raven/issues/516) land.
+Manual pre-release validation for every `raven-ai-v*` tag. Used until [#515 (Playwright e2e)](https://github.com/ravencloak-org/Raven/issues/515) and [#516 (Installer smoke)](https://github.com/ravencloak-org/Raven/issues/516) land.
 
 Each release PR links here. The tester(s) tick every applicable box on every platform and fill in the sign-off table at the bottom before the draft Release is promoted to published.
 
@@ -10,14 +10,14 @@ Each release PR links here. The tester(s) tick every applicable box on every pla
 
 ### macOS (arm64 + x86_64 universal)
 
-- [ ] Download `Raven Local_<version>_universal.dmg` from the draft release
+- [ ] Download `Raven AI_<version>_universal.dmg` from the draft release
 - [ ] Double-click → DMG mounts without errors
-- [ ] Drag `Raven Local.app` to `/Applications`
+- [ ] Drag `Raven AI.app` to `/Applications`
 - [ ] Eject the DMG
 - [ ] First launch from `/Applications` triggers Gatekeeper warning (unsigned in M11; expected until #426)
 - [ ] Right-click → Open → "Open anyway" launches the app
 - [ ] App appears in the menu bar (tray icon) and as a dock icon
-- [ ] **Uninstall:** quit the app, drag `Raven Local.app` from `/Applications` to the Trash, confirm no leftover background processes (`pgrep -fl raven-local`)
+- [ ] **Uninstall:** quit the app, drag `Raven AI.app` from `/Applications` to the Trash, confirm no leftover background processes (`pgrep -fl raven-ai`)
 
 ### Windows (x64)
 
@@ -27,7 +27,7 @@ Each release PR links here. The tester(s) tick every applicable box on every pla
 - [ ] Install completes without errors; entry added to Start Menu
 - [ ] Launch from Start Menu → main window opens
 - [ ] App appears in the system tray
-- [ ] **Uninstall:** Settings → Apps → "Raven Local" → Uninstall → completes without leftover services or scheduled tasks
+- [ ] **Uninstall:** Settings → Apps → "Raven AI" → Uninstall → completes without leftover services or scheduled tasks
 
 ### Linux (x86_64)
 
@@ -36,8 +36,8 @@ Each release PR links here. The tester(s) tick every applicable box on every pla
 - [ ] `./Raven_Local_<version>_amd64.AppImage` → main window opens
 - [ ] App appears in the system indicator area (varies by DE)
 - [ ] **AppImage uninstall:** delete the file
-- [ ] **Alternative .deb:** `sudo dpkg -i raven-local_<version>_amd64.deb` → entry in app launcher → launch succeeds
-- [ ] **.deb uninstall:** `sudo apt remove raven-local`
+- [ ] **Alternative .deb:** `sudo dpkg -i raven-ai_<version>_amd64.deb` → entry in app launcher → launch succeeds
+- [ ] **.deb uninstall:** `sudo apt remove raven-ai`
 
 ## 2. System-requirements precheck
 
@@ -84,7 +84,7 @@ Each release PR links here. The tester(s) tick every applicable box on every pla
 ### Tray / menubar
 
 - [ ] Tray icon present on launch
-- [ ] Tooltip shows `Raven Local — Ready` once compose is healthy
+- [ ] Tooltip shows `Raven AI — Ready` once compose is healthy
 - [ ] Tray menu: Open Raven, Pause, Resume, Quit
 - [ ] **Pause:** containers stop (verify via `docker ps`); tooltip updates to `Paused`
 - [ ] **Resume:** containers restart; tooltip returns to `Ready`
@@ -122,4 +122,4 @@ Promote the draft Release to published once **all three platforms have a "Pass" 
 - Gatekeeper / SmartScreen warnings are part of the experience until #426 ships signing.
 - The first-run wizard's model download depends on Ollama Hub availability; if the registry is down, the wizard fails — that's an upstream issue, not a regression.
 
-See also: [Raven-Local architecture](../wiki/Raven-Local.md), [milestone M12](https://github.com/ravencloak-org/Raven/milestone/15).
+See also: [Raven-AI architecture](../wiki/Raven-AI.md), [milestone M12](https://github.com/ravencloak-org/Raven/milestone/15).

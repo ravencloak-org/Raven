@@ -60,7 +60,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * Called in single-user (Raven Local) mode to mark the session as
+   * Called in single-user (Raven AI) mode to mark the session as
    * authenticated without going through SuperTokens. The backend injects
    * the local user / org via SingleUserMiddleware so no real token is needed.
    */

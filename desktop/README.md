@@ -1,4 +1,4 @@
-# Raven Local — Tauri shell
+# Raven AI — Tauri shell
 
 A desktop wrapper that runs the Raven stack locally via Docker compose with Ollama bundled as a local LLM provider. Tracks milestone [M11](https://github.com/ravencloak-org/Raven/milestone/14).
 
@@ -43,7 +43,7 @@ desktop/
 ├── ui/
 │   └── splash.html         # Splash screen shown before compose is ready
 └── src-tauri/
-    ├── Cargo.toml          # raven-local crate
+    ├── Cargo.toml          # raven-ai crate
     ├── build.rs            # tauri_build::build()
     ├── tauri.conf.json     # Tauri 2 configuration (frontendDist: "../ui")
     ├── icons/              # App icons (placeholder — replace for release)

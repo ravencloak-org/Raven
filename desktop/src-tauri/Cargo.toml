@@ -1,7 +1,7 @@
 [package]
-name = "raven-local"
+name = "raven-ai"
 version = "0.1.0"
-description = "Raven Local — native desktop wrapper for the Raven stack"
+description = "Raven AI — native desktop wrapper for the Raven stack"
 authors = []
 license = "MIT"
 repository = "https://github.com/ravencloak-org/Raven"
@@ -11,11 +11,11 @@ rust-version = "1.77"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-name = "raven_local_lib"
+name = "raven_ai_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [[bin]]
-name = "raven-local"
+name = "raven-ai"
 path = "src/main.rs"
 
 [build-dependencies]

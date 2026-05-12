@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Raven Local",
-  "version": "0.1.4",
-  "identifier": "io.ravencloak.local",
+  "productName": "Raven AI",
+  "version": "0.1.5",
+  "identifier": "io.ravencloak.ai",
   "build": {
     "beforeDevCommand": "",
     "beforeBuildCommand": "",
@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "Raven Local",
+        "title": "Raven AI",
         "width": 1280,
         "height": 800,
         "resizable": true,

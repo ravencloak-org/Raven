@@ -2555,7 +2555,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "raven-local"
+name = "raven-ai"
 version = "0.1.0"
 dependencies = [
  "futures-util",

@@ -3,9 +3,9 @@
 
 use std::path::{Path, PathBuf};
 
-use raven_local_lib::compose::{ComposeManager, StatusEvent};
-use raven_local_lib::precheck::{run_precheck, skip_requested, RealSystemInfo};
-use raven_local_lib::tray::{self, TrayStatus};
+use raven_ai_lib::compose::{ComposeManager, StatusEvent};
+use raven_ai_lib::precheck::{run_precheck, skip_requested, RealSystemInfo};
+use raven_ai_lib::tray::{self, TrayStatus};
 use tauri::{Emitter, Listener, Manager};
 
 const COMPOSE_FILE: &str = "docker-compose.local.yml";
@@ -39,10 +39,10 @@ fn main() {
             app.listen("compose:status", move |event| {
                 if let Ok(payload) = serde_json::from_str::<StatusEvent>(event.payload()) {
                     let status = match payload.status {
-                        raven_local_lib::compose::ComposeStatus::Starting => TrayStatus::Starting,
-                        raven_local_lib::compose::ComposeStatus::Ready => TrayStatus::Ready,
-                        raven_local_lib::compose::ComposeStatus::Stopped => TrayStatus::Stopped,
-                        raven_local_lib::compose::ComposeStatus::Error => TrayStatus::Error,
+                        raven_ai_lib::compose::ComposeStatus::Starting => TrayStatus::Starting,
+                        raven_ai_lib::compose::ComposeStatus::Ready => TrayStatus::Ready,
+                        raven_ai_lib::compose::ComposeStatus::Stopped => TrayStatus::Stopped,
+                        raven_ai_lib::compose::ComposeStatus::Error => TrayStatus::Error,
                     };
                     tray::apply_status(&tray_handle, status);
                 }
@@ -144,11 +144,11 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            raven_local_lib::ollama::ollama_pull_model,
-            raven_local_lib::ollama::ollama_list_models
+            raven_ai_lib::ollama::ollama_pull_model,
+            raven_ai_lib::ollama::ollama_list_models
         ])
         .build(tauri::generate_context!())
-        .expect("error while building Raven Local")
+        .expect("error while building Raven AI")
         .run(|app, event| {
             if let tauri::RunEvent::Exit | tauri::RunEvent::ExitRequested { .. } = event {
                 if let Some(manager) = app.try_state::<ComposeManager>() {

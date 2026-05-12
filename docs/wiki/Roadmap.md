@@ -12,7 +12,7 @@
 | **Phase 5: Cloud Managed** | AWS Terraform, hosted offering, pricing, i18n, a11y | Future |
 | **Raven Pro: Enterprise Connectors** | Airbyte-powered data connectors, on-prem/hybrid deployment, data classification, ClickHouse + QBit vectors at scale | Future |
 | **Edge Optimization** | eBPF-based XDP pre-filtering, kernel-level observability, security audit trail | Future (post-Phase 2) |
-| **Raven Local (Desktop)** | Tauri-based one-click installer bundling the existing stack with Ollama as a local LLM provider. Single-user mode, no service rewrite. | M11 — active |
+| **Raven AI (Desktop)** | Tauri-based one-click installer bundling the existing stack with Ollama as a local LLM provider. Single-user mode, no service rewrite. | M11 — active |
 
 ## Phase 1 -- MVP (Chatbot)
 
@@ -78,7 +78,7 @@ Low-level Linux kernel optimizations using eBPF. See `docs/research/ebpf-edge-op
 **2. Kernel-level Observability (Zero-agent Metrics)** — CPU, memory, syscall metrics via kprobes/tracepoints.
 **3. Security Audit Trail (Process + Syscall Monitoring)** — Trace sys_execve and socket calls for GDPR/SOC2.
 
-## Raven Local (Desktop) — M11
+## Raven AI (Desktop) — M11
 
 A privacy-first desktop edition of Raven for users who want everything to run locally.
 
@@ -101,7 +101,7 @@ A privacy-first desktop edition of Raven for users who want everything to run lo
 - [#426](https://github.com/ravencloak-org/Raven/issues/426) Auto-update channel
 - [#427](https://github.com/ravencloak-org/Raven/issues/427) CI: cross-platform build + artefact upload
 
-See [Raven-Local](Raven-Local.md) for the architecture overview and the [M11 project board](https://github.com/orgs/ravencloak-org/projects/2) for live status.
+See [Raven-AI](Raven-AI.md) for the architecture overview and the [M11 project board](https://github.com/orgs/ravencloak-org/projects/2) for live status.
 
 ## Milestones
 

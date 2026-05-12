@@ -22,7 +22,7 @@ _provider_cache: dict[tuple[str, str, str], EmbeddingProvider] = {}
 _SUPPORTED_PROVIDERS = {"openai", "cohere", "anthropic", "ollama"}
 
 # Providers that don't require an API key — the local Ollama sidecar in
-# Raven Local has no auth surface. The registry skips ``decrypt_api_key``
+# Raven AI has no auth surface. The registry skips ``decrypt_api_key``
 # when the provider is in this set so an empty encrypted blob is fine.
 _KEYLESS_PROVIDERS = {"ollama"}
 

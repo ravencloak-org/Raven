@@ -18,7 +18,7 @@ app.use(posthogPlugin, { router })
 // Fetch server feature flags before mounting so the router guard has them.
 const serverConfig = useServerConfigStore()
 serverConfig.load().then(() => {
-  // In single-user (Raven Local) mode SuperTokens is not running on the server;
+  // In single-user (Raven AI) mode SuperTokens is not running on the server;
   // skip SDK initialisation to avoid unnecessary network requests to /auth/*.
   if (!serverConfig.singleUser) {
     initSuperTokens()

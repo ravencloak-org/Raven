@@ -1,4 +1,4 @@
-# Install Raven Local on Linux
+# Install Raven AI on Linux
 
 Linux has no centralised app-signing requirement, so installs are friction-free. Two artefacts ship per release: a portable `.AppImage` (works on any glibc-based distro) and a `.deb` for Debian/Ubuntu.
 
@@ -9,9 +9,9 @@ APPIMAGE_URL=$(curl -fsSL https://api.github.com/repos/ravencloak-org/Raven/rele
   | grep -oE '"browser_download_url": "[^"]*\.AppImage"' \
   | head -1 \
   | cut -d'"' -f4)
-curl -fsSL -o raven-local.AppImage "$APPIMAGE_URL"
-chmod +x raven-local.AppImage
-./raven-local.AppImage
+curl -fsSL -o raven-ai.AppImage "$APPIMAGE_URL"
+chmod +x raven-ai.AppImage
+./raven-ai.AppImage
 ```
 
 Move it somewhere on `PATH` (e.g. `~/.local/bin/`) if you want a stable name. The AppImage is self-contained — no install step, no package manager.
@@ -23,11 +23,11 @@ DEB_URL=$(curl -fsSL https://api.github.com/repos/ravencloak-org/Raven/releases/
   | grep -oE '"browser_download_url": "[^"]*\.deb"' \
   | head -1 \
   | cut -d'"' -f4)
-curl -fsSL -o raven-local.deb "$DEB_URL"
-sudo apt install -y ./raven-local.deb
+curl -fsSL -o raven-ai.deb "$DEB_URL"
+sudo apt install -y ./raven-ai.deb
 ```
 
-The `.deb` registers an `.desktop` file, an icon, and the `raven-local` binary on `PATH`. Launch from your DE's app launcher or from a terminal.
+The `.deb` registers an `.desktop` file, an icon, and the `raven-ai` binary on `PATH`. Launch from your DE's app launcher or from a terminal.
 
 ## Runtime dependencies
 
@@ -43,8 +43,8 @@ On Wayland sessions, AppImage may fall back to XWayland — that's expected and 
 
 ## Uninstall
 
-- **AppImage**: delete the file. `rm -rf ~/.config/io.ravencloak.local ~/.local/share/io.ravencloak.local` to also wipe app data.
-- **.deb**: `sudo apt remove raven-local`. Same `rm` commands to wipe user data.
+- **AppImage**: delete the file. `rm -rf ~/.config/io.ravencloak.ai ~/.local/share/io.ravencloak.ai` to also wipe app data.
+- **.deb**: `sudo apt remove raven-ai`. Same `rm` commands to wipe user data.
 
 ## Why Linux is the easy path
 
@@ -52,6 +52,6 @@ No centralised signing authority, no quarantine attributes, no SmartScreen equiv
 
 ## Troubleshooting
 
-- **`./raven-local.AppImage` fails with "FUSE not available"** — install `fuse` (Ubuntu 22.04+ defaults to FUSE 3 which needs `libfuse2` explicitly). On Ubuntu 24.04: `sudo apt install libfuse2`. Or extract via `./raven-local.AppImage --appimage-extract` and run `./squashfs-root/AppRun`.
+- **`./raven-ai.AppImage` fails with "FUSE not available"** — install `fuse` (Ubuntu 22.04+ defaults to FUSE 3 which needs `libfuse2` explicitly). On Ubuntu 24.04: `sudo apt install libfuse2`. Or extract via `./raven-ai.AppImage --appimage-extract` and run `./squashfs-root/AppRun`.
 - **Tray icon missing on GNOME** — install the AppIndicator extension. KDE / XFCE / Cinnamon support it natively.
 - **App opens but compose doesn't come up** — Docker daemon isn't running: `systemctl --user start docker-desktop` (Docker Desktop) or `sudo systemctl start docker` (Docker Engine).

@@ -1,4 +1,4 @@
-//! Tray / menubar status app for Raven Local.
+//! Tray / menubar status app for Raven AI.
 //!
 //! Builds a platform-native tray icon (macOS menu bar / Windows system tray /
 //! Linux indicator) on app boot. The icon's tooltip and menu update in
@@ -18,7 +18,7 @@ const MENU_ID_OPEN: &str = "tray:open";
 const MENU_ID_PAUSE: &str = "tray:pause";
 const MENU_ID_RESUME: &str = "tray:resume";
 const MENU_ID_QUIT: &str = "tray:quit";
-pub const TRAY_ID: &str = "raven-local-tray";
+pub const TRAY_ID: &str = "raven-ai-tray";
 
 /// Status the tray icon reflects. Mirrors `compose::ComposeStatus` but kept
 /// separate so the tray module doesn't import compose internals (the value
@@ -59,7 +59,7 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
 
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(icon)
-        .tooltip(format!("Raven Local — {}", TrayStatus::Starting.label()))
+        .tooltip(format!("Raven AI — {}", TrayStatus::Starting.label()))
         .menu(&menu)
         .show_menu_on_left_click(false) // left-click toggles the window
         .on_menu_event(|app, event| handle_menu_event(app, event.id().as_ref()))
@@ -82,7 +82,7 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
 /// Wire this from the compose-status event listener in `main.rs`.
 pub fn apply_status(app: &AppHandle, status: TrayStatus) {
     if let Some(tray) = app.tray_by_id(TRAY_ID) {
-        let _ = tray.set_tooltip(Some(format!("Raven Local — {}", status.label())));
+        let _ = tray.set_tooltip(Some(format!("Raven AI — {}", status.label())));
     }
 }
 
