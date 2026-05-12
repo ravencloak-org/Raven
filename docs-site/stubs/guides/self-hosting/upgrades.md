@@ -171,11 +171,11 @@ v3, files in `migrations/` numbered `00001_*.sql` through `00039_*.sql`
 (at time of writing — count grows with each release). The in-DB state
 table is `goose_db_version`.
 
-**Migrations are NOT applied automatically on `go-api` startup.** The
-production binary (`/app/api` in the container) does not import goose at
-all — `github.com/pressly/goose/v3` only appears under
-`internal/testutil/db.go` and other test-only paths. The wired operator
-path is the `Makefile` target:
+**Migrations are NOT applied automatically on `go-api` startup by default.**
+The production binary uses an opt-in `RAVEN_DB_AUTO_MIGRATE` env var: when
+set to `true`, the API runs `goose up` against the embedded migration set
+before serving traffic. When unset or `false` (default), operators must
+apply migrations themselves via the `Makefile`:
 
 ```bash
 # Apply all pending migrations.
@@ -190,6 +190,28 @@ Both targets delegate to:
 ```bash
 dotenvx run -- goose -dir migrations postgres "$DATABASE_URL" up
 ```
+
+### Auto-migrate (opt-in)
+
+Set `RAVEN_DB_AUTO_MIGRATE=true` in the API's environment to have the
+binary run all pending migrations during startup. The migration set is
+embedded in the binary via `//go:embed` (see `migrations/embed.go`), so
+no extra files need to ship with the container.
+
+```bash
+# Same upgrade flow, but skip the manual migrate-up:
+RAVEN_DB_AUTO_MIGRATE=true docker compose up -d
+```
+
+**When to enable it:** dev, single-node deployments, edge / Raspberry Pi
+where the API is the only writer. **When to leave it off:** production
+multi-replica deployments — let exactly one process apply migrations,
+typically a CI job or a dedicated migrate container, so a rolling
+restart cannot run multiple instances of `goose up` concurrently against
+the same DB.
+
+Backups still happen *before* the migration regardless of which path
+you take.
 
 Inspect migration state at any time:
 

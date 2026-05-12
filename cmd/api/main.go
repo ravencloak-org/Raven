@@ -256,6 +256,17 @@ func main() {
 	}()
 	// queueClient is passed to services that enqueue async jobs.
 
+	// --- Database migrations (opt-in via RAVEN_DB_AUTO_MIGRATE) ---
+	// Off by default: operators run `make migrate-up` (or equivalent) themselves.
+	// Useful for dev / single-node deployments where the API is the only writer.
+	if cfg.Database.AutoMigrate {
+		slog.Info("running database migrations (RAVEN_DB_AUTO_MIGRATE=true)")
+		if mErr := db.RunMigrations(context.Background(), cfg.Database.URL); mErr != nil {
+			log.Fatalf("auto-migrate failed: %v", mErr)
+		}
+		slog.Info("database migrations applied")
+	}
+
 	// --- Database pool ---
 	pool, err := db.New(context.Background(), cfg.Database.URL)
 	if err != nil {

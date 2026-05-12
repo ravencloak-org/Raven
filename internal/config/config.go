@@ -287,6 +287,13 @@ type ServerConfig struct {
 // DatabaseConfig holds database connection settings.
 type DatabaseConfig struct {
 	URL string `mapstructure:"url"`
+	// AutoMigrate, when true, makes the API run all pending goose migrations
+	// against URL on startup before serving traffic. Default false; operators
+	// should run `make migrate-up` (or equivalent) themselves in production
+	// unless they explicitly opt in. Migrations are embedded in the binary
+	// via the migrations package, so no on-disk migrations/ directory is
+	// required at runtime.
+	AutoMigrate bool `mapstructure:"auto_migrate"`
 }
 
 // ValkeyConfig holds Valkey (Redis-compatible) connection settings.
@@ -321,6 +328,7 @@ func Load() (*Config, error) {
 	v.SetDefault("server.ai_worker_breaker_threshold", 5)
 	v.SetDefault("server.ai_worker_breaker_cooldown", "30s")
 	v.SetDefault("server.single_user", false)
+	v.SetDefault("database.auto_migrate", false)
 	v.SetDefault("grpc.worker_addr", "localhost:50051")
 	v.SetDefault("otel.endpoint", "")
 	v.SetDefault("otel.service_name", "raven-api")
@@ -449,6 +457,7 @@ func Load() (*Config, error) {
 	// Explicitly bind nested keys — AutomaticEnv alone does not reliably surface
 	// dotted keys during Unmarshal in all viper versions.
 	_ = v.BindEnv("database.url", "RAVEN_DATABASE_URL")
+	_ = v.BindEnv("database.auto_migrate", "RAVEN_DB_AUTO_MIGRATE")
 	_ = v.BindEnv("valkey.url", "RAVEN_VALKEY_URL")
 	_ = v.BindEnv("grpc.worker_addr", "RAVEN_GRPC_WORKER_ADDR")
 	_ = v.BindEnv("supertokens.connection_uri", "RAVEN_SUPERTOKENS_CONNECTION_URI")
