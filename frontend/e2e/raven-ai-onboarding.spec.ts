@@ -105,6 +105,7 @@ async function installTauriBridge(
           listeners[event].add(handler)
           return () => listeners[event].delete(handler)
         },
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         emit: async (_event: string, _payload: unknown) => {},
       }
 
