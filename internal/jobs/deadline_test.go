@@ -21,13 +21,12 @@ func TestDeadlineMiddleware_AppliesPerTypeBudget(t *testing.T) {
 		}
 	})
 
-	wrapped := DeadlineMiddleware(slow)
+	budgets := map[string]time.Duration{
+		"test:fast": 50 * time.Millisecond,
+	}
+	wrapped := DeadlineMiddleware(budgets, 1*time.Minute)(slow)
 
-	const testType = "test:fast"
-	taskBudgets[testType] = 50 * time.Millisecond
-	t.Cleanup(func() { delete(taskBudgets, testType) })
-
-	task := asynq.NewTask(testType, nil)
+	task := asynq.NewTask("test:fast", nil)
 	start := time.Now()
 	err := wrapped.ProcessTask(context.Background(), task)
 	elapsed := time.Since(start)
@@ -44,6 +43,7 @@ func TestDeadlineMiddleware_AppliesPerTypeBudget(t *testing.T) {
 }
 
 func TestDeadlineMiddleware_UnknownTypeUsesDefault(t *testing.T) {
+	const fallback = 90 * time.Second
 	called := false
 	h := asynq.HandlerFunc(func(ctx context.Context, _ *asynq.Task) error {
 		called = true
@@ -51,13 +51,13 @@ func TestDeadlineMiddleware_UnknownTypeUsesDefault(t *testing.T) {
 		if !ok {
 			t.Errorf("handler ctx had no deadline")
 		}
-		if remaining := time.Until(dl); remaining > defaultBudget+time.Second {
+		if remaining := time.Until(dl); remaining > fallback+time.Second {
 			t.Errorf("deadline too far away: %v", remaining)
 		}
 		return nil
 	})
 
-	wrapped := DeadlineMiddleware(h)
+	wrapped := DeadlineMiddleware(map[string]time.Duration{}, fallback)(h)
 	if err := wrapped.ProcessTask(context.Background(), asynq.NewTask("test:unknown", nil)); err != nil {
 		t.Fatalf("err = %v", err)
 	}

@@ -51,7 +51,7 @@ func main() {
 	// Apply per-task-type deadlines to every handler registered on this mux.
 	// Centralising the deadline here means new handlers automatically inherit
 	// a budget without per-handler context.WithTimeout boilerplate.
-	srv.Mux().Use(jobs.DeadlineMiddleware)
+	srv.Mux().Use(jobs.DeadlineMiddleware(jobs.BudgetsFromConfig(cfg.Asynq), cfg.Asynq.DefaultBudget))
 
 	// Register email delivery handler.
 	srv.Mux().HandleFunc(queue.TypeSendEmail, jobs.HandleSendEmail(notifRepo))
