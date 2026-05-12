@@ -508,7 +508,11 @@ func main() {
 	// Global middleware order: OTel → SecurityHeaders → CORS → ErrorHandler
 	router.Use(middleware.OTelMiddleware())
 	router.Use(middleware.SecurityHeadersMiddleware())
-	router.Use(middleware.CORSMiddleware(&cfg.CORS))
+	// Pass the API-key lookup so CORS can honour per-key allowed_domains in
+	// addition to the workspace-wide RAVEN_CORS_ALLOWED_ORIGINS list. A widget
+	// key bound to example.com is unusable from any other origin even if the
+	// server allowlist is broader. See internal/middleware/cors.go for rules.
+	router.Use(middleware.CORSMiddleware(&cfg.CORS, &apiKeyLookupAdapter{repo: apiKeyRepo}))
 	router.Use(apierror.ErrorHandler())
 
 	// Infrastructure endpoint — intentionally outside the versioned group.
