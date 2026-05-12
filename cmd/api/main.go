@@ -624,6 +624,11 @@ func main() {
 				// Full-text search (nested under knowledge base)
 				kb.GET("/:kb_id/search", searchHandler.Search)
 
+				// Hybrid (vector + BM25) search — POST with JSON body so the
+				// caller can supply a pre-computed query embedding for the
+				// vector leg. See internal/service/search.go HybridSearch.
+				kb.POST("/:kb_id/hybrid-search", searchHandler.HybridSearch)
+
 				// Chat completions (session-authenticated, for dashboard users)
 				kb.POST("/:kb_id/completions", chatHandler.StreamCompletion)
 

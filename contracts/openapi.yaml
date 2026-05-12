@@ -20,6 +20,8 @@ tags:
     description: Knowledge base lifecycle inside a workspace.
   - name: Users
     description: Authenticated user profile endpoints.
+  - name: Search
+    description: Full-text and hybrid retrieval over knowledge-base chunks.
 
 security:
   - bearerAuth: []
@@ -132,6 +134,83 @@ components:
         offset: { type: integer }
         limit:  { type: integer }
       required: [items, total]
+
+    HybridSearchRequest:
+      type: object
+      description: |
+        Request body for hybrid (vector + BM25) search. `embedding` is the
+        pre-computed query embedding for the vector leg; omit it to fall
+        back to BM25-only ranking.
+      properties:
+        query:
+          type: string
+          minLength: 1
+          description: The user query. Required and non-empty.
+        top_k:
+          type: integer
+          minimum: 0
+          description: |
+            Maximum number of fused results to return. `0` or omitted means
+            the server applies `retrieval.default_limit`. Values above
+            `retrieval.max_limit` are clamped server-side (no 400).
+        filters:
+          type: object
+          additionalProperties: { type: string }
+          description: |
+            Free-form metadata filter bag. Today only honoured downstream
+            (e.g. `rerank: cohere` on the chat path); the standalone
+            endpoint does not yet push predicates into SQL.
+        doc_ids:
+          type: array
+          items: { type: string, format: uuid }
+          description: Restrict search to these document IDs.
+        embedding:
+          type: array
+          items: { type: number, format: float }
+          description: |
+            Pre-computed query embedding. Length must match the configured
+            embedding dimension (1536 by default). Empty array disables
+            the vector leg — RRF degrades to BM25-only.
+      required: [query]
+
+    HybridSearchResult:
+      type: object
+      description: |
+        Single chunk returned from a hybrid search, carrying both per-leg
+        scores and the fused Reciprocal Rank Fusion (RRF) score.
+      properties:
+        chunk_id:          { type: string, format: uuid }
+        org_id:            { type: string, format: uuid }
+        knowledge_base_id: { type: string, format: uuid }
+        document_id:       { type: string, format: uuid }
+        source_id:         { type: string, format: uuid }
+        content:           { type: string }
+        chunk_index:       { type: integer }
+        token_count:       { type: integer }
+        page_number:       { type: integer }
+        heading:           { type: string }
+        chunk_type:        { type: string }
+        created_at:        { type: string, format: date-time }
+        vector_score:      { type: number, format: float, description: "Cosine similarity in [0, 1]" }
+        bm25_score:        { type: number, format: float, description: "PostgreSQL ts_rank_cd score" }
+        rrf_score:         { type: number, format: float, description: "Fused RRF score" }
+        vector_rank:       { type: integer, description: "1-based rank in the vector leg; 0 if absent" }
+        bm25_rank:         { type: integer, description: "1-based rank in the BM25 leg; 0 if absent" }
+      required: [chunk_id, org_id, knowledge_base_id, content, chunk_index, chunk_type, created_at, rrf_score]
+
+    HybridSearchResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items: { $ref: '#/components/schemas/HybridSearchResult' }
+        query:
+          type: string
+          description: Server-side trimmed echo of the requested query.
+        top_k:
+          type: integer
+          description: Effective top_k after server-side clamping.
+      required: [results, query, top_k]
 
 paths:
   /orgs:
@@ -388,6 +467,67 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/KnowledgeBase' }
+
+  /orgs/{org_id}/workspaces/{ws_id}/knowledge-bases/{kb_id}/hybrid-search:
+    post:
+      summary: Hybrid (vector + BM25) search within a knowledge base
+      description: |
+        Fuses pgvector cosine similarity with PostgreSQL tsvector BM25
+        ranking via Reciprocal Rank Fusion (RRF). The caller may supply a
+        pre-computed query embedding for the vector leg; if omitted, the
+        response degrades cleanly to BM25-only ranking. `top_k` is clamped
+        server-side to `retrieval.max_limit`.
+      operationId: hybridSearchKnowledgeBase
+      tags: [Search]
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: ws_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: kb_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HybridSearchRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HybridSearchResponse' }
+        '400':
+          description: Bad Request — missing/empty query or malformed body
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Forbidden — caller is not a workspace member
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Knowledge base not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
 
   /me:
     get:

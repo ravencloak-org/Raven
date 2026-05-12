@@ -67,6 +67,14 @@ func NewSearchService(repo *repository.SearchRepository, pool *pgxpool.Pool, cfg
 	return &SearchService{repo: repo, pool: pool, cfg: normaliseRetrievalConfig(cfg)}
 }
 
+// RetrievalLimits exposes the effective DefaultLimit and MaxLimit so callers
+// (e.g. the hybrid-search HTTP handler) can echo the clamped top_k back to
+// clients without duplicating the clamp logic. Returns the post-normalised
+// values, i.e. the same numbers HybridSearch will actually use.
+func (s *SearchService) RetrievalLimits() (defaultLimit, maxLimit int) {
+	return s.cfg.DefaultLimit, s.cfg.MaxLimit
+}
+
 // normaliseRetrievalConfig backfills zero-valued fields with the historical
 // defaults. Negative weights are clamped to zero — this matches the
 // config-time validation but keeps tests that construct a SearchService

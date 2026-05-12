@@ -34,10 +34,33 @@ type SearchResponse struct {
 }
 
 // HybridSearchRequest is the validated input for a hybrid (vector + BM25) search.
+//
+// It models the JSON body posted to
+// POST /api/v1/orgs/{org_id}/workspaces/{ws_id}/knowledge-bases/{kb_id}/hybrid-search.
+//
+// `Embedding` is the pre-computed query embedding the vector leg searches
+// against. Raven's API service does not embed text itself today (the
+// production RAG pipeline embeds inside the Python `ai-worker`), so callers
+// that want a true hybrid response must supply this field. When `Embedding`
+// is empty, the vector leg is skipped and the response degrades to a
+// BM25-only ranking — this is intentional and lets keyword-only callers
+// reuse the same route. See `internal/service/search.go`'s `HybridSearch`.
 type HybridSearchRequest struct {
-	Query string `json:"q"`
-	KBID  string `json:"kb_id"`
-	TopK  int    `json:"top_k"`
+	Query     string            `json:"query"`
+	TopK      int               `json:"top_k,omitempty"`
+	Filters   map[string]string `json:"filters,omitempty"`
+	DocIDs    []string          `json:"doc_ids,omitempty"`
+	Embedding []float32         `json:"embedding,omitempty"`
+}
+
+// HybridSearchHTTPResponse wraps a list of hybrid search results with the
+// effective parameters the server actually used. Distinct from
+// HybridSearchResponse because the HTTP surface echoes back the query and
+// the clamped top_k so clients can detect server-side adjustments.
+type HybridSearchHTTPResponse struct {
+	Results []HybridSearchResult `json:"results"`
+	Query   string               `json:"query"`
+	TopK    int                  `json:"top_k"`
 }
 
 // HybridSearchResult is a single result from a hybrid search with its fused score.
