@@ -3,7 +3,8 @@
 #
 # Usage:
 #   ./deploy/ec2/update.sh
-#   ./deploy/ec2/update.sh --sha abc1234   # pin to a specific commit SHA
+#   ./deploy/ec2/update.sh --sha abc1234     # pin to a specific commit SHA
+#   ./deploy/ec2/update.sh --tag v0.3.0      # pin to a release tag
 
 set -euo pipefail
 
@@ -12,15 +13,37 @@ COMPOSE="docker -H ${RAVEN_SOCK} compose"
 ENV_FILE=".env.server"
 COMPOSE_FILE="deploy/ec2/docker-compose.server.yml"
 
-SHA="${1:-}"
-if [[ "$SHA" == "--sha" ]]; then
-  SHA="$2"
-  GO_API_IMAGE="ghcr.io/ravencloak-org/go-api:${SHA}"
-  PYTHON_WORKER_IMAGE="ghcr.io/ravencloak-org/python-worker:${SHA}"
-  # Patch env file
+REF=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --sha)
+      REF="sha-${2::7}"
+      shift 2
+      ;;
+    --tag)
+      REF="$2"
+      shift 2
+      ;;
+    *)
+      echo "Unknown arg: $1" >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [ -n "${REF}" ]; then
+  GO_API_IMAGE="ghcr.io/ravencloak-org/go-api:${REF}"
+  PYTHON_WORKER_IMAGE="ghcr.io/ravencloak-org/python-worker:${REF}"
+  FRONTEND_IMAGE="ghcr.io/ravencloak-org/frontend:${REF}"
+
   sed -i "s|^GO_API_IMAGE=.*|GO_API_IMAGE=${GO_API_IMAGE}|" "$ENV_FILE"
   sed -i "s|^PYTHON_WORKER_IMAGE=.*|PYTHON_WORKER_IMAGE=${PYTHON_WORKER_IMAGE}|" "$ENV_FILE"
-  echo "Pinned to SHA: ${SHA}"
+  if grep -q '^FRONTEND_IMAGE=' "$ENV_FILE"; then
+    sed -i "s|^FRONTEND_IMAGE=.*|FRONTEND_IMAGE=${FRONTEND_IMAGE}|" "$ENV_FILE"
+  else
+    echo "FRONTEND_IMAGE=${FRONTEND_IMAGE}" >> "$ENV_FILE"
+  fi
+  echo "Pinned to ref: ${REF}"
 fi
 
 echo "Pulling latest images..."
