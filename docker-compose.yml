@@ -6,6 +6,13 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8081:8081"
+    # Hardening: static Go binary running as non-root `raven` (uid 1000); no
+    # Linux capabilities required for normal operation. eBPF features (when
+    # enabled via docker-compose.ebpf.yml) re-add CAP_BPF + CAP_NET_ADMIN.
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
     volumes:
       - ./.env:/app/.env:ro
     environment:
@@ -57,6 +64,12 @@ services:
     build:
       context: ./ai-worker
       dockerfile: Dockerfile
+    # Hardening: Python service runs as non-root `raven` (uid 1000); no
+    # capabilities required.
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
     volumes:
       - ./.env:/app/.env:ro
       - raven-memories:/var/raven/memories
@@ -77,6 +90,11 @@ services:
     build:
       context: ./ai-worker
       dockerfile: Dockerfile
+    # Hardening: same image as python-worker, non-root, no capabilities needed.
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
     volumes:
       - ./.env:/app/.env:ro
     environment:
@@ -96,6 +114,12 @@ services:
   # ─── LiveKit SFU (WebRTC media server) ────────────────────────────────────
   livekit-server:
     image: livekit/livekit-server:latest
+    # Hardening: livekit-server binds only high ports (7880/7882/50000-60000)
+    # and ships its own non-root entrypoint; no capabilities required.
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
     ports:
       - "7882:7882/tcp"
       - "50000-60000:50000-60000/udp"
@@ -126,6 +150,19 @@ services:
   # ─── PostgreSQL + pgvector ─────────────────────────────────────────────────
   postgres:
     image: pgvector/pgvector:pg18
+    # Hardening: docker-entrypoint.sh starts as root, fixes ownership on
+    # PGDATA, then drops to the `postgres` user via gosu. The capabilities
+    # below are the minimum required for that bootstrap.
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN          # docker-entrypoint chowns PGDATA on first run
+      - DAC_OVERRIDE   # reading config and socket files across uid boundaries
+      - FOWNER         # chmod on PGDATA contents during init
+      - SETGID         # gosu switches to postgres group
+      - SETUID         # gosu switches to postgres user
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-raven}
       POSTGRES_USER: ${POSTGRES_USER:-raven}
@@ -156,6 +193,21 @@ services:
   # ─── ClickHouse (Enterprise vector storage) ────────────────────────────────
   clickhouse:
     image: clickhouse/clickhouse-server:25
+    # Hardening: entrypoint runs as root, fixes /var/lib/clickhouse perms,
+    # then drops to `clickhouse`. IPC_LOCK is required by mlock() for the
+    # mark/uncompressed caches; SYS_NICE for io_uring/cpu scheduling tweaks.
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+      - IPC_LOCK       # mlock() of buffer pools
+      - SYS_NICE       # priority of background merges / io_uring
     environment:
       CLICKHOUSE_DB: ${CLICKHOUSE_DB:-raven}
       CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
@@ -180,6 +232,17 @@ services:
   # ─── Valkey (Redis-compatible cache) ───────────────────────────────────────
   valkey:
     image: valkey/valkey:8.1-alpine
+    # Hardening: docker-entrypoint.sh starts as root, chowns /data, then
+    # drops to `valkey` via su-exec. Minimum caps for that handoff.
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
     command: ["valkey-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
     volumes:
       - valkey-data:/data
@@ -195,6 +258,17 @@ services:
   # ─── SuperTokens Auth Backend ─────────────────────────────────────────────
   supertokens:
     image: registry.supertokens.io/supertokens/supertokens-postgresql
+    # Hardening: SuperTokens Core boots a JVM that listens on a high port and
+    # drops to the `supertokens` user via its entrypoint.
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
     environment:
       POSTGRESQL_CONNECTION_URI: "postgresql://${POSTGRES_USER:-raven}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-raven}"
       API_KEYS: "${SUPERTOKENS_API_KEY:-supertokens-dev-key-replace-me}"
@@ -215,6 +289,17 @@ services:
   # ─── SeaweedFS Master ──────────────────────────────────────────────────────
   seaweedfs-master:
     image: chrislusf/seaweedfs
+    # Hardening: the SeaweedFS image entrypoint uses su-exec to drop privs,
+    # which needs SETUID/SETGID, and SETPCAP to shrink the bounding set on
+    # re-exec.
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+      - SETPCAP
     command: "master -ip=seaweedfs-master -ip.bind=0.0.0.0"
     networks:
       - raven-internal
@@ -223,6 +308,14 @@ services:
   # ─── SeaweedFS Volume ──────────────────────────────────────────────────────
   seaweedfs-volume:
     image: chrislusf/seaweedfs
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+      - SETPCAP
     command: "volume -mserver=seaweedfs-master:9333 -ip.bind=0.0.0.0 -dir=/data"
     volumes:
       - seaweedfs-data:/data
@@ -235,6 +328,14 @@ services:
   # ─── SeaweedFS Filer (S3 API) ─────────────────────────────────────────────
   seaweedfs-filer:
     image: chrislusf/seaweedfs
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+      - SETPCAP
     command: "filer -master=seaweedfs-master:9333 -ip.bind=0.0.0.0 -s3"
     ports:
       - "8888:8888"
@@ -248,6 +349,14 @@ services:
   # ─── Traefik Reverse Proxy ────────────────────────────────────────────────
   traefik:
     image: traefik:v3.3
+    # Hardening: Traefik binds the privileged ports 80 and 443, so it needs
+    # CAP_NET_BIND_SERVICE. Everything else is dropped.
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
     ports:
       - "80:80"
       - "443:443"
@@ -272,6 +381,11 @@ services:
   # ─── OpenObserve (Observability) ───────────────────────────────────────────
   openobserve:
     image: public.ecr.aws/zinclabs/openobserve:latest
+    # Hardening: Rust binary on a high port; no capabilities required.
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
     ports:
       - "5080:5080"   # UI + HTTP API
       - "5081:5081"   # gRPC OTLP receiver (traces, metrics, logs)
@@ -289,6 +403,19 @@ services:
   # ─── pgBackRest Backup Sidecar ────────────────────────────────────────────
   pgbackrest:
     image: pgbackrest/pgbackrest:latest
+    # Hardening: pgbackrest reads PGDATA owned by uid 999 (postgres) and
+    # writes its repo as uid 1001 (pgbackrest); needs the standard
+    # ownership/uid-switch caps but nothing privileged.
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
     depends_on:
       postgres:
         condition: service_healthy
