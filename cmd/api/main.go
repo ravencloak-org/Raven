@@ -318,6 +318,7 @@ func main() {
 		resilience.WithTimeout(cfg.Server.AIWorkerTimeout),
 		resilience.WithBreakerThreshold(cfg.Server.AIWorkerBreakerThreshold),
 		resilience.WithBreakerCooldown(cfg.Server.AIWorkerBreakerCooldown),
+		resilience.WithBreakerHalfOpenMax(cfg.Server.AIWorkerBreakerHalfOpenMax),
 	)
 	if err != nil {
 		log.Fatalf("invalid AI worker resilience policy: %v", err)
