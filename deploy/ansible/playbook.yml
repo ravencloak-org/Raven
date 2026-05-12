@@ -11,4 +11,5 @@
     - pm2
     - cloudflared
     - raven-stack
+    - raven-backup
     - admin-tools
