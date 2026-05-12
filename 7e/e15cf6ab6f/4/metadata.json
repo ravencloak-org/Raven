@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "7ee15cf6ab6f",
+  "session_id": "8c912b9a-a384-4f00-93fc-dc47af90e115",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-12T18:54:49.851362Z",
+  "branch": "feat/demo-infrastructure",
+  "checkpoints_count": 3,
+  "files_touched": [
+    ".claude/worktrees/agent-a3c2552c8bef7f2f8/.env.ci",
+    ".claude/worktrees/agent-ac165611bd8a40635/.env.ci",
+    ".claude/worktrees/agent-ac36162eb3614c039/.env.ci",
+    ".claude/worktrees/agent-afae7c421dc5ea795/.env.ci",
+    "deploy/terraform/demo/security_group.tf",
+    "deploy/terraform/demo/vpc.tf",
+    "docs/superpowers/plans/2026-05-12-demo-app-features.md",
+    "ravenlogoassets/.gitignore"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "1358b437-007b-47d0-8d3e-cddfd638791b",
+  "token_usage": {
+    "input_tokens": 146,
+    "cache_creation_tokens": 299977,
+    "cache_read_tokens": 6994257,
+    "output_tokens": 81691,
+    "api_call_count": 60
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-12T18:54:49.73474Z",
+    "agent_lines": 2160,
+    "human_added": 65913,
+    "human_modified": 207,
+    "human_removed": 0,
+    "total_committed": 68280,
+    "agent_percentage": 3.163444639718805
+  }
+}
