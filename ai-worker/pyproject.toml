@@ -88,3 +88,8 @@ fail_under = 70
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+
+[dependency-groups]
+dev = [
+    "fakeredis>=2.35.1",
+]
