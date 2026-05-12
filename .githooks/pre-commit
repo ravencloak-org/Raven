@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Run golangci-lint when staged changes touch Go files.
-# Catches lint violations before they reach the remote and CI.
+#
+# Policy: report only NEW violations introduced by this commit, not the
+# pre-existing repo-wide backlog. The lint binary's `--new-from-rev` flag
+# matches the `only-new-issues: true` semantic the CI workflow uses via
+# golangci/golangci-lint-action.
 #
 # Install once per clone (alongside the pre-push hook):
 #   git config core.hooksPath .githooks
@@ -26,14 +30,19 @@ EOF
     exit 0
 fi
 
-echo "Running golangci-lint on the repository..." >&2
-if ! golangci-lint run ./...; then
+# `--new-from-rev=HEAD` tells golangci-lint to suppress findings on lines
+# that haven't changed since HEAD. Net effect: this commit fails only if
+# the staged diff introduces NEW violations. Pre-existing repo-wide debt
+# (tracked as its own cleanup item) doesn't punish unrelated commits.
+echo "Running golangci-lint (only-new-issues vs HEAD)..." >&2
+if ! golangci-lint run --new-from-rev=HEAD ./...; then
     cat >&2 <<'EOF'
 
-Refusing to commit: golangci-lint reported issues above.
+Refusing to commit: golangci-lint reported NEW issues in your staged
+changes above.
 
-Fix the reported violations, then commit again. To bypass (e.g. for a
-work-in-progress checkpoint commit) use:
+Fix them and commit again. To bypass (e.g. for a work-in-progress
+checkpoint commit) use:
   git commit --no-verify
 …but CI will still reject the push.
 

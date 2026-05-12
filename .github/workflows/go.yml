@@ -313,6 +313,11 @@ jobs:
       - uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9
         with:
           version: v2.11.4
+          # Match the pre-commit hook policy: report only NEW violations
+          # vs the PR's base branch. Pre-existing whole-repo backlog is
+          # tracked as its own cleanup item; unrelated PRs shouldn't pay
+          # for that debt.
+          only-new-issues: true
 
   ebpf-integration:
     name: eBPF Integration Tests
