@@ -89,6 +89,12 @@ const router = createRouter({
           meta: { requiresAuth: true },
         },
         {
+          path: 'settings',
+          name: 'settings',
+          component: () => import('../pages/settings/SettingsPage.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
           path: 'chatbot-config',
           name: 'chatbot-config',
           component: () => import('../pages/chatbot/ChatbotConfiguratorPage.vue'),
