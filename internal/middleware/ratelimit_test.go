@@ -40,9 +40,10 @@ func newRateLimitRouter(mw gin.HandlerFunc) *gin.Engine {
 }
 
 // doRequest fires a GET /test against the router and returns the recorder.
-func doRequest(r *gin.Engine) *httptest.ResponseRecorder {
+func doRequest(t *testing.T, r *gin.Engine) *httptest.ResponseRecorder {
+	t.Helper()
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/test", nil)
 	r.ServeHTTP(w, req)
 	return w
 }
@@ -60,7 +61,7 @@ func TestRateLimitBasic(t *testing.T) {
 	r := newRateLimitRouter(mw)
 
 	for i := 1; i <= 5; i++ {
-		w := doRequest(r)
+		w := doRequest(t, r)
 		if w.Code != http.StatusOK {
 			t.Fatalf("request %d: expected 200, got %d", i, w.Code)
 		}
@@ -89,14 +90,14 @@ func TestRateLimitExceeded(t *testing.T) {
 
 	// Exhaust the limit.
 	for i := 0; i < limit; i++ {
-		w := doRequest(r)
+		w := doRequest(t, r)
 		if w.Code != http.StatusOK {
 			t.Fatalf("request %d should succeed, got %d", i+1, w.Code)
 		}
 	}
 
 	// Next request should be rejected.
-	w := doRequest(r)
+	w := doRequest(t, r)
 	if w.Code != http.StatusTooManyRequests {
 		t.Fatalf("expected 429, got %d", w.Code)
 	}
@@ -144,14 +145,14 @@ func TestRateLimitWindowReset(t *testing.T) {
 
 	// Exhaust the limit.
 	for i := 0; i < limit; i++ {
-		w := doRequest(r)
+		w := doRequest(t, r)
 		if w.Code != http.StatusOK {
 			t.Fatalf("request %d should succeed, got %d", i+1, w.Code)
 		}
 	}
 
 	// Verify we're now blocked.
-	w := doRequest(r)
+	w := doRequest(t, r)
 	if w.Code != http.StatusTooManyRequests {
 		t.Fatalf("expected 429, got %d", w.Code)
 	}
@@ -161,7 +162,7 @@ func TestRateLimitWindowReset(t *testing.T) {
 	mr.FastForward(61 * time.Second)
 
 	// The window has reset; a new request should succeed.
-	w = doRequest(r)
+	w = doRequest(t, r)
 	if w.Code != http.StatusOK {
 		t.Fatalf("after window reset expected 200, got %d", w.Code)
 	}
@@ -181,7 +182,7 @@ func TestRateLimitValkeyFailureFallback(t *testing.T) {
 	}, keyPrefixFallback)
 	r := newRateLimitRouter(mw)
 
-	w := doRequest(r)
+	w := doRequest(t, r)
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected fail-open (200) when Valkey is unavailable, got %d", w.Code)
 	}
@@ -215,17 +216,17 @@ func TestRateLimitDifferentKeysIndependent(t *testing.T) {
 
 	// Exhaust key A.
 	for i := 0; i < limit; i++ {
-		doRequest(r1)
+		doRequest(t, r1)
 	}
 
 	// Key A is now blocked.
-	w := doRequest(r1)
+	w := doRequest(t, r1)
 	if w.Code != http.StatusTooManyRequests {
 		t.Fatalf("keyA: expected 429, got %d", w.Code)
 	}
 
 	// Key B should still be freely accessible.
-	w = doRequest(r2)
+	w = doRequest(t, r2)
 	if w.Code != http.StatusOK {
 		t.Fatalf("keyB: expected 200, got %d", w.Code)
 	}
@@ -244,7 +245,7 @@ func TestRateLimitRemainingDecrement(t *testing.T) {
 
 	prev := limit
 	for i := 0; i < limit; i++ {
-		w := doRequest(r)
+		w := doRequest(t, r)
 		if w.Code != http.StatusOK {
 			t.Fatalf("request %d: expected 200, got %d", i+1, w.Code)
 		}
@@ -277,12 +278,12 @@ func TestByUserID(t *testing.T) {
 	r.GET("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	for i := 0; i < limit; i++ {
-		w := doRequest(r)
+		w := doRequest(t, r)
 		if w.Code != http.StatusOK {
 			t.Fatalf("ByUserID request %d: expected 200, got %d", i+1, w.Code)
 		}
 	}
-	w := doRequest(r)
+	w := doRequest(t, r)
 	if w.Code != http.StatusTooManyRequests {
 		t.Fatalf("ByUserID: expected 429 after limit, got %d", w.Code)
 	}
@@ -304,12 +305,12 @@ func TestByOrgID(t *testing.T) {
 	r.GET("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	for i := 0; i < limit; i++ {
-		w := doRequest(r)
+		w := doRequest(t, r)
 		if w.Code != http.StatusOK {
 			t.Fatalf("ByOrgID request %d: expected 200, got %d", i+1, w.Code)
 		}
 	}
-	w := doRequest(r)
+	w := doRequest(t, r)
 	if w.Code != http.StatusTooManyRequests {
 		t.Fatalf("ByOrgID: expected 429 after limit, got %d", w.Code)
 	}
@@ -333,12 +334,12 @@ func TestByAPIKey(t *testing.T) {
 	r.GET("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	for i := 0; i < limit; i++ {
-		w := doRequest(r)
+		w := doRequest(t, r)
 		if w.Code != http.StatusOK {
 			t.Fatalf("ByAPIKey request %d: expected 200, got %d", i+1, w.Code)
 		}
 	}
-	w := doRequest(r)
+	w := doRequest(t, r)
 	if w.Code != http.StatusTooManyRequests {
 		t.Fatalf("ByAPIKey: expected 429 after limit, got %d", w.Code)
 	}
@@ -382,14 +383,14 @@ func TestNoKeyUsesFallbackKey(t *testing.T) {
 
 	// Requests up to the limit should succeed (fallback key is rate-limited).
 	for i := 0; i < limit; i++ {
-		w := doRequest(r)
+		w := doRequest(t, r)
 		if w.Code != http.StatusOK {
 			t.Fatalf("fallback key: request %d expected 200, got %d", i+1, w.Code)
 		}
 	}
 
 	// Once the fallback key's limit is exhausted the request must be rejected.
-	w := doRequest(r)
+	w := doRequest(t, r)
 	if w.Code != http.StatusTooManyRequests {
 		t.Fatalf("fallback key: expected 429 after limit, got %d", w.Code)
 	}
@@ -405,7 +406,7 @@ func TestResetHeaderIsUnixTimestamp(t *testing.T) {
 	}, keyPrefixFallback)
 	r := newRateLimitRouter(mw)
 
-	w := doRequest(r)
+	w := doRequest(t, r)
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
@@ -453,14 +454,14 @@ func TestByOrgTierFreeGeneral(t *testing.T) {
 
 	// 3 requests should succeed.
 	for i := 0; i < 3; i++ {
-		w := doRequest(r)
+		w := doRequest(t, r)
 		if w.Code != http.StatusOK {
 			t.Fatalf("request %d: expected 200, got %d", i+1, w.Code)
 		}
 	}
 
 	// 4th should be rejected.
-	w := doRequest(r)
+	w := doRequest(t, r)
 	if w.Code != http.StatusTooManyRequests {
 		t.Fatalf("expected 429 after free tier limit, got %d", w.Code)
 	}
@@ -481,13 +482,13 @@ func TestByOrgTierFreeCompletion(t *testing.T) {
 	r := newOrgTierRouter(rl, resolver, cfg, RouteGroupCompletion, "org-free-comp")
 
 	for i := 0; i < 2; i++ {
-		w := doRequest(r)
+		w := doRequest(t, r)
 		if w.Code != http.StatusOK {
 			t.Fatalf("completion request %d: expected 200, got %d", i+1, w.Code)
 		}
 	}
 
-	w := doRequest(r)
+	w := doRequest(t, r)
 	if w.Code != http.StatusTooManyRequests {
 		t.Fatalf("expected 429 after completion limit, got %d", w.Code)
 	}
@@ -505,13 +506,13 @@ func TestByOrgTierProHigherLimit(t *testing.T) {
 
 	// Pro tier should allow 5 requests (vs 2 for free).
 	for i := 0; i < 5; i++ {
-		w := doRequest(r)
+		w := doRequest(t, r)
 		if w.Code != http.StatusOK {
 			t.Fatalf("pro request %d: expected 200, got %d", i+1, w.Code)
 		}
 	}
 
-	w := doRequest(r)
+	w := doRequest(t, r)
 	if w.Code != http.StatusTooManyRequests {
 		t.Fatalf("expected 429 after pro tier limit, got %d", w.Code)
 	}
@@ -529,7 +530,7 @@ func TestByOrgTierEnterpriseUnlimited(t *testing.T) {
 
 	// Even 50 requests should succeed (unlimited).
 	for i := 0; i < 50; i++ {
-		w := doRequest(r)
+		w := doRequest(t, r)
 		if w.Code != http.StatusOK {
 			t.Fatalf("enterprise unlimited request %d: expected 200, got %d", i+1, w.Code)
 		}
@@ -547,13 +548,13 @@ func TestByOrgTierWidgetStricterLimit(t *testing.T) {
 	r := newOrgTierRouter(rl, resolver, cfg, RouteGroupWidget, "org-widget-1")
 
 	for i := 0; i < 2; i++ {
-		w := doRequest(r)
+		w := doRequest(t, r)
 		if w.Code != http.StatusOK {
 			t.Fatalf("widget request %d: expected 200, got %d", i+1, w.Code)
 		}
 	}
 
-	w := doRequest(r)
+	w := doRequest(t, r)
 	if w.Code != http.StatusTooManyRequests {
 		t.Fatalf("expected 429 after widget limit, got %d", w.Code)
 	}
@@ -571,14 +572,14 @@ func TestByOrgTierWindowReset(t *testing.T) {
 
 	// Exhaust the limit.
 	for i := 0; i < 2; i++ {
-		w := doRequest(r)
+		w := doRequest(t, r)
 		if w.Code != http.StatusOK {
 			t.Fatalf("request %d should succeed, got %d", i+1, w.Code)
 		}
 	}
 
 	// Should be blocked now.
-	w := doRequest(r)
+	w := doRequest(t, r)
 	if w.Code != http.StatusTooManyRequests {
 		t.Fatalf("expected 429, got %d", w.Code)
 	}
@@ -587,7 +588,7 @@ func TestByOrgTierWindowReset(t *testing.T) {
 	mr.FastForward(61 * time.Second)
 
 	// Should be allowed again.
-	w = doRequest(r)
+	w = doRequest(t, r)
 	if w.Code != http.StatusOK {
 		t.Fatalf("after window reset expected 200, got %d", w.Code)
 	}
@@ -607,15 +608,15 @@ func TestByOrgTierDifferentOrgsIndependent(t *testing.T) {
 
 	// Exhaust org A.
 	for i := 0; i < 2; i++ {
-		doRequest(r1)
+		doRequest(t, r1)
 	}
-	w := doRequest(r1)
+	w := doRequest(t, r1)
 	if w.Code != http.StatusTooManyRequests {
 		t.Fatalf("org-A: expected 429, got %d", w.Code)
 	}
 
 	// Org B should still succeed.
-	w = doRequest(r2)
+	w = doRequest(t, r2)
 	if w.Code != http.StatusOK {
 		t.Fatalf("org-B: expected 200, got %d", w.Code)
 	}
@@ -633,13 +634,13 @@ func TestByOrgTierNoOrgFallsBackToIP(t *testing.T) {
 	r := newOrgTierRouter(rl, resolver, cfg, RouteGroupGeneral, "")
 
 	for i := 0; i < 2; i++ {
-		w := doRequest(r)
+		w := doRequest(t, r)
 		if w.Code != http.StatusOK {
 			t.Fatalf("anon request %d: expected 200, got %d", i+1, w.Code)
 		}
 	}
 
-	w := doRequest(r)
+	w := doRequest(t, r)
 	if w.Code != http.StatusTooManyRequests {
 		t.Fatalf("expected 429 for anonymous fallback, got %d", w.Code)
 	}
@@ -656,7 +657,7 @@ func TestByOrgTierRateLimitHeaders(t *testing.T) {
 	r := newOrgTierRouter(rl, resolver, cfg, RouteGroupGeneral, "org-headers")
 
 	// First request — check headers on admitted response.
-	w := doRequest(r)
+	w := doRequest(t, r)
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
@@ -671,8 +672,8 @@ func TestByOrgTierRateLimitHeaders(t *testing.T) {
 	}
 
 	// Exhaust and check 429 headers.
-	doRequest(r)
-	w = doRequest(r)
+	doRequest(t, r)
+	w = doRequest(t, r)
 	if w.Code != http.StatusTooManyRequests {
 		t.Fatalf("expected 429, got %d", w.Code)
 	}
@@ -758,15 +759,15 @@ func TestRouteGroupSeparation(t *testing.T) {
 
 	// Exhaust general limit.
 	for i := 0; i < 2; i++ {
-		doRequest(rGeneral)
+		doRequest(t, rGeneral)
 	}
-	w := doRequest(rGeneral)
+	w := doRequest(t, rGeneral)
 	if w.Code != http.StatusTooManyRequests {
 		t.Fatalf("general: expected 429, got %d", w.Code)
 	}
 
 	// Completion should still be available.
-	w = doRequest(rCompletion)
+	w = doRequest(t, rCompletion)
 	if w.Code != http.StatusOK {
 		t.Fatalf("completion should still be available, got %d", w.Code)
 	}

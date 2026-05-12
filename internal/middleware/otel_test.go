@@ -59,7 +59,7 @@ func TestSpanCreatedForRequest(t *testing.T) {
 
 	router := newTestRouter()
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", nil)
 	router.ServeHTTP(w, req)
 
 	spans := spanExporter.GetSpans()
@@ -73,7 +73,7 @@ func TestTraceIDHeaderSet(t *testing.T) {
 
 	router := newTestRouter()
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", nil)
 	router.ServeHTTP(w, req)
 
 	traceID := w.Header().Get("X-Trace-ID")
@@ -90,7 +90,7 @@ func TestSpanAttributes(t *testing.T) {
 
 	router := newTestRouter()
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", nil)
 	router.ServeHTTP(w, req)
 
 	spans := spanExporter.GetSpans()
@@ -127,7 +127,7 @@ func TestRequestDurationMetric(t *testing.T) {
 
 	router := newTestRouter()
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", nil)
 	router.ServeHTTP(w, req)
 
 	var rm metricdata.ResourceMetrics
@@ -165,7 +165,7 @@ func TestNoOpModeNoPanic(t *testing.T) {
 
 	router := newTestRouter()
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", nil)
 
 	// Must not panic.
 	router.ServeHTTP(w, req)

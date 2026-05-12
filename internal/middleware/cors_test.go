@@ -43,7 +43,7 @@ func defaultCORSConfig() *config.CORSConfig {
 func TestSecurityHeaders(t *testing.T) {
 	r := newTestRouter(defaultCORSConfig())
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/ping", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/ping", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -74,7 +74,7 @@ func TestSecurityHeaders(t *testing.T) {
 func TestCORSAllowedOrigin(t *testing.T) {
 	r := newTestRouter(defaultCORSConfig())
 
-	req := httptest.NewRequest(http.MethodOptions, "/api/v1/ping", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodOptions, "/api/v1/ping", nil)
 	req.Header.Set("Origin", "http://localhost:5173")
 	req.Header.Set("Access-Control-Request-Method", "GET")
 	req.Header.Set("Access-Control-Request-Headers", "Authorization")
@@ -102,7 +102,7 @@ func TestCORSAllowedOrigin(t *testing.T) {
 func TestCORSDisallowedOrigin(t *testing.T) {
 	r := newTestRouter(defaultCORSConfig())
 
-	req := httptest.NewRequest(http.MethodOptions, "/api/v1/ping", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodOptions, "/api/v1/ping", nil)
 	req.Header.Set("Origin", "https://evil.example.com")
 	req.Header.Set("Access-Control-Request-Method", "GET")
 	w := httptest.NewRecorder()
@@ -123,7 +123,7 @@ func TestCORSDisallowedOrigin(t *testing.T) {
 func TestCORSActualRequest(t *testing.T) {
 	r := newTestRouter(defaultCORSConfig())
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/ping", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/ping", nil)
 	req.Header.Set("Origin", "http://localhost:5173")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -187,8 +187,9 @@ func newKeyAwareRouter(corsConfig *config.CORSConfig, lookup middleware.APIKeyOr
 // the supplied Origin so the gin-contrib/cors "same-origin" shortcut at
 // applyCors() does not silently bypass our validator. (httptest.NewRequest
 // defaults Host to "example.com", which collides with our example origins.)
-func xOriginRequest(method, target, origin string) *http.Request {
-	req := httptest.NewRequest(method, target, nil)
+func xOriginRequest(t *testing.T, method, target, origin string) *http.Request {
+	t.Helper()
+	req := httptest.NewRequestWithContext(t.Context(), method, target, nil)
 	req.Host = "api.raven.test"
 	req.Header.Set("Origin", origin)
 	return req
@@ -202,7 +203,7 @@ func TestCORSPerKey_NoKeyOnRequest_FallsBackToServerAllowlist(t *testing.T) {
 	r := newKeyAwareRouter(defaultCORSConfig(), lookup)
 
 	// Allowed by server allowlist.
-	req := xOriginRequest(http.MethodGet, "/api/v1/ping", "http://localhost:5173")
+	req := xOriginRequest(t, http.MethodGet, "/api/v1/ping", "http://localhost:5173")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
@@ -213,7 +214,7 @@ func TestCORSPerKey_NoKeyOnRequest_FallsBackToServerAllowlist(t *testing.T) {
 	}
 
 	// Rejected: not in server allowlist, no key supplied.
-	req = xOriginRequest(http.MethodOptions, "/api/v1/ping", "https://example.com")
+	req = xOriginRequest(t, http.MethodOptions, "/api/v1/ping", "https://example.com")
 	req.Header.Set("Access-Control-Request-Method", "GET")
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -233,7 +234,7 @@ func TestCORSPerKey_KeyWithEmptyAllowlist_FallsBackToServer(t *testing.T) {
 	r := newKeyAwareRouter(defaultCORSConfig(), lookup)
 
 	// Origin is in the server allowlist -> allowed.
-	req := xOriginRequest(http.MethodGet, "/api/v1/ping", "http://localhost:5173")
+	req := xOriginRequest(t, http.MethodGet, "/api/v1/ping", "http://localhost:5173")
 	req.Header.Set("X-API-Key", rawKey)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -246,7 +247,7 @@ func TestCORSPerKey_KeyWithEmptyAllowlist_FallsBackToServer(t *testing.T) {
 
 	// Origin not in server allowlist -> rejected (empty per-key list does
 	// NOT widen the allowlist).
-	req = xOriginRequest(http.MethodOptions, "/api/v1/ping", "https://example.com")
+	req = xOriginRequest(t, http.MethodOptions, "/api/v1/ping", "https://example.com")
 	req.Header.Set("X-API-Key", rawKey)
 	req.Header.Set("Access-Control-Request-Method", "GET")
 	w = httptest.NewRecorder()
@@ -267,7 +268,7 @@ func TestCORSPerKey_MatchingOrigin_Allowed(t *testing.T) {
 	// Server allowlist intentionally excludes example.com.
 	r := newKeyAwareRouter(defaultCORSConfig(), lookup)
 
-	req := xOriginRequest(http.MethodGet, "/api/v1/ping", "https://example.com")
+	req := xOriginRequest(t, http.MethodGet, "/api/v1/ping", "https://example.com")
 	req.Header.Set("X-API-Key", rawKey)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -292,7 +293,7 @@ func TestCORSPerKey_NonMatchingOrigin_Rejected(t *testing.T) {
 	// to example.com must not be usable from there.
 	r := newKeyAwareRouter(defaultCORSConfig(), lookup)
 
-	req := xOriginRequest(http.MethodOptions, "/api/v1/ping", "http://localhost:5173")
+	req := xOriginRequest(t, http.MethodOptions, "/api/v1/ping", "http://localhost:5173")
 	req.Header.Set("X-API-Key", rawKey)
 	req.Header.Set("Access-Control-Request-Method", "GET")
 	w := httptest.NewRecorder()
@@ -305,7 +306,7 @@ func TestCORSPerKey_NonMatchingOrigin_Rejected(t *testing.T) {
 	}
 
 	// And the attacker case from the task description.
-	req = xOriginRequest(http.MethodGet, "/api/v1/ping", "https://attacker.com")
+	req = xOriginRequest(t, http.MethodGet, "/api/v1/ping", "https://attacker.com")
 	req.Header.Set("X-API-Key", rawKey)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -334,7 +335,7 @@ func TestCORSPerKey_WildcardMatch(t *testing.T) {
 		{"https://example.com.attacker.com", http.StatusForbidden},
 	}
 	for _, tc := range cases {
-		req := xOriginRequest(http.MethodOptions, "/api/v1/ping", tc.origin)
+		req := xOriginRequest(t, http.MethodOptions, "/api/v1/ping", tc.origin)
 		req.Header.Set("X-API-Key", rawKey)
 		req.Header.Set("Access-Control-Request-Method", "GET")
 		w := httptest.NewRecorder()
@@ -358,7 +359,7 @@ func TestCORSPerKey_LookupError_FailsClosed(t *testing.T) {
 	lookup := &fakeAPIKeyLookup{err: errors.New("db down")}
 	r := newKeyAwareRouter(defaultCORSConfig(), lookup)
 
-	req := xOriginRequest(http.MethodGet, "/api/v1/ping", "http://localhost:5173") // would be allowed without a key
+	req := xOriginRequest(t, http.MethodGet, "/api/v1/ping", "http://localhost:5173") // would be allowed without a key
 	req.Header.Set("X-API-Key", "rk_anything")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -371,7 +372,7 @@ func TestCORSPerKey_LookupError_FailsClosed(t *testing.T) {
 func TestCORSSecondAllowedOrigin(t *testing.T) {
 	r := newTestRouter(defaultCORSConfig())
 
-	req := httptest.NewRequest(http.MethodOptions, "/api/v1/ping", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodOptions, "/api/v1/ping", nil)
 	req.Header.Set("Origin", "https://raven-frontend.pages.dev")
 	req.Header.Set("Access-Control-Request-Method", "POST")
 	w := httptest.NewRecorder()
