@@ -29,15 +29,9 @@ aws ssm put-parameter --region ap-south-1 --type SecureString \
 
 ## Cloudflare Tunnel credentials
 
-```bash
-cloudflared tunnel login                                           # opens browser
-cloudflared tunnel create raven-demo                               # writes ~/.cloudflared/<UUID>.json
-aws ssm put-parameter --region ap-south-1 --type SecureString \
-  --name /raven/demo/cloudflared_credentials_json \
-  --value "$(cat ~/.cloudflared/<UUID>.json)"
-aws ssm put-parameter --region ap-south-1 --type String \
-  --name /raven/demo/cloudflared_tunnel_id --value '<UUID>'
-```
+Terraform manages the tunnel resource and writes its credentials to SSM
+(`/raven/demo/cloudflared_credentials_json`, `/raven/demo/cloudflared_tunnel_id`).
+No manual `cloudflared login` step is needed.
 
 ## Terraform apply
 
