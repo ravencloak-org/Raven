@@ -40,7 +40,7 @@ Raven is built for teams that need a production-grade RAG platform without vendo
 - **Voice agent** -- real-time voice interface via LiveKit Agents with STT/TTS pipeline
 - **WebRTC and WhatsApp** -- browser-based and WhatsApp Business Calling API integration
 - **BYOK LLM** -- bring your own API keys for Anthropic Claude, OpenAI, Cohere, or self-hosted models
-- **Hybrid search** -- pgvector cosine similarity + BM25 full-text search with Reciprocal Rank Fusion
+- **Hybrid search** -- pgvector cosine similarity + BM25-style lexical ranking (PostgreSQL `tsvector` + `ts_rank_cd`) with Reciprocal Rank Fusion
 - **Self-hostable** -- single Docker Compose deployment with no external SaaS dependencies required
 - **Edge-deployable** -- Go API compiles to a ~25 MB ARM64 binary; run the API on a Raspberry Pi with a remote AI worker
 
@@ -56,7 +56,7 @@ PostgreSQL serves as the single source of truth -- storing relational data, vect
 |-------|-----------|---------|
 | **API Server** | Go + Gin | REST API, JWT validation, tenant routing, SSE streaming |
 | **AI Worker** | Python + gRPC | RAG queries, embeddings, document parsing, web scraping |
-| **Database** | PostgreSQL 18 + pgvector | Relational data, vector search, BM25 full-text |
+| **Database** | PostgreSQL 18 + pgvector | Relational data, vector search, full-text keyword ranking |
 | **Frontend** | Vue.js 3 + Tailwind CSS | Admin dashboard (SPA, mobile-first, PWA-capable) |
 | **Chatbot Widget** | Web Component | Embeddable `<raven-chat>` element |
 | **Auth** | SuperTokens | Email/password + OAuth (Google), session management, MFA |
