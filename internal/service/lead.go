@@ -33,14 +33,57 @@ func mapLeadDBError(err error) error {
 	return apierror.NewInternal("an unexpected error occurred")
 }
 
+// LeadWebhookDispatcher is the slice of WebhookService that LeadService needs
+// in order to fire outbound `lead.generated` events. Defined as a local
+// interface so tests can substitute a fake. A nil dispatcher is supported and
+// means "do not emit webhooks".
+type LeadWebhookDispatcher interface {
+	Dispatch(ctx context.Context, orgID, eventType string, payload map[string]any) error
+}
+
 // LeadService contains business logic for lead profile management.
 type LeadService struct {
-	repo *repository.LeadRepository
+	repo              *repository.LeadRepository
+	webhookDispatcher LeadWebhookDispatcher
 }
 
 // NewLeadService creates a new LeadService.
 func NewLeadService(repo *repository.LeadRepository) *LeadService {
 	return &LeadService{repo: repo}
+}
+
+// WithWebhookDispatcher attaches a webhook dispatcher so that successful
+// upserts fan out a `lead.generated` event. Chainable at wiring time.
+func (s *LeadService) WithWebhookDispatcher(d LeadWebhookDispatcher) *LeadService {
+	s.webhookDispatcher = d
+	return s
+}
+
+// dispatchLeadGenerated fires a `lead.generated` webhook in a detached
+// goroutine. Errors are logged and swallowed — webhook delivery never blocks
+// or fails the producer's success path. Note that today the repo's Upsert
+// merges by (org, email) so an event is emitted on both first capture and
+// subsequent merges; receivers should be idempotent on `lead_id`.
+func (s *LeadService) dispatchLeadGenerated(ctx context.Context, orgID string, lead *model.LeadProfile) {
+	if s.webhookDispatcher == nil || lead == nil {
+		return
+	}
+	detached := context.WithoutCancel(ctx)
+	payload := map[string]any{
+		"lead_id":           lead.ID,
+		"email":             lead.Email,
+		"name":              lead.Name,
+		"knowledge_base_id": lead.KnowledgeBaseID,
+		"session_ids":       lead.SessionIDs,
+	}
+	go func() {
+		if err := s.webhookDispatcher.Dispatch(detached, orgID,
+			string(model.WebhookEventLeadGenerated), payload); err != nil {
+			slog.WarnContext(detached, "webhook dispatch failed",
+				"event_type", string(model.WebhookEventLeadGenerated),
+				"org_id", orgID, "lead_id", lead.ID, "error", err)
+		}
+	}()
 }
 
 // Upsert validates and persists a lead profile, creating or merging by org+email.
@@ -49,6 +92,7 @@ func (s *LeadService) Upsert(ctx context.Context, orgID string, req model.Upsert
 	if err != nil {
 		return nil, mapLeadDBError(err)
 	}
+	s.dispatchLeadGenerated(ctx, orgID, lead)
 	return lead, nil
 }
 

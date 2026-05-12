@@ -388,7 +388,7 @@ func main() {
 	identitySvc := service.NewIdentityService(identityRepo, posthogClient)
 	notifSvc := service.NewNotificationService(notifRepo, queueClient)
 	webhookSvc := service.NewWebhookService(webhookRepo, pool, queueClient)
-	leadSvc := service.NewLeadService(leadRepo)
+	leadSvc := service.NewLeadService(leadRepo).WithWebhookDispatcher(webhookSvc)
 	whatsappSvc := service.NewWhatsAppService(whatsappRepo, pool)
 	hsClient := hyperswitch.NewClient(cfg.Hyperswitch.BaseURL, cfg.Hyperswitch.APIKey)
 	billingSvc := service.NewBillingService(billingRepo, pool, hsClient, cfg.Hyperswitch.WebhookSecret)
