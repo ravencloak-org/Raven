@@ -205,7 +205,7 @@ func TestAPIKeyAuth(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			r := setupAPIKeyRouter(tc.lookup)
 			w := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/test", nil)
 			if tc.apiKey != "" {
 				req.Header.Set("X-API-Key", tc.apiKey)
 			}

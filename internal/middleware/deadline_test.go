@@ -26,7 +26,7 @@ func TestDeadline_AppliesTimeoutToRequestContext(t *testing.T) {
 		c.Status(http.StatusOK)
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 }
@@ -46,7 +46,7 @@ func TestDeadline_PropagatesCancellation(t *testing.T) {
 		c.Status(http.StatusOK)
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
