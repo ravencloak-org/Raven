@@ -9,24 +9,19 @@ workspace by sending a signed JSON `POST` to a URL you register. This page
 documents the data model, the HTTP contract, the signing scheme, the
 delivery semantics, and the current state of the implementation.
 
-::: warning Current state — schema + plumbing, no live emission
-The webhook **data model**, **management API**, **delivery worker**, and
-**HMAC signing** are implemented in the Go backend (`internal/handler/webhook.go`,
-`internal/service/webhook.go`, `internal/jobs/webhook_delivery.go`,
-`migrations/00024_webhook_configs.sql`).
+::: info Current state — three of four event types fire from production code
+The webhook **data model**, **management API**, **delivery worker**,
+**HMAC signing**, **and** the producer call sites for three of the four
+event types are implemented in the Go backend
+(`internal/handler/webhook.go`, `internal/service/webhook.go`,
+`internal/jobs/webhook_delivery.go`,
+`migrations/00024_webhook_configs.sql`, plus the wiring listed below).
 
-What is **not** wired today: the application code that calls
-`WebhookService.Dispatch` when an event actually occurs. The function is
-defined and unit-tested, but it has no production call sites — grep
-`internal/` and `cmd/` and you will only see the constructor wiring.
-The enterprise emitter package (`internal/ee/webhooks`) is a doc-comment
-placeholder.
-
-Treat this page as the **reference for the data model and the contract a
-receiver must implement**. Event types listed below are the ones the
-backend will *accept* during webhook registration; whether they fire in
-your build depends on whether the corresponding code path has been wired
-to call `Dispatch`. As of this writing, none of them do.
+The remaining event (`conversation.escalated`) has **no producer code
+path in OSS** today — the conversation lifecycle does not yet have an
+"escalate to human" verb. The event type is still accepted at
+registration so receivers can subscribe in anticipation of the EE
+emitter (`internal/ee/webhooks`, currently a doc-comment placeholder).
 :::
 
 ## What's wired
@@ -37,8 +32,11 @@ to call `Dispatch`. As of this writing, none of them do.
 | CRUD API (`/orgs/:org_id/webhooks`) | `internal/handler/webhook.go`, `cmd/api/main.go` | Real, admin-only |
 | List deliveries (`/orgs/:org_id/webhooks/:id/deliveries`) | `internal/handler/webhook.go` | Real, last 50 |
 | Async delivery worker with HMAC-SHA256 signing, SSRF guard, retries | `internal/jobs/webhook_delivery.go` | Real |
-| Dispatch fan-out (look up active subscribers and enqueue) | `internal/service/webhook.go` `WebhookService.Dispatch` | Defined, **no callers** |
-| Event emission from feature code (leads, conversations, etc.) | — | **Not wired** |
+| Dispatch fan-out (look up active subscribers and enqueue) | `internal/service/webhook.go` `WebhookService.Dispatch` | Real, called from three producers |
+| `document.processed` emission | `internal/jobs/document_process.go` | Real, end of success path |
+| `sync.completed` emission | `internal/jobs/airbyte_sync.go` | Real, end of success path |
+| `lead.generated` emission | `internal/service/lead.go` `LeadService.Upsert` | Real, on each successful upsert |
+| `conversation.escalated` emission | — | **Not wired** (no escalation verb in OSS) |
 | Replay / resend endpoint | — | Not implemented |
 
 ## Event types
@@ -47,12 +45,47 @@ Defined in `internal/model/webhook.go` and enforced by
 `supportedWebhookEvents` in `internal/handler/webhook.go`. Subscribing to
 any other name is rejected with HTTP 400.
 
-| Event | Will fire when (planned) |
-|-------|--------------------------|
-| `lead.generated` | A lead intelligence pipeline run produces a new lead row. |
-| `conversation.escalated` | A conversation is escalated to a human operator. |
-| `document.processed` | A document ingestion job finishes successfully. |
-| `sync.completed` | A data source sync (connector) finishes. |
+| Event | Fires when | Status |
+|-------|-----------|--------|
+| `lead.generated` | `LeadService.Upsert` succeeds (capture or merge by org+email). | Wired |
+| `conversation.escalated` | A conversation is escalated to a human operator. | **Not wired** — no escalation verb in OSS today; reserved for the EE emitter. |
+| `document.processed` | The document processing job finishes successfully (with or without chunks). | Wired |
+| `sync.completed` | An Airbyte connector sync run completes successfully. | Wired |
+
+### Wired payload shapes
+
+```json
+// document.processed
+{
+  "document_id": "uuid",
+  "knowledge_base_id": "uuid",
+  "status": "ready",
+  "chunk_count": 7
+}
+
+// sync.completed
+{
+  "connector_id": "uuid",
+  "source_id": "uuid",            // knowledge_base_id of the connector
+  "sync_run_id": "uuid",
+  "records_synced": 0,             // placeholder until real Airbyte API lands (TODO #111)
+  "status": "completed"
+}
+
+// lead.generated
+{
+  "lead_id": "uuid",
+  "email": "visitor@example.com",
+  "name": "Visitor Name",
+  "knowledge_base_id": "uuid",
+  "session_ids": ["uuid", "..."]
+}
+```
+
+`lead.generated` is emitted on every successful `UpsertLead` call — the
+repo merges by `(org_id, email)` so receivers may see repeated events
+for the same `lead_id` as the visitor's profile is enriched. Dedupe on
+`lead_id` plus the delivery row's `id`.
 
 No other event names are accepted. Billing webhooks (`payment_succeeded`,
 etc.) and the Meta / WhatsApp webhook endpoints (`/webhooks/meta`,
@@ -131,8 +164,8 @@ X-Raven-Signature: sha256=<hex-encoded HMAC>
 ```
 
 The `data` field is a free-form `map[string]any` chosen by the caller of
-`Dispatch`. Concrete shapes for each event type will be specified when
-the corresponding emitter is wired.
+`Dispatch`. Concrete shapes per wired event are listed under
+[Event types](#event-types) above.
 
 ## Signing + verification
 

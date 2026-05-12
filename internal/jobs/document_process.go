@@ -64,15 +64,48 @@ func SplitMarkdownByHeadings(content string) []MarkdownSection {
 	return sections
 }
 
+// WebhookDispatcher is the slice of WebhookService this job needs to fire
+// outbound events. Defined as a local interface so the jobs package does not
+// import service, and so tests can substitute a fake. A nil dispatcher is
+// supported and means "do not emit webhooks" — useful for unit tests and for
+// callers that have not finished wiring webhook delivery.
+type WebhookDispatcher interface {
+	Dispatch(ctx context.Context, orgID, eventType string, payload map[string]any) error
+}
+
+// dispatchAsync runs WebhookDispatcher.Dispatch in a goroutine using a
+// detached context (cancellation severed, trace IDs preserved) so that the
+// producer's success path never blocks on webhook delivery and never fails
+// when delivery fails. Dispatch itself enqueues Asynq tasks, so the actual
+// HTTP send is already async; this goroutine only covers the synchronous
+// fan-out work (DB insert per delivery, one Asynq enqueue per webhook).
+func dispatchAsync(ctx context.Context, d WebhookDispatcher, logger *slog.Logger, orgID, eventType string, payload map[string]any) {
+	if d == nil {
+		return
+	}
+	detached := context.WithoutCancel(ctx)
+	go func() {
+		if err := d.Dispatch(detached, orgID, eventType, payload); err != nil {
+			logger.WarnContext(detached, "webhook dispatch failed",
+				"event_type", eventType, "org_id", orgID, "error", err)
+		}
+	}()
+}
+
 // NewDocumentProcessHandler returns an asynq.HandlerFunc that processes a queued
 // document: downloads markdown from SeaweedFS, splits it into chunks by heading,
 // inserts each chunk into the DB, and marks the document as ready.
+//
+// If webhookDispatcher is non-nil, the handler fires a `document.processed`
+// webhook event after the success path completes. Pass nil to disable webhook
+// emission (e.g. in tests).
 func NewDocumentProcessHandler(
 	pool *pgxpool.Pool,
 	docRepo *repository.DocumentRepository,
 	chunkRepo *repository.ChunkRepository,
 	store storage.Client,
 	logger *slog.Logger,
+	webhookDispatcher WebhookDispatcher,
 ) asynq.HandlerFunc {
 	return func(ctx context.Context, task *asynq.Task) error {
 		var p queue.DocumentProcessPayload
@@ -137,6 +170,15 @@ func NewDocumentProcessHandler(
 			if err := updateDocStatus(ctx, pool, p.OrgID, p.DocumentID, docRepo, model.ProcessingStatusReady, ""); err != nil {
 				return fmt.Errorf("set status ready (empty): %w", err)
 			}
+			// Fire `document.processed` webhook (best-effort; never blocks the success path).
+			dispatchAsync(ctx, webhookDispatcher, logger, p.OrgID,
+				string(model.WebhookEventDocumentProcessed),
+				map[string]any{
+					"document_id":       p.DocumentID,
+					"knowledge_base_id": p.KnowledgeBaseID,
+					"status":            string(model.ProcessingStatusReady),
+					"chunk_count":       0,
+				})
 			return nil
 		}
 
@@ -177,6 +219,16 @@ func NewDocumentProcessHandler(
 			"document_id", p.DocumentID,
 			"chunks", len(sections),
 		)
+
+		// Fire `document.processed` webhook (best-effort; never blocks the success path).
+		dispatchAsync(ctx, webhookDispatcher, logger, p.OrgID,
+			string(model.WebhookEventDocumentProcessed),
+			map[string]any{
+				"document_id":       p.DocumentID,
+				"knowledge_base_id": p.KnowledgeBaseID,
+				"status":            string(model.ProcessingStatusReady),
+				"chunk_count":       len(sections),
+			})
 
 		return nil
 	}

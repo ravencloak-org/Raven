@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ravencloak-org/Raven/internal/db"
+	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/internal/queue"
 	"github.com/ravencloak-org/Raven/internal/repository"
 )
@@ -21,14 +22,19 @@ import (
 // logs a placeholder message (real Airbyte API integration is a follow-up),
 // and completes the sync run.
 type AirbyteSyncHandler struct {
-	pool   *pgxpool.Pool
-	repo   *repository.AirbyteRepository
-	logger *slog.Logger
+	pool              *pgxpool.Pool
+	repo              *repository.AirbyteRepository
+	logger            *slog.Logger
+	webhookDispatcher WebhookDispatcher
 }
 
 // NewAirbyteSyncHandler creates a new AirbyteSyncHandler.
-func NewAirbyteSyncHandler(pool *pgxpool.Pool, repo *repository.AirbyteRepository, logger *slog.Logger) *AirbyteSyncHandler {
-	return &AirbyteSyncHandler{pool: pool, repo: repo, logger: logger}
+//
+// If webhookDispatcher is non-nil, the handler fires a `sync.completed`
+// webhook event after a successful sync run. Pass nil to disable webhook
+// emission (e.g. in tests).
+func NewAirbyteSyncHandler(pool *pgxpool.Pool, repo *repository.AirbyteRepository, logger *slog.Logger, webhookDispatcher WebhookDispatcher) *AirbyteSyncHandler {
+	return &AirbyteSyncHandler{pool: pool, repo: repo, logger: logger, webhookDispatcher: webhookDispatcher}
 }
 
 // ProcessTask implements asynq.Handler for Airbyte sync tasks.
@@ -96,6 +102,19 @@ func (h *AirbyteSyncHandler) ProcessTask(ctx context.Context, t *asynq.Task) err
 		"connector_id", payload.ConnectorID,
 		"sync_run_id", syncRunID,
 	)
+
+	// Fire `sync.completed` webhook (best-effort; never blocks the success path).
+	// records_synced is 0 until real Airbyte integration lands (TODO #111);
+	// the field is included so receivers can rely on its presence today.
+	dispatchAsync(ctx, h.webhookDispatcher, h.logger, payload.OrgID,
+		string(model.WebhookEventSyncCompleted),
+		map[string]any{
+			"connector_id":    payload.ConnectorID,
+			"source_id":       payload.KnowledgeBaseID,
+			"sync_run_id":     syncRunID,
+			"records_synced":  0,
+			"status":          "completed",
+		})
 
 	return nil
 }

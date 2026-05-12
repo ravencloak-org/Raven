@@ -18,6 +18,7 @@ import (
 	"github.com/ravencloak-org/Raven/internal/posthog"
 	"github.com/ravencloak-org/Raven/internal/queue"
 	"github.com/ravencloak-org/Raven/internal/repository"
+	"github.com/ravencloak-org/Raven/internal/service"
 	"github.com/ravencloak-org/Raven/internal/storage"
 )
 
@@ -39,7 +40,14 @@ func main() {
 	notifRepo := repository.NewNotificationRepository(pool)
 	docRepo := repository.NewDocumentRepository(pool)
 	chunkRepo := repository.NewChunkRepository(pool)
+	airbyteRepo := repository.NewAirbyteRepository(pool)
 	storageClient := storage.NewSeaweedFSClient(cfg.SeaweedFS.MasterURL, nil)
+
+	// Queue client used by webhook dispatch fan-out when job handlers emit
+	// outbound webhook events. Re-uses the same Valkey/Asynq instance as the
+	// server: deliveries land back on the worker mux's webhook handler.
+	queueClient := queue.NewClient(cfg.Valkey.URL)
+	defer func() { _ = queueClient.Close() }()
 
 	srv := queue.NewServer(queue.ServerConfig{
 		RedisAddr:   cfg.Valkey.URL,
@@ -61,9 +69,17 @@ func main() {
 	webhookDeliveryHandler := jobs.NewWebhookDeliveryHandler(pool, webhookRepo, logger)
 	srv.Mux().Handle(queue.TypeWebhookDelivery, webhookDeliveryHandler)
 
+	// Webhook dispatcher reused by document and Airbyte handlers to fan out
+	// `document.processed` and `sync.completed` events on the success path.
+	webhookSvc := service.NewWebhookService(webhookRepo, pool, queueClient)
+
 	// Register document processing handler (overrides the stub in queue.Server).
 	srv.Mux().HandleFunc(queue.TypeDocumentProcess,
-		jobs.NewDocumentProcessHandler(pool, docRepo, chunkRepo, storageClient, logger))
+		jobs.NewDocumentProcessHandler(pool, docRepo, chunkRepo, storageClient, logger, webhookSvc))
+
+	// Register the Airbyte sync handler so connector runs fire `sync.completed`.
+	airbyteSyncHandler := jobs.NewAirbyteSyncHandler(pool, airbyteRepo, logger, webhookSvc)
+	srv.Mux().Handle(queue.TypeAirbyteSync, airbyteSyncHandler)
 
 	// --- M9: post-session email summaries (#257) ---
 	// Reuses the ConversationRepository landed in #349; SetSummary is added
