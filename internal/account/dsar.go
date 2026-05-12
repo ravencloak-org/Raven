@@ -86,3 +86,28 @@ func (h *DSARHandler) Export(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", "attachment; filename=raven-export.json")
 	_ = json.NewEncoder(w).Encode(out)
 }
+
+// Delete schedules irreversible deletion of the authenticated user's
+// data in 24h (the grace window gives users a chance to recover from
+// an accidental click via reply-to-email). Responds 202 Accepted.
+func (h *DSARHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	uid, ok := UserIDFrom(r.Context())
+	if !ok {
+		http.Error(w, "unauthenticated", http.StatusUnauthorized)
+		return
+	}
+	if err := h.Repo.ScheduleDelete(r.Context(), uid); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if email, ok := UserEmailFrom(r.Context()); ok && h.Mail != nil {
+		_ = h.Mail.Send(r.Context(), mail.Message{
+			To:      email,
+			Subject: "Your Raven delete request",
+			Text: "We received your request to delete your Raven account. " +
+				"Your data will be removed in 24 hours. " +
+				"Reply to this email if you didn't request this.",
+		})
+	}
+	w.WriteHeader(http.StatusAccepted)
+}
