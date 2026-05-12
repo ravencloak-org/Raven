@@ -27,6 +27,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -48,6 +49,7 @@ import (
 	"github.com/ravencloak-org/Raven/internal/handler"
 	"github.com/ravencloak-org/Raven/internal/resilience"
 	"github.com/ravencloak-org/Raven/internal/hyperswitch"
+	"github.com/ravencloak-org/Raven/internal/mail"
 	"github.com/ravencloak-org/Raven/internal/middleware"
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/internal/posthog"
@@ -498,6 +500,22 @@ func main() {
 	notifHandler := handler.NewNotificationHandler(notifSvc)
 	notifPrefsRepo := repository.NewNotificationPreferencesRepository(pool)
 	notifPrefsHandler := handler.NewNotificationPrefsHandler(notifPrefsRepo, &userExternalIDResolver{repo: userRepo}, cfg.EmailSummary.UnsubscribeSecret)
+
+	// Demo transactional mailer (Resend HTTP API). Used by DSAR delete
+	// confirmations and the retention purge warning emails. Distinct from
+	// internal/email (SES SMTP) which serves the M9 post-session summary
+	// pipeline — see docs/superpowers/specs/2026-05-12-public-demo-deployment-design.md §8.
+	var demoMailer mail.Sender
+	if key := os.Getenv("RESEND_API_KEY"); key != "" {
+		from := os.Getenv("RESEND_FROM_ADDRESS")
+		if from == "" {
+			from = "noreply@ravencloak.org"
+		}
+		demoMailer = mail.NewResendSender(key, from)
+	} else {
+		demoMailer = &mail.NoopSender{}
+	}
+	_ = demoMailer // consumed by DSAR + retention wiring (plan #3 task 40)
 	webhookHandler := handler.NewWebhookHandler(webhookSvc)
 	chatHandler := handler.NewChatHandler(chatSvc)
 	semCacheHandler := handler.NewSemanticCacheHandler(semCacheRepo)
