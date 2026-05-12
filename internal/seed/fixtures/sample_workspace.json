@@ -1,0 +1,13 @@
+{
+  "workspace_name": "Sample workspace",
+  "messages": [
+    {
+      "role": "system",
+      "text": "Welcome to Raven. This is a pre-seeded sample workspace so you can see the product without setting anything up."
+    },
+    {
+      "role": "assistant",
+      "text": "Try asking me to summarise an article, plan a trip, or pull the latest from a knowledge base. Use the menu on the left to create a new workspace anytime."
+    }
+  ]
+}
