@@ -92,12 +92,12 @@ jobs:
         continue-on-error: true
         run: |
           set -e
-          DMG=$(ls desktop/target/universal-apple-darwin/release/bundle/dmg/*.dmg | head -1)
+          DMG=$(find desktop/target/universal-apple-darwin/release/bundle/dmg -maxdepth 1 -name '*.dmg' -print -quit)
           echo "DMG: $DMG"
 
           # Mount the DMG, copy the .app to /Applications, eject.
           hdiutil attach -nobrowse -readonly "$DMG"
-          VOL=$(ls -d /Volumes/Raven* | head -1)
+          VOL=$(find /Volumes -maxdepth 1 -name 'Raven*' -print -quit)
           cp -R "$VOL"/Raven*.app /Applications/
           hdiutil detach "$VOL" || true
 
@@ -108,7 +108,7 @@ jobs:
           open -a "Raven AI" || echo "::warning::open -a failed"
 
           # Wait for the process to appear.
-          for i in {1..15}; do
+          for _ in $(seq 1 15); do
             if pgrep -f "Raven AI" >/dev/null; then
               echo "App process is alive"
               break
@@ -182,7 +182,7 @@ jobs:
           set -e
           sudo apt-get install -y --no-install-recommends xvfb x11-apps imagemagick
 
-          APPIMAGE=$(ls desktop/target/release/bundle/appimage/*.AppImage | head -1)
+          APPIMAGE=$(find desktop/target/release/bundle/appimage -maxdepth 1 -name '*.AppImage' -print -quit)
           echo "AppImage: $APPIMAGE"
           chmod +x "$APPIMAGE"
 
