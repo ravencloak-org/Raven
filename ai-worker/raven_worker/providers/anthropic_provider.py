@@ -44,7 +44,11 @@ class AnthropicEmbeddingProvider:
         Raises:
             NotImplementedError: Always.
         """
-        raise NotImplementedError("Anthropic embedding not yet available")
+        raise NotImplementedError(
+            "Anthropic does not publish a public embeddings API. "
+            "Configure OpenAI, Cohere, or Ollama as the embedding provider "
+            "for this org/workspace (chat can still route to Anthropic)."
+        )
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:  # noqa: ARG002
         """Not implemented — Anthropic has no embedding API yet.
@@ -52,7 +56,11 @@ class AnthropicEmbeddingProvider:
         Raises:
             NotImplementedError: Always.
         """
-        raise NotImplementedError("Anthropic embedding not yet available")
+        raise NotImplementedError(
+            "Anthropic does not publish a public embeddings API. "
+            "Configure OpenAI, Cohere, or Ollama as the embedding provider "
+            "for this org/workspace (chat can still route to Anthropic)."
+        )
 
     @property
     def dimensions(self) -> int:
