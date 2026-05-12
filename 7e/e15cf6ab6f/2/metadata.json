@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "7ee15cf6ab6f",
+  "session_id": "a5c572c5-a567-4da7-875e-979922a0eb76",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-12T18:22:53.757889Z",
+  "branch": "fix/resilience-breaker-race",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "CLAUDE.md",
+    "cmd/api/main.go",
+    "docs/agents/domain.md",
+    "docs/agents/issue-tracker.md",
+    "docs/agents/triage-labels.md",
+    "docs/superpowers/plans/2026-05-08-resilience-layer.md",
+    "internal/repository/rls_test.go"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 251,
+    "cache_creation_tokens": 985850,
+    "cache_read_tokens": 32631710,
+    "output_tokens": 156326,
+    "api_call_count": 154
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-12T18:22:53.612779Z",
+    "agent_lines": 712,
+    "human_added": 61264,
+    "human_modified": 61,
+    "human_removed": 0,
+    "total_committed": 62037,
+    "agent_percentage": 1.1477021777326435
+  }
+}

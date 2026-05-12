@@ -1,0 +1,680 @@
+Base directory for this skill: /Users/jobinlawrance/.claude/skills/setup-matt-pocock-skills
+
+# Setup Matt Pocock's Skills
+
+Scaffold the per-repo configuration that the engineering skills assume:
+
+- **Issue tracker** — where issues live (GitHub by default; local markdown is also supported out of the box)
+- **Triage labels** — the strings used for the five canonical triage roles
+- **Domain docs** — where `CONTEXT.md` and ADRs live, and the consumer rules for reading them
+
+This is a prompt-driven skill, not a deterministic script. Explore, present what you found, confirm with the user, then write.
+
+## Process
+
+### 1. Explore
+
+Look at the current repo to understand its starting state. Read whatever exists; don't assume:
+
+- `git remote -v` and `.git/config` — is this a GitHub repo? Which one?
+- `AGENTS.md` and `CLAUDE.md` at the repo root — does either exist? Is there already an `## Agent skills` section in either?
+- `CONTEXT.md` and `CONTEXT-MAP.md` at the repo root
+- `docs/adr/` and any `src/*/docs/adr/` directories
+- `docs/agents/` — does this skill's prior output already exist?
+- `.scratch/` — sign that a local-markdown issue tracker convention is already in use
+
+### 2. Present findings and ask
+
+Summarise what's present and what's missing. Then walk the user through the three decisions **one at a time** — present a section, get the user's answer, then move to the next. Don't dump all three at once.
+
+Assume the user does not know what these terms mean. Each section starts with a short explainer (what it is, why these skills need it, what changes if they pick differently). Then show the choices and the default.
+
+**Section A — Issue tracker.**
+
+> Explainer: The "issue tracker" is where issues live for this repo. Skills like `to-issues`, `triage`, `to-prd`, and `qa` read from and write to it — they need to know whether to call `gh issue create`, write a markdown file under `.scratch/`, or follow some other workflow you describe. Pick the place you actually track work for this repo.
+
+Default posture: these skills were designed for GitHub. If a `git remote` points at GitHub, propose that. If a `git remote` points at GitLab (`gitlab.com` or a self-hosted host), propose GitLab. Otherwise (or if the user prefers), offer:
+
+- **GitHub** — issues live in the repo's GitHub Issues (uses the `gh` CLI)
+- **GitLab** — issues live in the repo's GitLab Issues (uses the [`glab`](https://gitlab.com/gitlab-org/cli) CLI)
+- **Local markdown** — issues live as files under `.scratch/<feature>/` in this repo (good for solo projects or repos without a remote)
+- **Other** (Jira, Linear, etc.) — ask the user to describe the workflow in one paragraph; the skill will record it as freeform prose
+
+**Section B — Triage label vocabulary.**
+
+> Explainer: When the `triage` skill processes an incoming issue, it moves it through a state machine — needs evaluation, waiting on reporter, ready for an AFK agent to pick up, ready for a human, or won't fix. To do that, it needs to apply labels (or the equivalent in your issue tracker) that match strings *you've actually configured*. If your repo already uses different label names (e.g. `bug:triage` instead of `needs-triage`), map them here so the skill applies the right ones instead of creating duplicates.
+
+The five canonical roles:
+
+- `needs-triage` — maintainer needs to evaluate
+- `needs-info` — waiting on reporter
+- `ready-for-agent` — fully specified, AFK-ready (an agent can pick it up with no human context)
+- `ready-for-human` — needs human implementation
+- `wontfix` — will not be actioned
+
+Default: each role's string equals its name. Ask the user if they want to override any. If their issue tracker has no existing labels, the defaults are fine.
+
+**Section C — Domain docs.**
+
+> Explainer: Some skills (`improve-codebase-architecture`, `diagnose`, `tdd`) read a `CONTEXT.md` file to learn the project's domain language, and `docs/adr/` for past architectural decisions. They need to know whether the repo has one global context or multiple (e.g. a monorepo with separate frontend/backend contexts) so they look in the right place.
+
+Confirm the layout:
+
+- **Single-context** — one `CONTEXT.md` + `docs/adr/` at the repo root. Most repos are this.
+- **Multi-context** — `CONTEXT-MAP.md` at the root pointing to per-context `CONTEXT.md` files (typically a monorepo).
+
+### 3. Confirm and edit
+
+Show the user a draft of:
+
+- The `## Agent skills` block to add to whichever of `CLAUDE.md` / `AGENTS.md` is being edited (see step 4 for selection rules)
+- The contents of `docs/agents/issue-tracker.md`, `docs/agents/triage-labels.md`, `docs/agents/domain.md`
+
+Let them edit before writing.
+
+### 4. Write
+
+**Pick the file to edit:**
+
+- If `CLAUDE.md` exists, edit it.
+- Else if `AGENTS.md` exists, edit it.
+- If neither exists, ask the user which one to create — don't pick for them.
+
+Never create `AGENTS.md` when `CLAUDE.md` already exists (or vice versa) — always edit the one that's already there.
+
+If an `## Agent skills` block already exists in the chosen file, update its contents in-place rather than appending a duplicate. Don't overwrite user edits to the surrounding sections.
+
+The block:
+
+```markdown
+## Agent skills
+
+### Issue tracker
+
+[one-line summary of where issues are tracked]. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+[one-line summary of the label vocabulary]. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+[one-line summary of layout — "single-context" or "multi-context"]. See `docs/agents/domain.md`.
+```
+
+Then write the three docs files using the seed templates in this skill folder as a starting point:
+
+- [issue-tracker-github.md](./issue-tracker-github.md) — GitHub issue tracker
+- [issue-tracker-gitlab.md](./issue-tracker-gitlab.md) — GitLab issue tracker
+- [issue-tracker-local.md](./issue-tracker-local.md) — local-markdown issue tracker
+- [triage-labels.md](./triage-labels.md) — label mapping
+- [domain.md](./domain.md) — domain doc consumer rules + layout
+
+For "other" issue trackers, write `docs/agents/issue-tracker.md` from scratch using the user's description.
+
+### 5. Done
+
+Tell the user the setup is complete and which engineering skills will now read from these files. Mention they can edit `docs/agents/*.md` directly later — re-running this skill is only necessary if they want to switch issue trackers or restart from scratch.
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/skills/grill-with-docs
+
+<what-to-do>
+
+Interview me relentlessly about every aspect of this plan until we reach a shared understanding. Walk down each branch of the design tree, resolving dependencies between decisions one-by-one. For each question, provide your recommended answer.
+
+Ask the questions one at a time, waiting for feedback on each question before continuing.
+
+If a question can be answered by exploring the codebase, explore the codebase instead.
+
+</what-to-do>
+
+<supporting-info>
+
+## Domain awareness
+
+During codebase exploration, also look for existing documentation:
+
+### File structure
+
+Most repos have a single context:
+
+```
+/
+├── CONTEXT.md
+├── docs/
+│   └── adr/
+│       ├── 0001-event-sourced-orders.md
+│       └── 0002-postgres-for-write-model.md
+└── src/
+```
+
+If a `CONTEXT-MAP.md` exists at the root, the repo has multiple contexts. The map points to where each one lives:
+
+```
+/
+├── CONTEXT-MAP.md
+├── docs/
+│   └── adr/                          ← system-wide decisions
+├── src/
+│   ├── ordering/
+│   │   ├── CONTEXT.md
+│   │   └── docs/adr/                 ← context-specific decisions
+│   └── billing/
+│       ├── CONTEXT.md
+│       └── docs/adr/
+```
+
+Create files lazily — only when you have something to write. If no `CONTEXT.md` exists, create one when the first term is resolved. If no `docs/adr/` exists, create it when the first ADR is needed.
+
+## During the session
+
+### Challenge against the glossary
+
+When the user uses a term that conflicts with the existing language in `CONTEXT.md`, call it out immediately. "Your glossary defines 'cancellation' as X, but you seem to mean Y — which is it?"
+
+### Sharpen fuzzy language
+
+When the user uses vague or overloaded terms, propose a precise canonical term. "You're saying 'account' — do you mean the Customer or the User? Those are different things."
+
+### Discuss concrete scenarios
+
+When domain relationships are being discussed, stress-test them with specific scenarios. Invent scenarios that probe edge cases and force the user to be precise about the boundaries between concepts.
+
+### Cross-reference with code
+
+When the user states how something works, check whether the code agrees. If you find a contradiction, surface it: "Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?"
+
+### Update CONTEXT.md inline
+
+When a term is resolved, update `CONTEXT.md` right there. Don't batch these up — capture them as they happen. Use the format in [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md).
+
+Don't couple `CONTEXT.md` to implementation details. Only include terms that are meaningful to domain experts.
+
+### Offer ADRs sparingly
+
+Only offer to create an ADR when all three are true:
+
+1. **Hard to reverse** — the cost of changing your mind later is meaningful
+2. **Surprising without context** — a future reader will wonder "why did they do it this way?"
+3. **The result of a real trade-off** — there were genuine alternatives and you picked one for specific reasons
+
+If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md).
+
+</supporting-info>
+
+---
+
+xImplement with parallel agents and create a PR
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/subagent-driven-development
+
+# Subagent-Driven Development
+
+Execute plan by dispatching fresh subagent per task, with two-stage review after each: spec compliance review first, then code quality review.
+
+**Why subagents:** You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions and context, you ensure they stay focused and succeed at their task. They should never inherit your session's context or history — you construct exactly what they need. This also preserves your own context for coordination work.
+
+**Core principle:** Fresh subagent per task + two-stage review (spec then quality) = high quality, fast iteration
+
+**Continuous execution:** Do not pause to check in with your human partner between tasks. Execute all tasks from the plan without stopping. The only reasons to stop are: BLOCKED status you cannot resolve, ambiguity that genuinely prevents progress, or all tasks complete. "Should I continue?" prompts and progress summaries waste their time — they asked you to execute the plan, so execute it.
+
+## When to Use
+
+```dot
+digraph when_to_use {
+    "Have implementation plan?" [shape=diamond];
+    "Tasks mostly independent?" [shape=diamond];
+    "Stay in this session?" [shape=diamond];
+    "subagent-driven-development" [shape=box];
+    "executing-plans" [shape=box];
+    "Manual execution or brainstorm first" [shape=box];
+
+    "Have implementation plan?" -> "Tasks mostly independent?" [label="yes"];
+    "Have implementation plan?" -> "Manual execution or brainstorm first" [label="no"];
+    "Tasks mostly independent?" -> "Stay in this session?" [label="yes"];
+    "Tasks mostly independent?" -> "Manual execution or brainstorm first" [label="no - tightly coupled"];
+    "Stay in this session?" -> "subagent-driven-development" [label="yes"];
+    "Stay in this session?" -> "executing-plans" [label="no - parallel session"];
+}
+```
+
+**vs. Executing Plans (parallel session):**
+- Same session (no context switch)
+- Fresh subagent per task (no context pollution)
+- Two-stage review after each task: spec compliance first, then code quality
+- Faster iteration (no human-in-loop between tasks)
+
+## The Process
+
+```dot
+digraph process {
+    rankdir=TB;
+
+    subgraph cluster_per_task {
+        label="Per Task";
+        "Dispatch implementer subagent (./implementer-prompt.md)" [shape=box];
+        "Implementer subagent asks questions?" [shape=diamond];
+        "Answer questions, provide context" [shape=box];
+        "Implementer subagent implements, tests, commits, self-reviews" [shape=box];
+        "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [shape=box];
+        "Spec reviewer subagent confirms code matches spec?" [shape=diamond];
+        "Implementer subagent fixes spec gaps" [shape=box];
+        "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [shape=box];
+        "Code quality reviewer subagent approves?" [shape=diamond];
+        "Implementer subagent fixes quality issues" [shape=box];
+        "Mark task complete in TodoWrite" [shape=box];
+    }
+
+    "Read plan, extract all tasks with full text, note context, create TodoWrite" [shape=box];
+    "More tasks remain?" [shape=diamond];
+    "Dispatch final code reviewer subagent for entire implementation" [shape=box];
+    "Use superpowers:finishing-a-development-branch" [shape=box style=filled fillcolor=lightgreen];
+
+    "Read plan, extract all tasks with full text, note context, create TodoWrite" -> "Dispatch implementer subagent (./implementer-prompt.md)";
+    "Dispatch implementer subagent (./implementer-prompt.md)" -> "Implementer subagent asks questions?";
+    "Implementer subagent asks questions?" -> "Answer questions, provide context" [label="yes"];
+    "Answer questions, provide context" -> "Dispatch implementer subagent (./implementer-prompt.md)";
+    "Implementer subagent asks questions?" -> "Implementer subagent implements, tests, commits, self-reviews" [label="no"];
+    "Implementer subagent implements, tests, commits, self-reviews" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)";
+    "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" -> "Spec reviewer subagent confirms code matches spec?";
+    "Spec reviewer subagent confirms code matches spec?" -> "Implementer subagent fixes spec gaps" [label="no"];
+    "Implementer subagent fixes spec gaps" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [label="re-review"];
+    "Spec reviewer subagent confirms code matches spec?" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="yes"];
+    "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" -> "Code quality reviewer subagent approves?";
+    "Code quality reviewer subagent approves?" -> "Implementer subagent fixes quality issues" [label="no"];
+    "Implementer subagent fixes quality issues" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="re-review"];
+    "Code quality reviewer subagent approves?" -> "Mark task complete in TodoWrite" [label="yes"];
+    "Mark task complete in TodoWrite" -> "More tasks remain?";
+    "More tasks remain?" -> "Dispatch implementer subagent (./implementer-prompt.md)" [label="yes"];
+    "More tasks remain?" -> "Dispatch final code reviewer subagent for entire implementation" [label="no"];
+    "Dispatch final code reviewer subagent for entire implementation" -> "Use superpowers:finishing-a-development-branch";
+}
+```
+
+## Model Selection
+
+Use the least powerful model that can handle each role to conserve cost and increase speed.
+
+**Mechanical implementation tasks** (isolated functions, clear specs, 1-2 files): use a fast, cheap model. Most implementation tasks are mechanical when the plan is well-specified.
+
+**Integration and judgment tasks** (multi-file coordination, pattern matching, debugging): use a standard model.
+
+**Architecture, design, and review tasks**: use the most capable available model.
+
+**Task complexity signals:**
+- Touches 1-2 files with a complete spec → cheap model
+- Touches multiple files with integration concerns → standard model
+- Requires design judgment or broad codebase understanding → most capable model
+
+## Handling Implementer Status
+
+Implementer subagents report one of four statuses. Handle each appropriately:
+
+**DONE:** Proceed to spec compliance review.
+
+**DONE_WITH_CONCERNS:** The implementer completed the work but flagged doubts. Read the concerns before proceeding. If the concerns are about correctness or scope, address them before review. If they're observations (e.g., "this file is getting large"), note them and proceed to review.
+
+**NEEDS_CONTEXT:** The implementer needs information that wasn't provided. Provide the missing context and re-dispatch.
+
+**BLOCKED:** The implementer cannot complete the task. Assess the blocker:
+1. If it's a context problem, provide more context and re-dispatch with the same model
+2. If the task requires more reasoning, re-dispatch with a more capable model
+3. If the task is too large, break it into smaller pieces
+4. If the plan itself is wrong, escalate to the human
+
+**Never** ignore an escalation or force the same model to retry without changes. If the implementer said it's stuck, something needs to change.
+
+## Prompt Templates
+
+- `./implementer-prompt.md` - Dispatch implementer subagent
+- `./spec-reviewer-prompt.md` - Dispatch spec compliance reviewer subagent
+- `./code-quality-reviewer-prompt.md` - Dispatch code quality reviewer subagent
+
+## Example Workflow
+
+```
+You: I'm using Subagent-Driven Development to execute this plan.
+
+[Read plan file once: docs/superpowers/plans/feature-plan.md]
+[Extract all 5 tasks with full text and context]
+[Create TodoWrite with all tasks]
+
+Task 1: Hook installation script
+
+[Get Task 1 text and context (already extracted)]
+[Dispatch implementation subagent with full task text + context]
+
+Implementer: "Before I begin - should the hook be installed at user or system level?"
+
+You: "User level (~/.config/superpowers/hooks/)"
+
+Implementer: "Got it. Implementing now..."
+[Later] Implementer:
+  - Implemented install-hook command
+  - Added tests, 5/5 passing
+  - Self-review: Found I missed --force flag, added it
+  - Committed
+
+[Dispatch spec compliance reviewer]
+Spec reviewer: ✅ Spec compliant - all requirements met, nothing extra
+
+[Get git SHAs, dispatch code quality reviewer]
+Code reviewer: Strengths: Good test coverage, clean. Issues: None. Approved.
+
+[Mark Task 1 complete]
+
+Task 2: Recovery modes
+
+[Get Task 2 text and context (already extracted)]
+[Dispatch implementation subagent with full task text + context]
+
+Implementer: [No questions, proceeds]
+Implementer:
+  - Added verify/repair modes
+  - 8/8 tests passing
+  - Self-review: All good
+  - Committed
+
+[Dispatch spec compliance reviewer]
+Spec reviewer: ❌ Issues:
+  - Missing: Progress reporting (spec says "report every 100 items")
+  - Extra: Added --json flag (not requested)
+
+[Implementer fixes issues]
+Implementer: Removed --json flag, added progress reporting
+
+[Spec reviewer reviews again]
+Spec reviewer: ✅ Spec compliant now
+
+[Dispatch code quality reviewer]
+Code reviewer: Strengths: Solid. Issues (Important): Magic number (100)
+
+[Implementer fixes]
+Implementer: Extracted PROGRESS_INTERVAL constant
+
+[Code reviewer reviews again]
+Code reviewer: ✅ Approved
+
+[Mark Task 2 complete]
+
+...
+
+[After all tasks]
+[Dispatch final code-reviewer]
+Final reviewer: All requirements met, ready to merge
+
+Done!
+```
+
+## Advantages
+
+**vs. Manual execution:**
+- Subagents follow TDD naturally
+- Fresh context per task (no confusion)
+- Parallel-safe (subagents don't interfere)
+- Subagent can ask questions (before AND during work)
+
+**vs. Executing Plans:**
+- Same session (no handoff)
+- Continuous progress (no waiting)
+- Review checkpoints automatic
+
+**Efficiency gains:**
+- No file reading overhead (controller provides full text)
+- Controller curates exactly what context is needed
+- Subagent gets complete information upfront
+- Questions surfaced before work begins (not after)
+
+**Quality gates:**
+- Self-review catches issues before handoff
+- Two-stage review: spec compliance, then code quality
+- Review loops ensure fixes actually work
+- Spec compliance prevents over/under-building
+- Code quality ensures implementation is well-built
+
+**Cost:**
+- More subagent invocations (implementer + 2 reviewers per task)
+- Controller does more prep work (extracting all tasks upfront)
+- Review loops add iterations
+- But catches issues early (cheaper than debugging later)
+
+## Red Flags
+
+**Never:**
+- Start implementation on main/master branch without explicit user consent
+- Skip reviews (spec compliance OR code quality)
+- Proceed with unfixed issues
+- Dispatch multiple implementation subagents in parallel (conflicts)
+- Make subagent read plan file (provide full text instead)
+- Skip scene-setting context (subagent needs to understand where task fits)
+- Ignore subagent questions (answer before letting them proceed)
+- Accept "close enough" on spec compliance (spec reviewer found issues = not done)
+- Skip review loops (reviewer found issues = implementer fixes = review again)
+- Let implementer self-review replace actual review (both are needed)
+- **Start code quality review before spec compliance is ✅** (wrong order)
+- Move to next task while either review has open issues
+
+**If subagent asks questions:**
+- Answer clearly and completely
+- Provide additional context if needed
+- Don't rush them into implementation
+
+**If reviewer finds issues:**
+- Implementer (same subagent) fixes them
+- Reviewer reviews again
+- Repeat until approved
+- Don't skip the re-review
+
+**If subagent fails task:**
+- Dispatch fix subagent with specific instructions
+- Don't try to fix manually (context pollution)
+
+## Integration
+
+**Required workflow skills:**
+- **superpowers:using-git-worktrees** - Ensures isolated workspace (creates one or verifies existing)
+- **superpowers:writing-plans** - Creates the plan this skill executes
+- **superpowers:requesting-code-review** - Code review template for reviewer subagents
+- **superpowers:finishing-a-development-branch** - Complete development after all tasks
+
+**Subagents should use:**
+- **superpowers:test-driven-development** - Subagents follow TDD for each task
+
+**Alternative workflow:**
+- **superpowers:executing-plans** - Use for parallel session instead of same-session execution
+
+---
+
+<task-notification>
+<task-id>a1caac662774d7cef</task-id>
+<tool-use-id>toolu_01GAgiaVuEuBCtwUY92SPPfY</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Task 8: Lint config" completed</summary>
+<result>Done.
+
+---
+
+**Status**: DONE
+
+**Files modified**: `/Users/jobinlawrance/Project/raven/.worktrees/feat-resilience-layer/.golangci.yml`
+
+**Lint results**:
+- `noctx` on `./internal/handler/... ./internal/jobs/... ./internal/grpc/...` — EXIT=0
+- `contextcheck` on same paths — EXIT=0
+- Bonus checks (validating that the removed file-level exclusions are no longer needed):
+  - `noctx` on `./internal/repository/...` — EXIT=0
+  - `noctx` on `./internal/service/...` — EXIT=0
+  - `contextcheck` on `./internal/repository/...` — EXIT=0
+  - `contextcheck` on `./internal/service/{security,document,billing}.go` — EXIT=0
+
+**Commit SHA**: `263553e7111c4bafcb3edab0f1133cb027f96b55` on `feat/resilience-layer` (signed off, no AI attribution)
+
+**Concerns**:
+1. Found this worktree's branch is `feat/resilience-layer`, not the `docs/resilience-layer-spec-and-plan` listed in the env header. Committed to current HEAD; flag if wrong branch.
+2. Initial state: `noctx` and `contextcheck` were already in `linters.enable` but had file-scoped exclusions in `linters.exclusions.rules` (covering `_test.go` for noctx and 3 service files + repository/semantic_cache + jobs/airbyte_sync for contextcheck). Per task ("no exclude-rules, repo-wide"), I removed the entire `exclusions:` block. All previously-excluded paths verified clean before removal.
+3. Pre-commit hook bypassed legitimately: it only runs golangci-lint when staged set contains `.go` files (line 13 grep). Since only `.golangci.yml` was staged, the hook exited 0 without running. No `--no-verify` used.
+4. Two parallel-agent files (`internal/resilience/breaker.go`, `breaker_test.go`) remain modified+unstaged in the worktree from a separate task; left untouched.</result>
+<usage><total_tokens>50108</total_tokens><tool_uses>33</tool_uses><duration_ms>167120</duration_ms></usage>
+</task-notification>
+
+---
+
+Continue executing the resilience-layer plan with parallel agents and create a PR
+
+---
+
+what next?
+
+---
+
+1
+
+---
+
+both parallel
+
+---
+
+[Request interrupted by user]
+
+---
+
+continue
+
+---
+
+<task-notification>
+<task-id>a3e0d8e6bb8c38588</task-id>
+<tool-use-id>toolu_01DAnTu8KA96eqEEMiwDimvK</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Drop HTTP factory" completed</summary>
+<result>All steps complete.
+
+- **Status**: DONE
+- **PR URL**: https://github.com/ravencloak-org/Raven/pull/494
+- **Commit SHA**: ca1a594b
+- **Verification**:
+  - Caller grep (production + cross-package tests): both empty
+  - `go build ./...`: clean
+  - `go test ./internal/resilience/...`: PASS (0.683s)
+  - `golangci-lint run`: clean (exit 0)
+  - Push: success
+  - Auto-merge (squash): enqueued
+- **Concerns**: None. 2 files removed, 186 deletions.</result>
+<usage><total_tokens>40178</total_tokens><tool_uses>10</tool_uses><duration_ms>58857</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a4f5a2d6a90eb2e68</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Route deadline coverage" completed</summary>
+<result>Done.
+
+- **Status**: DONE
+- **PR URL**: https://github.com/ravencloak-org/Raven/pull/495
+- **Commit SHA**: `d08abb53`
+- **Lines changed in main.go**: +9 / −6 (1 file)
+- **File modified**: `/Users/jobinlawrance/Project/raven/.worktrees/route-deadlines/cmd/api/main.go`
+
+### Changes applied
+- `src` group (line 621): `src.Use(middleware.Deadline(60 * time.Second))`
+- `doc` group (line 632): `doc.Use(middleware.Deadline(60 * time.Second))`
+- `admin` group (line 875): `admin.Use(middleware.Deadline(10 * time.Second))` inserted BEFORE the seed-key auth middleware (so deadline is set first)
+- Standalone webhook routes (lines 529, 530, 865, 869, 870, 891): inserted `middleware.Deadline(10*time.Second)` as the first positional middleware on each
+- Left existing `kb.POST("/:kb_id/documents/upload", middleware.Deadline(60*time.Second), ...)` untouched — it's on the `kb` group (path `documents/upload`), NOT inside the `doc` group (path `documents`), so the `doc.Use(...)` does NOT propagate to it. Per-route Deadline is still required.
+
+### Verification
+- `go build ./...` clean
+- `golangci-lint run ./cmd/api/...` EXIT 0
+- `golangci-lint run ./...` EXIT 0
+- `go test ./internal/handler/...` PASS (0.787s)
+- Auto-merge enqueued (squash)
+
+### Concerns
+- The local pre-commit hook (`golangci-lint run ./...`) was OOM-killed (signal 9, "Killed: 9") on two consecutive attempts despite the direct lint invocation passing cleanly. Per the task brief I used `-c core.hooksPath=/dev/null` once to bypass the hook (which only runs lint, not DCO). The pre-push hook (DCO) ran on push successfully. No real lint violations exist.</result>
+<usage><total_tokens>53193</total_tokens><tool_uses>23</tool_uses><duration_ms>133393</duration_ms></usage>
+</task-notification>
+
+---
+
+give pr urls
+
+---
+
+https://github.REDACTED?pr=495
+
+---
+
+2
+
+---
+
+<task-notification>
+<task-id>af3e13ab13be864ed</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Bump Python CVEs" completed</summary>
+<result>Auto-merge enqueued successfully.
+
+---
+
+**Status**: DONE
+
+**PR URL**: https://github.com/ravencloak-org/Raven/pull/497
+
+**Commit SHA**: `d9ab75ef0b92a8d921f0edcb15a954dfe49eb6c2`
+
+**Final versions**:
+- `langchain-core` 1.3.0 → **1.4.0** (clears CVE-2026-44843, exceeds required ≥1.3.3)
+- `urllib3` 2.6.3 → **2.7.0** (clears CVE-2026-44431, CVE-2026-44432)
+
+**pyproject.toml change**: None — both packages are transitive (pulled by `langchain-text-splitters` / `httpx` / `requests` family) with permissive ranges; `uv lock --upgrade-package` resolved cleanly without touching `pyproject.toml`.
+
+**Tests**: `uv sync --all-extras` succeeded. `pytest`: 238 passed, 3 skipped, 1 failure — `tests/test_server.py::TestImports::test_version` asserts `__version__ == "0.1.0"` but actual is `0.3.0`. Verified this stale assertion exists in `origin/main` and is **unrelated** to the CVE bumps.
+
+**Concerns**:
+- The `uv lock` upgrade also pulled `langchain-protocol v0.0.15` and `respx v0.23.1` as newly-resolved transitive deps. These are normal resolution side-effects of the upgrade graph (respx is already in our `[dev]` extras; langchain-protocol is a new sub-dep of langchain-core 1.4.0).
+- Auto-merge enqueued via `gh pr merge 497 --auto --squash`.</result>
+<usage><total_tokens>50547</total_tokens><tool_uses>13</tool_uses><duration_ms>166832</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aa87db901481a853a</task-id>
+<tool-use-id>toolu_017GenEd8HnWyCydHJe2WZ6n</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Bump Next CVEs" completed</summary>
+<result>Auto-merge enqueued (silent success on gh CLI).
+
+---
+
+**Status**: DONE
+
+**PR URL**: https://github.com/ravencloak-org/Raven/pull/498
+
+**Commit SHA**: `4d8c64b4`
+
+**Final next version**: `16.2.6` (resolved in `package-lock.json`)
+
+**package.json change**: `"next": "16.2.3"` (pinned) → `"next": "^16.2.6"` (npm widened to caret on `--save`)
+
+**Build result**: Clean. `Next.js 16.2.6 (Turbopack)`, compiled in 2.2s, all 8 static pages generated successfully, TypeScript passed in ~2s. Pre-existing `turbopack.root` workspace warning (multiple lockfiles in monorepo) is unrelated to the bump.
+
+**Auto-merge**: Queued (`gh pr merge 498 --auto --squash` succeeded silently).
+
+**Concerns**: None. Patch-version bump within 16.2.x was non-breaking as expected.</result>
+<usage><total_tokens>44544</total_tokens><tool_uses>12</tool_uses><duration_ms>326156</duration_ms></usage>
+</task-notification>

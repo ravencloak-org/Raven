@@ -3,7 +3,7 @@
   "checkpoint_id": "7ee15cf6ab6f",
   "strategy": "manual-commit",
   "branch": "fix/resilience-breaker-race",
-  "checkpoints_count": 16,
+  "checkpoints_count": 20,
   "files_touched": [
     ".claude/worktrees/feat+resilience-layer/.env.ci",
     ".github/workflows/landing.yml",
@@ -14,10 +14,16 @@
     ".worktrees/landing-salient/landing/playwright.config.ts",
     ".worktrees/landing-salient/landing/src/app/page.tsx",
     ".worktrees/landing-salient/landing/tests/smoke.spec.ts",
+    "CLAUDE.md",
+    "cmd/api/main.go",
+    "docs/agents/domain.md",
+    "docs/agents/issue-tracker.md",
+    "docs/agents/triage-labels.md",
     "docs/superpowers/plans/2026-05-07-raven-marketing-site.md",
     "docs/superpowers/plans/2026-05-08-resilience-layer.md",
     "docs/superpowers/specs/2026-05-06-raven-marketing-site-design.md",
     "docs/superpowers/specs/2026-05-08-resilience-design.md",
+    "internal/repository/rls_test.go",
     "landing/.gitignore",
     "landing/playwright.config.ts",
     "landing/public/_headers",
@@ -126,13 +132,20 @@
       "context": "/7e/e15cf6ab6f/1/context.md",
       "content_hash": "/7e/e15cf6ab6f/1/content_hash.txt",
       "prompt": "/7e/e15cf6ab6f/1/prompt.txt"
+    },
+    {
+      "metadata": "/7e/e15cf6ab6f/2/metadata.json",
+      "transcript": "/7e/e15cf6ab6f/2/full.jsonl",
+      "context": "/7e/e15cf6ab6f/2/context.md",
+      "content_hash": "/7e/e15cf6ab6f/2/content_hash.txt",
+      "prompt": "/7e/e15cf6ab6f/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 830,
-    "cache_creation_tokens": 3161160,
-    "cache_read_tokens": 100210553,
-    "output_tokens": 383912,
-    "api_call_count": 343
+    "input_tokens": 1081,
+    "cache_creation_tokens": 4147010,
+    "cache_read_tokens": 132842263,
+    "output_tokens": 540238,
+    "api_call_count": 497
   }
 }
