@@ -77,6 +77,47 @@ func TestBreaker_RespectsContextCancellation(t *testing.T) {
 	}
 }
 
+// TestBreaker_ExecuteOnOpenBreakerReturnsCircuitOpenError asserts that when the
+// breaker trips, Execute returns a *CircuitOpenError carrying the correct
+// PolicyName and RetryAfter, and that errors.Is(err, ErrCircuitOpen) still works.
+func TestBreaker_ExecuteOnOpenBreakerReturnsCircuitOpenError(t *testing.T) {
+	const policyName = "my-svc"
+	const cooldown = 75 * time.Millisecond
+
+	p, _ := NewPolicy(policyName,
+		WithBreakerThreshold(2),
+		WithBreakerCooldown(cooldown),
+	)
+	br := NewBreaker(p)
+
+	failing := func(context.Context) (any, error) { return nil, errors.New("boom") }
+	for i := 0; i < 2; i++ {
+		_, _ = br.Execute(context.Background(), failing)
+	}
+
+	_, err := br.Execute(context.Background(), failing)
+	if err == nil {
+		t.Fatal("expected error from open breaker, got nil")
+	}
+
+	// errors.Is back-compat must hold.
+	if !errors.Is(err, ErrCircuitOpen) {
+		t.Errorf("errors.Is(err, ErrCircuitOpen) = false, want true; err = %v", err)
+	}
+
+	// Typed error must carry correct fields.
+	var cOpen *CircuitOpenError
+	if !errors.As(err, &cOpen) {
+		t.Fatalf("errors.As(*CircuitOpenError) = false; err = %v", err)
+	}
+	if cOpen.PolicyName != policyName {
+		t.Errorf("PolicyName = %q, want %q", cOpen.PolicyName, policyName)
+	}
+	if cOpen.RetryAfter != cooldown {
+		t.Errorf("RetryAfter = %v, want %v", cOpen.RetryAfter, cooldown)
+	}
+}
+
 // IsSuccessful predicate: caller-classified errors propagate AND don't trip the breaker.
 func TestBreaker_IsSuccessfulPredicate(t *testing.T) {
 	p, _ := NewPolicy("svc", WithBreakerThreshold(2))
