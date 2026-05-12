@@ -1,0 +1,11 @@
+[Unit]
+Description=Raven Postgres backup timer
+
+[Timer]
+OnCalendar=*-*-* 18:30:00 UTC
+RandomizedDelaySec=300
+Persistent=true
+Unit=raven-pg-backup.service
+
+[Install]
+WantedBy=timers.target
