@@ -211,13 +211,36 @@ The `allowed_domains` array you provided at creation is enforced server-side.
 A request whose `Origin` header is not in the list is rejected before the
 chat handler runs.
 
-> **Note.** As of this release the server enforces the **workspace-level**
-> origin allowlist (`RAVEN_CORS_ALLOWED_ORIGINS`, see below) on every request,
-> and the per-key `allowed_domains` field is stored and returned but not yet
-> joined into the CORS check on every request — that wiring is tracked under
-> milestone M2 (see the `TODO(M2)` in `internal/middleware/cors.go`). Set
-> `allowed_domains` correctly now: it is already stored, listed, and shown in
-> the dashboard, and it will start being enforced automatically once M2 ships.
+The check runs in two complementary places:
+
+1. **CORS middleware** (browser-facing). When a request carries
+   `X-API-Key`, the global CORS layer (`internal/middleware/cors.go`)
+   compares the request's `Origin` against that key's `allowed_domains`
+   in addition to the workspace-level `RAVEN_CORS_ALLOWED_ORIGINS` list.
+   If the key has a non-empty `allowed_domains`, the server-wide allowlist
+   does **not** widen it — a widget key bound to `example.com` is unusable
+   from any other origin even if the workspace allowlist is broader. If the
+   key's `allowed_domains` is empty, the workspace-level list applies as
+   before.
+2. **API-key auth** (`internal/middleware/apikey.go`). After CORS, the
+   API-key middleware re-runs the same check against `Origin` (falling
+   back to `Referer` for non-browser callers) and returns
+   `403 domain_not_allowed` if the host is not in the per-key list.
+
+### Wildcard syntax
+
+Each entry is matched against the **host** part of the `Origin` URL.
+Exact hostnames (`example.com`, `app.example.com`) match literally.
+A single leading-wildcard form is supported:
+
+| Entry           | Matches                                              |
+|-----------------|------------------------------------------------------|
+| `example.com`   | `example.com` only                                   |
+| `*.example.com` | `example.com` (apex), `www.example.com`, `a.b.example.com` (any depth) |
+
+Wildcards in any other position (e.g. `foo.*.example.com`,
+`example.*`) are **not** supported — the entry is treated as a literal
+hostname and will never match.
 
 ### Rate limiting
 

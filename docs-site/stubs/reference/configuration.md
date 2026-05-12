@@ -222,6 +222,22 @@ the dev-agent script). The Go API receives tenant-scoped keys via the
 | `RAVEN_STT_WHISPER_ENDPOINT` | URL | `http://localhost:8000` | no | Self-hosted Whisper HTTP endpoint. |
 | `RAVEN_STT_WHISPER_MODEL` | string | `large-v3` | no | Whisper model id. |
 
+### Retrieval (hybrid search tuning)
+
+Tunables for `SearchService.HybridSearch` and the RRF fusion step. All
+values are validated at startup (`config.Load` rejects non-positive
+integers, negative weights, and `max_limit < default_limit`). See
+[Hybrid Retrieval](/concepts/hybrid-retrieval) for what each value does.
+
+| Env var | Type | Default | Required | Description |
+|---|---|---|---|---|
+| `RAVEN_RETRIEVAL_DEFAULT_LIMIT` | int | `10` | no | `topK` returned when the caller omits `top_k`. |
+| `RAVEN_RETRIEVAL_MAX_LIMIT` | int | `100` | no | Hard ceiling on both `topK` and the per-leg `candidateK`. Must be `>= RAVEN_RETRIEVAL_DEFAULT_LIMIT`. |
+| `RAVEN_RETRIEVAL_RRF_K` | int | `60` | no | RRF smoothing constant. Lower → top-ranked agreement matters more; higher → smoother distribution. Mirrored by the Python ai-worker. |
+| `RAVEN_RETRIEVAL_CANDIDATE_MULTIPLIER` | int | `3` | no | Per-leg candidate set is sized as `topK * multiplier` (then clamped to `MAX_LIMIT`) so RRF has enough overlap signal. |
+| `RAVEN_RETRIEVAL_HYBRID_VECTOR_WEIGHT` | float | `1.0` | no | Multiplier on the vector leg's RRF contribution. `0` disables the leg's influence on the fused score; both weights at `0` fall back to `1.0/1.0`. |
+| `RAVEN_RETRIEVAL_HYBRID_BM25_WEIGHT` | float | `1.0` | no | Multiplier on the BM25 leg's RRF contribution. |
+
 ### ClickHouse (large-tenant vector backend)
 
 ClickHouse is opt-in. The API uses `pgvector` by default and switches per-org
@@ -383,6 +399,8 @@ as a `pydantic_settings.BaseSettings` subclass with
 | `RAVEN_HTTP_ENABLED` | bool | `true` | no | Toggle the FastAPI side-server. |
 | `RAVEN_HTTP_BIND_HOST` | string | `127.0.0.1` | no | Binds loopback by default; override only when callers live on a separate node and a network policy gates external access. |
 | `RAVEN_SEMANTIC_CACHE_ENABLED` | bool | `true` | no | Toggle the pgvector semantic-response cache (M9 #256). When false the exact-match Valkey cache still applies. |
+| `RAVEN_RETRIEVAL_RRF_K` | int | `60` | no | RRF smoothing constant used by `reciprocal_rank_fusion` on the RAG path. Shares the env var with the Go API so both code paths stay in lock-step. |
+| `RAVEN_RETRIEVAL_DEFAULT_TOP_N` | int | `10` | no | Size of the fused list emitted by RRF before optional reranking / context build. |
 
 In addition, the AI worker reads provider keys directly from the environment
 at request time (not via pydantic-settings):

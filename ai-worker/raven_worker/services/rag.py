@@ -488,8 +488,14 @@ class RAGServicer:
             bm25_hits=len(bm25_results),
         )
 
-        # 3. RRF fusion
-        fused = reciprocal_rank_fusion([vector_results, bm25_results], top_n=10)
+        # 3. RRF fusion — k and top_n come from the RAVEN_RETRIEVAL_* env
+        # vars (see raven_worker.config.Settings) so the Python and Go
+        # paths stay in lock-step. Defaults: k=60, top_n=10.
+        fused = reciprocal_rank_fusion(
+            [vector_results, bm25_results],
+            k=settings.retrieval_rrf_k,
+            top_n=settings.retrieval_default_top_n,
+        )
         log.debug("rrf_done", fused_count=len(fused))
 
         if not fused:

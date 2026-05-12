@@ -36,6 +36,37 @@ type Config struct {
 	Seed         SeedConfig
 	SES          SESConfig
 	EmailSummary EmailSummaryConfig
+	Retrieval    RetrievalConfig
+}
+
+// RetrievalConfig holds tunables for the hybrid search / RRF pipeline used by
+// SearchService.HybridSearch. All values are overridable via the
+// RAVEN_RETRIEVAL_* env vars listed below; see
+// docs-site/stubs/reference/configuration.md for the canonical reference.
+type RetrievalConfig struct {
+	// DefaultLimit is the topK returned when the caller omits top_k.
+	// Env: RAVEN_RETRIEVAL_DEFAULT_LIMIT (default 10).
+	DefaultLimit int `mapstructure:"default_limit"`
+	// MaxLimit is the hard ceiling applied to topK and candidateK.
+	// Env: RAVEN_RETRIEVAL_MAX_LIMIT (default 100).
+	MaxLimit int `mapstructure:"max_limit"`
+	// RRFK is the smoothing constant in score = sum(1 / (k + rank_i)).
+	// Env: RAVEN_RETRIEVAL_RRF_K (default 60 — standard value from the
+	// original RRF paper, Cormack et al., 2009).
+	RRFK int `mapstructure:"rrf_k"`
+	// CandidateMultiplier sizes each retriever's candidate set as
+	// topK * CandidateMultiplier (then clamped to MaxLimit) so RRF has
+	// enough overlap signal. Env: RAVEN_RETRIEVAL_CANDIDATE_MULTIPLIER
+	// (default 3).
+	CandidateMultiplier int `mapstructure:"candidate_multiplier"`
+	// HybridVectorWeight is the multiplier applied to the vector leg's
+	// per-document RRF contribution. Env:
+	// RAVEN_RETRIEVAL_HYBRID_VECTOR_WEIGHT (default 1.0 — both legs equal).
+	HybridVectorWeight float64 `mapstructure:"hybrid_vector_weight"`
+	// HybridBM25Weight is the multiplier applied to the BM25 leg's
+	// per-document RRF contribution. Env:
+	// RAVEN_RETRIEVAL_HYBRID_BM25_WEIGHT (default 1.0).
+	HybridBM25Weight float64 `mapstructure:"hybrid_bm25_weight"`
 }
 
 // SESConfig holds AWS SES outbound email settings.
@@ -395,6 +426,15 @@ func Load() (*Config, error) {
 		"text/csv",
 	})
 
+	// Retrieval / hybrid-search tuning. See RetrievalConfig docstring and
+	// docs-site/stubs/reference/configuration.md for the canonical reference.
+	v.SetDefault("retrieval.default_limit", 10)
+	v.SetDefault("retrieval.max_limit", 100)
+	v.SetDefault("retrieval.rrf_k", 60)
+	v.SetDefault("retrieval.candidate_multiplier", 3)
+	v.SetDefault("retrieval.hybrid_vector_weight", 1.0)
+	v.SetDefault("retrieval.hybrid_bm25_weight", 1.0)
+
 	// Config file (optional)
 	v.SetConfigName("config")
 	v.SetConfigType("yaml")
@@ -490,6 +530,12 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("emailsummary.summarizer_base_url", "RAVEN_AI_WORKER_HTTP_URL")
 	_ = v.BindEnv("posthog.api_key", "RAVEN_POSTHOG_API_KEY")
 	_ = v.BindEnv("posthog.host", "RAVEN_POSTHOG_HOST")
+	_ = v.BindEnv("retrieval.default_limit", "RAVEN_RETRIEVAL_DEFAULT_LIMIT")
+	_ = v.BindEnv("retrieval.max_limit", "RAVEN_RETRIEVAL_MAX_LIMIT")
+	_ = v.BindEnv("retrieval.rrf_k", "RAVEN_RETRIEVAL_RRF_K")
+	_ = v.BindEnv("retrieval.candidate_multiplier", "RAVEN_RETRIEVAL_CANDIDATE_MULTIPLIER")
+	_ = v.BindEnv("retrieval.hybrid_vector_weight", "RAVEN_RETRIEVAL_HYBRID_VECTOR_WEIGHT")
+	_ = v.BindEnv("retrieval.hybrid_bm25_weight", "RAVEN_RETRIEVAL_HYBRID_BM25_WEIGHT")
 
 	// Try to read config file but don't fail if not found
 	_ = v.ReadInConfig()
@@ -527,6 +573,31 @@ func Load() (*Config, error) {
 	// 32 bytes.
 	if cfg.EmailSummary.UnsubscribeBaseURL != "" && len(cfg.EmailSummary.UnsubscribeSecret) < 32 {
 		return nil, fmt.Errorf("emailsummary.unsubscribe_secret (UNSUBSCRIBE_TOKEN_SECRET) must be >= 32 bytes when emailsummary.unsubscribe_base_url is set")
+	}
+
+	// Retrieval validation — guard against degenerate values that would
+	// silently break HybridSearch (e.g. RRF k <= 0 produces division by a
+	// small denominator and bogus scores; negative limits would loop).
+	if cfg.Retrieval.DefaultLimit <= 0 {
+		return nil, fmt.Errorf("retrieval.default_limit must be > 0, got %d", cfg.Retrieval.DefaultLimit)
+	}
+	if cfg.Retrieval.MaxLimit <= 0 {
+		return nil, fmt.Errorf("retrieval.max_limit must be > 0, got %d", cfg.Retrieval.MaxLimit)
+	}
+	if cfg.Retrieval.MaxLimit < cfg.Retrieval.DefaultLimit {
+		return nil, fmt.Errorf("retrieval.max_limit (%d) must be >= retrieval.default_limit (%d)", cfg.Retrieval.MaxLimit, cfg.Retrieval.DefaultLimit)
+	}
+	if cfg.Retrieval.RRFK <= 0 {
+		return nil, fmt.Errorf("retrieval.rrf_k must be > 0, got %d", cfg.Retrieval.RRFK)
+	}
+	if cfg.Retrieval.CandidateMultiplier <= 0 {
+		return nil, fmt.Errorf("retrieval.candidate_multiplier must be > 0, got %d", cfg.Retrieval.CandidateMultiplier)
+	}
+	if cfg.Retrieval.HybridVectorWeight < 0 {
+		return nil, fmt.Errorf("retrieval.hybrid_vector_weight must be >= 0, got %f", cfg.Retrieval.HybridVectorWeight)
+	}
+	if cfg.Retrieval.HybridBM25Weight < 0 {
+		return nil, fmt.Errorf("retrieval.hybrid_bm25_weight must be >= 0, got %f", cfg.Retrieval.HybridBM25Weight)
 	}
 
 	return &cfg, nil

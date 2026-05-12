@@ -222,22 +222,53 @@ uses `pip install --require-hashes` against a `uv pip compile`d lockfile
 with full per-archive hashes; the frontend builds Vue with `npm ci` (lockfile
 required) and serves the dist via the unprivileged nginx image.
 
-**Not bundled, recommended for production hardening — add per-service:**
+**Bundled, applied to every service in `docker-compose.yml`:**
+
+```yaml
+security_opt:
+  - "no-new-privileges:true"
+cap_drop:
+  - ALL
+```
+
+`security_opt: no-new-privileges:true` is universal — it prevents any setuid
+binary from elevating privileges and has zero functional impact. `cap_drop:
+[ALL]` removes the full Linux capability set, then each service re-adds only
+the capabilities it actually needs via `cap_add`:
+
+| Service | Re-added capabilities | Reason |
+|---------|-----------------------|--------|
+| `go-api`              | — (none)                                            | Static Go binary, runs as non-root `raven` UID. eBPF overlay adds `CAP_BPF` + `CAP_NET_ADMIN`. |
+| `python-worker`       | — (none)                                            | Python service, non-root. |
+| `python-agent`        | — (none)                                            | Python LiveKit agent, non-root. |
+| `livekit-server`      | — (none)                                            | High-port SFU. |
+| `postgres`            | `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETGID`, `SETUID` | `docker-entrypoint.sh` fixes `PGDATA` ownership then drops to `postgres` via gosu. |
+| `clickhouse`          | `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETGID`, `SETUID`, `IPC_LOCK`, `SYS_NICE` | Same ownership/gosu handoff plus mlock for caches and io_uring scheduling. |
+| `valkey`              | `CHOWN`, `DAC_OVERRIDE`, `SETGID`, `SETUID`         | Entrypoint chowns `/data` then drops to `valkey` via su-exec. |
+| `supertokens`         | `CHOWN`, `DAC_OVERRIDE`, `SETGID`, `SETUID`         | JVM entrypoint drops to `supertokens` user. |
+| `seaweedfs-master`    | `SETGID`, `SETUID`, `SETPCAP`                       | Image uses su-exec; needs `SETPCAP` to shrink the bounding set on re-exec. |
+| `seaweedfs-volume`    | `SETGID`, `SETUID`, `SETPCAP`                       | Same as master. |
+| `seaweedfs-filer`     | `SETGID`, `SETUID`, `SETPCAP`                       | Same as master. |
+| `traefik`             | `NET_BIND_SERVICE`                                  | Binds privileged ports 80 and 443. |
+| `openobserve`         | — (none)                                            | Rust binary on high ports. |
+| `pgbackrest`          | `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETGID`, `SETUID` | Reads `PGDATA` as uid 999 (postgres) and writes the repo as uid 1001 (pgbackrest). |
+
+`docker-compose.edge.yml` applies the same defaults to its three services
+(`go-api`, `postgres`, `traefik`).
+
+**Not bundled (deferred to a follow-up):**
 
 ```yaml
 read_only: true
 tmpfs:
   - /tmp
-security_opt:
-  - no-new-privileges:true
-cap_drop:
-  - ALL
 ```
 
-These directives are intentionally **absent** from the shipped
-`docker-compose.yml` so the dev experience remains low-friction. For
-production self-hosting, wrap each service with a `docker-compose.override.yml`
-that applies these — non-root USER alone is necessary but not sufficient.
+`read_only: true` requires per-service tmpfs additions for `/tmp`,
+`/var/run`, and any other write paths the image expects, and breaks several
+images that write outside the data volume (Postgres lock dirs, OpenObserve
+work dirs). Add this in a `docker-compose.override.yml` once you have
+identified the writable paths each service genuinely needs.
 
 ## Network exposure
 
@@ -380,8 +411,9 @@ in any self-hosted production deployment:
   itself (Traefik's rate limiter does not cover SSH).
 - **Host-level firewall** — `ufw` / `nftables` rules that allow only `22`
   (or your moved SSH port), `80`, `443`, and the LiveKit UDP range.
-- **`cap_drop: ALL` + `read_only: true` + `no-new-privileges`** in a
-  Compose override (see [Container hardening](#container-hardening)).
+- **`read_only: true` filesystems with explicit `tmpfs:`** per service in a
+  Compose override (`cap_drop: ALL` + `no-new-privileges` are already bundled —
+  see [Container hardening](#container-hardening)).
 - **Out-of-band log shipping** of `security_events` and OpenObserve to an
   immutable sink — see [Audit logging](#audit-logging).
 - **Quarterly dependency review** — Dependabot is enabled and CodeRabbit

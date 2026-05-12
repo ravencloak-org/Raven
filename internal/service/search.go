@@ -9,12 +9,18 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/samber/lo"
 
+	"github.com/ravencloak-org/Raven/internal/config"
 	"github.com/ravencloak-org/Raven/internal/db"
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/internal/repository"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
 
+// Compile-time defaults used by the package-level helpers (`clampLimit`,
+// `fuseRRF`) and as the fallback when a SearchService is constructed without
+// an explicit RetrievalConfig. The runtime-effective values come from
+// `config.RetrievalConfig`, which is wired in `cmd/api/main.go` from the
+// RAVEN_RETRIEVAL_* env vars — see internal/config/config.go.
 const (
 	defaultSearchLimit = 10
 	maxSearchLimit     = 100
@@ -23,17 +29,80 @@ const (
 	// score = sum(1 / (k + rank_i)) for each retriever where the document appears.
 	// k=60 is the standard value from the original RRF paper (Cormack et al., 2009).
 	rrfK = 60
+
+	// defaultCandidateMultiplier mirrors the historical `candidateK = topK * 3`
+	// behaviour from before retrieval tuning was made env-configurable.
+	defaultCandidateMultiplier = 3
 )
+
+// defaultRetrievalConfig returns the RetrievalConfig used when a
+// SearchService is constructed without an explicit config (e.g. integration
+// tests). It must stay in sync with the package-level constants above and
+// with the `retrieval.*` defaults in config.Load.
+func defaultRetrievalConfig() config.RetrievalConfig {
+	return config.RetrievalConfig{
+		DefaultLimit:        defaultSearchLimit,
+		MaxLimit:            maxSearchLimit,
+		RRFK:                rrfK,
+		CandidateMultiplier: defaultCandidateMultiplier,
+		HybridVectorWeight:  1.0,
+		HybridBM25Weight:    1.0,
+	}
+}
 
 // SearchService contains business logic for full-text and hybrid search operations.
 type SearchService struct {
 	repo *repository.SearchRepository
 	pool *pgxpool.Pool
+	cfg  config.RetrievalConfig
 }
 
-// NewSearchService creates a new SearchService.
-func NewSearchService(repo *repository.SearchRepository, pool *pgxpool.Pool) *SearchService {
-	return &SearchService{repo: repo, pool: pool}
+// NewSearchService creates a new SearchService. The retrieval cfg controls
+// topK clamping, the RRF smoothing constant `k`, candidate-set expansion, and
+// per-leg hybrid weights — see config.RetrievalConfig. Zero-valued fields are
+// replaced with the package defaults (defaultSearchLimit, maxSearchLimit,
+// rrfK, defaultCandidateMultiplier, 1.0, 1.0) so callers that haven't been
+// updated still get the historical behaviour.
+func NewSearchService(repo *repository.SearchRepository, pool *pgxpool.Pool, cfg config.RetrievalConfig) *SearchService {
+	return &SearchService{repo: repo, pool: pool, cfg: normaliseRetrievalConfig(cfg)}
+}
+
+// normaliseRetrievalConfig backfills zero-valued fields with the historical
+// defaults. Negative weights are clamped to zero — this matches the
+// config-time validation but keeps tests that construct a SearchService
+// directly (without going through config.Load) safe.
+func normaliseRetrievalConfig(cfg config.RetrievalConfig) config.RetrievalConfig {
+	d := defaultRetrievalConfig()
+	if cfg.DefaultLimit <= 0 {
+		cfg.DefaultLimit = d.DefaultLimit
+	}
+	if cfg.MaxLimit <= 0 {
+		cfg.MaxLimit = d.MaxLimit
+	}
+	if cfg.MaxLimit < cfg.DefaultLimit {
+		cfg.MaxLimit = cfg.DefaultLimit
+	}
+	if cfg.RRFK <= 0 {
+		cfg.RRFK = d.RRFK
+	}
+	if cfg.CandidateMultiplier <= 0 {
+		cfg.CandidateMultiplier = d.CandidateMultiplier
+	}
+	if cfg.HybridVectorWeight < 0 {
+		cfg.HybridVectorWeight = 0
+	}
+	if cfg.HybridBM25Weight < 0 {
+		cfg.HybridBM25Weight = 0
+	}
+	// A zero-valued weight (caller intentionally disabling a leg) is left
+	// alone; we only refuse negatives.
+	if cfg.HybridVectorWeight == 0 && cfg.HybridBM25Weight == 0 {
+		// Both zero would null out every fused score; restore historical
+		// equal-weight behaviour rather than returning empty results.
+		cfg.HybridVectorWeight = d.HybridVectorWeight
+		cfg.HybridBM25Weight = d.HybridBM25Weight
+	}
+	return cfg
 }
 
 // sanitizeQuery trims whitespace and collapses multiple spaces.
@@ -41,13 +110,21 @@ func sanitizeQuery(q string) string {
 	return strings.Join(strings.Fields(strings.TrimSpace(q)), " ")
 }
 
-// clampLimit ensures limit is within [1, maxSearchLimit].
+// clampLimit ensures limit is within [1, maxSearchLimit] using the package
+// defaults. Used by the TextSearch* methods, which never had a per-instance
+// override, and by the existing unit tests.
 func clampLimit(limit int) int {
+	return clampLimitWith(limit, defaultSearchLimit, maxSearchLimit)
+}
+
+// clampLimitWith is the configurable equivalent of clampLimit. Used by
+// HybridSearch so the limits respect the RAVEN_RETRIEVAL_* env vars.
+func clampLimitWith(limit, defaultLimit, maxLimit int) int {
 	if limit <= 0 {
-		return defaultSearchLimit
+		return defaultLimit
 	}
-	if limit > maxSearchLimit {
-		return maxSearchLimit
+	if limit > maxLimit {
+		return maxLimit
 	}
 	return limit
 }
@@ -106,12 +183,12 @@ func (s *SearchService) TextSearchWithFilters(ctx context.Context, orgID, kbID, 
 // Results are ranked by fused RRF score in descending order.
 func (s *SearchService) HybridSearch(ctx context.Context, orgID, kbID string, query string, embedding []float32, topK int) (*model.HybridSearchResponse, error) {
 	q := sanitizeQuery(query)
-	topK = clampLimit(topK)
+	topK = clampLimitWith(topK, s.cfg.DefaultLimit, s.cfg.MaxLimit)
 
 	// Both retrievers use an expanded candidate set so RRF has enough signal.
-	candidateK := topK * 3
-	if candidateK > maxSearchLimit {
-		candidateK = maxSearchLimit
+	candidateK := topK * s.cfg.CandidateMultiplier
+	if candidateK > s.cfg.MaxLimit {
+		candidateK = s.cfg.MaxLimit
 	}
 
 	var vectorResults, bm25Results []model.HybridSearchResult
@@ -141,22 +218,33 @@ func (s *SearchService) HybridSearch(ctx context.Context, orgID, kbID string, qu
 		return nil, apierror.NewInternal("hybrid search failed: " + err.Error())
 	}
 
-	merged := fuseRRF(vectorResults, bm25Results, topK)
+	merged := fuseRRFWith(vectorResults, bm25Results, topK, s.cfg.RRFK, s.cfg.HybridVectorWeight, s.cfg.HybridBM25Weight)
 
 	return &model.HybridSearchResponse{Results: merged, Total: len(merged)}, nil
 }
 
-// fuseRRF merges vector and BM25 result lists using Reciprocal Rank Fusion.
+// fuseRRF merges vector and BM25 result lists using Reciprocal Rank Fusion
+// with the package-level defaults (k = rrfK, equal leg weights of 1.0).
 //
-// For each document appearing in either list, the RRF score is computed as:
-//
-//	score = sum(1 / (k + rank_i))
-//
-// where k = rrfK (60) and rank_i is the 1-based position in each retriever's
-// ranked list. Documents appearing in only one list receive a single RRF
-// contribution. The output is sorted by descending RRF score and truncated to
-// topK results.
+// It is a thin wrapper over fuseRRFWith kept for the existing unit tests in
+// search_test.go and for any caller that does not have a RetrievalConfig.
+// New code in this package should call fuseRRFWith directly with explicit
+// `k`, `vectorWeight`, and `bm25Weight` values so RAVEN_RETRIEVAL_* env vars
+// flow through end-to-end.
 func fuseRRF(vectorResults, bm25Results []model.HybridSearchResult, topK int) []model.HybridSearchResult {
+	return fuseRRFWith(vectorResults, bm25Results, topK, rrfK, 1.0, 1.0)
+}
+
+// fuseRRFWith is the parametrised RRF implementation. For each document
+// appearing in either list, the RRF score is computed as:
+//
+//	score = vectorWeight * 1/(k + rank_vec) + bm25Weight * 1/(k + rank_bm25)
+//
+// where rank_* is the 1-based position in the respective retriever's ranked
+// list, k is the RRF smoothing constant, and a missing rank contributes
+// nothing. The output is sorted by descending fused score and truncated to
+// topK results.
+func fuseRRFWith(vectorResults, bm25Results []model.HybridSearchResult, topK, k int, vectorWeight, bm25Weight float64) []model.HybridSearchResult {
 	type fusedEntry struct {
 		result   model.HybridSearchResult
 		rrfScore float64
@@ -173,7 +261,7 @@ func fuseRRF(vectorResults, bm25Results []model.HybridSearchResult, topK int) []
 		}
 		entry.result.VectorScore = vr.VectorScore
 		entry.result.VectorRank = rank + 1
-		entry.rrfScore += 1.0 / float64(rrfK+rank+1)
+		entry.rrfScore += vectorWeight / float64(k+rank+1)
 	}
 
 	// Process BM25 results (1-based ranking).
@@ -185,7 +273,7 @@ func fuseRRF(vectorResults, bm25Results []model.HybridSearchResult, topK int) []
 		}
 		entry.result.BM25Score = br.BM25Score
 		entry.result.BM25Rank = rank + 1
-		entry.rrfScore += 1.0 / float64(rrfK+rank+1)
+		entry.rrfScore += bm25Weight / float64(k+rank+1)
 	}
 
 	// Collect and sort by RRF score descending.
