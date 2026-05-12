@@ -40,11 +40,12 @@ desktop/
 ├── Cargo.toml              # Workspace root (single member: src-tauri)
 ├── .gitignore
 ├── README.md
+├── ui/
+│   └── splash.html         # Splash screen shown before compose is ready
 └── src-tauri/
     ├── Cargo.toml          # raven-local crate
     ├── build.rs            # tauri_build::build()
-    ├── tauri.conf.json     # Tauri 2 configuration
-    ├── splash.html         # Splash screen shown before compose is ready
+    ├── tauri.conf.json     # Tauri 2 configuration (frontendDist: "../ui")
     ├── icons/              # App icons (placeholder — replace for release)
     └── src/
         └── main.rs         # Entry point
