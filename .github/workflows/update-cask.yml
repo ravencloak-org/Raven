@@ -27,7 +27,11 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${TAG#raven-local-v}"
-          FILE="Raven%20Local_${VERSION}_universal.dmg"
+          # GitHub Releases normalises spaces in asset filenames to dots,
+          # so the download URL uses "Raven.Local_*" rather than the on-disk
+          # "Raven Local_*". Don't URL-encode — the asset *name* itself has
+          # the dot.
+          FILE="Raven.Local_${VERSION}_universal.dmg"
           URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${FILE}"
           echo "Downloading $URL"
           curl -fsSL -o raven-local.dmg "$URL"

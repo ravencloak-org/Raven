@@ -1,8 +1,11 @@
 cask "raven-local" do
-  version "0.1.3"
+  version "0.1.4"
   sha256 "0000000000000000000000000000000000000000000000000000000000000000"
 
-  url "https://github.com/ravencloak-org/Raven/releases/download/raven-local-v#{version}/Raven%20Local_#{version}_universal.dmg",
+  # GitHub Releases normalises spaces to dots in asset URLs, so the
+  # download path uses "Raven.Local_*", not "Raven Local_*" or the
+  # URL-encoded "Raven%20Local_*".
+  url "https://github.com/ravencloak-org/Raven/releases/download/raven-local-v#{version}/Raven.Local_#{version}_universal.dmg",
       verified: "github.com/ravencloak-org/Raven/"
   name "Raven Local"
   desc "Privacy-first desktop edition of Raven that runs locally with Ollama"
