@@ -37,6 +37,7 @@ type Config struct {
 	SES          SESConfig
 	EmailSummary EmailSummaryConfig
 	Retrieval    RetrievalConfig
+	Asynq        AsynqConfig
 }
 
 // RetrievalConfig holds tunables for the hybrid search / RRF pipeline used by
@@ -67,6 +68,24 @@ type RetrievalConfig struct {
 	// per-document RRF contribution. Env:
 	// RAVEN_RETRIEVAL_HYBRID_BM25_WEIGHT (default 1.0).
 	HybridBM25Weight float64 `mapstructure:"hybrid_bm25_weight"`
+}
+
+// AsynqConfig holds per-task-type execution deadline budgets for the Asynq
+// worker. Each field maps to a RAVEN_ASYNQ_* environment variable and
+// accepts Go time.Duration syntax (e.g. 5m, 30s, 2m30s).
+// Defaults match the previous hardcoded values so existing deployments see
+// no behaviour change.
+type AsynqConfig struct {
+	DocumentProcessBudget time.Duration `mapstructure:"document_process_budget"`
+	AirbyteSyncBudget     time.Duration `mapstructure:"airbyte_sync_budget"`
+	EmailSummaryBudget    time.Duration `mapstructure:"email_summary_budget"`
+	SendEmailBudget       time.Duration `mapstructure:"send_email_budget"`
+	VoiceUsageAggBudget   time.Duration `mapstructure:"voice_usage_agg_budget"`
+	UsageAggBudget        time.Duration `mapstructure:"usage_agg_budget"`
+	WebhookDeliveryBudget time.Duration `mapstructure:"webhook_delivery_budget"`
+	RecrawlSourcesBudget  time.Duration `mapstructure:"recrawl_sources_budget"`
+	CleanupSessionsBudget time.Duration `mapstructure:"cleanup_sessions_budget"`
+	DefaultBudget         time.Duration `mapstructure:"default_budget"`
 }
 
 // SESConfig holds AWS SES outbound email settings.
@@ -548,6 +567,27 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("retrieval.candidate_multiplier", "RAVEN_RETRIEVAL_CANDIDATE_MULTIPLIER")
 	_ = v.BindEnv("retrieval.hybrid_vector_weight", "RAVEN_RETRIEVAL_HYBRID_VECTOR_WEIGHT")
 	_ = v.BindEnv("retrieval.hybrid_bm25_weight", "RAVEN_RETRIEVAL_HYBRID_BM25_WEIGHT")
+	// Asynq task budget defaults — match the previous hardcoded values exactly.
+	v.SetDefault("asynq.document_process_budget", 5*time.Minute)
+	v.SetDefault("asynq.airbyte_sync_budget", 5*time.Minute)
+	v.SetDefault("asynq.email_summary_budget", 2*time.Minute)
+	v.SetDefault("asynq.send_email_budget", 30*time.Second)
+	v.SetDefault("asynq.voice_usage_agg_budget", 30*time.Second)
+	v.SetDefault("asynq.usage_agg_budget", 30*time.Second)
+	v.SetDefault("asynq.webhook_delivery_budget", 30*time.Second)
+	v.SetDefault("asynq.recrawl_sources_budget", 2*time.Minute)
+	v.SetDefault("asynq.cleanup_sessions_budget", 2*time.Minute)
+	v.SetDefault("asynq.default_budget", 1*time.Minute)
+	_ = v.BindEnv("asynq.document_process_budget", "RAVEN_ASYNQ_DOCUMENT_PROCESS_BUDGET")
+	_ = v.BindEnv("asynq.airbyte_sync_budget", "RAVEN_ASYNQ_AIRBYTE_SYNC_BUDGET")
+	_ = v.BindEnv("asynq.email_summary_budget", "RAVEN_ASYNQ_EMAIL_SUMMARY_BUDGET")
+	_ = v.BindEnv("asynq.send_email_budget", "RAVEN_ASYNQ_SEND_EMAIL_BUDGET")
+	_ = v.BindEnv("asynq.voice_usage_agg_budget", "RAVEN_ASYNQ_VOICE_USAGE_AGG_BUDGET")
+	_ = v.BindEnv("asynq.usage_agg_budget", "RAVEN_ASYNQ_USAGE_AGG_BUDGET")
+	_ = v.BindEnv("asynq.webhook_delivery_budget", "RAVEN_ASYNQ_WEBHOOK_DELIVERY_BUDGET")
+	_ = v.BindEnv("asynq.recrawl_sources_budget", "RAVEN_ASYNQ_RECRAWL_SOURCES_BUDGET")
+	_ = v.BindEnv("asynq.cleanup_sessions_budget", "RAVEN_ASYNQ_CLEANUP_SESSIONS_BUDGET")
+	_ = v.BindEnv("asynq.default_budget", "RAVEN_ASYNQ_DEFAULT_BUDGET")
 
 	// Try to read config file but don't fail if not found
 	_ = v.ReadInConfig()

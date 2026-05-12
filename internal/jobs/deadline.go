@@ -6,40 +6,43 @@ import (
 
 	"github.com/hibiken/asynq"
 
+	"github.com/ravencloak-org/Raven/internal/config"
 	"github.com/ravencloak-org/Raven/internal/queue"
 )
 
-// taskBudgets maps a task type to its per-execution deadline.
-// Keys come from the TypeXxx constants in tasks.go (or per-file constants),
-// plus the on-demand task types defined in internal/queue. Anything not in
-// the map falls back to defaultBudget.
-var taskBudgets = map[string]time.Duration{
-	queue.TypeDocumentProcess: 5 * time.Minute,
-	queue.TypeAirbyteSync:     5 * time.Minute,
-	TypeEmailSummary:          2 * time.Minute,
-	TypeSendEmail:             30 * time.Second,
-	TypeVoiceUsageAggregation: 30 * time.Second,
-	TypeUsageAggregation:      30 * time.Second,
-	TypeWebhookDelivery:       30 * time.Second,
-	TypeRecrawlSources:        2 * time.Minute,
-	TypeCleanupSessions:       2 * time.Minute,
+// BudgetsFromConfig builds the per-task-type budget map from AsynqConfig,
+// keeping scheduler.go tidy and making the mapping unit-testable.
+func BudgetsFromConfig(c config.AsynqConfig) map[string]time.Duration {
+	return map[string]time.Duration{
+		queue.TypeDocumentProcess: c.DocumentProcessBudget,
+		queue.TypeAirbyteSync:     c.AirbyteSyncBudget,
+		TypeEmailSummary:          c.EmailSummaryBudget,
+		TypeSendEmail:             c.SendEmailBudget,
+		TypeVoiceUsageAggregation: c.VoiceUsageAggBudget,
+		TypeUsageAggregation:      c.UsageAggBudget,
+		TypeWebhookDelivery:       c.WebhookDeliveryBudget,
+		TypeRecrawlSources:        c.RecrawlSourcesBudget,
+		TypeCleanupSessions:       c.CleanupSessionsBudget,
+	}
 }
 
-// defaultBudget is applied when a task type has no entry in taskBudgets.
-const defaultBudget = 1 * time.Minute
-
-// DeadlineMiddleware wraps every Asynq handler with a per-task-type
-// context.WithTimeout. Apply via mux.Use(DeadlineMiddleware) so it covers
-// handlers regardless of whether they are method receivers or HandlerFunc
-// factories. Tasks not present in taskBudgets fall back to defaultBudget.
-func DeadlineMiddleware(next asynq.Handler) asynq.Handler {
-	return asynq.HandlerFunc(func(ctx context.Context, t *asynq.Task) error {
-		budget, ok := taskBudgets[t.Type()]
-		if !ok {
-			budget = defaultBudget
-		}
-		ctx, cancel := context.WithTimeout(ctx, budget)
-		defer cancel()
-		return next.ProcessTask(ctx, t)
-	})
+// DeadlineMiddleware returns an Asynq middleware factory that wraps every
+// handler with a per-task-type context.WithTimeout drawn from budgets.
+// Tasks not present in the map fall back to defaultBudget.
+//
+// Usage:
+//
+//	mux.Use(jobs.DeadlineMiddleware(jobs.BudgetsFromConfig(cfg.Asynq), cfg.Asynq.DefaultBudget))
+func DeadlineMiddleware(budgets map[string]time.Duration, defaultBudget time.Duration) func(asynq.Handler) asynq.Handler {
+	return func(next asynq.Handler) asynq.Handler {
+		return asynq.HandlerFunc(func(ctx context.Context, t *asynq.Task) error {
+			budget, ok := budgets[t.Type()]
+			if !ok || budget == 0 {
+				budget = defaultBudget
+			}
+			ctx, cancel := context.WithTimeout(ctx, budget)
+			defer cancel()
+			return next.ProcessTask(ctx, t)
+		})
+	}
 }

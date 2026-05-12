@@ -3,10 +3,12 @@ package jobs
 import (
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/ravencloak-org/Raven/internal/config"
 	"github.com/ravencloak-org/Raven/internal/queue"
 )
 
@@ -28,6 +30,7 @@ type SchedulerConfig struct {
 	Pool        *pgxpool.Pool
 	QueueClient *queue.Client
 	Logger      *slog.Logger
+	Asynq       config.AsynqConfig
 }
 
 // Scheduler wraps an asynq.Scheduler and the handler mux for processing
@@ -105,7 +108,11 @@ func NewScheduler(cfg SchedulerConfig) (*Scheduler, error) {
 	// Apply per-task-type deadlines to every handler registered on this mux.
 	// Centralising the deadline here means new handlers automatically inherit
 	// a budget without needing per-handler context.WithTimeout boilerplate.
-	mux.Use(DeadlineMiddleware)
+	asynqDefaultBudget := cfg.Asynq.DefaultBudget
+	if asynqDefaultBudget == 0 {
+		asynqDefaultBudget = 1 * time.Minute
+	}
+	mux.Use(DeadlineMiddleware(BudgetsFromConfig(cfg.Asynq), asynqDefaultBudget))
 
 	recrawlHandler := NewRecrawlHandler(cfg.Pool, cfg.QueueClient, cfg.Logger)
 	mux.Handle(TypeRecrawlSources, recrawlHandler)
