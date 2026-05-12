@@ -1,0 +1,18 @@
+# Overlay applied on top of docker-compose.yml for the public demo.
+# Voice services (livekit-server, stt, tts) remain running so the
+# python-worker's depends_on chain holds, but no Cloudflared route
+# is published for them and the frontend hides voice UI.
+services:
+  frontend:
+    environment:
+      RAVEN_VOICE_ENABLED: "false"
+      RAVEN_TURNSTILE_SITE_KEY: "${TURNSTILE_SITE_KEY}"
+
+  go-api:
+    environment:
+      RAVEN_VOICE_ENABLED: "false"
+      RAVEN_TURNSTILE_SECRET_KEY: "${TURNSTILE_SECRET_KEY}"
+
+  python-worker:
+    environment:
+      RAVEN_LLM_DAILY_USD_CAP: "${RAVEN_LLM_DAILY_USD_CAP}"
