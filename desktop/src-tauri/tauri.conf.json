@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "",
     "beforeBuildCommand": "",
-    "frontendDist": "."
+    "frontendDist": "../ui"
   },
   "app": {
     "windows": [
@@ -39,6 +39,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": ["splash.html", "../docker-compose.local.yml"]
+    "resources": ["../docker-compose.local.yml"]
   }
 }
