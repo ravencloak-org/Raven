@@ -202,21 +202,26 @@ score(d) = Σ 1 / (k + rank_i(d))
 ```
 
 where `rank_i(d)` is the 1-based position of document `d` in retriever
-`i`'s ranked list, and `k` is a smoothing constant. **Raven uses `k = 60`**
-in both implementations — the value recommended in the original paper.
+`i`'s ranked list, and `k` is a smoothing constant. **Raven defaults `k`
+to 60** in both implementations — the value recommended in the original
+paper — and exposes it as `RAVEN_RETRIEVAL_RRF_K` for tuning. Per-leg
+weights are exposed as `RAVEN_RETRIEVAL_HYBRID_VECTOR_WEIGHT` and
+`RAVEN_RETRIEVAL_HYBRID_BM25_WEIGHT` (both default `1.0`).
 
-The Go implementation lives in `internal/service/search.go` as the
-`fuseRRF` function, with the constant declared at package scope:
+The Go implementation lives in `internal/service/search.go` as
+`fuseRRFWith`, with the default declared as a package constant and the
+runtime-effective value flowing in from `config.RetrievalConfig`:
 
 ```go
-// rrfK is the constant used in the Reciprocal Rank Fusion formula.
-// k=60 is the standard value from the original RRF paper (Cormack et al., 2009).
+// rrfK is the compile-time default; the runtime value comes from
+// cfg.RRFK (RAVEN_RETRIEVAL_RRF_K). k=60 is the standard value from the
+// original RRF paper (Cormack et al., 2009).
 const rrfK = 60
 
-// fuseRRF merges vector and BM25 result lists using Reciprocal Rank Fusion.
+// fuseRRFWith merges vector and BM25 result lists using weighted RRF.
 // For each document appearing in either list:
-//   score = sum(1 / (k + rank_i))
-// where rank_i is the 1-based position in each retriever.
+//   score = vectorWeight * 1/(k + rank_vec) + bm25Weight * 1/(k + rank_bm25)
+// where rank_* is the 1-based position in each retriever.
 ```
 
 The Python implementation in `ai-worker/raven_worker/retrieval/rrf.py` is
@@ -249,9 +254,10 @@ A few properties to note:
   which means it is robust to the very different score distributions of
   pgvector cosine similarity and `ts_rank_cd`.
 - **Candidate-set expansion.** Each leg is queried with
-  `candidateK = topK * 3` (capped at `maxSearchLimit = 100`) so RRF has
-  enough overlap signal to work with; only the top-K survive after
-  fusion.
+  `candidateK = topK * RAVEN_RETRIEVAL_CANDIDATE_MULTIPLIER` (default
+  multiplier `3`, capped at `RAVEN_RETRIEVAL_MAX_LIMIT` which defaults
+  to `100`) so RRF has enough overlap signal to work with; only the
+  top-K survive after fusion.
 
 The fused `HybridSearchResult` carries all the intermediate signals back to
 the caller — `VectorScore`, `BM25Score`, `VectorRank`, `BM25Rank`, and the
@@ -317,32 +323,44 @@ cross-encoder rerank could be added on top of RRF.
 
 ## Configuration
 
-Retrieval-related defaults live in two places.
+The Go API exposes the hybrid-retrieval tunables as
+[`RetrievalConfig`](https://github.com/ravencloak-org/Raven/blob/main/internal/config/config.go)
+fields, all overridable at runtime via `RAVEN_RETRIEVAL_*` env vars. The
+Python ai-worker mirrors the two values that affect fused ordering so both
+code paths can be tuned together.
 
-Go API service constants (`internal/service/search.go`):
+Go API (`internal/config/config.go` → `RetrievalConfig`, consumed by
+`internal/service/search.go`):
 
-| Constant             | Value | Purpose                                              |
-| -------------------- | ----- | ---------------------------------------------------- |
-| `defaultSearchLimit` | `10`  | `topK` returned when the caller omits `top_k`        |
-| `maxSearchLimit`     | `100` | Hard ceiling on `topK` and `candidateK`              |
-| `rrfK`               | `60`  | RRF smoothing constant                               |
+| Env var                                  | Default | Purpose                                                                 |
+| ---------------------------------------- | ------- | ----------------------------------------------------------------------- |
+| `RAVEN_RETRIEVAL_DEFAULT_LIMIT`          | `10`    | `topK` returned when the caller omits `top_k`                           |
+| `RAVEN_RETRIEVAL_MAX_LIMIT`              | `100`   | Hard ceiling on `topK` and `candidateK`                                 |
+| `RAVEN_RETRIEVAL_RRF_K`                  | `60`    | RRF smoothing constant — score = sum(weight / (k + rank))               |
+| `RAVEN_RETRIEVAL_CANDIDATE_MULTIPLIER`   | `3`     | Per-leg candidate set sized as `topK * multiplier` (then clamped)       |
+| `RAVEN_RETRIEVAL_HYBRID_VECTOR_WEIGHT`   | `1.0`   | Multiplier on the vector leg's RRF contribution                         |
+| `RAVEN_RETRIEVAL_HYBRID_BM25_WEIGHT`     | `1.0`   | Multiplier on the BM25 leg's RRF contribution                           |
 
-The Go service computes `candidateK = topK * 3` and clamps it to
-`maxSearchLimit`. `clampLimit()` and `sanitizeQuery()` apply to every
+`config.Load` validates these at startup: every integer must be positive,
+weights must be non-negative, and `MaxLimit >= DefaultLimit`. A
+misconfigured value causes the API binary to exit non-zero before serving
+the first request. `clampLimitWith()` and `sanitizeQuery()` apply to every
 hybrid call.
 
 Python ai-worker (`ai-worker/raven_worker/config.py`), via `RAVEN_*` env
 vars:
 
-| Setting                 | Default                | Notes                                                          |
-| ----------------------- | ---------------------- | -------------------------------------------------------------- |
-| `grpc_port`             | `50051`                | RAG and embedding RPCs                                         |
-| `database_url`          | local PG dev URL       | pgvector + tsvector queries run against this                   |
-| `semantic_cache_enabled`| `true`                 | Enables the `response_cache` lookup (separate from hybrid)     |
+| Setting                              | Default                | Notes                                                                                            |
+| ------------------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------ |
+| `grpc_port`                          | `50051`                | RAG and embedding RPCs                                                                           |
+| `database_url`                       | local PG dev URL       | pgvector + tsvector queries run against this                                                     |
+| `semantic_cache_enabled`             | `true`                 | Enables the `response_cache` lookup (separate from hybrid)                                       |
+| `retrieval_rrf_k`                    | `60`                   | Mirrors `RAVEN_RETRIEVAL_RRF_K`; used by the RAG path's `reciprocal_rank_fusion` call            |
+| `retrieval_default_top_n`            | `10`                   | Mirrors `RAVEN_RETRIEVAL_DEFAULT_LIMIT`; size of the fused list passed to rerank/context build   |
 
-There is **no `top_k`, RRF `k`, or hybrid-weighting env var** — those are
-hard-coded constants. Rerank toggling is per-request (`filters["rerank"]`),
-not configuration.
+Rerank toggling is per-request (`filters["rerank"]`), not configuration.
+The Python worker reuses the same `RAVEN_RETRIEVAL_RRF_K` env var as the Go
+API so a single value tunes both code paths in lock-step.
 
 ## Benchmarks
 

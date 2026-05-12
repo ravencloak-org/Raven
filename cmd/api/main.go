@@ -354,7 +354,7 @@ func main() {
 	kbSvc := service.NewKBService(kbRepo, pool, quotaChecker)
 	sourceSvc := service.NewSourceService(sourceRepo, pool)
 	docSvc := service.NewDocumentService(docRepo, pool).WithCacheInvalidator(semCacheRepo)
-	searchSvc := service.NewSearchService(searchRepo, pool)
+	searchSvc := service.NewSearchService(searchRepo, pool, cfg.Retrieval)
 	hybridRetrievalSvc := service.NewHybridRetrievalService(
 		searchRepo, chEmbeddingRepo, pool,
 		model.VectorBackend(cfg.ClickHouse.VectorBackend),

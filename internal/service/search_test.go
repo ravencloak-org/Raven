@@ -2,8 +2,10 @@ package service
 
 import (
 	"math"
+	"os"
 	"testing"
 
+	"github.com/ravencloak-org/Raven/internal/config"
 	"github.com/ravencloak-org/Raven/internal/model"
 )
 
@@ -303,4 +305,256 @@ func TestRRFKConstant(t *testing.T) {
 	if rrfK != 60 {
 		t.Errorf("rrfK = %d, want 60 (standard RRF constant)", rrfK)
 	}
+}
+
+// TestRetrievalConfigEnvOverride verifies that the RAVEN_RETRIEVAL_* env
+// vars feed through config.Load into the values used by SearchService.
+// This closes finding #4 from the docs audit, which flagged these tunables
+// as hard-coded.
+func TestRetrievalConfigEnvOverride(t *testing.T) {
+	// config.Load also requires a database URL — set it to a syntactically
+	// valid value so Validate() succeeds; we never actually connect.
+	t.Setenv("RAVEN_DATABASE_URL", "postgres://test:test@localhost:5432/test")
+	t.Setenv("RAVEN_RETRIEVAL_DEFAULT_LIMIT", "20")
+	t.Setenv("RAVEN_RETRIEVAL_MAX_LIMIT", "200")
+	t.Setenv("RAVEN_RETRIEVAL_RRF_K", "42")
+	t.Setenv("RAVEN_RETRIEVAL_CANDIDATE_MULTIPLIER", "4")
+	t.Setenv("RAVEN_RETRIEVAL_HYBRID_VECTOR_WEIGHT", "2.0")
+	t.Setenv("RAVEN_RETRIEVAL_HYBRID_BM25_WEIGHT", "0.5")
+
+	// Run from a directory with no config.yaml so the env vars are the
+	// sole source of values.
+	tmp := t.TempDir()
+	prev, _ := os.Getwd()
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatalf("chdir tmp: %v", err)
+	}
+	defer func() { _ = os.Chdir(prev) }()
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("config.Load() failed: %v", err)
+	}
+
+	if cfg.Retrieval.DefaultLimit != 20 {
+		t.Errorf("DefaultLimit = %d, want 20", cfg.Retrieval.DefaultLimit)
+	}
+	if cfg.Retrieval.MaxLimit != 200 {
+		t.Errorf("MaxLimit = %d, want 200", cfg.Retrieval.MaxLimit)
+	}
+	if cfg.Retrieval.RRFK != 42 {
+		t.Errorf("RRFK = %d, want 42", cfg.Retrieval.RRFK)
+	}
+	if cfg.Retrieval.CandidateMultiplier != 4 {
+		t.Errorf("CandidateMultiplier = %d, want 4", cfg.Retrieval.CandidateMultiplier)
+	}
+	if cfg.Retrieval.HybridVectorWeight != 2.0 {
+		t.Errorf("HybridVectorWeight = %f, want 2.0", cfg.Retrieval.HybridVectorWeight)
+	}
+	if cfg.Retrieval.HybridBM25Weight != 0.5 {
+		t.Errorf("HybridBM25Weight = %f, want 0.5", cfg.Retrieval.HybridBM25Weight)
+	}
+
+	// Construct a SearchService from the loaded config and verify the env
+	// values flowed through normaliseRetrievalConfig unchanged.
+	svc := NewSearchService(nil, nil, cfg.Retrieval)
+	if svc.cfg.DefaultLimit != 20 || svc.cfg.MaxLimit != 200 ||
+		svc.cfg.RRFK != 42 || svc.cfg.CandidateMultiplier != 4 ||
+		svc.cfg.HybridVectorWeight != 2.0 || svc.cfg.HybridBM25Weight != 0.5 {
+		t.Errorf("SearchService.cfg did not preserve env-var-driven values: %+v", svc.cfg)
+	}
+}
+
+// TestRetrievalConfigDefaults verifies the zero-input defaults match the
+// historical hard-coded constants — protects against accidental drift when
+// the defaults are edited.
+func TestRetrievalConfigDefaults(t *testing.T) {
+	t.Setenv("RAVEN_DATABASE_URL", "postgres://test:test@localhost:5432/test")
+	// Make sure no stray RAVEN_RETRIEVAL_* values leak in from the host.
+	for _, k := range []string{
+		"RAVEN_RETRIEVAL_DEFAULT_LIMIT",
+		"RAVEN_RETRIEVAL_MAX_LIMIT",
+		"RAVEN_RETRIEVAL_RRF_K",
+		"RAVEN_RETRIEVAL_CANDIDATE_MULTIPLIER",
+		"RAVEN_RETRIEVAL_HYBRID_VECTOR_WEIGHT",
+		"RAVEN_RETRIEVAL_HYBRID_BM25_WEIGHT",
+	} {
+		t.Setenv(k, "")
+		_ = os.Unsetenv(k)
+	}
+
+	tmp := t.TempDir()
+	prev, _ := os.Getwd()
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatalf("chdir tmp: %v", err)
+	}
+	defer func() { _ = os.Chdir(prev) }()
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("config.Load() failed: %v", err)
+	}
+
+	if cfg.Retrieval.DefaultLimit != defaultSearchLimit {
+		t.Errorf("DefaultLimit default = %d, want %d", cfg.Retrieval.DefaultLimit, defaultSearchLimit)
+	}
+	if cfg.Retrieval.MaxLimit != maxSearchLimit {
+		t.Errorf("MaxLimit default = %d, want %d", cfg.Retrieval.MaxLimit, maxSearchLimit)
+	}
+	if cfg.Retrieval.RRFK != rrfK {
+		t.Errorf("RRFK default = %d, want %d", cfg.Retrieval.RRFK, rrfK)
+	}
+	if cfg.Retrieval.CandidateMultiplier != defaultCandidateMultiplier {
+		t.Errorf("CandidateMultiplier default = %d, want %d", cfg.Retrieval.CandidateMultiplier, defaultCandidateMultiplier)
+	}
+	if cfg.Retrieval.HybridVectorWeight != 1.0 || cfg.Retrieval.HybridBM25Weight != 1.0 {
+		t.Errorf("hybrid weight defaults = (%f, %f), want (1.0, 1.0)", cfg.Retrieval.HybridVectorWeight, cfg.Retrieval.HybridBM25Weight)
+	}
+}
+
+// TestClampLimitWithConfig verifies that clampLimitWith respects the
+// per-instance MaxLimit so the RAVEN_RETRIEVAL_MAX_LIMIT override actually
+// caps topK.
+func TestClampLimitWithConfig(t *testing.T) {
+	tests := []struct {
+		name                  string
+		input, def, max, want int
+	}{
+		{"zero returns default", 0, 25, 200, 25},
+		{"within range", 50, 25, 200, 50},
+		{"at max", 200, 25, 200, 200},
+		{"over max clamps to max", 5000, 25, 200, 200},
+		{"negative returns default", -1, 25, 200, 25},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := clampLimitWith(tt.input, tt.def, tt.max)
+			if got != tt.want {
+				t.Errorf("clampLimitWith(%d, %d, %d) = %d, want %d", tt.input, tt.def, tt.max, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestFuseRRFWith_RespectsWeights verifies that fuseRRFWith honours the
+// per-leg weights so the RAVEN_RETRIEVAL_HYBRID_*_WEIGHT overrides change
+// the fused ranking as documented.
+func TestFuseRRFWith_RespectsWeights(t *testing.T) {
+	vectorResults := []model.HybridSearchResult{
+		{ChunkID: "V", VectorScore: 0.9},
+	}
+	bm25Results := []model.HybridSearchResult{
+		{ChunkID: "B", BM25Score: 4.0},
+	}
+
+	// Heavy vector weighting → V should outrank B even though both are at
+	// rank 1 in their respective legs.
+	results := fuseRRFWith(vectorResults, bm25Results, 10, 60, 5.0, 1.0)
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+	if results[0].ChunkID != "V" {
+		t.Errorf("with vector weight 5.0, expected V first, got %q", results[0].ChunkID)
+	}
+
+	// Inverting the weights flips the order.
+	results = fuseRRFWith(vectorResults, bm25Results, 10, 60, 1.0, 5.0)
+	if results[0].ChunkID != "B" {
+		t.Errorf("with bm25 weight 5.0, expected B first, got %q", results[0].ChunkID)
+	}
+
+	// A custom k changes the magnitude of the score but not the ordering.
+	rWithDefaultK := fuseRRFWith(vectorResults, nil, 10, 60, 1.0, 1.0)
+	rWithBigK := fuseRRFWith(vectorResults, nil, 10, 600, 1.0, 1.0)
+	if !(rWithDefaultK[0].RRFScore > rWithBigK[0].RRFScore) {
+		t.Errorf("expected score with k=60 (%f) to exceed score with k=600 (%f)", rWithDefaultK[0].RRFScore, rWithBigK[0].RRFScore)
+	}
+}
+
+// TestNormaliseRetrievalConfig verifies that zero-valued or partial configs
+// fall back to the historical defaults so callers (notably the integration
+// test harness) that pass a zero RetrievalConfig still get sane behaviour.
+func TestNormaliseRetrievalConfig(t *testing.T) {
+	got := normaliseRetrievalConfig(config.RetrievalConfig{})
+	want := defaultRetrievalConfig()
+	if got != want {
+		t.Errorf("normaliseRetrievalConfig(zero) = %+v, want %+v", got, want)
+	}
+
+	// MaxLimit < DefaultLimit is rewritten to MaxLimit = DefaultLimit so
+	// HybridSearch never receives a degenerate ceiling. Validation in
+	// config.Load also rejects this combination up front.
+	got = normaliseRetrievalConfig(config.RetrievalConfig{
+		DefaultLimit:        50,
+		MaxLimit:            10,
+		RRFK:                60,
+		CandidateMultiplier: 3,
+		HybridVectorWeight:  1.0,
+		HybridBM25Weight:    1.0,
+	})
+	if got.MaxLimit < got.DefaultLimit {
+		t.Errorf("MaxLimit (%d) < DefaultLimit (%d) after normalise", got.MaxLimit, got.DefaultLimit)
+	}
+}
+
+// TestRetrievalConfigValidationRejectsBadValues exercises the config-time
+// guards added alongside RetrievalConfig.
+func TestRetrievalConfigValidationRejectsBadValues(t *testing.T) {
+	cases := []struct {
+		name    string
+		env     map[string]string
+		wantErr string
+	}{
+		{
+			name:    "negative default limit",
+			env:     map[string]string{"RAVEN_RETRIEVAL_DEFAULT_LIMIT": "-1"},
+			wantErr: "retrieval.default_limit",
+		},
+		{
+			name:    "rrf k zero",
+			env:     map[string]string{"RAVEN_RETRIEVAL_RRF_K": "0"},
+			wantErr: "retrieval.rrf_k",
+		},
+		{
+			name:    "max below default",
+			env:     map[string]string{"RAVEN_RETRIEVAL_DEFAULT_LIMIT": "50", "RAVEN_RETRIEVAL_MAX_LIMIT": "10"},
+			wantErr: "retrieval.max_limit",
+		},
+		{
+			name:    "negative weight",
+			env:     map[string]string{"RAVEN_RETRIEVAL_HYBRID_VECTOR_WEIGHT": "-0.1"},
+			wantErr: "retrieval.hybrid_vector_weight",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("RAVEN_DATABASE_URL", "postgres://test:test@localhost:5432/test")
+			for k, v := range tc.env {
+				t.Setenv(k, v)
+			}
+			tmp := t.TempDir()
+			prev, _ := os.Getwd()
+			if err := os.Chdir(tmp); err != nil {
+				t.Fatalf("chdir tmp: %v", err)
+			}
+			defer func() { _ = os.Chdir(prev) }()
+
+			_, err := config.Load()
+			if err == nil {
+				t.Fatalf("expected error containing %q, got nil", tc.wantErr)
+			}
+			if !contains(err.Error(), tc.wantErr) {
+				t.Errorf("error = %q, want substring %q", err.Error(), tc.wantErr)
+			}
+		})
+	}
+}
+
+func contains(s, sub string) bool {
+	for i := 0; i+len(sub) <= len(s); i++ {
+		if s[i:i+len(sub)] == sub {
+			return true
+		}
+	}
+	return false
 }

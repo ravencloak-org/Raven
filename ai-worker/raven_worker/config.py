@@ -34,6 +34,13 @@ class Settings(BaseSettings):
     # Semantic response cache (issue #256 — M9). Flip to False to bypass the
     # pgvector lookup entirely while keeping the exact-match Valkey cache.
     semantic_cache_enabled: bool = True
+    # Retrieval / hybrid-search tuning. Mirrors the RAVEN_RETRIEVAL_* env
+    # vars consumed by the Go API (see internal/config/config.go and
+    # docs-site/stubs/reference/configuration.md). The Python defaults
+    # match the Go defaults so both code paths produce identical fusion
+    # ordering out of the box.
+    retrieval_rrf_k: int = 60
+    retrieval_default_top_n: int = 10
     model_config = SettingsConfigDict(env_prefix="RAVEN_")
 
 

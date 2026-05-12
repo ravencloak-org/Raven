@@ -18,6 +18,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 
+	"github.com/ravencloak-org/Raven/internal/config"
 	"github.com/ravencloak-org/Raven/internal/repository"
 	"github.com/ravencloak-org/Raven/internal/service"
 )
@@ -114,7 +115,7 @@ func TestMain(m *testing.M) {
 	testSourceRepo = repository.NewSourceRepository(testPool)
 
 	// Initialize services
-	testSearchSvc = service.NewSearchService(testSearchRepo, testPool)
+	testSearchSvc = service.NewSearchService(testSearchRepo, testPool, config.RetrievalConfig{})
 	testDocSvc = service.NewDocumentService(testDocRepo, testPool)
 	testSourceSvc = service.NewSourceService(testSourceRepo, testPool)
 
