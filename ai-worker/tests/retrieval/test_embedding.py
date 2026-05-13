@@ -31,7 +31,7 @@ class TestEmbeddingGeneration:
         from raven_worker.providers.anthropic_provider import AnthropicEmbeddingProvider
 
         provider = AnthropicEmbeddingProvider(api_key="sk-ant-test")
-        with pytest.raises(NotImplementedError, match="Anthropic embedding not yet available"):
+        with pytest.raises(NotImplementedError, match="Anthropic does not publish a public embeddings API"):
             await provider.embed("hello")
 
     async def test_openai_embed_batch_returns_list_of_vectors(self, mock_openai_provider):
@@ -71,5 +71,5 @@ class TestEmbeddingGeneration:
         from raven_worker.providers.anthropic_provider import AnthropicEmbeddingProvider
 
         provider = AnthropicEmbeddingProvider(api_key="sk-ant-test")
-        with pytest.raises(NotImplementedError, match="Anthropic embedding not yet available"):
+        with pytest.raises(NotImplementedError, match="Anthropic does not publish a public embeddings API"):
             await provider.embed_batch(["text1", "text2"])
