@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "7c50cbe9575a",
+  "session_id": "a98b275b-1d14-4bd9-bc6d-fe240361da7e",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-13T11:46:24.858262Z",
+  "branch": "feat/tauri-auto-update-pr",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".claude/worktrees/agent-a0b9e309acd5c05e6/.env.ci",
+    ".claude/worktrees/agent-a3c53057da799ff5c/.env.ci",
+    ".claude/worktrees/agent-ab102b1529f4b4915/.env.ci"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "ed223290-8053-4a09-b944-b172d1a3aaad",
+  "token_usage": {
+    "input_tokens": 18,
+    "cache_creation_tokens": 103788,
+    "cache_read_tokens": 291656,
+    "output_tokens": 10052,
+    "api_call_count": 8
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-13T11:46:24.780609Z",
+    "agent_lines": 0,
+    "human_added": 856,
+    "human_modified": 114,
+    "human_removed": 0,
+    "total_committed": 970,
+    "agent_percentage": 0
+  }
+}
