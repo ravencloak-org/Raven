@@ -49,7 +49,13 @@ git config core.hooksPath .githooks
 | `pre-commit` | every `git commit` | `golangci-lint run --new-from-rev=HEAD ./...` when staged changes include `.go` files. Only NEW violations introduced by this commit fail the hook; pre-existing repo-wide debt is tracked separately. Matches CI's `only-new-issues: true`. |
 | `pre-push` | every `git push` | every commit being sent carries a `Signed-off-by:` trailer |
 
-`pre-commit` skips silently if `golangci-lint` is not installed; install it via `brew install golangci-lint` (macOS) or `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest`.
+`pre-commit` requires **golangci-lint v2.11.4** (pinned to match CI). Install the exact version:
+
+```bash
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.4
+```
+
+The hook will error if a different version is detected, to prevent local/CI drift.
 
 To retroactively sign off a branch that was made before the hook existed:
 
