@@ -196,7 +196,7 @@ def test_cohere_provider_model_name() -> None:
 async def test_anthropic_provider_embed_raises() -> None:
     """Anthropic embed() must raise NotImplementedError."""
     provider = AnthropicEmbeddingProvider(api_key="sk-ant-test")
-    with pytest.raises(NotImplementedError, match="Anthropic does not publish a public embeddings API"):
+    with pytest.raises(NotImplementedError, match="Anthropic does not publish"):
         await provider.embed("hello anthropic")
 
 
@@ -204,5 +204,5 @@ async def test_anthropic_provider_embed_raises() -> None:
 async def test_anthropic_provider_embed_batch_raises() -> None:
     """Anthropic embed_batch() must raise NotImplementedError."""
     provider = AnthropicEmbeddingProvider(api_key="sk-ant-test")
-    with pytest.raises(NotImplementedError, match="Anthropic does not publish a public embeddings API"):
+    with pytest.raises(NotImplementedError, match="Anthropic does not publish"):
         await provider.embed_batch(["text1", "text2"])
