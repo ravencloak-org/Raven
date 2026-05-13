@@ -13,8 +13,26 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => sessionExists.value)
   const hasOrg = computed(() => !!orgId.value)
 
+  /**
+   * Probe SuperTokens for an existing session before the app mounts.
+   *
+   * Defensive: SuperTokens' session check can hang (network stall) or
+   * throw (5xx, aborted fetch) if the auth service is unreachable. Both
+   * are bad UX — the app would never mount and the user would see a
+   * blank page. A 5s timeout + try/catch falls back to "no session" so
+   * the router guard sends the user to /login as expected.
+   */
   async function init() {
-    sessionExists.value = await Session.doesSessionExist()
+    try {
+      sessionExists.value = await Promise.race([
+        Session.doesSessionExist(),
+        new Promise<boolean>((_, reject) =>
+          setTimeout(() => reject(new Error('SuperTokens session check timed out')), 5000),
+        ),
+      ])
+    } catch {
+      sessionExists.value = false
+    }
   }
 
   async function loginWithGoogle() {
