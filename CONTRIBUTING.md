@@ -69,6 +69,14 @@ All of these must pass **locally** before pushing. CI will reject if they don't.
 
 ### Go (backend)
 
+**golangci-lint v2.11.4 is required** — this version is pinned in CI and enforced by the pre-commit hook. A mismatched version will block your commits.
+
+Install the pinned version:
+
+```bash
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.4
+```
+
 ```bash
 # Build
 go build ./...

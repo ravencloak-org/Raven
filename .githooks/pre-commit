@@ -22,12 +22,30 @@ if ! command -v golangci-lint >/dev/null 2>&1; then
     cat >&2 <<'EOF'
 WARNING: golangci-lint not found in PATH; skipping pre-commit lint check.
 
-Install it so this hook can protect your commits:
-  brew install golangci-lint               # macOS
-  go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+Install the pinned version so this hook can protect your commits:
+  go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.4
 
 EOF
     exit 0
+fi
+
+# Enforce the pinned version so local behaviour matches CI exactly.
+# CI uses golangci-lint-action with version: v2.11.4; a different local
+# binary can detect violations the CI version doesn't (or vice-versa),
+# causing spurious hook failures or missed issues.
+REQUIRED_VERSION="2.11.4"
+INSTALLED_VERSION="$(golangci-lint --version 2>/dev/null | sed -nE 's/.*has version ([^ ]+) .*/\1/p')"
+if [ "${INSTALLED_VERSION}" != "${REQUIRED_VERSION}" ]; then
+    cat >&2 <<EOF
+ERROR: golangci-lint version mismatch.
+  required : v${REQUIRED_VERSION}
+  installed: v${INSTALLED_VERSION:-unknown}
+
+Pin to the correct version to match CI:
+  go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v${REQUIRED_VERSION}
+
+EOF
+    exit 1
 fi
 
 # `--new-from-rev=HEAD` tells golangci-lint to suppress findings on lines
