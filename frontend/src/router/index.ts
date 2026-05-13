@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useServerConfigStore } from '../stores/server-config'
+import { useOnboardingStore } from '../stores/onboarding'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -169,9 +170,16 @@ router.beforeEach(async (to) => {
 
   // In single-user (Raven AI) mode there is no login flow — the app always
   // boots directly to the dashboard. Skip the login/callback pages entirely.
+  // Allow /onboarding through when the first-run wizard hasn't been completed
+  // yet; once complete the onboarding store will redirect to /dashboard itself.
   if (serverConfig.singleUser) {
-    if (to.path === '/login' || to.path === '/callback' || to.path === '/onboarding') {
+    if (to.path === '/login' || to.path === '/callback') {
       return '/dashboard'
+    }
+    if (to.path === '/onboarding') {
+      const onboarding = useOnboardingStore()
+      if (onboarding.completed) return '/dashboard'
+      return // let the wizard through
     }
     return
   }

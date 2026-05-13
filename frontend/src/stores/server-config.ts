@@ -5,13 +5,28 @@ interface ServerConfig {
   single_user: boolean
 }
 
+// Allow test harnesses to pre-seed the single-user flag via an init script
+// that runs before any module code. This sidesteps the async fetch race
+// where the router guard fires before serverConfig.load() resolves.
+declare global {
+  interface Window {
+    __RAVEN_SINGLE_USER?: boolean
+  }
+}
+
 /**
  * Holds server-side feature flags fetched from GET /api/v1/config on boot.
  * Consumed by the router guard to skip the login flow in single-user mode.
+ *
+ * If `window.__RAVEN_SINGLE_USER` is set (e.g. by a Playwright addInitScript),
+ * that value is used immediately without waiting for the network fetch so the
+ * router guard sees the correct flag on the very first navigation.
  */
 export const useServerConfigStore = defineStore('serverConfig', () => {
-  const singleUser = ref(false)
-  const loaded = ref(false)
+  // Synchronously seed from the window flag if present (set by test harnesses
+  // or Tauri shell before the Vue app boots).
+  const singleUser = ref(window.__RAVEN_SINGLE_USER ?? false)
+  const loaded = ref(window.__RAVEN_SINGLE_USER !== undefined)
 
   async function load() {
     if (loaded.value) return

@@ -151,6 +151,16 @@ async function installTauriBridge(
 
 test.describe('Raven AI — first-run onboarding wizard', () => {
   test.beforeEach(async ({ page }) => {
+    // Pre-seed single-user mode and clear stale onboarding state BEFORE the
+    // app boots. addInitScript runs synchronously before any module code, so
+    // useServerConfigStore sees singleUser=true on its very first read —
+    // this avoids the async-fetch race where the router guard fires before
+    // serverConfig.load() resolves.
+    await page.addInitScript(() => {
+      ;(window as unknown as { __RAVEN_SINGLE_USER: boolean }).__RAVEN_SINGLE_USER = true
+      localStorage.removeItem('onboarding_completed')
+    })
+
     // Block all SuperTokens calls (single-user mode means they shouldn't fire,
     // but defensive: a bug that lets them through should fail the test, not
     // hang it).
@@ -171,7 +181,7 @@ test.describe('Raven AI — first-run onboarding wizard', () => {
     })
   })
 
-  test.skip('mid-tier host pre-selects 8b and completes the wizard', async ({ page }) => {
+  test('mid-tier host pre-selects 8b and completes the wizard', async ({ page }) => {
     await installTauriBridge(page, {
       precheck: {
         ram_gb: 12,
@@ -206,7 +216,7 @@ test.describe('Raven AI — first-run onboarding wizard', () => {
     await expect(page).toHaveURL(/\/dashboard$/, { timeout: 10_000 })
   })
 
-  test.skip('floor-tier host (8 GB) pre-selects llama3.2:3b', async ({ page }) => {
+  test('floor-tier host (8 GB) pre-selects llama3.2:3b', async ({ page }) => {
     await installTauriBridge(page, {
       precheck: {
         ram_gb: 8,
@@ -231,7 +241,7 @@ test.describe('Raven AI — first-run onboarding wizard', () => {
     await expect(page.locator('text=llama3.1:13b')).toHaveCount(0)
   })
 
-  test.skip('user can skip the model download and still reach dashboard', async ({ page }) => {
+  test('user can skip the model download and still reach dashboard', async ({ page }) => {
     await installTauriBridge(page)
 
     await page.goto('/onboarding')
@@ -248,7 +258,7 @@ test.describe('Raven AI — first-run onboarding wizard', () => {
     await expect(page).toHaveURL(/\/dashboard$/, { timeout: 10_000 })
   })
 
-  test.skip('Tauri invoke is called with the correct model', async ({ page }) => {
+  test('Tauri invoke is called with the correct model', async ({ page }) => {
     await installTauriBridge(page)
 
     await page.goto('/onboarding')
