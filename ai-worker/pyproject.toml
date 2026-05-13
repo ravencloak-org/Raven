@@ -23,6 +23,12 @@ dependencies = [
     "langchain-text-splitters>=0.3.0",
     "openai>=1.0.0",
     "cohere>=5.0.0",
+    # Cohere 6.1.0 (latest) pins pydantic-core<2.44.0; without this constraint
+    # pip resolves to pydantic 2.13.x which needs pydantic-core 2.46.x, blowing
+    # up requirements-dev.txt with ResolutionImpossible. Stay on 2.12.x until
+    # cohere updates. Re-evaluate when cohere >= 6.2 ships.
+    "pydantic<2.13",
+    "pydantic-core<2.44",
     "asyncpg>=0.30.0",
     "tenacity>=9.0.0",
     "cryptography>=42.0.0",
