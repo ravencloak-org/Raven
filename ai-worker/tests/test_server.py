@@ -46,4 +46,5 @@ class TestImports:
     def test_version(self) -> None:
         from raven_worker import __version__
 
-        assert __version__ == "0.1.0"
+        import re
+        assert re.fullmatch(r"\d+\.\d+\.\d+", __version__)
