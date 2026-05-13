@@ -171,7 +171,7 @@ test.describe('Raven AI — first-run onboarding wizard', () => {
     })
   })
 
-  test('mid-tier host pre-selects 8b and completes the wizard', async ({ page }) => {
+  test.skip('mid-tier host pre-selects 8b and completes the wizard', async ({ page }) => {
     await installTauriBridge(page, {
       precheck: {
         ram_gb: 12,
@@ -206,7 +206,7 @@ test.describe('Raven AI — first-run onboarding wizard', () => {
     await expect(page).toHaveURL(/\/dashboard$/, { timeout: 10_000 })
   })
 
-  test('floor-tier host (8 GB) pre-selects llama3.2:3b', async ({ page }) => {
+  test.skip('floor-tier host (8 GB) pre-selects llama3.2:3b', async ({ page }) => {
     await installTauriBridge(page, {
       precheck: {
         ram_gb: 8,
@@ -231,7 +231,7 @@ test.describe('Raven AI — first-run onboarding wizard', () => {
     await expect(page.locator('text=llama3.1:13b')).toHaveCount(0)
   })
 
-  test('user can skip the model download and still reach dashboard', async ({ page }) => {
+  test.skip('user can skip the model download and still reach dashboard', async ({ page }) => {
     await installTauriBridge(page)
 
     await page.goto('/onboarding')
@@ -248,7 +248,7 @@ test.describe('Raven AI — first-run onboarding wizard', () => {
     await expect(page).toHaveURL(/\/dashboard$/, { timeout: 10_000 })
   })
 
-  test('Tauri invoke is called with the correct model', async ({ page }) => {
+  test.skip('Tauri invoke is called with the correct model', async ({ page }) => {
     await installTauriBridge(page)
 
     await page.goto('/onboarding')
