@@ -225,7 +225,7 @@ jobs:
 
       - name: Upload smoke artefacts
         if: always()
-        uses: actions/upload-artifact@b04ad4d27f4f9bdfcd3e87a5f6cf9c0e9c9c5e07 # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: smoke-${{ matrix.os }}
           path: smoke-out/
