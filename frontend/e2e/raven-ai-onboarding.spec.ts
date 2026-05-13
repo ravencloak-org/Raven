@@ -109,6 +109,36 @@ async function installTauriBridge(
         emit: async (_event: string, _payload: unknown) => {},
       }
 
+      // Patch window.fetch BEFORE the app boots so /api/v1/config and the
+      // workspace POST resolve with mocked payloads regardless of
+      // VITE_API_BASE_URL. Playwright's page.route also intercepts but is
+      // unreliable when the base URL differs across CI vs local dev — this
+      // is the surgical hammer.
+      const originalFetch = window.fetch.bind(window)
+      window.fetch = async (input, init) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+        if (url.includes('/api/v1/config')) {
+          return new Response(JSON.stringify({ single_user: true }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        }
+        if (/\/api\/v1\/orgs\/[^/]+\/workspaces$/.test(url)) {
+          const method = (init?.method ?? 'GET').toUpperCase()
+          if (method === 'POST') {
+            return new Response(
+              JSON.stringify({ id: 'ws-local', name: 'Personal', org_id: 'local' }),
+              { status: 201, headers: { 'Content-Type': 'application/json' } },
+            )
+          }
+          return new Response('[]', {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        }
+        return originalFetch(input, init)
+      }
+
       // Replay the initial precheck:result so the model picker has a
       // RAM tier ready immediately after subscribe.
       setTimeout(() => {
