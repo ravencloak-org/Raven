@@ -8,6 +8,8 @@ on:
     paths:
       - 'Dockerfile'
       - 'ai-worker/Dockerfile'
+      - 'ai-worker/requirements.txt'
+      - 'ai-worker/requirements-dev.txt'
       - 'frontend/Dockerfile'
       - 'frontend/nginx.conf'
       - 'docker-compose.yml'
@@ -16,6 +18,8 @@ on:
     paths:
       - 'Dockerfile'
       - 'ai-worker/Dockerfile'
+      - 'ai-worker/requirements.txt'
+      - 'ai-worker/requirements-dev.txt'
       - 'frontend/Dockerfile'
       - 'frontend/nginx.conf'
       - 'docker-compose.yml'
@@ -23,7 +27,11 @@ on:
       # filter trigger. Internal edits to this workflow (Dependabot SHA
       # bumps, refactors) shouldn't fire a 25-minute multi-arch build that
       # produces no useful signal. Regressions surface on the next push
-      # that actually touches a Dockerfile.
+      # that actually touches a Dockerfile or a build-input file.
+  # Allow manual re-runs from the UI / gh CLI when a build needs to be
+  # exercised without a code change (e.g., to verify a deps fix didn't
+  # break the image).
+  workflow_dispatch:
 
 permissions: {}
 
