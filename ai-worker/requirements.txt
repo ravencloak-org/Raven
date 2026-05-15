@@ -1097,9 +1097,9 @@ livekit==1.1.7 \
     # via
     #   raven-worker (pyproject.toml)
     #   livekit-agents
-livekit-agents==1.5.8 \
-    --hash=sha256:737a2d517cf2d6c1d22221d720ed12fcd47a21019abb4b5b20533407b57bb9ea \
-    --hash=sha256:ab8951fb7a4f79f81c13f962a401a76c9ecbcb79c9ebd5cad5f0554062b70b6d
+livekit-agents==1.5.9 \
+    --hash=sha256:d87805eee5938b046f98daae5d70a886126256631fe51801d95a72063576e61c \
+    --hash=sha256:dafcb5f0f4a4673e7084c58257734bc4983f4ea7267ad789a030620955897d33
     # via raven-worker (pyproject.toml)
 livekit-api==1.1.0 \
     --hash=sha256:bfc1c2c65392eb3f580a2c28108269f0e79873f053578a677eee7bb1de8aa8fb \
