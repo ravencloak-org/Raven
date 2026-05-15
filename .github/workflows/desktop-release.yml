@@ -70,9 +70,18 @@ jobs:
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
           workspaces: desktop -> desktop/target
+          cache-on-failure: true
+
+      - name: Cache Tauri CLI binary
+        id: cache-tauri-cli
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cargo/bin/cargo-tauri
+          key: tauri-cli-2.11.1-${{ runner.os }}-${{ runner.arch }}
 
       - name: Install Tauri CLI
-        run: cargo install tauri-cli --version '^2.0' --locked
+        if: steps.cache-tauri-cli.outputs.cache-hit != 'true'
+        run: cargo install tauri-cli --version '=2.11.1' --locked
 
       # ── macOS signing + notarization ──────────────────────────────────────
       # Requires these secrets in the repo (Settings → Secrets → Actions):
