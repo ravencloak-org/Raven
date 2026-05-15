@@ -21,6 +21,11 @@ jobs:
       contents: write
       id-token: write
       attestations: write
+    # Promote secret-presence checks to env vars so they can be used in
+    # step-level `if:` conditions (secrets context is not allowed there).
+    env:
+      HAVE_APPLE_CERT: ${{ env.HAVE_APPLE_CERT == 'true' }}
+      HAVE_WINDOWS_PFX: ${{ env.HAVE_WINDOWS_PFX == 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -78,7 +83,7 @@ jobs:
       #   APPLE_PASSWORD             — app-specific password for notarytool
       #   APPLE_TEAM_ID              — 10-character Apple team ID
       - name: Import macOS signing certificate
-        if: matrix.os == 'macos-latest' && secrets.APPLE_CERTIFICATE != ''
+        if: matrix.os == 'macos-latest' && env.HAVE_APPLE_CERT == 'true'
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -99,7 +104,7 @@ jobs:
             -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
       - name: Build (universal macOS) — with signing
-        if: matrix.os == 'macos-latest' && secrets.APPLE_CERTIFICATE != ''
+        if: matrix.os == 'macos-latest' && env.HAVE_APPLE_CERT == 'true'
         working-directory: desktop
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -111,7 +116,7 @@ jobs:
         run: cargo tauri build --target ${{ matrix.tauri_target }}
 
       - name: Build (universal macOS) — unsigned fallback
-        if: matrix.os == 'macos-latest' && secrets.APPLE_CERTIFICATE == ''
+        if: matrix.os == 'macos-latest' && env.HAVE_APPLE_CERT != 'true'
         working-directory: desktop
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -123,7 +128,7 @@ jobs:
       #   WINDOWS_PFX_BASE64   — base64-encoded .pfx certificate file
       #   WINDOWS_PFX_PASSWORD — password for the .pfx
       - name: Import Windows signing certificate
-        if: matrix.os == 'windows-latest' && secrets.WINDOWS_PFX_BASE64 != ''
+        if: matrix.os == 'windows-latest' && env.HAVE_WINDOWS_PFX == 'true'
         shell: pwsh
         env:
           WINDOWS_PFX_BASE64: ${{ secrets.WINDOWS_PFX_BASE64 }}
@@ -141,7 +146,7 @@ jobs:
           echo "WINDOWS_CERT_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
 
       - name: Build (Windows) — with signing
-        if: matrix.os == 'windows-latest' && secrets.WINDOWS_PFX_BASE64 != ''
+        if: matrix.os == 'windows-latest' && env.HAVE_WINDOWS_PFX == 'true'
         working-directory: desktop
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -150,7 +155,7 @@ jobs:
         run: cargo tauri build
 
       - name: Build (Windows) — unsigned fallback
-        if: matrix.os == 'windows-latest' && secrets.WINDOWS_PFX_BASE64 == ''
+        if: matrix.os == 'windows-latest' && env.HAVE_WINDOWS_PFX != 'true'
         working-directory: desktop
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
