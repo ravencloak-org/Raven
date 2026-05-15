@@ -1,0 +1,11 @@
+[Unit]
+Description=Raven ClickHouse backup to S3
+Wants=network-online.target docker.service
+After=raven-pg-backup.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/raven/env
+ExecStart=/usr/local/bin/raven-clickhouse-backup.sh raven-demo-backups
+StandardOutput=journal
+StandardError=journal

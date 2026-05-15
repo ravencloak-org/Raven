@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     # ordering out of the box.
     retrieval_rrf_k: int = 60
     retrieval_default_top_n: int = 10
+    # Demo daily LLM spend ceiling in USD. The LLMSpendFuse refuses to
+    # charge once the running total for the current UTC day exceeds this
+    # value, returning a "demo limit reached" error to the caller.
+    llm_daily_usd_cap: float = 5.00
     model_config = SettingsConfigDict(env_prefix="RAVEN_")
 
 

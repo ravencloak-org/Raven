@@ -1,0 +1,22 @@
+---
+# Demo-specific Ansible variables. Loaded explicitly by cloud-init.
+raven_env: demo
+raven_domain: demo.raven.ravencloak.org
+raven_observability_domain: observability.demo.raven.ravencloak.org
+
+# Compose overlay file applied on top of docker-compose.yml
+raven_compose_overlay: docker-compose.demo.yml
+
+# Voice services kept running but UI hidden
+raven_voice_enabled: false
+
+# LLM cost fuse
+raven_llm_daily_usd_cap: "{{ lookup('env', 'RAVEN_LLM_DAILY_USD_CAP') | default('5.00', true) }}"
+
+# Backup config
+raven_backup_s3_bucket: raven-demo-backups
+raven_backup_pg_schedule: "*-*-* 18:30:00"        # 18:30 UTC daily
+raven_backup_clickhouse_schedule: "*-*-* 19:00:00" # 19:00 UTC daily
+
+# Cloudflared
+cloudflared_credentials_path: /etc/cloudflared

@@ -1,0 +1,11 @@
+[Unit]
+Description=Raven Postgres logical backup to S3
+Wants=network-online.target docker.service
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/raven/env
+ExecStart=/usr/local/bin/raven-pg-backup.sh raven-demo-backups
+StandardOutput=journal
+StandardError=journal

@@ -27,6 +27,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -40,6 +41,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	_ "github.com/ravencloak-org/Raven/docs/swagger" // swagger docs
+	"github.com/ravencloak-org/Raven/internal/account"
 	"github.com/ravencloak-org/Raven/internal/auth"
 	"github.com/ravencloak-org/Raven/internal/cache"
 	"github.com/ravencloak-org/Raven/internal/config"
@@ -48,6 +50,7 @@ import (
 	"github.com/ravencloak-org/Raven/internal/handler"
 	"github.com/ravencloak-org/Raven/internal/resilience"
 	"github.com/ravencloak-org/Raven/internal/hyperswitch"
+	"github.com/ravencloak-org/Raven/internal/mail"
 	"github.com/ravencloak-org/Raven/internal/middleware"
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/internal/posthog"
@@ -498,6 +501,29 @@ func main() {
 	notifHandler := handler.NewNotificationHandler(notifSvc)
 	notifPrefsRepo := repository.NewNotificationPreferencesRepository(pool)
 	notifPrefsHandler := handler.NewNotificationPrefsHandler(notifPrefsRepo, &userExternalIDResolver{repo: userRepo}, cfg.EmailSummary.UnsubscribeSecret)
+
+	// Demo transactional mailer (Resend HTTP API). Used by DSAR delete
+	// confirmations and the retention purge warning emails. Distinct from
+	// internal/email (SES SMTP) which serves the M9 post-session summary
+	// pipeline — see docs/superpowers/specs/2026-05-12-public-demo-deployment-design.md §8.
+	var demoMailer mail.Sender
+	if key := os.Getenv("RESEND_API_KEY"); key != "" {
+		from := os.Getenv("RESEND_FROM_ADDRESS")
+		if from == "" {
+			from = "noreply@ravencloak.org"
+		}
+		demoMailer = mail.NewResendSender(key, from)
+	} else {
+		demoMailer = &mail.NoopSender{}
+	}
+
+	// DSAR handlers — wired in the /api/v1 group below. The repo's
+	// HardDelete is currently gated (see internal/account/repo_sql.go);
+	// ScheduleDelete + ExportUser + retention warning paths are live.
+	accountRepo := account.NewSQLRepo(pool)
+	dsarHandler := account.NewDSARHandler(accountRepo, demoMailer)
+	retentionPurger := account.NewRetentionPurger(accountRepo, demoMailer)
+	_ = retentionPurger // exposed via /api/v1/admin/retention/run once admin auth gate is decided (spec §6)
 	webhookHandler := handler.NewWebhookHandler(webhookSvc)
 	chatHandler := handler.NewChatHandler(chatSvc)
 	semCacheHandler := handler.NewSemanticCacheHandler(semCacheRepo)
@@ -857,6 +883,34 @@ func main() {
 		api.PUT("/me/notification-preferences/:ws_id", resolveWSRole, notifPrefsHandler.UpsertUserPreference)
 		api.GET("/users/:user_id", middleware.RequireOrgRole("org_admin"), userHandler.GetUser)
 
+		// --- DSAR routes ---
+		// GET /account/export → JSON download of the caller's data.
+		// POST /account/delete → schedules 24h-grace hard delete and emails
+		// the user for confirmation. Distinct from DELETE /me (immediate
+		// soft-delete) — the demo's privacy posture promises explicit
+		// erasure with a cooling-off window.
+		api.GET("/account/export", func(c *gin.Context) {
+			uid := c.GetString(string(middleware.ContextKeyUserID))
+			if uid == "" {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated"})
+				return
+			}
+			r := c.Request.WithContext(account.WithUserID(c.Request.Context(), uid))
+			dsarHandler.Export(c.Writer, r)
+		})
+		api.POST("/account/delete", func(c *gin.Context) {
+			uid := c.GetString(string(middleware.ContextKeyUserID))
+			if uid == "" {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated"})
+				return
+			}
+			ctx := account.WithUserID(c.Request.Context(), uid)
+			if u, err := userRepo.GetByID(c.Request.Context(), uid); err == nil && u != nil {
+				ctx = account.WithUserEmail(ctx, u.Email)
+			}
+			r := c.Request.WithContext(ctx)
+			dsarHandler.Delete(c.Writer, r)
+		})
 	}
 
 	// Public chat routes — API key authentication (for embeddable chat widget).

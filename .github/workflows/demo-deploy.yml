@@ -1,0 +1,143 @@
+name: Demo deploy
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing v* tag to deploy
+        required: true
+
+permissions:
+  id-token: write     # needed for OIDC
+  contents: read
+
+env:
+  AWS_REGION: ap-south-1
+  ROLE_ARN: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/raven-demo-github-deploy
+  INSTANCE_TAG_KEY: Name
+  INSTANCE_TAG_VALUE: raven-demo-app
+
+jobs:
+  wait-for-images:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for service images to be available on GHCR
+        env:
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          for svc in go-api python-worker frontend; do
+            for i in {1..30}; do
+              if docker manifest inspect ghcr.io/ravencloak-org/$svc:$TAG > /dev/null 2>&1; then
+                echo "Found $svc:$TAG"
+                break
+              fi
+              if [ "$i" = "30" ]; then
+                echo "Timed out waiting for $svc:$TAG"
+                exit 1
+              fi
+              echo "Waiting for $svc:$TAG (attempt $i/30)..."
+              sleep 30
+            done
+          done
+
+  deploy:
+    needs: wait-for-images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Resolve demo instance ID
+        id: instance
+        run: |
+          set -euo pipefail
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:${INSTANCE_TAG_KEY},Values=${INSTANCE_TAG_VALUE}" \
+                      "Name=instance-state-name,Values=running" \
+            --query 'Reservations[0].Instances[0].InstanceId' \
+            --output text)
+          if [ "$INSTANCE_ID" = "None" ] || [ -z "$INSTANCE_ID" ]; then
+            echo "No running demo instance found"
+            exit 1
+          fi
+          echo "instance_id=$INSTANCE_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Send update.sh via SSM
+        id: ssm
+        env:
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+          INSTANCE_ID: ${{ steps.instance.outputs.instance_id }}
+        run: |
+          set -euo pipefail
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --comment "demo deploy $TAG" \
+            --parameters "commands=[\"cd /opt/raven && git fetch --tags && git checkout $TAG && bash deploy/ec2/update.sh --tag $TAG\"]" \
+            --timeout-seconds 1800 \
+            --query 'Command.CommandId' --output text)
+          echo "command_id=$CMD_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for SSM command to complete
+        env:
+          CMD_ID: ${{ steps.ssm.outputs.command_id }}
+          INSTANCE_ID: ${{ steps.instance.outputs.instance_id }}
+        run: |
+          set -euo pipefail
+          for i in {1..60}; do
+            STATUS=$(aws ssm get-command-invocation \
+              --command-id "$CMD_ID" --instance-id "$INSTANCE_ID" \
+              --query Status --output text)
+            echo "[$i] Status: $STATUS"
+            case "$STATUS" in
+              Success) exit 0 ;;
+              Failed|Cancelled|TimedOut)
+                aws ssm get-command-invocation \
+                  --command-id "$CMD_ID" --instance-id "$INSTANCE_ID" \
+                  --query '{stdout:StandardOutputContent,stderr:StandardErrorContent}'
+                exit 1
+                ;;
+            esac
+            sleep 30
+          done
+          echo "Timed out waiting for SSM command"
+          exit 1
+
+      - name: Smoke-test /healthz
+        run: |
+          for i in {1..20}; do
+            if curl -fsS https://demo.raven.ravencloak.org/healthz; then
+              echo "OK"; exit 0
+            fi
+            sleep 15
+          done
+          echo "Health check never went green"
+          exit 1
+
+  notify:
+    needs: deploy
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send result email via Resend API
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+          OUTCOME: ${{ needs.deploy.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          curl -fsS -X POST https://api.resend.com/emails \
+            -H "Authorization: Bearer $RESEND_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"from\": \"noreply@ravencloak.org\",
+              \"to\": [\"jobinlawrance@gmail.com\"],
+              \"subject\": \"[demo] $TAG deploy $OUTCOME\",
+              \"text\": \"Tag: $TAG\\nResult: $OUTCOME\\nRun: $RUN_URL\"
+            }"

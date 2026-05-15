@@ -1,0 +1,50 @@
+---
+- name: Install pg backup script
+  ansible.builtin.copy:
+    src: raven-pg-backup.sh
+    dest: /usr/local/bin/raven-pg-backup.sh
+    mode: "0755"
+
+- name: Install pg backup service
+  ansible.builtin.copy:
+    src: raven-pg-backup.service
+    dest: /etc/systemd/system/raven-pg-backup.service
+    mode: "0644"
+
+- name: Install pg backup timer
+  ansible.builtin.copy:
+    src: raven-pg-backup.timer
+    dest: /etc/systemd/system/raven-pg-backup.timer
+    mode: "0644"
+
+- name: Enable pg backup timer
+  ansible.builtin.systemd:
+    name: raven-pg-backup.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Install clickhouse backup script
+  ansible.builtin.copy:
+    src: raven-clickhouse-backup.sh
+    dest: /usr/local/bin/raven-clickhouse-backup.sh
+    mode: "0755"
+
+- name: Install clickhouse backup service
+  ansible.builtin.copy:
+    src: raven-clickhouse-backup.service
+    dest: /etc/systemd/system/raven-clickhouse-backup.service
+    mode: "0644"
+
+- name: Install clickhouse backup timer
+  ansible.builtin.copy:
+    src: raven-clickhouse-backup.timer
+    dest: /etc/systemd/system/raven-clickhouse-backup.timer
+    mode: "0644"
+
+- name: Enable clickhouse backup timer
+  ansible.builtin.systemd:
+    name: raven-clickhouse-backup.timer
+    enabled: true
+    state: started
+    daemon_reload: true
