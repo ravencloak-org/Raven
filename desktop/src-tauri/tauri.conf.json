@@ -41,7 +41,27 @@
     ],
     "resources": ["../docker-compose.local.yml"],
     "macOS": {
-      "signingIdentity": "-"
+      "signingIdentity": null,
+      "providerShortName": null,
+      "entitlements": null
+    },
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    }
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "pubkey": "PLACEHOLDER_PUBLIC_KEY_REPLACE_BEFORE_RELEASE",
+      "endpoints": [
+        "https://download.raven.app/local/latest.json"
+      ],
+      "dialog": false,
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }

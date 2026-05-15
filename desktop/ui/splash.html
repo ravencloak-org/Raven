@@ -71,6 +71,74 @@
       font-size: 12px;
       color: #475569;
     }
+
+    /* ── Update banner ─────────────────────────────────────────────────── */
+    #update-banner {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #1e293b;
+      border-top: 1px solid #334155;
+      padding: 12px 20px;
+      flex-direction: row;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      color: #94a3b8;
+      z-index: 9999;
+    }
+
+    #update-banner.visible {
+      display: flex;
+    }
+
+    #update-banner .update-icon {
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    #update-banner .update-text {
+      flex: 1;
+    }
+
+    #update-banner .update-text strong {
+      color: #e2e8f0;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    #update-restart-btn {
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+
+    #update-restart-btn:hover {
+      background: #4f46e5;
+    }
+
+    #update-dismiss-btn {
+      background: transparent;
+      color: #64748b;
+      border: none;
+      padding: 4px 8px;
+      font-size: 18px;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    #update-dismiss-btn:hover {
+      color: #94a3b8;
+    }
   </style>
 </head>
 <body>
@@ -79,6 +147,17 @@
   <p class="subtitle">Starting…</p>
   <div class="spinner"></div>
   <p class="status" id="status">Waiting for local stack…</p>
+
+  <!-- Update available banner — hidden until updater:available event fires -->
+  <div id="update-banner" role="status" aria-live="polite">
+    <span class="update-icon" aria-hidden="true">🔄</span>
+    <div class="update-text">
+      <strong id="update-version">Update available</strong>
+      <span id="update-notes"></span>
+    </div>
+    <button id="update-restart-btn" type="button">Restart to apply</button>
+    <button id="update-dismiss-btn" type="button" aria-label="Dismiss update notification">✕</button>
+  </div>
 
   <script>
     // TODO(#418): replace timer with compose health-check event from the
@@ -124,6 +203,66 @@
     }
 
     setTimeout(waitForApiAndRedirect, SPLASH_DURATION_MS);
+
+    // ── Tauri auto-update banner ───────────────────────────────────────────
+    // Tauri's JS API is injected by the webview; guard against plain-browser
+    // previews where `window.__TAURI__` is absent.
+    (async function initUpdaterBanner() {
+      if (typeof window.__TAURI__ === "undefined") return;
+
+      const { listen } = window.__TAURI__.event;
+      const { invoke } = window.__TAURI__.core;
+
+      const banner      = document.getElementById("update-banner");
+      const versionEl   = document.getElementById("update-version");
+      const notesEl     = document.getElementById("update-notes");
+      const restartBtn  = document.getElementById("update-restart-btn");
+      const dismissBtn  = document.getElementById("update-dismiss-btn");
+
+      let installing = false;
+
+      // Show banner when backend emits "updater:available".
+      await listen("updater:available", (event) => {
+        const { version, notes } = event.payload || {};
+        versionEl.textContent = version
+          ? `Update available — v${version}`
+          : "Update available";
+        notesEl.textContent = notes ? notes.slice(0, 120) : "";
+        banner.classList.add("visible");
+      });
+
+      // Listen for non-fatal errors (offline, bad sig, etc.).
+      await listen("updater:error", (event) => {
+        // Errors are intentionally silent in the UI — the app must not be
+        // blocked. Log to console for developers.
+        console.warn("[updater] update error:", event.payload?.message);
+      });
+
+      // "Restart to apply" — triggers download → verify → install → restart.
+      restartBtn.addEventListener("click", async () => {
+        if (installing) return;
+        installing = true;
+        restartBtn.textContent = "Downloading…";
+        restartBtn.disabled = true;
+        try {
+          // This call returns only if download/install fails; on success the
+          // app restarts immediately.
+          await invoke("updater_install_and_restart");
+        } catch (err) {
+          console.error("[updater] install failed:", err);
+          restartBtn.textContent = "Retry";
+          restartBtn.disabled = false;
+          installing = false;
+        }
+      });
+
+      // Dismiss hides the banner for this session; the next launch will show
+      // it again if the update is still pending (or a newer one is found).
+      dismissBtn.addEventListener("click", () => {
+        banner.classList.remove("visible");
+      });
+    })();
+    // ── end update banner ──────────────────────────────────────────────────
   </script>
 </body>
 </html>

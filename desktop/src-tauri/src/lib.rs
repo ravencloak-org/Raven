@@ -8,3 +8,4 @@ pub mod compose;
 pub mod ollama;
 pub mod precheck;
 pub mod tray;
+pub mod updater;

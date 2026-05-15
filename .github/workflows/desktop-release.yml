@@ -32,17 +32,20 @@ jobs:
           - os: macos-latest
             tauri_target: universal-apple-darwin
             rustup_targets: 'aarch64-apple-darwin,x86_64-apple-darwin'
-            artifact_glob: 'desktop/target/universal-apple-darwin/release/bundle/dmg/*.dmg'
+            artifact_glob: 'desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg'
+            sig_glob: 'desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg.sig'
           - os: windows-latest
             tauri_target: x86_64-pc-windows-msvc
             rustup_targets: 'x86_64-pc-windows-msvc'
-            artifact_glob: 'desktop/target/release/bundle/msi/*.msi'
+            artifact_glob: 'desktop/src-tauri/target/release/bundle/msi/*.msi'
+            sig_glob: 'desktop/src-tauri/target/release/bundle/msi/*.msi.sig'
           - os: ubuntu-latest
             tauri_target: x86_64-unknown-linux-gnu
             rustup_targets: 'x86_64-unknown-linux-gnu'
             artifact_glob: |
-              desktop/target/release/bundle/appimage/*.AppImage
-              desktop/target/release/bundle/deb/*.deb
+              desktop/src-tauri/target/release/bundle/appimage/*.AppImage
+              desktop/src-tauri/target/release/bundle/deb/*.deb
+            sig_glob: 'desktop/src-tauri/target/release/bundle/appimage/*.AppImage.sig'
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -66,14 +69,100 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version '^2.0' --locked
 
-      - name: Build (universal macOS)
-        if: matrix.os == 'macos-latest'
+      # ── macOS signing + notarization ──────────────────────────────────────
+      # Requires these secrets in the repo (Settings → Secrets → Actions):
+      #   APPLE_CERTIFICATE          — base64-encoded Developer ID Application .p12
+      #   APPLE_CERTIFICATE_PASSWORD — password for the .p12
+      #   APPLE_SIGNING_IDENTITY     — "Developer ID Application: Your Name (TEAMID)"
+      #   APPLE_ID                   — Apple ID email used for notarytool
+      #   APPLE_PASSWORD             — app-specific password for notarytool
+      #   APPLE_TEAM_ID              — 10-character Apple team ID
+      - name: Import macOS signing certificate
+        if: matrix.os == 'macos-latest' && secrets.APPLE_CERTIFICATE != ''
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 16)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+      - name: Build (universal macOS) — with signing
+        if: matrix.os == 'macos-latest' && secrets.APPLE_CERTIFICATE != ''
         working-directory: desktop
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: cargo tauri build --target ${{ matrix.tauri_target }}
 
-      - name: Build (Windows / Linux)
-        if: matrix.os != 'macos-latest'
+      - name: Build (universal macOS) — unsigned fallback
+        if: matrix.os == 'macos-latest' && secrets.APPLE_CERTIFICATE == ''
         working-directory: desktop
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: cargo tauri build --target ${{ matrix.tauri_target }}
+
+      # ── Windows code signing ──────────────────────────────────────────────
+      # Requires these secrets:
+      #   WINDOWS_PFX_BASE64   — base64-encoded .pfx certificate file
+      #   WINDOWS_PFX_PASSWORD — password for the .pfx
+      - name: Import Windows signing certificate
+        if: matrix.os == 'windows-latest' && secrets.WINDOWS_PFX_BASE64 != ''
+        shell: pwsh
+        env:
+          WINDOWS_PFX_BASE64: ${{ secrets.WINDOWS_PFX_BASE64 }}
+          WINDOWS_PFX_PASSWORD: ${{ secrets.WINDOWS_PFX_PASSWORD }}
+        run: |
+          $pfxPath = Join-Path $env:RUNNER_TEMP "cert.pfx"
+          [System.IO.File]::WriteAllBytes(
+            $pfxPath,
+            [System.Convert]::FromBase64String($env:WINDOWS_PFX_BASE64)
+          )
+          $cert = Import-PfxCertificate `
+            -FilePath $pfxPath `
+            -CertStoreLocation Cert:\CurrentUser\My `
+            -Password (ConvertTo-SecureString $env:WINDOWS_PFX_PASSWORD -AsPlainText -Force)
+          echo "WINDOWS_CERT_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
+
+      - name: Build (Windows) — with signing
+        if: matrix.os == 'windows-latest' && secrets.WINDOWS_PFX_BASE64 != ''
+        working-directory: desktop
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          WINDOWS_CERTIFICATE_THUMBPRINT: ${{ env.WINDOWS_CERT_THUMBPRINT }}
+        run: cargo tauri build
+
+      - name: Build (Windows) — unsigned fallback
+        if: matrix.os == 'windows-latest' && secrets.WINDOWS_PFX_BASE64 == ''
+        working-directory: desktop
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: cargo tauri build
+
+      - name: Build (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: desktop
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: cargo tauri build
 
       # ── Installer smoke (M12/02 — install, launch, screenshot) ───────────
@@ -237,12 +326,128 @@ jobs:
         with:
           subject-path: ${{ matrix.artifact_glob }}
 
+      # ── Upload artifacts + per-platform .sig files ────────────────────────
       - name: Upload to draft release
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/raven-ai-v')
         uses: softprops/action-gh-release@e7a8f85e1c67a31e6ed99a94b41bd0b71bbee6b8 # v2.0.9
         with:
           draft: true
-          files: ${{ matrix.artifact_glob }}
+          files: |
+            ${{ matrix.artifact_glob }}
+            ${{ matrix.sig_glob }}
+          tag_name: ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Stash .sig files as GitHub Actions artifacts so the manifest job can
+      # assemble latest.json without downloading from the release directly.
+      - name: Upload sig artifacts
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/raven-local-v')
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sig-${{ matrix.os }}
+          path: ${{ matrix.sig_glob }}
+          if-no-files-found: warn
+
+  # ── Generate update manifest (latest.json) ─────────────────────────────────
+  # Runs after all three platform builds complete. Assembles the
+  # Tauri-compatible update manifest and uploads it to the draft release so it
+  # can be deployed to https://download.raven.app/local/latest.json
+  # (e.g. via a Cloudflare Pages redirect or a separate deploy workflow).
+  manifest:
+    name: Generate update manifest
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/raven-local-v')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Download macOS sig
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v4
+        with:
+          name: sig-macos-latest
+          path: sigs/macos
+        continue-on-error: true
+
+      - name: Download Windows sig
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v4
+        with:
+          name: sig-windows-latest
+          path: sigs/windows
+        continue-on-error: true
+
+      - name: Download Linux sig
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v4
+        with:
+          name: sig-ubuntu-latest
+          path: sigs/linux
+        continue-on-error: true
+
+      - name: Build latest.json
+        # All external values are passed via env vars, never interpolated
+        # directly into the shell command, to prevent injection attacks.
+        env:
+          GIT_TAG: ${{ github.ref_name }}
+        run: |
+          # Strip prefix — allow only semver characters to prevent injection.
+          VERSION="${GIT_TAG#raven-local-v}"
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "ERROR: tag does not match raven-local-vX.Y.Z" >&2
+            exit 1
+          fi
+
+          BASE_URL="https://github.com/ravencloak-org/Raven/releases/download/${GIT_TAG}"
+          PUB_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          read_sig() {
+            local dir="$1"
+            local file
+            file="$(find "$dir" -name '*.sig' 2>/dev/null | head -1)"
+            if [ -n "$file" ] && [ -f "$file" ]; then cat "$file"; else echo ""; fi
+          }
+
+          DMG_SIG="$(read_sig sigs/macos)"
+          MSI_SIG="$(read_sig sigs/windows)"
+          APPIMAGE_SIG="$(read_sig sigs/linux)"
+
+          DMG_URL="${BASE_URL}/Raven.Local_${VERSION}_universal.dmg"
+          MSI_URL="${BASE_URL}/Raven.Local_${VERSION}_x64_en-US.msi"
+          APPIMAGE_URL="${BASE_URL}/raven-local_${VERSION}_amd64.AppImage"
+          NOTES="See the full changelog at https://github.com/ravencloak-org/Raven/releases/tag/raven-local-v${VERSION}"
+
+          # Use jq (available on ubuntu-latest) to safely build the JSON.
+          # All values are passed via --arg; no user-controlled data is
+          # interpolated directly into the jq filter expression.
+          jq -n \
+            --arg version    "$VERSION" \
+            --arg notes      "$NOTES" \
+            --arg pub_date   "$PUB_DATE" \
+            --arg dmg_url    "$DMG_URL" \
+            --arg dmg_sig    "$DMG_SIG" \
+            --arg msi_url    "$MSI_URL" \
+            --arg msi_sig    "$MSI_SIG" \
+            --arg appimg_url "$APPIMAGE_URL" \
+            --arg appimg_sig "$APPIMAGE_SIG" \
+            '{
+              version: $version,
+              notes: $notes,
+              pub_date: $pub_date,
+              platforms: {
+                "darwin-universal": { url: $dmg_url, signature: $dmg_sig },
+                "windows-x86_64":   { url: $msi_url, signature: $msi_sig },
+                "linux-x86_64":     { url: $appimg_url, signature: $appimg_sig }
+              }
+            }' > latest.json
+          echo "latest.json written:"
+          cat latest.json
+
+      - name: Upload latest.json to draft release
+        uses: softprops/action-gh-release@e7a8f85e1c67a31e6ed99a94b41bd0b71bbee6b8 # v2.0.9
+        with:
+          draft: true
+          files: latest.json
           tag_name: ${{ github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
