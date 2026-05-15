@@ -55,7 +55,7 @@
   "plugins": {
     "updater": {
       "active": true,
-      "pubkey": "PLACEHOLDER_PUBLIC_KEY_REPLACE_BEFORE_RELEASE",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ0NkU1MTk3REM2QTg0N0QKUldSOWhHcmNsMUZ1Uk9ldEJkaDg3dGhTaTZ5WjM1VGduT1dOMHV4d3ppUG9NTDVKdm9YdDhjMFoK",
       "endpoints": [
         "https://download.raven.app/local/latest.json"
       ],
