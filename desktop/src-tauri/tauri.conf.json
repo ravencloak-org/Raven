@@ -55,7 +55,7 @@
   "plugins": {
     "updater": {
       "active": true,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ0NkU1MTk3REM2QTg0N0QKUldSOWhHcmNsMUZ1Uk9ldEJkaDg3dGhTaTZ5WjM1VGduT1dOMHV4d3ppUG9NTDVKdm9YdDhjMFoK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE2RjkzQzFDNUY1MzFDQgpSV1RMTWZYRndaTnZDb1JxWjFya2VITXNUUWFVWE5LcnpzV3dOKzlXbGVMTHJUL1NpcEtqeFphNgo=",
       "endpoints": [
         "https://download.raven.app/local/latest.json"
       ],
