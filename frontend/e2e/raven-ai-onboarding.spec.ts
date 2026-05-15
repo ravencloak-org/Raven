@@ -181,10 +181,10 @@ test.describe('Raven AI — first-run onboarding wizard', () => {
     })
   })
 
-  test('mid-tier host pre-selects 8b and completes the wizard', async ({ page }) => {
+  test('high-tier host pre-selects 8b and completes the wizard', async ({ page }) => {
     await installTauriBridge(page, {
       precheck: {
-        ram_gb: 12,
+        ram_gb: 16,
         free_disk_gb: 80,
         cpu_cores: 8,
         ok: true,
@@ -194,7 +194,7 @@ test.describe('Raven AI — first-run onboarding wizard', () => {
 
     await page.goto('/onboarding')
 
-    // 1. Model picker: 8b preselected (mid tier).
+    // 1. Model picker: 8b preselected (high tier, 16 GB RAM).
     await expect(page.getByTestId('selected-model')).toContainText('llama3.1:8b', {
       timeout: 10_000,
     })
