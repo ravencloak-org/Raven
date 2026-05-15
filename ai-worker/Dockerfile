@@ -1,4 +1,4 @@
-FROM python:3.14-slim@sha256:5b3879b6f3cb77e712644d50262d05a7c146b7312d784a18eff7ff5462e77033 AS builder
+FROM python:3.14-slim@sha256:7a500125bc50693f2214e842a621440a1b1b9cbb2188f74ab045d29ed2ea5856 AS builder
 
 WORKDIR /build
 
@@ -17,7 +17,7 @@ COPY . .
 RUN pip install --no-cache-dir --no-deps --prefix=/install .
 
 # ---------------------------------------------------------------------------
-FROM python:3.14-slim@sha256:5b3879b6f3cb77e712644d50262d05a7c146b7312d784a18eff7ff5462e77033
+FROM python:3.14-slim@sha256:7a500125bc50693f2214e842a621440a1b1b9cbb2188f74ab045d29ed2ea5856
 
 # hadolint DL4006: the curl pipe below needs an explicit pipefail-aware
 # shell; python:3.14-slim ships bash so use it instead of /bin/sh.
