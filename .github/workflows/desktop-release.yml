@@ -24,8 +24,8 @@ jobs:
     # Promote secret-presence checks to env vars so they can be used in
     # step-level `if:` conditions (secrets context is not allowed there).
     env:
-      HAVE_APPLE_CERT: ${{ env.HAVE_APPLE_CERT == 'true' }}
-      HAVE_WINDOWS_PFX: ${{ env.HAVE_WINDOWS_PFX == 'true' }}
+      HAVE_APPLE_CERT: ${{ secrets.APPLE_CERTIFICATE != '' }}
+      HAVE_WINDOWS_PFX: ${{ secrets.WINDOWS_PFX_BASE64 != '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -347,7 +347,7 @@ jobs:
       # Stash .sig files as GitHub Actions artifacts so the manifest job can
       # assemble latest.json without downloading from the release directly.
       - name: Upload sig artifacts
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/raven-local-v')
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/raven-ai-v')
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: sig-${{ matrix.os }}
@@ -363,7 +363,7 @@ jobs:
     name: Generate update manifest
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/raven-local-v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/raven-ai-v')
     permissions:
       contents: write
     steps:
@@ -397,9 +397,9 @@ jobs:
           GIT_TAG: ${{ github.ref_name }}
         run: |
           # Strip prefix — allow only semver characters to prevent injection.
-          VERSION="${GIT_TAG#raven-local-v}"
+          VERSION="${GIT_TAG#raven-ai-v}"
           if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
-            echo "ERROR: tag does not match raven-local-vX.Y.Z" >&2
+            echo "ERROR: tag does not match raven-ai-vX.Y.Z" >&2
             exit 1
           fi
 
@@ -417,10 +417,10 @@ jobs:
           MSI_SIG="$(read_sig sigs/windows)"
           APPIMAGE_SIG="$(read_sig sigs/linux)"
 
-          DMG_URL="${BASE_URL}/Raven.Local_${VERSION}_universal.dmg"
-          MSI_URL="${BASE_URL}/Raven.Local_${VERSION}_x64_en-US.msi"
-          APPIMAGE_URL="${BASE_URL}/raven-local_${VERSION}_amd64.AppImage"
-          NOTES="See the full changelog at https://github.com/ravencloak-org/Raven/releases/tag/raven-local-v${VERSION}"
+          DMG_URL="${BASE_URL}/Raven.AI_${VERSION}_universal.dmg"
+          MSI_URL="${BASE_URL}/Raven.AI_${VERSION}_x64_en-US.msi"
+          APPIMAGE_URL="${BASE_URL}/Raven.AI_${VERSION}_amd64.AppImage"
+          NOTES="See the full changelog at https://github.com/ravencloak-org/Raven/releases/tag/raven-ai-v${VERSION}"
 
           # Use jq (available on ubuntu-latest) to safely build the JSON.
           # All values are passed via --arg; no user-controlled data is
@@ -448,10 +448,15 @@ jobs:
           echo "latest.json written:"
           cat latest.json
 
-      - name: Upload latest.json to draft release
+      # Final step: publish the release. All per-platform artefacts are
+      # already uploaded by the `build` matrix (each into the same draft).
+      # Setting draft: false here flips it to "published", which fires
+      # `release: published` and triggers `update-cask.yml` to open the
+      # Homebrew tap bump PR.
+      - name: Upload latest.json and publish release
         uses: softprops/action-gh-release@e7a8f85e1c67a31e6ed99a94b41bd0b71bbee6b8 # v2.0.9
         with:
-          draft: true
+          draft: false
           files: latest.json
           tag_name: ${{ github.ref_name }}
         env:
