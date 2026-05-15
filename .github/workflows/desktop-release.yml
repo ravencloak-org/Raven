@@ -314,7 +314,7 @@ jobs:
 
       - name: Upload smoke artefacts
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: smoke-${{ matrix.os }}
           path: smoke-out/
@@ -322,14 +322,14 @@ jobs:
           retention-days: 14
 
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@173725a1209d09b31f9d30a3890cf2757ebbff0d # v1.4.4
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v1.4.4
         with:
           subject-path: ${{ matrix.artifact_glob }}
 
       # ── Upload artifacts + per-platform .sig files ────────────────────────
       - name: Upload to draft release
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/raven-ai-v')
-        uses: softprops/action-gh-release@e7a8f85e1c67a31e6ed99a94b41bd0b71bbee6b8 # v2.0.9
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
           draft: true
           files: |

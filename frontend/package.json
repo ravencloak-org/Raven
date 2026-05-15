@@ -18,18 +18,18 @@
     "@tailwindcss/typography": "^0.5.19",
     "@tauri-apps/api": "^2.11.0",
     "@vueuse/core": "^14.3.0",
-    "livekit-client": "^2.18.9",
+    "livekit-client": "^2.19.0",
     "pinia": "^3.0.4",
     "remeda": "^2.34.0",
     "supertokens-web-js": "^0.16.0",
     "vue": "^3.5.34",
-    "vue-router": "^5.0.6"
+    "vue-router": "^5.0.7"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@playwright/test": "^1.59.1",
-    "@tailwindcss/vite": "^4.2.4",
-    "@types/node": "^25.6.2",
+    "@playwright/test": "^1.60.0",
+    "@tailwindcss/vite": "^4.3.0",
+    "@types/node": "^25.8.0",
     "@vitejs/plugin-vue": "^6.0.6",
     "@vue/test-utils": "^2.4.10",
     "@vue/tsconfig": "^0.9.0",
@@ -40,11 +40,11 @@
     "globals": "^17.6.0",
     "happy-dom": "^20.9.0",
     "prettier": "^3.8.3",
-    "tailwindcss": "^4.2.2",
+    "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.59.2",
-    "vite": "^8.0.11",
-    "vitest": "^4.1.5",
-    "vue-tsc": "^3.2.8"
+    "typescript-eslint": "^8.59.3",
+    "vite": "^8.0.13",
+    "vitest": "^4.1.6",
+    "vue-tsc": "^3.2.9"
   }
 }
