@@ -329,7 +329,7 @@ jobs:
       # ── Upload artifacts + per-platform .sig files ────────────────────────
       - name: Upload to draft release
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/raven-ai-v')
-        uses: softprops/action-gh-release@e7a8f85e1c67a31e6ed99a94b41bd0b71bbee6b8 # v2.0.9
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
           draft: true
           files: |
@@ -444,7 +444,7 @@ jobs:
           cat latest.json
 
       - name: Upload latest.json to draft release
-        uses: softprops/action-gh-release@e7a8f85e1c67a31e6ed99a94b41bd0b71bbee6b8 # v2.0.9
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
           draft: true
           files: latest.json
