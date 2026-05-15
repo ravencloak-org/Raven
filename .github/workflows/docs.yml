@@ -106,7 +106,7 @@ jobs:
 
       - name: Comment preview URL on PR
         if: github.event_name == 'pull_request' && steps.deploy.outputs.url != ''
-        uses: marocchino/sticky-pull-request-comment@331f8f5b4215f0445d3c07b4967662a32a2d3e31  # v2.9.0
+        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0  # v3.0.4
         with:
           header: docs-preview
           message: |
