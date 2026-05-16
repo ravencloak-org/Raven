@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "7c50cbe9575a",
+  "session_id": "4a604303-c534-47a5-b60a-68cbe34ce70f",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-16T00:09:34.243009Z",
+  "branch": "chore/demo-tf-local-state",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "CONTEXT.md",
+    "deploy/terraform/demo/.terraform/providers/registry.terraform.io/cloudflare/cloudflare/4.52.7/darwin_arm64/CHANGELOG.md",
+    "deploy/terraform/demo/.terraform/providers/registry.terraform.io/cloudflare/cloudflare/4.52.7/darwin_arm64/LICENSE",
+    "deploy/terraform/demo/.terraform/providers/registry.terraform.io/cloudflare/cloudflare/4.52.7/darwin_arm64/README.md",
+    "deploy/terraform/demo/.terraform/providers/registry.terraform.io/cloudflare/cloudflare/4.52.7/darwin_arm64/terraform-provider-cloudflare_v4.52.7",
+    "deploy/terraform/demo/.terraform/providers/registry.terraform.io/hashicorp/aws/5.100.0/darwin_arm64/LICENSE.txt",
+    "deploy/terraform/demo/.terraform/providers/registry.terraform.io/hashicorp/aws/5.100.0/darwin_arm64/terraform-provider-aws_v5.100.0_x5",
+    "docs/adr/0001-open-core-pricing-model.md",
+    "docs/runbooks/demo-bootstrap.md",
+    "docs/superpowers/plans/2026-05-12-demo-app-features.md",
+    "docs/superpowers/plans/2026-05-12-demo-deploy-pipeline.md"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "530a8c9b-68cd-4dfd-9921-be89d533b665",
+  "token_usage": {
+    "input_tokens": 96,
+    "cache_creation_tokens": 156754,
+    "cache_read_tokens": 1807680,
+    "output_tokens": 14442,
+    "api_call_count": 39
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-16T00:09:34.155452Z",
+    "agent_lines": 0,
+    "human_added": 2995,
+    "human_modified": 82,
+    "human_removed": 0,
+    "total_committed": 3068,
+    "agent_percentage": 0
+  }
+}

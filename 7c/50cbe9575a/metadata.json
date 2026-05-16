@@ -2,8 +2,8 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "branch": "feat/tauri-auto-update-pr",
-  "checkpoints_count": 8,
+  "branch": "chore/demo-tf-local-state",
+  "checkpoints_count": 11,
   "files_touched": [
     ".claude/worktrees/agent-a0b9e309acd5c05e6/.env.ci",
     ".claude/worktrees/agent-a3c2552c8bef7f2f8/.env.ci",
@@ -14,6 +14,7 @@
     ".githooks/pre-commit",
     ".github/workflows/demo-deploy.yml",
     ".github/workflows/go.yml",
+    "CONTEXT.md",
     "ai-worker/raven_worker/config.py",
     "ai-worker/raven_worker/llm_fuse.py",
     "ai-worker/raven_worker/services/rag.py",
@@ -33,7 +34,9 @@
     "deploy/terraform/demo/.terraform/providers/registry.terraform.io/hashicorp/aws/5.100.0/darwin_arm64/terraform-provider-aws_v5.100.0_x5",
     "deploy/terraform/demo/oidc.tf",
     "deploy/terraform/demo/s3.tf",
+    "docs/adr/0001-open-core-pricing-model.md",
     "docs/runbooks/demo-app-features.md",
+    "docs/runbooks/demo-bootstrap.md",
     "docs/runbooks/demo-deploy.md",
     "docs/runbooks/demo-monitoring.md",
     "docs/runbooks/demo-restore.md",
@@ -792,13 +795,20 @@
       "context": "/7c/50cbe9575a/1/context.md",
       "content_hash": "/7c/50cbe9575a/1/content_hash.txt",
       "prompt": "/7c/50cbe9575a/1/prompt.txt"
+    },
+    {
+      "metadata": "/7c/50cbe9575a/2/metadata.json",
+      "transcript": "/7c/50cbe9575a/2/full.jsonl",
+      "context": "/7c/50cbe9575a/2/context.md",
+      "content_hash": "/7c/50cbe9575a/2/content_hash.txt",
+      "prompt": "/7c/50cbe9575a/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 602,
-    "cache_creation_tokens": 2348625,
-    "cache_read_tokens": 155416598,
-    "output_tokens": 316482,
-    "api_call_count": 493
+    "input_tokens": 698,
+    "cache_creation_tokens": 2505379,
+    "cache_read_tokens": 157224278,
+    "output_tokens": 330924,
+    "api_call_count": 532
   }
 }
