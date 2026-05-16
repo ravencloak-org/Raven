@@ -113,6 +113,13 @@ const (
 		RETURNING id, org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id,
 		          current_period_start, current_period_end, created_at,
 		          trial_ends_at, grace_period_ends_at, refund_id`
+
+	sqlSubscriptionUpdateSeatCount = `
+		UPDATE subscriptions SET seat_count = $3
+		WHERE id = $1 AND org_id = $2
+		RETURNING id, org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id,
+		          current_period_start, current_period_end, created_at,
+		          trial_ends_at, grace_period_ends_at, refund_id`
 )
 
 func scanSubscription(row pgx.Row) (*model.Subscription, error) {
@@ -309,6 +316,16 @@ func (r *BillingRepository) ClearTrialFields(ctx context.Context, tx pgx.Tx, org
 	s, err := scanSubscription(row)
 	if err != nil {
 		return nil, fmt.Errorf("BillingRepository.ClearTrialFields: %w", err)
+	}
+	return s, nil
+}
+
+// UpdateSeatCount sets a new seat_count on a subscription identified by ID and org.
+func (r *BillingRepository) UpdateSeatCount(ctx context.Context, tx pgx.Tx, orgID, subscriptionID string, seatCount int) (*model.Subscription, error) {
+	row := tx.QueryRow(ctx, sqlSubscriptionUpdateSeatCount, subscriptionID, orgID, seatCount)
+	s, err := scanSubscription(row)
+	if err != nil {
+		return nil, fmt.Errorf("BillingRepository.UpdateSeatCount: %w", err)
 	}
 	return s, nil
 }

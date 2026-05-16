@@ -7,52 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/ravencloak-org/Raven/internal/hyperswitch"
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/internal/service"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
-
-// --- Mock BillingRepository for enterprise tests ---
-
-type mockBillingRepo struct {
-	createSubscriptionFn func(ctx context.Context, tx pgx.Tx, sub *model.Subscription) (*model.Subscription, error)
-}
-
-func (m *mockBillingRepo) CreateSubscription(ctx context.Context, tx pgx.Tx, sub *model.Subscription) (*model.Subscription, error) {
-	if m.createSubscriptionFn != nil {
-		return m.createSubscriptionFn(ctx, tx, sub)
-	}
-	result := *sub
-	result.ID = "sub_enterprise_test"
-	result.CreatedAt = time.Now().UTC()
-	return &result, nil
-}
-
-func (m *mockBillingRepo) GetSubscriptionByID(_ context.Context, _ pgx.Tx, _, _ string) (*model.Subscription, error) {
-	return nil, nil
-}
-func (m *mockBillingRepo) GetSubscriptionByHyperswitchID(_ context.Context, _ pgx.Tx, _ string) (*model.Subscription, error) {
-	return nil, nil
-}
-func (m *mockBillingRepo) GetActiveSubscription(_ context.Context, _ pgx.Tx, _ string) (*model.Subscription, error) {
-	return nil, nil
-}
-func (m *mockBillingRepo) UpdateSubscriptionStatus(_ context.Context, _ pgx.Tx, _, _ string, _ model.SubscriptionStatus) (*model.Subscription, error) {
-	return nil, nil
-}
-func (m *mockBillingRepo) ExtendSubscriptionPeriod(_ context.Context, _ pgx.Tx, _ string) (*model.Subscription, error) {
-	return nil, nil
-}
-func (m *mockBillingRepo) CreatePaymentIntent(_ context.Context, _ pgx.Tx, pi *model.PaymentIntent) (*model.PaymentIntent, error) {
-	return pi, nil
-}
-func (m *mockBillingRepo) InsertPaymentEvent(_ context.Context, _ pgx.Tx, _, _, _, _ string, _ []byte) (bool, error) {
-	return true, nil
-}
 
 // --- Mock HyperswitchClient that tracks whether CreatePayment is called ---
 
@@ -67,6 +28,10 @@ func (c *trackingHSClient) CreatePayment(_ context.Context, _ *hyperswitch.Creat
 
 func (c *trackingHSClient) CancelPayment(_ context.Context, _ string) error {
 	return nil
+}
+
+func (c *trackingHSClient) CreateRefund(_ context.Context, _ *hyperswitch.CreateRefundRequest) (*hyperswitch.RefundResponse, error) {
+	return &hyperswitch.RefundResponse{RefundID: "ref_mock", Status: "pending"}, nil
 }
 
 // --- Tests ---

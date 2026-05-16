@@ -146,6 +146,11 @@ type CreateEnterpriseSubscriptionRequest struct {
 	ContractEnd              time.Time `json:"contract_end" binding:"required"`
 }
 
+// UpdateSeatCountRequest is the payload for PATCH /billing/subscriptions/:id/seats.
+type UpdateSeatCountRequest struct {
+	SeatCount int `json:"seat_count" binding:"required,min=1"`
+}
+
 // CreatePaymentIntentRequest is the payload for creating a payment intent.
 type CreatePaymentIntentRequest struct {
 	Amount   int64  `json:"amount" binding:"required,gt=0"`

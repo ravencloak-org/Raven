@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,6 +30,7 @@ type BillingRepository interface {
 	GetActiveSubscription(ctx context.Context, tx pgx.Tx, orgID string) (*model.Subscription, error)
 	UpdateSubscriptionStatus(ctx context.Context, tx pgx.Tx, orgID, subscriptionID string, status model.SubscriptionStatus) (*model.Subscription, error)
 	CancelWithRefund(ctx context.Context, tx pgx.Tx, orgID, subscriptionID, refundID string) (*model.Subscription, error)
+	UpdateSeatCount(ctx context.Context, tx pgx.Tx, orgID, subscriptionID string, seatCount int) (*model.Subscription, error)
 	ExtendSubscriptionPeriod(ctx context.Context, tx pgx.Tx, hyperswitchID string) (*model.Subscription, error)
 	CreatePaymentIntent(ctx context.Context, tx pgx.Tx, pi *model.PaymentIntent) (*model.PaymentIntent, error)
 	InsertPaymentEvent(ctx context.Context, tx pgx.Tx, orgID, eventType, paymentID, status string, rawPayload []byte) (bool, error)
@@ -416,7 +418,7 @@ func (s *BillingService) CreatePaymentIntent(ctx context.Context, orgID string, 
 		// context -- the original ctx may already be canceled/timed out.
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		if cancelErr := s.hsClient.CancelPayment(cleanupCtx, hsResp.PaymentID); cancelErr != nil {
+		if cancelErr := s.hsClient.CancelPayment(cleanupCtx, hsResp.PaymentID); cancelErr != nil { //nolint:contextcheck
 			slog.ErrorContext(ctx, "failed to cancel orphaned Hyperswitch payment", "payment_id", hsResp.PaymentID, "error", cancelErr)
 		}
 		return nil, apierror.NewInternal("failed to persist payment intent")
@@ -493,14 +495,30 @@ func (s *BillingService) handlePaymentSucceeded(ctx context.Context, paymentID, 
 		return tx.Commit(ctx)
 	}
 
-	// Find subscription by Hyperswitch ID and extend billing period.
-	sub, err := s.repo.GetSubscriptionByHyperswitchID(ctx, tx, paymentID)
-	if err != nil {
-		return fmt.Errorf("get subscription by hyperswitch id: %w", err)
-	}
-	if sub != nil {
-		if _, err := s.repo.ExtendSubscriptionPeriod(ctx, tx, paymentID); err != nil {
-			return fmt.Errorf("extend subscription period: %w", err)
+	// Check whether this payment carries a pending seat count update (proration intent).
+	// If so, update seat_count on the subscription rather than extending the period.
+	pendingSeatCount := extractPendingSeatCount(event)
+	subscriptionID := extractSubscriptionIDFromWebhook(event)
+
+	if pendingSeatCount > 0 && subscriptionID != "" {
+		// Seat proration payment: update seat_count on the referenced subscription.
+		// The subscription_id is stored in metadata; use bypass-RLS since we already set it above.
+		if _, err := tx.Exec(ctx,
+			"UPDATE subscriptions SET seat_count = $1 WHERE id = $2",
+			pendingSeatCount, subscriptionID,
+		); err != nil {
+			return fmt.Errorf("update seat count via webhook: %w", err)
+		}
+	} else {
+		// Standard recurring payment: find subscription by Hyperswitch ID and extend billing period.
+		sub, err := s.repo.GetSubscriptionByHyperswitchID(ctx, tx, paymentID)
+		if err != nil {
+			return fmt.Errorf("get subscription by hyperswitch id: %w", err)
+		}
+		if sub != nil {
+			if _, err := s.repo.ExtendSubscriptionPeriod(ctx, tx, paymentID); err != nil {
+				return fmt.Errorf("extend subscription period: %w", err)
+			}
 		}
 	}
 
@@ -576,6 +594,104 @@ func (s *BillingService) handleSubscriptionCancelled(ctx context.Context, paymen
 	return tx.Commit(ctx)
 }
 
+// UpdateSeatCount initiates a mid-cycle seat increase for an active subscription.
+// It calculates the prorated charge for the remaining billing period, creates a
+// Hyperswitch payment intent, and returns it to the caller. The seat_count is updated
+// on the subscription only after the payment succeeds via the webhook handler.
+func (s *BillingService) UpdateSeatCount(ctx context.Context, orgID, subscriptionID string, req model.UpdateSeatCountRequest) (*model.PaymentIntent, error) {
+	// Fetch subscription under RLS.
+	var sub *model.Subscription
+	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+		var e error
+		sub, e = s.repo.GetSubscriptionByID(ctx, tx, orgID, subscriptionID)
+		return e
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to look up subscription", "error", err)
+		return nil, apierror.NewInternal("failed to look up subscription")
+	}
+	if sub == nil {
+		return nil, apierror.NewNotFound("subscription not found")
+	}
+	if sub.Status != model.SubscriptionStatusActive && sub.Status != model.SubscriptionStatusTrialing {
+		return nil, apierror.NewBadRequest("seat count can only be increased on an active or trialing subscription")
+	}
+
+	plan, err := s.GetPlanByID(sub.PlanID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate requested seat count.
+	if plan.MinSeats > 0 && req.SeatCount < plan.MinSeats {
+		return nil, apierror.NewBadRequest(fmt.Sprintf("plan %q requires a minimum of %d seats", plan.ID, plan.MinSeats))
+	}
+	if req.SeatCount <= sub.SeatCount {
+		return nil, apierror.NewBadRequest(fmt.Sprintf("new seat count (%d) must be greater than current seat count (%d)", req.SeatCount, sub.SeatCount))
+	}
+
+	// Calculate prorated charge for the remaining billing period.
+	now := time.Now().UTC()
+	totalDays := sub.CurrentPeriodEnd.Sub(sub.CurrentPeriodStart).Hours() / 24
+	remainingDays := sub.CurrentPeriodEnd.Sub(now).Hours() / 24
+	if remainingDays < 0 {
+		remainingDays = 0
+	}
+	addedSeats := req.SeatCount - sub.SeatCount
+
+	var proratedAmount int64
+	if totalDays > 0 {
+		proratedAmount = int64(float64(plan.PricePerSeatMonthly) * float64(addedSeats) * (remainingDays / totalDays))
+	}
+	// Minimum charge of 1 paise to satisfy Hyperswitch's amount > 0 constraint.
+	if proratedAmount < 1 {
+		proratedAmount = 1
+	}
+
+	// Create Hyperswitch payment intent for the prorated amount.
+	hsResp, err := s.hsClient.CreatePayment(ctx, &hyperswitch.CreatePaymentRequest{
+		Amount:     proratedAmount,
+		Currency:   "INR",
+		CustomerID: orgID,
+		Metadata: map[string]string{
+			"org_id":              orgID,
+			"subscription_id":     subscriptionID,
+			"pending_seat_count":  strconv.Itoa(req.SeatCount),
+			"intent_type":         "seat_proration",
+		},
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to create Hyperswitch payment for seat proration", "error", err)
+		return nil, apierror.NewInternal("failed to create payment intent for seat proration")
+	}
+
+	pi := &model.PaymentIntent{
+		OrgID:                orgID,
+		Amount:               proratedAmount,
+		Currency:             "INR",
+		Status:               model.PaymentIntentStatusRequiresPayment,
+		HyperswitchPaymentID: hsResp.PaymentID,
+		ClientSecret:         hsResp.ClientSecret,
+	}
+
+	var result *model.PaymentIntent
+	if err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+		var e error
+		result, e = s.repo.CreatePaymentIntent(ctx, tx, pi)
+		return e
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to persist proration payment intent", "error", err)
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if cancelErr := s.hsClient.CancelPayment(cleanupCtx, hsResp.PaymentID); cancelErr != nil { //nolint:contextcheck
+			slog.ErrorContext(ctx, "failed to cancel orphaned Hyperswitch payment", "payment_id", hsResp.PaymentID, "error", cancelErr)
+		}
+		return nil, apierror.NewInternal("failed to persist payment intent")
+	}
+
+	return result, nil
+}
+
 // ReactivateSubscription sets a subscription back to active and clears trial timestamps.
 // This is called when an org successfully completes a payment during the trial/grace period.
 func (s *BillingService) ReactivateSubscription(ctx context.Context, orgID, subscriptionID string) error {
@@ -605,4 +721,32 @@ func extractOrgIDFromWebhook(event model.HyperswitchWebhookPayload) string {
 	}
 	orgID, _ := metadata["org_id"].(string)
 	return orgID
+}
+
+// extractPendingSeatCount returns the pending_seat_count from a webhook's metadata,
+// or 0 if the field is absent or unparseable.
+func extractPendingSeatCount(event model.HyperswitchWebhookPayload) int {
+	metadata, ok := event.Content["metadata"].(map[string]any)
+	if !ok {
+		return 0
+	}
+	raw, _ := metadata["pending_seat_count"].(string)
+	if raw == "" {
+		return 0
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
+// extractSubscriptionIDFromWebhook returns the subscription_id from a webhook's metadata.
+func extractSubscriptionIDFromWebhook(event model.HyperswitchWebhookPayload) string {
+	metadata, ok := event.Content["metadata"].(map[string]any)
+	if !ok {
+		return ""
+	}
+	id, _ := metadata["subscription_id"].(string)
+	return id
 }
