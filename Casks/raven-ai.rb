@@ -1,6 +1,6 @@
 cask "raven-ai" do
-  version "0.1.5"
-  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  version "0.1.7"
+  sha256 "359825f6bc561630e6dac2f8e197088608106e24029e6d252c2f4f4e4264a3e5"
 
   # GitHub Releases normalises spaces to dots in asset URLs, so the
   # download path uses "Raven.AI_*", not "Raven AI_*" or the
