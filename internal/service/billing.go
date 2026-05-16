@@ -95,7 +95,7 @@ func (s *BillingService) CreateEnterpriseSubscription(ctx context.Context, req m
 
 	// Allow caller to override the per-seat price (e.g. for negotiated deals).
 	if req.PricePerSeatMonthlyPaise != nil {
-		plan.PriceMonthly = *req.PricePerSeatMonthlyPaise
+		plan.PricePerSeatMonthly = *req.PricePerSeatMonthlyPaise
 	}
 
 	sub := &model.Subscription{
