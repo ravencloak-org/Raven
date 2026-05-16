@@ -872,6 +872,7 @@ func main() {
 			billing.GET("/subscriptions/current", billingHandler.GetCurrentSubscription)
 			billing.POST("/subscriptions", billingHandler.Subscribe)
 			billing.DELETE("/subscriptions/:id", billingHandler.Unsubscribe)
+			billing.PATCH("/subscriptions/:id/seats", billingHandler.UpdateSeatCount)
 			billing.POST("/payment-intents", billingHandler.CreatePaymentIntent)
 			billing.GET("/usage", usageHandler.GetUsage)
 		}

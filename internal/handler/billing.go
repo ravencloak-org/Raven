@@ -18,6 +18,7 @@ type BillingServicer interface {
 	GetActiveSubscription(ctx context.Context, orgID string) (*model.Subscription, error)
 	CreateSubscription(ctx context.Context, orgID string, req model.CreateSubscriptionRequest) (*model.Subscription, error)
 	CancelSubscription(ctx context.Context, orgID string, subscriptionID string) error
+	UpdateSeatCount(ctx context.Context, orgID string, subscriptionID string, req model.UpdateSeatCountRequest) (*model.PaymentIntent, error)
 	CreatePaymentIntent(ctx context.Context, orgID string, req model.CreatePaymentIntentRequest) (*model.PaymentIntent, error)
 	VerifyWebhookSignature(payload []byte, signature string) error
 	HandleWebhook(ctx context.Context, event model.HyperswitchWebhookPayload) error
@@ -210,6 +211,65 @@ func (h *BillingHandler) CreatePaymentIntent(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, pi)
+}
+
+// UpdateSeatCount handles PATCH /api/v1/billing/subscriptions/:id/seats.
+// It calculates a prorated charge for the added seats and returns a PaymentIntent
+// for the frontend to complete via the Hyperswitch/Razorpay SDK. The seat_count is
+// updated on the subscription only after the payment_succeeded webhook arrives.
+//
+// @Summary     Increase subscription seat count (mid-cycle proration)
+// @Tags        billing
+// @Accept      json
+// @Produce     json
+// @Security    BearerAuth
+// @Param       id      path  string                      true "Subscription ID"
+// @Param       request body  model.UpdateSeatCountRequest true "New seat count"
+// @Success     200     {object} model.PaymentIntent
+// @Failure     400     {object} apierror.AppError
+// @Failure     401     {object} apierror.AppError
+// @Failure     404     {object} apierror.AppError
+// @Failure     422     {object} apierror.AppError
+// @Failure     500     {object} apierror.AppError
+// @Router      /billing/subscriptions/{id}/seats [patch]
+func (h *BillingHandler) UpdateSeatCount(c *gin.Context) {
+	orgID, exists := c.Get(string(middleware.ContextKeyOrgID))
+	if !exists {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, apierror.AppError{
+			Code:    http.StatusUnauthorized,
+			Message: "Unauthorized",
+			Detail:  "missing organisation context",
+		})
+		return
+	}
+
+	subscriptionID := c.Param("id")
+	if subscriptionID == "" {
+		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, apierror.AppError{
+			Code:    http.StatusUnprocessableEntity,
+			Message: "Unprocessable Entity",
+			Detail:  "subscription id path parameter is required",
+		})
+		return
+	}
+
+	var req model.UpdateSeatCountRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, apierror.AppError{
+			Code:    http.StatusUnprocessableEntity,
+			Message: "Unprocessable Entity",
+			Detail:  err.Error(),
+		})
+		return
+	}
+
+	pi, err := h.svc.UpdateSeatCount(c.Request.Context(), orgID.(string), subscriptionID, req)
+	if err != nil {
+		_ = c.Error(err)
+		c.Abort()
+		return
+	}
+	c.JSON(http.StatusOK, pi)
 }
 
 // Webhook handles POST /api/v1/billing/webhook.

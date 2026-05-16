@@ -59,6 +59,10 @@ func (m *mockBillingService) VerifyWebhookSignature(payload []byte, signature st
 	return nil
 }
 
+func (m *mockBillingService) UpdateSeatCount(_ context.Context, _ string, _ string, _ model.UpdateSeatCountRequest) (*model.PaymentIntent, error) {
+	return nil, nil
+}
+
 func (m *mockBillingService) HandleWebhook(ctx context.Context, event model.HyperswitchWebhookPayload) error {
 	if m.handleWebhookFn != nil {
 		return m.handleWebhookFn(ctx, event)
@@ -137,7 +141,7 @@ func TestSubscribe_Success(t *testing.T) {
 	}
 	r := newBillingRouter(svc, true)
 
-	body, _ := json.Marshal(model.CreateSubscriptionRequest{PlanID: "plan_pro"})
+	body, _ := json.Marshal(model.CreateSubscriptionRequest{PlanID: "plan_pro", SeatCount: 5})
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodPost, "/api/v1/billing/subscriptions", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -201,7 +205,7 @@ func TestSubscribe_ServiceError_Returns500(t *testing.T) {
 	}
 	r := newBillingRouter(svc, true)
 
-	body, _ := json.Marshal(model.CreateSubscriptionRequest{PlanID: "plan_pro"})
+	body, _ := json.Marshal(model.CreateSubscriptionRequest{PlanID: "plan_pro", SeatCount: 5})
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodPost, "/api/v1/billing/subscriptions", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
