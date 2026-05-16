@@ -3,7 +3,7 @@
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
   "branch": "feat/demo-llm-fuse-wiring",
-  "checkpoints_count": 5,
+  "checkpoints_count": 3,
   "files_touched": [
     ".claude/worktrees/agent-a0b9e309acd5c05e6/.env.ci",
     ".claude/worktrees/agent-a3c53057da799ff5c/.env.ci",
@@ -11,17 +11,7 @@
     "CONTEXT.md",
     "ai-worker/raven_worker/server.py",
     "ai-worker/raven_worker/services/rag.py",
-    "ai-worker/tests/test_rag_llm_fuse.py",
-    "deploy/terraform/demo/.terraform/providers/registry.terraform.io/cloudflare/cloudflare/4.52.7/darwin_arm64/CHANGELOG.md",
-    "deploy/terraform/demo/.terraform/providers/registry.terraform.io/cloudflare/cloudflare/4.52.7/darwin_arm64/LICENSE",
-    "deploy/terraform/demo/.terraform/providers/registry.terraform.io/cloudflare/cloudflare/4.52.7/darwin_arm64/README.md",
-    "deploy/terraform/demo/.terraform/providers/registry.terraform.io/cloudflare/cloudflare/4.52.7/darwin_arm64/terraform-provider-cloudflare_v4.52.7",
-    "deploy/terraform/demo/.terraform/providers/registry.terraform.io/hashicorp/aws/5.100.0/darwin_arm64/LICENSE.txt",
-    "deploy/terraform/demo/.terraform/providers/registry.terraform.io/hashicorp/aws/5.100.0/darwin_arm64/terraform-provider-aws_v5.100.0_x5",
-    "docs/adr/0001-open-core-pricing-model.md",
-    "docs/runbooks/demo-bootstrap.md",
-    "docs/superpowers/plans/2026-05-12-demo-app-features.md",
-    "docs/superpowers/plans/2026-05-12-demo-deploy-pipeline.md"
+    "ai-worker/tests/test_rag_llm_fuse.py"
   ],
   "sessions": [
     {
@@ -47,10 +37,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 144,
-    "cache_creation_tokens": 281643,
-    "cache_read_tokens": 16770376,
-    "output_tokens": 36290,
-    "api_call_count": 72
+    "input_tokens": 71,
+    "cache_creation_tokens": 128777,
+    "cache_read_tokens": 15514807,
+    "output_tokens": 24435,
+    "api_call_count": 42
   }
 }

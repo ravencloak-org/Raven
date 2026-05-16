@@ -107,3 +107,27 @@ ya
 
 let's go for recommended for all further questions
 
+### Prompt 24
+
+agreed
+
+### Prompt 25
+
+yes
+
+### Prompt 26
+
+yes
+
+### Prompt 27
+
+yes
+
+### Prompt 28
+
+cool
+
+### Prompt 29
+
+yeah
+
