@@ -29,6 +29,7 @@ type BillingRepository interface {
 	ExtendSubscriptionPeriod(ctx context.Context, tx pgx.Tx, hyperswitchID string) (*model.Subscription, error)
 	CreatePaymentIntent(ctx context.Context, tx pgx.Tx, pi *model.PaymentIntent) (*model.PaymentIntent, error)
 	InsertPaymentEvent(ctx context.Context, tx pgx.Tx, orgID, eventType, paymentID, status string, rawPayload []byte) (bool, error)
+	ClearTrialFields(ctx context.Context, tx pgx.Tx, orgID, subscriptionID string) (*model.Subscription, error)
 }
 
 // HyperswitchClient defines the interface for Hyperswitch API operations.
@@ -180,15 +181,19 @@ func (s *BillingService) CreateSubscription(ctx context.Context, orgID string, r
 		return nil, apierror.NewInternal("failed to create Hyperswitch payment")
 	}
 
+	trialEndsAt := now.Add(14 * 24 * time.Hour)
+	gracePeriodEndsAt := now.Add(21 * 24 * time.Hour)
 	sub := &model.Subscription{
 		OrgID:                     orgID,
 		PlanID:                    plan.ID,
-		Status:                    model.SubscriptionStatusActive,
+		Status:                    model.SubscriptionStatusTrialing,
 		SeatCount:                 req.SeatCount,
 		BillingCycle:              req.BillingCycle,
 		HyperswitchSubscriptionID: hsResp.PaymentID,
 		CurrentPeriodStart:        now,
 		CurrentPeriodEnd:          periodEnd,
+		TrialEndsAt:               &trialEndsAt,
+		GracePeriodEndsAt:         &gracePeriodEndsAt,
 	}
 
 	var result *model.Subscription
@@ -425,6 +430,27 @@ func (s *BillingService) handleSubscriptionCancelled(ctx context.Context, paymen
 	}
 
 	return tx.Commit(ctx)
+}
+
+// ReactivateSubscription sets a subscription back to active and clears trial timestamps.
+// This is called when an org successfully completes a payment during the trial/grace period.
+func (s *BillingService) ReactivateSubscription(ctx context.Context, orgID, subscriptionID string) error {
+	return db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+		sub, e := s.repo.GetSubscriptionByID(ctx, tx, orgID, subscriptionID)
+		if e != nil {
+			return fmt.Errorf("get subscription: %w", e)
+		}
+		if sub == nil {
+			return apierror.NewNotFound("subscription not found")
+		}
+		if _, e = s.repo.UpdateSubscriptionStatus(ctx, tx, orgID, subscriptionID, model.SubscriptionStatusActive); e != nil {
+			return fmt.Errorf("update status to active: %w", e)
+		}
+		if _, e = s.repo.ClearTrialFields(ctx, tx, orgID, subscriptionID); e != nil {
+			return fmt.Errorf("clear trial fields: %w", e)
+		}
+		return nil
+	})
 }
 
 // extractOrgIDFromWebhook attempts to extract org_id from the webhook payload metadata.

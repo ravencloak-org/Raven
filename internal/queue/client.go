@@ -191,3 +191,75 @@ func (c *Client) EnqueueWebhookDelivery(ctx context.Context, p WebhookDeliveryPa
 	)
 	return nil
 }
+
+// EnqueueTrialEmail enqueues a trial lifecycle email notification on the default queue.
+// emailType must be one of: "trial_expiring_soon", "data_deletion_warning".
+func (c *Client) EnqueueTrialEmail(ctx context.Context, orgID, subscriptionID, emailType string) error {
+	task, err := NewTrialEmailTask(TrialEmailPayload{
+		OrgID:          orgID,
+		SubscriptionID: subscriptionID,
+		EmailType:      emailType,
+	})
+	if err != nil {
+		return fmt.Errorf("create trial email task: %w", err)
+	}
+	info, err := c.inner.EnqueueContext(ctx, task,
+		asynq.MaxRetry(c.maxRetry),
+		asynq.Queue("default"),
+	)
+	if err != nil {
+		return fmt.Errorf("enqueue trial email task: %w", err)
+	}
+	c.logger.Info("enqueued task",
+		"type", task.Type(),
+		"id", info.ID,
+		"queue", info.Queue,
+		"org_id", orgID,
+		"email_type", emailType,
+	)
+	return nil
+}
+
+// EnqueueArchiveOrgData enqueues an archive-org-data task on the low-priority queue.
+func (c *Client) EnqueueArchiveOrgData(ctx context.Context, orgID string) error {
+	task, err := NewArchiveOrgDataTask(OrgDataPayload{OrgID: orgID})
+	if err != nil {
+		return fmt.Errorf("create archive org data task: %w", err)
+	}
+	info, err := c.inner.EnqueueContext(ctx, task,
+		asynq.MaxRetry(c.maxRetry),
+		asynq.Queue("low"),
+	)
+	if err != nil {
+		return fmt.Errorf("enqueue archive org data task: %w", err)
+	}
+	c.logger.Info("enqueued task",
+		"type", task.Type(),
+		"id", info.ID,
+		"queue", info.Queue,
+		"org_id", orgID,
+	)
+	return nil
+}
+
+// EnqueueDeleteOrgData enqueues a hard-delete-org-data task on the low-priority queue.
+func (c *Client) EnqueueDeleteOrgData(ctx context.Context, orgID string) error {
+	task, err := NewDeleteOrgDataTask(OrgDataPayload{OrgID: orgID})
+	if err != nil {
+		return fmt.Errorf("create delete org data task: %w", err)
+	}
+	info, err := c.inner.EnqueueContext(ctx, task,
+		asynq.MaxRetry(c.maxRetry),
+		asynq.Queue("low"),
+	)
+	if err != nil {
+		return fmt.Errorf("enqueue delete org data task: %w", err)
+	}
+	c.logger.Info("enqueued task",
+		"type", task.Type(),
+		"id", info.ID,
+		"queue", info.Queue,
+		"org_id", orgID,
+	)
+	return nil
+}
