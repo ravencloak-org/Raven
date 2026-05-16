@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "7c50cbe9575a",
+  "session_id": "8e572083-f33f-49ca-b4f8-012e8de59af1",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-16T20:16:10.083046Z",
+  "branch": "feat/billing-plans-comparison-page",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "deploy/ansible/group_vars/all.yml",
+    "deploy/ansible/inventory/hosts.yml",
+    "deploy/ansible/roles/cloudflared/tasks/main.yml",
+    "deploy/ansible/roles/raven-stack/tasks/main.yml",
+    "deploy/ansible/roles/raven-stack/templates/env.server.j2",
+    "deploy/ec2/docker-compose.server.yml",
+    "deploy/terraform/demo/cloudflare.tf",
+    "deploy/terraform/demo/ebs.tf",
+    "deploy/terraform/demo/ec2.tf",
+    "deploy/terraform/demo/main.tf",
+    "deploy/terraform/demo/oidc.tf",
+    "deploy/terraform/demo/outputs.tf",
+    "deploy/terraform/demo/security_group.tf",
+    "deploy/terraform/demo/vpc.tf"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 211,
+    "cache_creation_tokens": 448742,
+    "cache_read_tokens": 12097028,
+    "output_tokens": 74280,
+    "api_call_count": 138
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-16T20:16:09.987136Z",
+    "agent_lines": 0,
+    "human_added": 660,
+    "human_modified": 51,
+    "human_removed": 0,
+    "total_committed": 711,
+    "agent_percentage": 0
+  }
+}

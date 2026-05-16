@@ -1,0 +1,339 @@
+Base directory for this skill: /Users/jobinlawrance/.claude/skills/grill-with-docs
+
+<what-to-do>
+
+Interview me relentlessly about every aspect of this plan until we reach a shared understanding. Walk down each branch of the design tree, resolving dependencies between decisions one-by-one. For each question, provide your recommended answer.
+
+Ask the questions one at a time, waiting for feedback on each question before continuing.
+
+If a question can be answered by exploring the codebase, explore the codebase instead.
+
+</what-to-do>
+
+<supporting-info>
+
+## Domain awareness
+
+During codebase exploration, also look for existing documentation:
+
+### File structure
+
+Most repos have a single context:
+
+```
+/
+├── CONTEXT.md
+├── docs/
+│   └── adr/
+│       ├── 0001-event-sourced-orders.md
+│       └── 0002-postgres-for-write-model.md
+└── src/
+```
+
+If a `CONTEXT-MAP.md` exists at the root, the repo has multiple contexts. The map points to where each one lives:
+
+```
+/
+├── CONTEXT-MAP.md
+├── docs/
+│   └── adr/                          ← system-wide decisions
+├── src/
+│   ├── ordering/
+│   │   ├── CONTEXT.md
+│   │   └── docs/adr/                 ← context-specific decisions
+│   └── billing/
+│       ├── CONTEXT.md
+│       └── docs/adr/
+```
+
+Create files lazily — only when you have something to write. If no `CONTEXT.md` exists, create one when the first term is resolved. If no `docs/adr/` exists, create it when the first ADR is needed.
+
+## During the session
+
+### Challenge against the glossary
+
+When the user uses a term that conflicts with the existing language in `CONTEXT.md`, call it out immediately. "Your glossary defines 'cancellation' as X, but you seem to mean Y — which is it?"
+
+### Sharpen fuzzy language
+
+When the user uses vague or overloaded terms, propose a precise canonical term. "You're saying 'account' — do you mean the Customer or the User? Those are different things."
+
+### Discuss concrete scenarios
+
+When domain relationships are being discussed, stress-test them with specific scenarios. Invent scenarios that probe edge cases and force the user to be precise about the boundaries between concepts.
+
+### Cross-reference with code
+
+When the user states how something works, check whether the code agrees. If you find a contradiction, surface it: "Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?"
+
+### Update CONTEXT.md inline
+
+When a term is resolved, update `CONTEXT.md` right there. Don't batch these up — capture them as they happen. Use the format in [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md).
+
+Don't couple `CONTEXT.md` to implementation details. Only include terms that are meaningful to domain experts.
+
+### Offer ADRs sparingly
+
+Only offer to create an ADR when all three are true:
+
+1. **Hard to reverse** — the cost of changing your mind later is meaningful
+2. **Surprising without context** — a future reader will wonder "why did they do it this way?"
+3. **The result of a real trade-off** — there were genuine alternatives and you picked one for specific reasons
+
+If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md).
+
+</supporting-info>
+
+---
+
+first let's stash everything before grilling
+
+---
+
+I want a functioning demo, i think something is live on demo.raven.ravencloak.org. check whats the status of the demo so far, we need to test it
+
+---
+
+do terraform
+
+---
+
+added an aws profile called raven, cf uses it's own cli
+
+---
+
+use the cf cli instead
+
+---
+
+yes
+
+---
+
+use the existing ec2 instance instead of creatng a new one, use i-0a399021875493563
+
+---
+
+yes
+
+---
+
+done
+
+---
+
+yes run it
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   The user invoked `/grill-with-docs` to interview them about a plan. After stash initialization, they redirected to checking the status of the demo at `demo.raven.ravencloak.org` and then requested to get the demo actually running. The full sequence was:
+   - Check demo status (it was not live — no TF state, DNS not resolving)
+   - Run `terraform apply` to provision the infrastructure
+   - Use the existing EC2 instance `i-0a399021875493563` instead of creating a new one
+   - Run the Ansible playbook to configure the server and start the Raven stack
+   - Ultimately get `demo.raven.ravencloak.org` serving traffic
+
+2. Key Technical Concepts:
+   - Terraform (AWS provider v5, Cloudflare provider v4, local state)
+   - Cloudflare Tunnel (`cloudflared`) for proxying traffic to EC2
+   - AWS EC2 (t2.medium, Ubuntu 26.04, ap-south-1a, Public IP 65.0.104.188)
+   - AWS IAM (instance profile with SSM, S3, and SSM-read policies)
+   - AWS SSM Parameter Store for storing tunnel credentials
+   - GitHub Actions OIDC for tag-triggered demo deploys
+   - Ansible playbook with roles: base, docker, nodejs, pm2, cloudflared, raven-stack, raven-backup, admin-tools
+   - `docker compose` for running the Raven stack with a demo overlay
+   - Cloudflare cert.pem JWT for extracting account ID, zone ID, and API token
+   - AWS session-based credentials (expire ~10 min) via `aws configure export-credentials`
+   - `terraform import` to bring existing resources under Terraform management
+   - Stash MCP for persistent session memory
+
+3. Files and Code Sections:
+
+   - **`deploy/terraform/demo/vpc.tf`** — Replaced VPC/subnet/IGW/route table resources with data sources referencing the existing default VPC:
+     ```hcl
+     data "aws_vpc" "demo" {
+       id = "vpc-029f3d96ab71b39f2"
+     }
+     data "aws_subnet" "demo" {
+       id = "subnet-0b234c03f82f5ecec"
+     }
+     ```
+
+   - **`deploy/terraform/demo/security_group.tf`** — Replaced security group resource with data source:
+     ```hcl
+     data "aws_security_group" "demo" {
+       id = "sg-0680a515c1c21724f"
+     }
+     ```
+
+   - **`deploy/terraform/demo/ec2.tf`** — Updated to reference existing instance (imported, not created):
+     ```hcl
+     resource "aws_instance" "demo" {
+       ami                    = "ami-07a00cf47dbbc844c"
+       instance_type          = "t2.medium"
+       subnet_id              = data.aws_subnet.demo.id
+       vpc_security_group_ids = [data.aws_security_group.demo.id]
+       iam_instance_profile   = aws_iam_instance_profile.demo.name
+       tags = merge(local.tags, { Name = "${local.name_prefix}-app" })
+       lifecycle {
+         ignore_changes = [ami, instance_type, user_data, root_block_device, metadata_options]
+       }
+     }
+     ```
+
+   - **`deploy/terraform/demo/ebs.tf`** — Commented out data volume and attachment (existing instance has only root volume):
+     ```hcl
+     # Existing instance uses only its root volume — no separate data volume.
+     # [resources commented out]
+     ```
+
+   - **`deploy/terraform/demo/main.tf`** — Removed unused `data "aws_ami" "al2023_arm"` block (no longer needed since using existing instance)
+
+   - **`deploy/terraform/demo/outputs.tf`** — Removed `data_volume_id` output that referenced the removed `aws_ebs_volume.data`
+
+   - **`deploy/terraform/demo/oidc.tf`** — Switched from `data` source to `resource` for GitHub OIDC provider (didn't exist in AWS account yet), updated `Federated` reference:
+     ```hcl
+     resource "aws_iam_openid_connect_provider" "github" {
+       url             = "https://token.actions.githubusercontent.com"
+       client_id_list  = ["sts.amazonaws.com"]
+       thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
+     }
+     # Federated = aws_iam_openid_connect_provider.github.arn
+     ```
+
+   - **`deploy/terraform/demo/cloudflare.tf`** — Commented out `cloudflare_access_application.observability` and `cloudflare_access_policy.observability_allow` (cert.pem token lacks Access: Apps and Policies permission). Phase 1 gate removed via `TF_VAR_phase1_access_enabled=false`. Key resources that were created: `cloudflare_tunnel.demo` (ID: `9bae2af2-f8e8-45ed-aa61-e1eb29182c3c`), `cloudflare_record.demo` (CNAME for `demo.raven.ravencloak.org`)
+
+   - **`deploy/ansible/inventory/hosts.yml`** — Updated with real IP and SSH key:
+     ```yaml
+     all:
+       hosts:
+         raven-server:
+           ansible_host: 65.0.104.188
+           ansible_user: ubuntu
+           ansible_ssh_private_key_file: ~/.ssh/macbook.pem
+     ```
+
+   - **`deploy/ansible/group_vars/all.yml`** — Updated tunnel ID line 37:
+     ```yaml
+     cloudflare_tunnel_id: 9bae2af2-f8e8-45ed-aa61-e1eb29182c3c
+     # was: f8371625-0249-4097-88be-9cf1df34db4a
+     ```
+
+   - **`deploy/ansible/roles/cloudflared/tasks/main.yml`** — Added task to write credentials from variable before credential file check:
+     ```yaml
+     - name: Write tunnel credentials from variable
+       ansible.builtin.copy:
+         content: "{{ cloudflare_tunnel_credentials_json }}"
+         dest: "/etc/cloudflared/{{ cloudflare_tunnel_id }}.json"
+         mode: "0600"
+       when: cloudflare_tunnel_credentials_json is defined
+     ```
+
+4. Errors and fixes:
+   - **Terraform lock file inconsistency** (`random` provider missing): Fixed with `terraform init -upgrade`
+   - **GitHub OIDC provider not found** (`data "aws_iam_openid_connect_provider"` failed): Switched to `resource "aws_iam_openid_connect_provider"` in `oidc.tf` and updated the `Federated` reference from `data.aws_iam_openid_connect_provider.github.arn` to `aws_iam_openid_connect_provider.github.arn`
+   - **`outputs.tf` referenced removed `aws_ebs_volume.data`**: Removed the `data_volume_id` output block
+   - **AWS session tokens expired repeatedly**: Had to call `AWS_PROFILE=raven aws configure export-credentials --format env` before each terraform command and re-export `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`
+   - **Cloudflare Access application creation failed** (auth error 10000): The cert.pem API token is tunnel-scoped only, doesn't have "Access: Apps and Policies" permission. Fixed by: (a) user set `TF_VAR_phase1_access_enabled=false` to disable Phase 1 gate, (b) commented out observability Access app from `cloudflare.tf`
+   - **EC2 instance type/VPC mismatch**: The planned config expected `t4g.xlarge` with custom VPC, but existing instance is `t2.medium` in default VPC. Fixed by converting VPC/subnet/SG to data sources, using `terraform import`, and adding extensive `ignore_changes` to the instance resource
+   - **Ansible "Wait for Go API health check" FAILED**: `Connection refused` on `http://127.0.0.1:8080/healthz` after 30 retries — the Go API container is not listening on port 8080. **Still unresolved.**
+   - **SSH command for docker compose ps returned empty**: Last debug command returned no output
+
+5. Problem Solving:
+   - Successfully provisioned entire demo infrastructure via Terraform (29 resources created, 1 updated in-place)
+   - cloudflared installed and running (v2026.3.0), tunnel `9bae2af2` active
+   - `demo.raven.ravencloak.org` DNS CNAME now resolves to the Cloudflare tunnel
+   - EC2 instance has IAM instance profile attached (SSM Run Command ready)
+   - Raven stack started via Docker Compose, but Go API health check is failing
+   - **Ongoing**: Debugging why the Go API container isn't serving on port 8080
+
+6. All user messages:
+   - "grill-with-docs" (invoked skill)
+   - "first let's stash everything before grilling"
+   - "I want a functioning demo, i think something is live on demo.raven.ravencloak.org. check whats the status of the demo so far, we need to test it"
+   - "use the cf cli instead" (regarding Cloudflare credentials)
+   - "added an aws profile called raven, cf uses it's own cli"
+   - "do terraform"
+   - "use the existing ec2 instance instead of creating a new one, use i-0a399021875493563"
+   - "done" (after setting `TF_VAR_phase1_access_enabled=false`)
+   - "yes" (confirming terraform apply)
+   - "yes run it" (confirming Ansible playbook run)
+   - "what's the issues?" (asked while working, about the apply failures)
+
+7. Pending Tasks:
+   - Debug why the Go API container (`go-api`) is not listening on port 8080 — check `docker compose ps` and `docker compose logs go-api` on the server
+   - Verify the full Raven stack is healthy (frontend on 8080, Go API on 8180 per tunnel config)
+   - Investigate `.env.server` configuration — may have missing required variables (e.g., `vault_postgres_password` was empty in vault.yml)
+   - Test the demo at `demo.raven.ravencloak.org` end-to-end
+   - Commit the Terraform and Ansible changes to a branch and PR
+
+8. Current Work:
+   The Ansible playbook was run successfully for most tasks (51 ok, 37 changed) but failed at the Go API health check. The playbook ran:
+   ```bash
+   cd /Users/jobinlawrance/Project/raven/deploy/ansible && \
+     ansible-playbook playbook.yml \
+       -i inventory/hosts.yml \
+       --extra-vars '{"cloudflare_tunnel_credentials_json":"{\"AccountTag\":\"4112a97db0506e8956febcb8e2d682f7\",\"TunnelID\":\"9bae2af2-f8e8-45ed-aa61-e1eb29182c3c\",\"TunnelSecret\":\"REDACTED\"}"}'
+   ```
+   The failure was:
+   ```
+   fatal: [raven-server]: FAILED! => {"attempts": 30, "changed": false, "msg": "Status code was -1 and not [200]: Request failed: <urlopen error [Errno 111] Connection refused>", "url": "http://127.0.0.1:8080/healthz"}
+   ```
+   A follow-up SSH command to check `docker compose ps` on the server returned empty output (no results).
+
+   Key infrastructure facts for context:
+   - EC2: `i-0a399021875493563`, `t2.medium`, Ubuntu 26.04, `65.0.104.188`, `ap-south-1`
+   - SSH: `ubuntu@65.0.104.188` with `~/.ssh/macbook.pem`
+   - Cloudflare tunnel ID: `9bae2af2-f8e8-45ed-aa61-e1eb29182c3c`
+   - Tunnel routes: `/api/.*` → `localhost:8180` (Go API), everything else → `localhost:8080` (frontend)
+   - Raven repo cloned to `/opt/raven` on the server
+   - AWS profile: `raven` (session-based, credentials expire ~10 min)
+
+9. Optional Next Step:
+   SSH into the server to diagnose why the Go API health check failed. Check container states and logs:
+   ```bash
+   ssh -i ~/.ssh/macbook.pem ubuntu@65.0.104.188 'cd /opt/raven && docker compose ps && docker compose logs --tail=50 go-api'
+   ```
+   The last attempted command was:
+   ```bash
+   ssh -i ~/.ssh/macbook.pem -o StrictHostKeyChecking=no ubuntu@65.0.104.188 \
+     'cd /opt/raven && docker compose ps --format json 2>/dev/null | ...'
+   ```
+   which returned empty, suggesting either the compose project is in a different directory or the containers failed to start. The raven-stack role clones to `/opt/raven` and starts via `docker compose up -d`, but the Go API on port 8080 is not responding.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/jobinlawrance/.REDACTED.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+continue
+
+---
+
+continue
+
+---
+
+continue
+
+---
+
+where do you want me to add this?
+
+---
+
+i meant add the token where? in the ec2?
+
+---
+
+i've added it before, how to check in cli?
+
+---
+
+➜  raven git:(feat/demo-hide-voice-ui) ✗ cloudflared tunnel login
+2026-05-16T20:10:12Z ERR You have an existing certificate at /Users/jobinlawrance/.cloudflared/cert.pem which login would overwrite.
+If this is intentional, please move or delete that file then run this command again.
