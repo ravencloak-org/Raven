@@ -654,3 +654,27 @@ continue
 ---
 
 continue, do all of the above
+
+---
+
+go for recomended
+
+---
+
+is the demo live and working?
+
+---
+
+everything is connected via ssh and cf cli
+
+---
+
+go for recommended
+
+---
+
+₹why dynamodb?
+
+---
+
+but why s3 either, we are using postgress right? what is this dynamodb for?

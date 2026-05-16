@@ -99,3 +99,27 @@ continue
 
 continue, do all of the above
 
+### Prompt 17
+
+go for recomended
+
+### Prompt 18
+
+is the demo live and working?
+
+### Prompt 19
+
+everything is connected via ssh and cf cli
+
+### Prompt 20
+
+go for recommended
+
+### Prompt 21
+
+₹why dynamodb?
+
+### Prompt 22
+
+but why s3 either, we are using postgress right? what is this dynamodb for?
+
