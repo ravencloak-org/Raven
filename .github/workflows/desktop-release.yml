@@ -42,8 +42,10 @@ jobs:
           - os: macos-latest
             tauri_target: universal-apple-darwin
             rustup_targets: 'aarch64-apple-darwin,x86_64-apple-darwin'
-            artifact_glob: 'desktop/target/universal-apple-darwin/release/bundle/dmg/*.dmg'
-            sig_glob: 'desktop/target/universal-apple-darwin/release/bundle/dmg/*.dmg.sig'
+            artifact_glob: |
+              desktop/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+              desktop/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz
+            sig_glob: 'desktop/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz.sig'
           - os: windows-latest
             tauri_target: x86_64-pc-windows-msvc
             rustup_targets: 'x86_64-pc-windows-msvc'
@@ -445,11 +447,12 @@ jobs:
             if [ -n "$file" ] && [ -f "$file" ]; then cat "$file"; else echo ""; fi
           }
 
-          DMG_SIG="$(read_sig sigs/macos)"
+          APP_SIG="$(read_sig sigs/macos)"
           MSI_SIG="$(read_sig sigs/windows)"
           APPIMAGE_SIG="$(read_sig sigs/linux)"
 
           DMG_URL="${BASE_URL}/Raven.AI_${VERSION}_universal.dmg"
+          APP_TARBALL_URL="${BASE_URL}/Raven.AI_${VERSION}_universal.app.tar.gz"
           MSI_URL="${BASE_URL}/Raven.AI_${VERSION}_x64_en-US.msi"
           APPIMAGE_URL="${BASE_URL}/Raven.AI_${VERSION}_amd64.AppImage"
           NOTES="See the full changelog at https://github.com/ravencloak-org/Raven/releases/tag/raven-ai-v${VERSION}"
@@ -462,7 +465,8 @@ jobs:
             --arg notes      "$NOTES" \
             --arg pub_date   "$PUB_DATE" \
             --arg dmg_url    "$DMG_URL" \
-            --arg dmg_sig    "$DMG_SIG" \
+            --arg app_url    "$APP_TARBALL_URL" \
+            --arg dmg_sig    "$APP_SIG" \
             --arg msi_url    "$MSI_URL" \
             --arg msi_sig    "$MSI_SIG" \
             --arg appimg_url "$APPIMAGE_URL" \
@@ -472,7 +476,7 @@ jobs:
               notes: $notes,
               pub_date: $pub_date,
               platforms: {
-                "darwin-universal": { url: $dmg_url, signature: $dmg_sig },
+                "darwin-universal": { url: $app_url, signature: $dmg_sig },
                 "windows-x86_64":   { url: $msi_url, signature: $msi_sig },
                 "linux-x86_64":     { url: $appimg_url, signature: $appimg_sig }
               }
@@ -484,13 +488,15 @@ jobs:
       # uploaded by the `build` matrix (each into the same draft). Setting
       # draft: false flips it to "published".
       - name: Upload latest.json and publish release
-        uses: softprops/action-gh-release@e7a8f85e1c67a31e6ed99a94b41bd0b71bbee6b8 # v2.0.9
-        with:
-          draft: false
-          files: latest.json
-          tag_name: ${{ github.ref_name }}
+        # Use gh CLI to add latest.json to the existing draft release (created by the
+        # build matrix) and flip it to published. Using softprops/action-gh-release
+        # here created a second, conflicting published release.
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GIT_TAG: ${{ github.ref_name }}
+        run: |
+          gh release upload "$GIT_TAG" latest.json --clobber
+          gh release edit "$GIT_TAG" --draft=false
 
       # `release: published` events emitted by github-actions[bot] using
       # GITHUB_TOKEN do NOT trigger other workflows — GHA's anti-loop
