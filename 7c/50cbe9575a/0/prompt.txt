@@ -546,3 +546,65 @@ Continue the conversation from where it left off without asking the user any fur
 ---
 
 it failed https://github.com/ravencloak-org/Raven/actions/runs/25947514768
+
+---
+
+done, merged
+
+---
+
+Annotations
+5 errors, 8 warnings, and 1 notice
+Build (macos-latest)
+Process completed with exit code 1.
+Build (macos-latest)
+App process died within 10 s of launch
+Generate update manifest
+Unable to download artifact(s): Artifact not found for name: sig-ubuntu-latest Please ensure that your artifact is not expired and the artifact was uploaded using a compatible version of toolkit/upload-artifact. For more information, visit the GitHub Artifacts FAQ: https://github.com/actions/toolkit/blob/main/packages/artifact/docs/faq.md
+Generate update manifest
+Unable to download artifact(s): Artifact not found for name: sig-windows-latest Please ensure that your artifact is not expired and the artifact was uploaded using a compatible version of toolkit/upload-artifact. For more information, visit the GitHub Artifacts FAQ: https://github.com/actions/toolkit/blob/main/packages/artifact/docs/faq.md
+Generate update manifest
+Unable to download artifact(s): Artifact not found for name: sig-macos-latest Please ensure that your artifact is not expired and the artifact was uploaded using a compatible version of toolkit/upload-artifact. For more information, visit the GitHub Artifacts FAQ: https://github.com/actions/toolkit/blob/main/packages/artifact/docs/faq.md
+
+---
+
+why don't you use a new tag instead of the same one, also fix conflicts
+
+---
+
+yes
+
+---
+
+<task-notification>
+<task-id>bix2vatf8</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for PR #606 to merge" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Annotations
+2 errors and 4 warnings
+Build (macos-latest)
+Process completed with exit code 1.
+Build (macos-latest)
+App process died within 10 s of launch error
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+where is the dmg?
+
+---
+
+yeah
+
+---
+
+merged
