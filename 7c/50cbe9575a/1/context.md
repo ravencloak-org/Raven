@@ -123,3 +123,7 @@ go for recommended
 
 but why s3 either, we are using postgress right? what is this dynamodb for?
 
+### Prompt 23
+
+check and continue
+

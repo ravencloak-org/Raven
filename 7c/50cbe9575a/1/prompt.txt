@@ -678,3 +678,7 @@ go for recommended
 ---
 
 but why s3 either, we are using postgress right? what is this dynamodb for?
+
+---
+
+check and continue
