@@ -37,20 +37,20 @@ jobs:
           - os: macos-latest
             tauri_target: universal-apple-darwin
             rustup_targets: 'aarch64-apple-darwin,x86_64-apple-darwin'
-            artifact_glob: 'desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg'
-            sig_glob: 'desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg.sig'
+            artifact_glob: 'desktop/target/universal-apple-darwin/release/bundle/dmg/*.dmg'
+            sig_glob: 'desktop/target/universal-apple-darwin/release/bundle/dmg/*.dmg.sig'
           - os: windows-latest
             tauri_target: x86_64-pc-windows-msvc
             rustup_targets: 'x86_64-pc-windows-msvc'
-            artifact_glob: 'desktop/src-tauri/target/release/bundle/msi/*.msi'
-            sig_glob: 'desktop/src-tauri/target/release/bundle/msi/*.msi.sig'
+            artifact_glob: 'desktop/target/release/bundle/msi/*.msi'
+            sig_glob: 'desktop/target/release/bundle/msi/*.msi.sig'
           - os: ubuntu-latest
             tauri_target: x86_64-unknown-linux-gnu
             rustup_targets: 'x86_64-unknown-linux-gnu'
             artifact_glob: |
-              desktop/src-tauri/target/release/bundle/appimage/*.AppImage
-              desktop/src-tauri/target/release/bundle/deb/*.deb
-            sig_glob: 'desktop/src-tauri/target/release/bundle/appimage/*.AppImage.sig'
+              desktop/target/release/bundle/appimage/*.AppImage
+              desktop/target/release/bundle/deb/*.deb
+            sig_glob: 'desktop/target/release/bundle/appimage/*.AppImage.sig'
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
