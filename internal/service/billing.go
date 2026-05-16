@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -41,25 +43,27 @@ type HyperswitchClient interface {
 // BillingService contains business logic for subscription and payment management
 // via the Hyperswitch payment orchestration platform.
 type BillingService struct {
-	repo          BillingRepository
-	pool          *pgxpool.Pool
-	hsClient      HyperswitchClient
-	webhookSecret string
-	plans         map[string]model.Plan
+	repo            BillingRepository
+	pool            *pgxpool.Pool
+	hsClient        HyperswitchClient
+	webhookSecret   string
+	slackWebhookURL string
+	plans           map[string]model.Plan
 }
 
 // NewBillingService creates a new BillingService.
-func NewBillingService(repo BillingRepository, pool *pgxpool.Pool, hsClient HyperswitchClient, webhookSecret string) *BillingService {
+func NewBillingService(repo BillingRepository, pool *pgxpool.Pool, hsClient HyperswitchClient, webhookSecret string, slackWebhookURL string) *BillingService {
 	plans := make(map[string]model.Plan)
 	for _, p := range model.DefaultPlans() {
 		plans[p.ID] = p
 	}
 	return &BillingService{
-		repo:          repo,
-		pool:          pool,
-		hsClient:      hsClient,
-		webhookSecret: webhookSecret,
-		plans:         plans,
+		repo:            repo,
+		pool:            pool,
+		hsClient:        hsClient,
+		webhookSecret:   webhookSecret,
+		slackWebhookURL: slackWebhookURL,
+		plans:           plans,
 	}
 }
 
@@ -75,6 +79,89 @@ func (s *BillingService) GetPlanByID(planID string) (*model.Plan, error) {
 		return nil, apierror.NewNotFound("plan not found: " + planID)
 	}
 	return &p, nil
+}
+
+// CreateEnterpriseSubscription provisions an Enterprise subscription via the admin-only
+// sales-led flow. No Hyperswitch payment is created -- invoicing is handled externally.
+func (s *BillingService) CreateEnterpriseSubscription(ctx context.Context, req model.CreateEnterpriseSubscriptionRequest) (*model.Subscription, error) {
+	const minSeats = 20
+	if req.SeatCount < minSeats {
+		return nil, apierror.NewBadRequest(fmt.Sprintf("enterprise plan requires at least %d seats, got %d", minSeats, req.SeatCount))
+	}
+
+	plan, err := s.GetPlanByID("plan_enterprise")
+	if err != nil {
+		return nil, err
+	}
+
+	// Allow caller to override the per-seat price (e.g. for negotiated deals).
+	if req.PricePerSeatMonthlyPaise != nil {
+		plan.PricePerSeatMonthly = *req.PricePerSeatMonthlyPaise
+	}
+
+	sub := &model.Subscription{
+		OrgID:              req.OrgID,
+		PlanID:             plan.ID,
+		Status:             model.SubscriptionStatusActive,
+		CurrentPeriodStart: req.ContractStart,
+		CurrentPeriodEnd:   req.ContractEnd,
+	}
+
+	if s.pool == nil {
+		return nil, apierror.NewInternal("database pool is not configured")
+	}
+
+	var result *model.Subscription
+	err = db.WithOrgID(ctx, s.pool, req.OrgID, func(tx pgx.Tx) error {
+		var e error
+		result, e = s.repo.CreateSubscription(ctx, tx, sub)
+		return e
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to persist enterprise subscription", "error", err)
+		return nil, apierror.NewInternal("failed to persist enterprise subscription")
+	}
+
+	// Best-effort Slack notification -- failure does not abort the response.
+	if s.slackWebhookURL != "" {
+		go s.sendSlackNotification(context.Background(), req, result.ID) //nolint:contextcheck // best-effort fire-and-forget; context must outlive request
+	}
+
+	return result, nil
+}
+
+// sendSlackNotification posts an enterprise deal notification to the configured Slack webhook.
+func (s *BillingService) sendSlackNotification(ctx context.Context, req model.CreateEnterpriseSubscriptionRequest, subscriptionID string) {
+	msg := fmt.Sprintf(
+		":tada: New Enterprise subscription created!\nOrg: %s | Seats: %d | Sub ID: %s | Period: %s to %s",
+		req.OrgID, req.SeatCount, subscriptionID,
+		req.ContractStart.Format(time.DateOnly),
+		req.ContractEnd.Format(time.DateOnly),
+	)
+	payload, err := json.Marshal(map[string]any{
+		"text": msg,
+	})
+	if err != nil {
+		slog.WarnContext(ctx, "failed to marshal Slack notification", "error", err)
+		return
+	}
+
+	reqHTTP, err := http.NewRequestWithContext(ctx, http.MethodPost, s.slackWebhookURL, strings.NewReader(string(payload)))
+	if err != nil {
+		slog.WarnContext(ctx, "failed to build Slack HTTP request", "error", err)
+		return
+	}
+	reqHTTP.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(reqHTTP)
+	if err != nil {
+		slog.WarnContext(ctx, "Slack notification request failed", "error", err)
+		return
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode >= 400 {
+		slog.WarnContext(ctx, "Slack notification returned non-OK status", "status", resp.StatusCode)
+	}
 }
 
 // GetActiveSubscription returns the current active subscription for an org, or nil.
@@ -269,7 +356,7 @@ func (s *BillingService) CreatePaymentIntent(ctx context.Context, orgID string, 
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to persist payment intent", "error", err)
 		// Best-effort cancel the orphaned Hyperswitch payment with a fresh
-		// context — the original ctx may already be canceled/timed out.
+		// context -- the original ctx may already be canceled/timed out.
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if cancelErr := s.hsClient.CancelPayment(cleanupCtx, hsResp.PaymentID); cancelErr != nil {
@@ -384,7 +471,7 @@ func (s *BillingService) handlePaymentFailed(ctx context.Context, paymentID, org
 		return tx.Commit(ctx)
 	}
 
-	// Mark subscription as past_due — triggers free tier downgrade.
+	// Mark subscription as past_due -- triggers free tier downgrade.
 	sub, err := s.repo.GetSubscriptionByHyperswitchID(ctx, tx, paymentID)
 	if err != nil {
 		return fmt.Errorf("get subscription by hyperswitch id: %w", err)

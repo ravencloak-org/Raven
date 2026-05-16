@@ -34,6 +34,7 @@ type Config struct {
 	Meta         MetaConfig
 	TMDB         TMDBConfig
 	Seed         SeedConfig
+	Billing      BillingConfig
 	SES          SESConfig
 	EmailSummary EmailSummaryConfig
 	Retrieval    RetrievalConfig
@@ -125,6 +126,11 @@ type TMDBConfig struct {
 // SeedConfig holds settings for the admin seed endpoint.
 type SeedConfig struct {
 	Key string `mapstructure:"key"` // X-Seed-Key header value for auth bypass
+}
+
+// BillingConfig holds billing-related configuration.
+type BillingConfig struct {
+	SlackWebhookURL string `mapstructure:"slack_webhook_url"` // Slack webhook for enterprise deal notifications
 }
 
 // ClickHouseConfig holds ClickHouse connection and vector backend settings.
@@ -588,6 +594,9 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("asynq.recrawl_sources_budget", "RAVEN_ASYNQ_RECRAWL_SOURCES_BUDGET")
 	_ = v.BindEnv("asynq.cleanup_sessions_budget", "RAVEN_ASYNQ_CLEANUP_SESSIONS_BUDGET")
 	_ = v.BindEnv("asynq.default_budget", "RAVEN_ASYNQ_DEFAULT_BUDGET")
+
+	_ = v.BindEnv("billing.slack_webhook_url", "RAVEN_SLACK_BILLING_WEBHOOK_URL")
+	v.SetDefault("billing.slack_webhook_url", "")
 
 	// Try to read config file but don't fail if not found
 	_ = v.ReadInConfig()

@@ -136,6 +136,15 @@ type CreateSubscriptionRequest struct {
 	BillingCycle string `json:"billing_cycle" binding:"omitempty,oneof=monthly annual"`
 }
 
+// CreateEnterpriseSubscriptionRequest is the payload for POST /admin/billing/subscriptions/enterprise.
+type CreateEnterpriseSubscriptionRequest struct {
+	OrgID                    string    `json:"org_id" binding:"required"`
+	SeatCount                int       `json:"seat_count" binding:"required,min=20"`
+	PricePerSeatMonthlyPaise *int64    `json:"price_per_seat_monthly_paise,omitempty"`
+	ContractStart            time.Time `json:"contract_start" binding:"required"`
+	ContractEnd              time.Time `json:"contract_end" binding:"required"`
+}
+
 // CreatePaymentIntentRequest is the payload for creating a payment intent.
 type CreatePaymentIntentRequest struct {
 	Amount   int64  `json:"amount" binding:"required,gt=0"`
