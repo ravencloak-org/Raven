@@ -27,26 +27,29 @@ const (
 
 // Plan describes a billing plan and its feature limits.
 type Plan struct {
-	ID                          string   `json:"id"`
-	Tier                        PlanTier `json:"tier"`
-	Name                        string   `json:"name"`
-	PriceMonthly                int64    `json:"price_monthly"`  // amount in cents
-	MaxUsers                    int      `json:"max_users"`
-	MaxWorkspaces               int      `json:"max_workspaces"`
-	MaxKBs                      int      `json:"max_kbs"`
-	MaxStorageMB                int64    `json:"max_storage_mb"`
-	MaxConcurrentVoiceSessions  int      `json:"max_concurrent_voice_sessions"` // -1 = unlimited
-	MaxVoiceMinutesMonthly      int      `json:"max_voice_minutes_monthly"`     // -1 = unlimited
+	ID                         string   `json:"id"`
+	Tier                       PlanTier `json:"tier"`
+	Name                       string   `json:"name"`
+	PricePerSeatMonthly        int64    `json:"price_per_seat_monthly"` // amount in paise (INR); 0 = free
+	MinSeats                   int      `json:"min_seats"`              // minimum seat count required to subscribe
+	MaxUsers                   int      `json:"max_users"`
+	MaxWorkspaces              int      `json:"max_workspaces"`
+	MaxKBs                     int      `json:"max_kbs"`
+	MaxStorageMB               int64    `json:"max_storage_mb"`
+	MaxConcurrentVoiceSessions int      `json:"max_concurrent_voice_sessions"` // -1 = unlimited
+	MaxVoiceMinutesMonthly     int      `json:"max_voice_minutes_monthly"`     // -1 = unlimited
 }
 
 // DefaultPlans returns the pre-defined plans with their feature limits.
+// Prices are in paise (1 INR = 100 paise).
 func DefaultPlans() []Plan {
 	return []Plan{
 		{
 			ID:                         "plan_free",
 			Tier:                       PlanTierFree,
 			Name:                       "Free",
-			PriceMonthly:               0,
+			PricePerSeatMonthly:        0,
+			MinSeats:                   0,
 			MaxUsers:                   5,
 			MaxWorkspaces:              2,
 			MaxKBs:                     3,
@@ -58,8 +61,9 @@ func DefaultPlans() []Plan {
 			ID:                         "plan_pro",
 			Tier:                       PlanTierPro,
 			Name:                       "Pro",
-			PriceMonthly:               2900, // $29.00
-			MaxUsers:                   25,
+			PricePerSeatMonthly:        170000, // ₹1,700/seat/month
+			MinSeats:                   5,
+			MaxUsers:                   -1, // unlimited within seat count
 			MaxWorkspaces:              10,
 			MaxKBs:                     50,
 			MaxStorageMB:               10240,
@@ -70,8 +74,9 @@ func DefaultPlans() []Plan {
 			ID:                         "plan_enterprise",
 			Tier:                       PlanTierEnterprise,
 			Name:                       "Enterprise",
-			PriceMonthly:               9900, // $99.00
-			MaxUsers:                   -1,   // unlimited
+			PricePerSeatMonthly:        350000, // ₹3,500/seat/month
+			MinSeats:                   20,
+			MaxUsers:                   -1, // unlimited
 			MaxWorkspaces:              -1,
 			MaxKBs:                     -1,
 			MaxStorageMB:               -1,
@@ -83,17 +88,19 @@ func DefaultPlans() []Plan {
 
 // Subscription represents an organisation's billing subscription.
 type Subscription struct {
-	ID                       string             `json:"id"`
-	OrgID                    string             `json:"org_id"`
-	PlanID                   string             `json:"plan_id"`
-	Status                   SubscriptionStatus `json:"status"`
-	HyperswitchSubscriptionID string            `json:"hyperswitch_subscription_id,omitempty"`
-	CurrentPeriodStart       time.Time          `json:"current_period_start"`
-	CurrentPeriodEnd         time.Time          `json:"current_period_end"`
-	CreatedAt                time.Time          `json:"created_at"`
+	ID                        string             `json:"id"`
+	OrgID                     string             `json:"org_id"`
+	PlanID                    string             `json:"plan_id"`
+	Status                    SubscriptionStatus `json:"status"`
+	SeatCount                 int                `json:"seat_count"`
+	BillingCycle              string             `json:"billing_cycle"` // "monthly" or "annual"
+	HyperswitchSubscriptionID string             `json:"hyperswitch_subscription_id,omitempty"`
+	CurrentPeriodStart        time.Time          `json:"current_period_start"`
+	CurrentPeriodEnd          time.Time          `json:"current_period_end"`
+	CreatedAt                 time.Time          `json:"created_at"`
 	// ClientSecret is a transient field (not persisted) returned to the frontend
 	// so it can open the Hyperswitch SDK / Razorpay checkout for the first payment.
-	ClientSecret             string             `json:"client_secret,omitempty"`
+	ClientSecret string `json:"client_secret,omitempty"`
 }
 
 // PaymentIntentStatus represents the state of a payment intent.
@@ -122,7 +129,9 @@ type PaymentIntent struct {
 
 // CreateSubscriptionRequest is the payload for POST /api/v1/billing/subscribe.
 type CreateSubscriptionRequest struct {
-	PlanID string `json:"plan_id" binding:"required"`
+	PlanID       string `json:"plan_id" binding:"required"`
+	SeatCount    int    `json:"seat_count" binding:"required,min=1"`
+	BillingCycle string `json:"billing_cycle" binding:"omitempty,oneof=monthly annual"`
 }
 
 // CreatePaymentIntentRequest is the payload for creating a payment intent.

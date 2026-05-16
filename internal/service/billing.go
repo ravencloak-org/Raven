@@ -98,6 +98,15 @@ func (s *BillingService) CreateSubscription(ctx context.Context, orgID string, r
 		return nil, err
 	}
 
+	if plan.MinSeats > 0 && req.SeatCount < plan.MinSeats {
+		return nil, apierror.NewBadRequest(fmt.Sprintf("plan %q requires a minimum of %d seats", plan.ID, plan.MinSeats))
+	}
+
+	// Default billing cycle to "monthly" when not specified.
+	if req.BillingCycle == "" {
+		req.BillingCycle = "monthly"
+	}
+
 	now := time.Now().UTC()
 
 	// Check if org already has an active subscription.
@@ -115,14 +124,29 @@ func (s *BillingService) CreateSubscription(ctx context.Context, orgID string, r
 		return nil, apierror.NewConflict("organisation already has an active subscription: " + existing.ID)
 	}
 
+	// Compute billing period end and payment amount based on billing cycle.
+	// Annual billing: 10 months' price (2 months free ≈ 20% discount).
+	// Monthly billing: 1 month's price.
+	var periodEnd time.Time
+	var amount int64
+	if req.BillingCycle == "annual" {
+		periodEnd = now.AddDate(1, 0, 0)
+		amount = plan.PricePerSeatMonthly * int64(req.SeatCount) * 10
+	} else {
+		periodEnd = now.AddDate(0, 1, 0)
+		amount = plan.PricePerSeatMonthly * int64(req.SeatCount)
+	}
+
 	// For the free plan, no payment orchestration is needed.
 	if plan.Tier == model.PlanTierFree {
 		sub := &model.Subscription{
 			OrgID:              orgID,
 			PlanID:             plan.ID,
 			Status:             model.SubscriptionStatusActive,
+			SeatCount:          req.SeatCount,
+			BillingCycle:       req.BillingCycle,
 			CurrentPeriodStart: now,
-			CurrentPeriodEnd:   now.AddDate(0, 1, 0),
+			CurrentPeriodEnd:   periodEnd,
 		}
 
 		var result *model.Subscription
@@ -138,15 +162,17 @@ func (s *BillingService) CreateSubscription(ctx context.Context, orgID string, r
 		return result, nil
 	}
 
-	// Paid plan: create a payment via Hyperswitch with Razorpay as the connector.
+	// Paid plan: charge per seat in INR via Hyperswitch with Razorpay as the connector.
 	hsResp, err := s.hsClient.CreatePayment(ctx, &hyperswitch.CreatePaymentRequest{
-		Amount:           plan.PriceMonthly,
-		Currency:         "USD",
+		Amount:           amount,
+		Currency:         "INR",
 		CustomerID:       orgID,
 		SetupFutureUsage: "off_session",
 		Metadata: map[string]string{
-			"plan_id": plan.ID,
-			"org_id":  orgID,
+			"plan_id":       plan.ID,
+			"org_id":        orgID,
+			"seat_count":    fmt.Sprintf("%d", req.SeatCount),
+			"billing_cycle": req.BillingCycle,
 		},
 	})
 	if err != nil {
@@ -158,9 +184,11 @@ func (s *BillingService) CreateSubscription(ctx context.Context, orgID string, r
 		OrgID:                     orgID,
 		PlanID:                    plan.ID,
 		Status:                    model.SubscriptionStatusActive,
+		SeatCount:                 req.SeatCount,
+		BillingCycle:              req.BillingCycle,
 		HyperswitchSubscriptionID: hsResp.PaymentID,
 		CurrentPeriodStart:        now,
-		CurrentPeriodEnd:          now.AddDate(0, 1, 0),
+		CurrentPeriodEnd:          periodEnd,
 	}
 
 	var result *model.Subscription
