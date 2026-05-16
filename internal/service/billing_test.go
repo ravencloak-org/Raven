@@ -109,7 +109,8 @@ func TestGetPlanByID_Found(t *testing.T) {
 	plan, err := svc.GetPlanByID("plan_pro")
 	require.NoError(t, err)
 	assert.Equal(t, model.PlanTierPro, plan.Tier)
-	assert.Equal(t, int64(2900), plan.PriceMonthly)
+	assert.Equal(t, int64(170000), plan.PricePerSeatMonthly)
+	assert.Equal(t, 5, plan.MinSeats)
 }
 
 func TestGetPlanByID_NotFound(t *testing.T) {
@@ -152,7 +153,8 @@ func TestSubscriptionStateMachine_FreePlan(t *testing.T) {
 	plan, err := svc.GetPlanByID("plan_free")
 	require.NoError(t, err)
 	assert.Equal(t, model.PlanTierFree, plan.Tier)
-	assert.Equal(t, int64(0), plan.PriceMonthly)
+	assert.Equal(t, int64(0), plan.PricePerSeatMonthly)
+	assert.Equal(t, 0, plan.MinSeats)
 }
 
 func TestDefaultPlans_FeatureLimits(t *testing.T) {

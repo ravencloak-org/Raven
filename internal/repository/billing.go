@@ -25,25 +25,25 @@ func NewBillingRepository(pool *pgxpool.Pool) *BillingRepository {
 
 const (
 	sqlSubscriptionInsert = `
-		INSERT INTO subscriptions (org_id, plan_id, status, hyperswitch_subscription_id, current_period_start, current_period_end)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, org_id, plan_id, status, hyperswitch_subscription_id,
+		INSERT INTO subscriptions (org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id, current_period_start, current_period_end)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		RETURNING id, org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id,
 		          current_period_start, current_period_end, created_at`
 
 	sqlSubscriptionByID = `
-		SELECT id, org_id, plan_id, status, hyperswitch_subscription_id,
+		SELECT id, org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id,
 		       current_period_start, current_period_end, created_at
 		FROM subscriptions
 		WHERE id = $1 AND org_id = $2`
 
 	sqlSubscriptionByHyperswitchID = `
-		SELECT id, org_id, plan_id, status, hyperswitch_subscription_id,
+		SELECT id, org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id,
 		       current_period_start, current_period_end, created_at
 		FROM subscriptions
 		WHERE hyperswitch_subscription_id = $1`
 
 	sqlSubscriptionActiveByOrg = `
-		SELECT id, org_id, plan_id, status, hyperswitch_subscription_id,
+		SELECT id, org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id,
 		       current_period_start, current_period_end, created_at
 		FROM subscriptions
 		WHERE org_id = $1 AND status IN ('active', 'trialing', 'past_due')
@@ -52,7 +52,7 @@ const (
 	sqlSubscriptionUpdateStatus = `
 		UPDATE subscriptions SET status = $3
 		WHERE id = $1 AND org_id = $2
-		RETURNING id, org_id, plan_id, status, hyperswitch_subscription_id,
+		RETURNING id, org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id,
 		          current_period_start, current_period_end, created_at`
 
 	sqlSubscriptionExtendPeriod = `
@@ -61,7 +61,7 @@ const (
 			current_period_start = now(),
 			current_period_end   = now() + interval '1 month'
 		WHERE hyperswitch_subscription_id = $1
-		RETURNING id, org_id, plan_id, status, hyperswitch_subscription_id,
+		RETURNING id, org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id,
 		          current_period_start, current_period_end, created_at`
 
 	sqlPaymentIntentInsert = `
@@ -99,6 +99,8 @@ func scanSubscription(row pgx.Row) (*model.Subscription, error) {
 		&s.OrgID,
 		&s.PlanID,
 		&s.Status,
+		&s.SeatCount,
+		&s.BillingCycle,
 		&s.HyperswitchSubscriptionID,
 		&s.CurrentPeriodStart,
 		&s.CurrentPeriodEnd,
@@ -116,6 +118,8 @@ func (r *BillingRepository) CreateSubscription(ctx context.Context, tx pgx.Tx, s
 		sub.OrgID,
 		sub.PlanID,
 		sub.Status,
+		sub.SeatCount,
+		sub.BillingCycle,
 		sub.HyperswitchSubscriptionID,
 		sub.CurrentPeriodStart,
 		sub.CurrentPeriodEnd,
