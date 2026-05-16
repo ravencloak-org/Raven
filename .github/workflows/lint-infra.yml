@@ -68,3 +68,39 @@ jobs:
         with:
           reporter: github-pr-check
           fail_level: warning
+
+  # Catches a class of regression that desktop-release.yml's tag-only
+  # trigger makes invisible at PR time. The Tauri desktop crate lives in
+  # a Cargo workspace at desktop/ — cargo writes build artefacts to
+  # desktop/target/, NOT desktop/src-tauri/target/. PR #502 fixed this in
+  # April; PR #542 (auto-update channel) re-introduced the wrong path,
+  # and no one noticed until the next tag push because desktop-release.yml
+  # never runs on PRs. PR #600 had to clean up after the fact.
+  #
+  # Asserting at PR time that no workflow YAML references the wrong path
+  # would have caught #542 before merge.
+  forbidden-workflow-paths:
+    name: Forbidden workflow paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Reject src-tauri/target/ in workflows
+        run: |
+          set -euo pipefail
+          # Exclude this file (it documents the forbidden pattern in
+          # comments + error messages) and use grep -F for a literal
+          # match — the forbidden token is just a fixed string.
+          if matches=$(grep -rFn --exclude='lint-infra.yml' 'src-tauri/target' .github/workflows/ 2>/dev/null); then
+            echo "::error::Workflow YAML references the forbidden path token."
+            echo "::error::The Tauri desktop crate is part of the Cargo workspace at desktop/, so artefacts land at desktop/target/ (workspace root), not under the crate subdirectory."
+            echo "::error::See PR #502 (original fix) and #600 (regression cleanup) for history."
+            echo ""
+            echo "$matches"
+            exit 1
+          fi
+          echo "OK - no forbidden target-path references in .github/workflows/"
