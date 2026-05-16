@@ -12,6 +12,7 @@ from grpc_reflection.v1alpha import reflection
 from raven_worker.config import settings
 from raven_worker.generated import ai_worker_pb2, ai_worker_pb2_grpc
 from raven_worker.http_internal import build_app
+from raven_worker.llm_fuse import FuseTripped
 from raven_worker.services.embedding import EmbeddingServicer
 from raven_worker.services.rag import RAGServicer
 from raven_worker.telemetry import get_grpc_server_interceptor, init_telemetry
@@ -43,9 +44,21 @@ class AIWorkerServicer(
         )
 
     async def QueryRAG(self, request, context):
-        """Stream RAG results for a query."""
-        async for chunk in self._rag.query(request, context):
-            yield chunk
+        """Stream RAG results for a query.
+
+        Translates :class:`raven_worker.llm_fuse.FuseTripped` (raised when
+        the demo's daily $-cap is crossed) into gRPC
+        ``RESOURCE_EXHAUSTED`` so callers can surface a clear "demo limit
+        reached" error to the end user.
+        """
+        try:
+            async for chunk in self._rag.query(request, context):
+                yield chunk
+        except FuseTripped as e:
+            await context.abort(
+                grpc.StatusCode.RESOURCE_EXHAUSTED,
+                f"Demo daily LLM limit reached. Try again tomorrow. ({e})",
+            )
 
     async def GetEmbedding(self, request, context):
         """Generate an embedding for a single text input."""
