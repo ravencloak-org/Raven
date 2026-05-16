@@ -66,6 +66,10 @@ func (m *mockBillingService) HandleWebhook(ctx context.Context, event model.Hype
 	return nil
 }
 
+func (m *mockBillingService) CreateEnterpriseSubscription(_ context.Context, _ model.CreateEnterpriseSubscriptionRequest) (*model.Subscription, error) {
+	return nil, nil
+}
+
 // newBillingRouter creates a test Gin engine with billing routes.
 // If withAuth is true, it sets up middleware that injects org context.
 func newBillingRouter(svc handler.BillingServicer, withAuth bool) *gin.Engine {

@@ -44,7 +44,7 @@ func (m *mockHyperswitchClient) CancelPayment(ctx context.Context, paymentID str
 
 func TestVerifyWebhookSignature_ValidSignature(t *testing.T) {
 	secret := "test-webhook-secret-key"
-	svc := service.NewBillingService(nil, nil, nil, secret)
+	svc := service.NewBillingService(nil, nil, nil, secret, "")
 
 	payload := []byte(`{"event_type":"payment_succeeded","content":{"payment_id":"pay_123"}}`)
 	mac := hmac.New(sha256.New, []byte(secret))
@@ -57,7 +57,7 @@ func TestVerifyWebhookSignature_ValidSignature(t *testing.T) {
 
 func TestVerifyWebhookSignature_InvalidSignature(t *testing.T) {
 	secret := "test-webhook-secret-key"
-	svc := service.NewBillingService(nil, nil, nil, secret)
+	svc := service.NewBillingService(nil, nil, nil, secret, "")
 
 	payload := []byte(`{"event_type":"payment_succeeded"}`)
 	err := svc.VerifyWebhookSignature(payload, "bad_signature")
@@ -66,7 +66,7 @@ func TestVerifyWebhookSignature_InvalidSignature(t *testing.T) {
 }
 
 func TestVerifyWebhookSignature_EmptySecret_Rejects(t *testing.T) {
-	svc := service.NewBillingService(nil, nil, nil, "")
+	svc := service.NewBillingService(nil, nil, nil, "", "")
 
 	payload := []byte(`{"event_type":"payment_succeeded"}`)
 	err := svc.VerifyWebhookSignature(payload, "any_signature")
@@ -76,7 +76,7 @@ func TestVerifyWebhookSignature_EmptySecret_Rejects(t *testing.T) {
 
 func TestVerifyWebhookSignature_TamperedPayload(t *testing.T) {
 	secret := "test-webhook-secret-key"
-	svc := service.NewBillingService(nil, nil, nil, secret)
+	svc := service.NewBillingService(nil, nil, nil, secret, "")
 
 	originalPayload := []byte(`{"event_type":"payment_succeeded","content":{"payment_id":"pay_123"}}`)
 	mac := hmac.New(sha256.New, []byte(secret))
@@ -91,7 +91,7 @@ func TestVerifyWebhookSignature_TamperedPayload(t *testing.T) {
 }
 
 func TestGetPlans_ReturnsThreeTiers(t *testing.T) {
-	svc := service.NewBillingService(nil, nil, nil, "")
+	svc := service.NewBillingService(nil, nil, nil, "", "")
 	plans := svc.GetPlans()
 
 	assert.Len(t, plans, 3)
@@ -105,7 +105,7 @@ func TestGetPlans_ReturnsThreeTiers(t *testing.T) {
 }
 
 func TestGetPlanByID_Found(t *testing.T) {
-	svc := service.NewBillingService(nil, nil, nil, "")
+	svc := service.NewBillingService(nil, nil, nil, "", "")
 	plan, err := svc.GetPlanByID("plan_pro")
 	require.NoError(t, err)
 	assert.Equal(t, model.PlanTierPro, plan.Tier)
@@ -114,7 +114,7 @@ func TestGetPlanByID_Found(t *testing.T) {
 }
 
 func TestGetPlanByID_NotFound(t *testing.T) {
-	svc := service.NewBillingService(nil, nil, nil, "")
+	svc := service.NewBillingService(nil, nil, nil, "", "")
 	_, err := svc.GetPlanByID("plan_nonexistent")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
@@ -127,7 +127,7 @@ func TestCreatePaymentIntent_HyperswitchError(t *testing.T) {
 		},
 	}
 
-	svc := service.NewBillingService(nil, nil, hsClient, "")
+	svc := service.NewBillingService(nil, nil, hsClient, "", "")
 
 	pi, err := svc.CreatePaymentIntent(context.Background(), "org-123", model.CreatePaymentIntentRequest{
 		Amount:   5000,
@@ -147,7 +147,7 @@ func TestSubscriptionStateMachine_FreePlan(t *testing.T) {
 		},
 	}
 
-	svc := service.NewBillingService(nil, nil, hsClient, "")
+	svc := service.NewBillingService(nil, nil, hsClient, "", "")
 	// Note: CreateSubscription requires a DB pool for RLS transactions.
 	// We verify plan lookup and Hyperswitch client selection logic here.
 	plan, err := svc.GetPlanByID("plan_free")

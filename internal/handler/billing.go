@@ -21,6 +21,7 @@ type BillingServicer interface {
 	CreatePaymentIntent(ctx context.Context, orgID string, req model.CreatePaymentIntentRequest) (*model.PaymentIntent, error)
 	VerifyWebhookSignature(payload []byte, signature string) error
 	HandleWebhook(ctx context.Context, event model.HyperswitchWebhookPayload) error
+	CreateEnterpriseSubscription(ctx context.Context, req model.CreateEnterpriseSubscriptionRequest) (*model.Subscription, error)
 }
 
 // BillingHandler handles HTTP requests for billing and subscription management.
@@ -270,4 +271,27 @@ func (h *BillingHandler) Webhook(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+// CreateEnterpriseSubscription handles POST /api/v1/admin/billing/subscriptions/enterprise.
+// This is a sales-led, admin-only endpoint — no Hyperswitch payment is created.
+// No Swagger annotation is intentional: this endpoint must not appear in public API docs.
+func (h *BillingHandler) CreateEnterpriseSubscription(c *gin.Context) {
+	var req model.CreateEnterpriseSubscriptionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, apierror.AppError{
+			Code:    http.StatusUnprocessableEntity,
+			Message: "Unprocessable Entity",
+			Detail:  err.Error(),
+		})
+		return
+	}
+
+	sub, err := h.svc.CreateEnterpriseSubscription(c.Request.Context(), req)
+	if err != nil {
+		_ = c.Error(err)
+		c.Abort()
+		return
+	}
+	c.JSON(http.StatusCreated, sub)
 }

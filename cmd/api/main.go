@@ -394,7 +394,7 @@ func main() {
 	leadSvc := service.NewLeadService(leadRepo).WithWebhookDispatcher(webhookSvc)
 	whatsappSvc := service.NewWhatsAppService(whatsappRepo, pool)
 	hsClient := hyperswitch.NewClient(cfg.Hyperswitch.BaseURL, cfg.Hyperswitch.APIKey)
-	billingSvc := service.NewBillingService(billingRepo, pool, hsClient, cfg.Hyperswitch.WebhookSecret)
+	billingSvc := service.NewBillingService(billingRepo, pool, hsClient, cfg.Hyperswitch.WebhookSecret, cfg.Billing.SlackWebhookURL)
 	chatRepo := repository.NewChatRepository(pool)
 	// Cross-channel conversation memory (issue #258): shares the
 	// conversation_sessions table with #257. The migration
@@ -958,6 +958,7 @@ func main() {
 		c.AbortWithStatusJSON(401, gin.H{"error": "valid X-Seed-Key header required"})
 	})
 	admin.POST("/seed-demo", seedHandler.SeedDemo)
+	admin.POST("/billing/subscriptions/enterprise", billingHandler.CreateEnterpriseSubscription)
 
 	// Auth callback — outside the session-protected /api/v1 group.
 	// We verify the session directly via the SuperTokens SDK rather than
