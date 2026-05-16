@@ -12,14 +12,15 @@ export interface PrecheckResult {
 }
 
 /**
- * Returns the RAM tier band for the host. Bands match the model-picker spec:
- *   <8 GB  → 'floor' (only the smallest model fits)
- *   8-11   → 'low'   (default 8b model is OK but tight)
- *   12-15  → 'mid'   (default 8b model is comfortable)
- *   16+    → 'high'  (13b also offered)
+ * Returns the RAM tier band for the host. Bands match the model-picker spec
+ * and the per-model "fits X GB hosts" descriptions in ModelPickerStep.vue:
+ *   ≤ 8 GB   → 'floor' (only llama3.2:3b — "fits 8 GB hosts")
+ *   9-11 GB  → 'low'   (default 8b model is OK but tight)
+ *   12-15 GB → 'mid'   (default 8b model is comfortable)
+ *   16+ GB   → 'high'  (13b also offered)
  */
 export function ramTier(ramGb: number): RamTier {
-  if (ramGb < 8) return 'floor'
+  if (ramGb < 9) return 'floor'
   if (ramGb < 12) return 'low'
   if (ramGb < 16) return 'mid'
   return 'high'
