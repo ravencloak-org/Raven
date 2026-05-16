@@ -127,3 +127,7 @@ but why s3 either, we are using postgress right? what is this dynamodb for?
 
 check and continue
 
+### Prompt 24
+
+yes
+

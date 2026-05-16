@@ -3,32 +3,40 @@
   "checkpoint_id": "7c50cbe9575a",
   "session_id": "96a9ccf6-73df-4951-9053-b40c67817f09",
   "strategy": "manual-commit",
-  "created_at": "2026-05-16T00:20:10.515567Z",
-  "branch": "feat/demo-llm-fuse-wiring",
+  "created_at": "2026-05-16T14:26:36.425329Z",
+  "branch": "fix/desktop-attest-paths",
   "checkpoints_count": 1,
   "files_touched": [
-    "ai-worker/raven_worker/server.py",
-    "ai-worker/raven_worker/services/rag.py",
-    "ai-worker/tests/test_rag_llm_fuse.py"
+    ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
+    "cmd/api/main.go",
+    "frontend/src/components/AppSidebar.vue",
+    "frontend/src/components/MobileTabBar.vue",
+    "frontend/src/components/TurnstileWidget.vue",
+    "frontend/src/lib/featureFlags.ts",
+    "frontend/src/pages/LoginPage.vue",
+    "frontend/src/plugins/supertokens.ts",
+    "frontend/src/router/index.ts",
+    "internal/turnstile/middleware.go",
+    "internal/turnstile/middleware_test.go"
   ],
   "agent": "Claude Code",
-  "transcript_identifier_at_start": "5340492a-0999-4d61-b0ae-5071d4a70954",
-  "checkpoint_transcript_start": 2073,
-  "transcript_lines_at_start": 2073,
+  "transcript_identifier_at_start": "16beec0f-52ce-48f7-8d0c-2e30583ebef1",
+  "checkpoint_transcript_start": 2168,
+  "transcript_lines_at_start": 2168,
   "token_usage": {
-    "input_tokens": 30,
-    "cache_creation_tokens": 21101,
-    "cache_read_tokens": 14671040,
-    "output_tokens": 11796,
-    "api_call_count": 25
+    "input_tokens": 62,
+    "cache_creation_tokens": 1242938,
+    "cache_read_tokens": 34392546,
+    "output_tokens": 30887,
+    "api_call_count": 57
   },
   "initial_attribution": {
-    "calculated_at": "2026-05-16T00:20:10.153034Z",
+    "calculated_at": "2026-05-16T14:26:36.024021Z",
     "agent_lines": 0,
-    "human_added": 1857,
-    "human_modified": 3,
+    "human_added": 776,
+    "human_modified": 315,
     "human_removed": 0,
-    "total_committed": 1857,
+    "total_committed": 1091,
     "agent_percentage": 0
   }
 }

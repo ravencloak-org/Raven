@@ -2,16 +2,24 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "branch": "feat/demo-llm-fuse-wiring",
+  "branch": "fix/desktop-attest-paths",
   "checkpoints_count": 3,
   "files_touched": [
     ".claude/worktrees/agent-a0b9e309acd5c05e6/.env.ci",
     ".claude/worktrees/agent-a3c53057da799ff5c/.env.ci",
     ".claude/worktrees/agent-ab102b1529f4b4915/.env.ci",
+    ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
     "CONTEXT.md",
-    "ai-worker/raven_worker/server.py",
-    "ai-worker/raven_worker/services/rag.py",
-    "ai-worker/tests/test_rag_llm_fuse.py"
+    "cmd/api/main.go",
+    "frontend/src/components/AppSidebar.vue",
+    "frontend/src/components/MobileTabBar.vue",
+    "frontend/src/components/TurnstileWidget.vue",
+    "frontend/src/lib/featureFlags.ts",
+    "frontend/src/pages/LoginPage.vue",
+    "frontend/src/plugins/supertokens.ts",
+    "frontend/src/router/index.ts",
+    "internal/turnstile/middleware.go",
+    "internal/turnstile/middleware_test.go"
   ],
   "sessions": [
     {
@@ -37,10 +45,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 71,
-    "cache_creation_tokens": 128777,
-    "cache_read_tokens": 15514807,
-    "output_tokens": 24435,
-    "api_call_count": 42
+    "input_tokens": 103,
+    "cache_creation_tokens": 1350614,
+    "cache_read_tokens": 35236313,
+    "output_tokens": 43526,
+    "api_call_count": 74
   }
 }
