@@ -20,6 +20,9 @@ const (
 	// CronCleanup runs the session/event cleanup daily at 2 AM UTC.
 	CronCleanup = "0 2 * * *"
 
+	// CronTrialLifecycle runs the trial/grace/archive pipeline daily at 3 AM UTC.
+	CronTrialLifecycle = "0 3 * * *"
+
 	// CronUsageAggregation runs the usage aggregation every hour at minute 5.
 	CronUsageAggregation = "5 * * * *"
 )
@@ -102,6 +105,17 @@ func NewScheduler(cfg SchedulerConfig) (*Scheduler, error) {
 		return nil, fmt.Errorf("register voice usage aggregation cron: %w", err)
 	}
 
+	trialLifecycleTask, err := NewTrialLifecycleTask(TrialLifecyclePayload{})
+	if err != nil {
+		return nil, fmt.Errorf("create trial lifecycle task: %w", err)
+	}
+	if _, err := scheduler.Register(CronTrialLifecycle, trialLifecycleTask,
+		asynq.Queue("default"),
+		asynq.MaxRetry(3),
+	); err != nil {
+		return nil, fmt.Errorf("register trial lifecycle cron: %w", err)
+	}
+
 	// Build a ServeMux with handlers for each scheduled task type.
 	mux := asynq.NewServeMux()
 
@@ -126,11 +140,15 @@ func NewScheduler(cfg SchedulerConfig) (*Scheduler, error) {
 	voiceUsageHandler := NewVoiceUsageHandler(cfg.Pool, cfg.Logger)
 	mux.Handle(TypeVoiceUsageAggregation, voiceUsageHandler)
 
+	trialLifecycleHandler := NewTrialLifecycleHandler(cfg.Pool, cfg.QueueClient, cfg.Logger)
+	mux.Handle(TypeTrialLifecycle, trialLifecycleHandler)
+
 	cfg.Logger.Info("scheduler configured",
 		"recrawl_cron", CronRecrawl,
 		"cleanup_cron", CronCleanup,
 		"usage_aggregation_cron", CronUsageAggregation,
 		"voice_usage_aggregation_cron", CronVoiceUsageAggregation,
+		"trial_lifecycle_cron", CronTrialLifecycle,
 	)
 
 	return &Scheduler{

@@ -25,35 +25,42 @@ func NewBillingRepository(pool *pgxpool.Pool) *BillingRepository {
 
 const (
 	sqlSubscriptionInsert = `
-		INSERT INTO subscriptions (org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id, current_period_start, current_period_end)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO subscriptions (org_id, plan_id, status, seat_count, billing_cycle,
+		                           hyperswitch_subscription_id, current_period_start, current_period_end,
+		                           trial_ends_at, grace_period_ends_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING id, org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id,
-		          current_period_start, current_period_end, created_at`
+		          current_period_start, current_period_end, created_at,
+		          trial_ends_at, grace_period_ends_at`
 
 	sqlSubscriptionByID = `
 		SELECT id, org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id,
-		       current_period_start, current_period_end, created_at
+		       current_period_start, current_period_end, created_at,
+		       trial_ends_at, grace_period_ends_at
 		FROM subscriptions
 		WHERE id = $1 AND org_id = $2`
 
 	sqlSubscriptionByHyperswitchID = `
 		SELECT id, org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id,
-		       current_period_start, current_period_end, created_at
+		       current_period_start, current_period_end, created_at,
+		       trial_ends_at, grace_period_ends_at
 		FROM subscriptions
 		WHERE hyperswitch_subscription_id = $1`
 
 	sqlSubscriptionActiveByOrg = `
 		SELECT id, org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id,
-		       current_period_start, current_period_end, created_at
+		       current_period_start, current_period_end, created_at,
+		       trial_ends_at, grace_period_ends_at
 		FROM subscriptions
-		WHERE org_id = $1 AND status IN ('active', 'trialing', 'past_due')
+		WHERE org_id = $1 AND status IN ('active', 'trialing', 'past_due', 'expired')
 		LIMIT 1`
 
 	sqlSubscriptionUpdateStatus = `
 		UPDATE subscriptions SET status = $3
 		WHERE id = $1 AND org_id = $2
 		RETURNING id, org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id,
-		          current_period_start, current_period_end, created_at`
+		          current_period_start, current_period_end, created_at,
+		          trial_ends_at, grace_period_ends_at`
 
 	sqlSubscriptionExtendPeriod = `
 		UPDATE subscriptions SET
@@ -62,7 +69,8 @@ const (
 			current_period_end   = now() + interval '1 month'
 		WHERE hyperswitch_subscription_id = $1
 		RETURNING id, org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id,
-		          current_period_start, current_period_end, created_at`
+		          current_period_start, current_period_end, created_at,
+		          trial_ends_at, grace_period_ends_at`
 
 	sqlPaymentIntentInsert = `
 		INSERT INTO payment_intents (org_id, amount, currency, status, hyperswitch_payment_id, client_secret)
@@ -90,6 +98,14 @@ const (
 		SELECT COALESCE(SUM(total_duration_seconds), 0)
 		FROM voice_usage_summaries
 		WHERE org_id = $1 AND period_start >= $2`
+
+	sqlClearTrialFields = `
+		UPDATE subscriptions
+		SET trial_ends_at = NULL, grace_period_ends_at = NULL
+		WHERE id = $1 AND org_id = $2
+		RETURNING id, org_id, plan_id, status, hyperswitch_subscription_id,
+		          current_period_start, current_period_end, created_at,
+		          trial_ends_at, grace_period_ends_at`
 )
 
 func scanSubscription(row pgx.Row) (*model.Subscription, error) {
@@ -105,6 +121,8 @@ func scanSubscription(row pgx.Row) (*model.Subscription, error) {
 		&s.CurrentPeriodStart,
 		&s.CurrentPeriodEnd,
 		&s.CreatedAt,
+		&s.TrialEndsAt,
+		&s.GracePeriodEndsAt,
 	)
 	if err != nil {
 		return nil, err
@@ -123,6 +141,8 @@ func (r *BillingRepository) CreateSubscription(ctx context.Context, tx pgx.Tx, s
 		sub.HyperswitchSubscriptionID,
 		sub.CurrentPeriodStart,
 		sub.CurrentPeriodEnd,
+		sub.TrialEndsAt,
+		sub.GracePeriodEndsAt,
 	)
 	result, err := scanSubscription(row)
 	if err != nil {
@@ -261,6 +281,17 @@ func (r *BillingRepository) CountMembersByOrg(ctx context.Context, tx pgx.Tx, or
 		return 0, fmt.Errorf("BillingRepository.CountMembersByOrg: %w", err)
 	}
 	return count, nil
+}
+
+// ClearTrialFields nullifies trial_ends_at and grace_period_ends_at for a subscription.
+// Used when reactivating a subscription after the trial/grace period.
+func (r *BillingRepository) ClearTrialFields(ctx context.Context, tx pgx.Tx, orgID, subscriptionID string) (*model.Subscription, error) {
+	row := tx.QueryRow(ctx, sqlClearTrialFields, subscriptionID, orgID)
+	s, err := scanSubscription(row)
+	if err != nil {
+		return nil, fmt.Errorf("BillingRepository.ClearTrialFields: %w", err)
+	}
+	return s, nil
 }
 
 // GetVoiceUsageForPeriod returns total voice duration (seconds) for an org since periodStart.

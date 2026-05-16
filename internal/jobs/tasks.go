@@ -6,6 +6,7 @@ package jobs
 
 import (
 	"encoding/json"
+	"time"
 	"fmt"
 
 	"github.com/hibiken/asynq"
@@ -23,6 +24,9 @@ const (
 
 	// TypeUsageAggregation rolls up API usage metrics per org/workspace for billing.
 	TypeUsageAggregation = "scheduled:usage_aggregation"
+
+	// TypeTrialLifecycle advances subscriptions through the trial→grace→archive→delete pipeline.
+	TypeTrialLifecycle = "scheduled:trial_lifecycle"
 )
 
 // RecrawlPayload is the payload for the source re-crawl scheduled task.
@@ -79,4 +83,22 @@ func NewUsageAggregationTask(p UsageAggregationPayload) (*asynq.Task, error) {
 		return nil, fmt.Errorf("marshal UsageAggregationPayload: %w", err)
 	}
 	return asynq.NewTask(TypeUsageAggregation, data), nil
+}
+
+// TrialLifecyclePayload is the payload for the trial lifecycle daily job.
+type TrialLifecyclePayload struct {
+	// OrgID optionally restricts the run to a single organisation (used in tests).
+	OrgID string `json:"org_id,omitempty"`
+
+	// AsOf overrides the current time for deterministic testing. Zero means now().
+	AsOf time.Time `json:"as_of,omitempty"`
+}
+
+// NewTrialLifecycleTask creates a new Asynq task for the trial lifecycle job.
+func NewTrialLifecycleTask(p TrialLifecyclePayload) (*asynq.Task, error) {
+	data, err := json.Marshal(p)
+	if err != nil {
+		return nil, fmt.Errorf("marshal TrialLifecyclePayload: %w", err)
+	}
+	return asynq.NewTask(TypeTrialLifecycle, data), nil
 }
