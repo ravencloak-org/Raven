@@ -5,6 +5,7 @@ import { useBillingStore } from '../../stores/billing'
 import { cancelSubscription } from '../../api/billing'
 import { useMobile } from '../../composables/useMediaQuery'
 import BottomSheet from '../../components/BottomSheet.vue'
+import SeatUpgradePanel from '../../components/billing/SeatUpgradePanel.vue'
 
 const route = useRoute()
 const store = useBillingStore()
@@ -13,6 +14,28 @@ const { isMobile } = useMobile()
 const orgId = route.params.orgId as string
 
 const showCancelConfirm = ref(false)
+const showSeatUpgrade = ref(false)
+
+const canUpgradeSeats = computed(() => {
+  const sub = store.subscription
+  if (!sub) return false
+  return sub.status === 'active' || sub.status === 'trialing'
+})
+
+function openSeatUpgrade() {
+  showSeatUpgrade.value = true
+}
+
+function closeSeatUpgrade() {
+  showSeatUpgrade.value = false
+}
+
+async function handleSeatUpgradeSuccess() {
+  // Webhook updates seat_count asynchronously; refresh both to reflect the
+  // new state as soon as the backend has persisted it.
+  await Promise.all([store.fetchSubscription(orgId), store.fetchUsage(orgId)])
+  showSeatUpgrade.value = false
+}
 
 onMounted(async () => {
   await Promise.all([store.fetchUsage(orgId), store.fetchSubscription(orgId)])
@@ -99,12 +122,23 @@ async function handleCancelConfirmed() {
             </p>
           </div>
 
-          <RouterLink
-            :to="`/orgs/${orgId}/billing/upgrade`"
-            class="inline-flex items-center justify-center min-h-[44px] rounded-lg bg-indigo-600 px-6 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
-          >
-            Upgrade Plan
-          </RouterLink>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <button
+              v-if="canUpgradeSeats"
+              type="button"
+              class="inline-flex items-center justify-center min-h-[44px] rounded-lg border border-indigo-500/60 px-5 text-sm font-semibold text-indigo-300 hover:bg-indigo-500/10 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              aria-label="Upgrade seat count for current subscription"
+              @click="openSeatUpgrade"
+            >
+              Upgrade seats
+            </button>
+            <RouterLink
+              :to="`/orgs/${orgId}/billing/upgrade`"
+              class="inline-flex items-center justify-center min-h-[44px] rounded-lg bg-indigo-600 px-6 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
+            >
+              Upgrade Plan
+            </RouterLink>
+          </div>
         </div>
       </div>
 
@@ -273,6 +307,47 @@ async function handleCancelConfirmed() {
               Cancel
             </button>
           </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Mobile: bottom-sheet seat upgrade -->
+    <BottomSheet
+      v-if="isMobile"
+      :open="showSeatUpgrade"
+      title="Add more seats"
+      @close="closeSeatUpgrade"
+    >
+      <div class="px-4 pb-6 pt-2">
+        <SeatUpgradePanel
+          v-if="store.subscription && showSeatUpgrade"
+          :subscription="store.subscription"
+          @close="closeSeatUpgrade"
+          @success="handleSeatUpgradeSuccess"
+        />
+      </div>
+    </BottomSheet>
+
+    <!-- Desktop: centered dialog seat upgrade -->
+    <Teleport v-else to="body">
+      <div
+        v-if="showSeatUpgrade"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        @click.self="closeSeatUpgrade"
+        @keydown.escape="closeSeatUpgrade"
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="seat-upgrade-title"
+          class="w-full max-w-lg rounded-xl bg-slate-800 mx-4 p-6"
+        >
+          <SeatUpgradePanel
+            v-if="store.subscription"
+            :subscription="store.subscription"
+            @close="closeSeatUpgrade"
+            @success="handleSeatUpgradeSuccess"
+          />
         </div>
       </div>
     </Teleport>

@@ -20,10 +20,30 @@ export interface Subscription {
   org_id: string
   plan: PlanName
   status: string
+  seat_count?: number
   current_period_start: string
   current_period_end: string
   created_at: string
   updated_at: string
+}
+
+export type PaymentIntentStatus =
+  | 'requires_payment_method'
+  | 'processing'
+  | 'succeeded'
+  | 'failed'
+  | 'canceled'
+
+export interface PaymentIntent {
+  id: string
+  client_secret: string
+  amount: number
+  currency: string
+  status: PaymentIntentStatus
+}
+
+export interface UpdateSeatCountRequest {
+  seat_count: number
 }
 
 export interface Plan {
@@ -98,6 +118,25 @@ export async function createSubscription(
     method: 'POST',
     body: JSON.stringify(req),
   })
+  if (!res.ok) {
+    const body = await res.json().catch(() => null)
+    const detail = body?.detail ?? body?.message ?? `status ${res.status}`
+    throw new Error(detail)
+  }
+  return res.json()
+}
+
+export async function updateSeatCount(
+  subscriptionId: string,
+  seatCount: number,
+): Promise<PaymentIntent> {
+  const res = await authFetch(
+    `/billing/subscriptions/${encodeURIComponent(subscriptionId)}/seats`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ seat_count: seatCount } satisfies UpdateSeatCountRequest),
+    },
+  )
   if (!res.ok) {
     const body = await res.json().catch(() => null)
     const detail = body?.detail ?? body?.message ?? `status ${res.status}`
