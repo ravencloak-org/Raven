@@ -6,8 +6,19 @@ name: Update Homebrew Cask after release
 # ravencloak-org/Raven/raven-ai` they get the new bits.
 
 on:
+  # The release-publish path is kept as the natural trigger when a human
+  # cuts a release manually. desktop-release.yml's manifest job uses
+  # workflow_dispatch instead, because GHA does NOT fire `release:
+  # published` for releases authored by github-actions[bot] using the
+  # default GITHUB_TOKEN (anti-loop protection).
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to bump (e.g. raven-ai-v0.1.6). Leave blank to pick the latest published raven-ai-v* release.'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -15,15 +26,39 @@ permissions:
 
 jobs:
   bump-cask:
-    if: startsWith(github.event.release.tag_name, 'raven-ai-v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Resolve target tag
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          if [ -n "$INPUT_TAG" ]; then
+            TAG="$INPUT_TAG"
+          elif [ -n "$RELEASE_TAG" ]; then
+            TAG="$RELEASE_TAG"
+          else
+            # workflow_dispatch with no input - pick the most recent
+            # raven-ai-v* release that isn't a draft.
+            TAG=$(gh release list --limit 30 --json tagName,isDraft \
+              --jq '[.[] | select(.tagName | startswith("raven-ai-v")) | select(.isDraft | not) | .tagName][0] // empty')
+          fi
+          if [ -z "$TAG" ] || ! echo "$TAG" | grep -qE '^raven-ai-v[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "ERROR: could not resolve a raven-ai-v* tag to bump (got: '$TAG')" >&2
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Resolved tag: $TAG"
+
       - name: Compute new version + sha256
         id: dmg
         env:
-          TAG: ${{ github.event.release.tag_name }}
+          TAG: ${{ steps.resolve.outputs.tag }}
         run: |
           set -euo pipefail
           VERSION="${TAG#raven-ai-v}"
@@ -67,7 +102,7 @@ jobs:
           body: |
             Auto-bump from the release pipeline.
 
-            - Tag: `${{ github.event.release.tag_name }}`
+            - Tag: `${{ steps.resolve.outputs.tag }}`
             - sha256: `${{ steps.dmg.outputs.sha }}`
 
             Once merged, users can `brew install --cask ravencloak-org/Raven/raven-ai`

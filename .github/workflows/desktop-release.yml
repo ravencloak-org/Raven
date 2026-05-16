@@ -26,6 +26,11 @@ jobs:
     env:
       HAVE_APPLE_CERT: ${{ secrets.APPLE_CERTIFICATE != '' }}
       HAVE_WINDOWS_PFX: ${{ secrets.WINDOWS_PFX_BASE64 != '' }}
+      # Used to skip Tauri-updater .sig handling (upload + manifest read)
+      # when no signing key is configured. Without the key Tauri emits no
+      # .sig files, so the upload/download steps would only generate
+      # confusing "artifact not found" warnings.
+      HAVE_TAURI_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -341,9 +346,16 @@ jobs:
           subject-path: ${{ matrix.artifact_glob }}
 
       # ── Upload artifacts + per-platform .sig files ────────────────────────
+      # Pinned to v2.0.9 (same as the manifest step's final upload). v3.0.0
+      # had a regression where supplying tag_name for a tag the worker
+      # could not yet see produced an "untagged-XXX" orphan release per
+      # matrix job, so none of the binaries landed on the real
+      # raven-ai-v0.1.6 release (which only carried latest.json). v2.0.9
+      # reliably reuses the existing draft, and the manifest job's final
+      # v2.0.9 upload then flips that same draft to published.
       - name: Upload to draft release
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/raven-ai-v')
-        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        uses: softprops/action-gh-release@e7a8f85e1c67a31e6ed99a94b41bd0b71bbee6b8 # v2.0.9
         with:
           draft: true
           files: |
@@ -355,8 +367,13 @@ jobs:
 
       # Stash .sig files as GitHub Actions artifacts so the manifest job can
       # assemble latest.json without downloading from the release directly.
+      # Skipped when no Tauri signing key is configured — there are no
+      # .sig files to upload, so the step would only produce noise.
       - name: Upload sig artifacts
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/raven-ai-v')
+        if: |
+          github.event_name == 'push' &&
+          startsWith(github.ref, 'refs/tags/raven-ai-v') &&
+          env.HAVE_TAURI_KEY == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: sig-${{ matrix.os }}
@@ -375,10 +392,14 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/raven-ai-v')
     permissions:
       contents: write
+      actions: write   # for `gh workflow run update-cask.yml` at the end
+    env:
+      HAVE_TAURI_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Download macOS sig
+        if: env.HAVE_TAURI_KEY == 'true'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v4
         with:
           name: sig-macos-latest
@@ -386,6 +407,7 @@ jobs:
         continue-on-error: true
 
       - name: Download Windows sig
+        if: env.HAVE_TAURI_KEY == 'true'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v4
         with:
           name: sig-windows-latest
@@ -393,6 +415,7 @@ jobs:
         continue-on-error: true
 
       - name: Download Linux sig
+        if: env.HAVE_TAURI_KEY == 'true'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v4
         with:
           name: sig-ubuntu-latest
@@ -457,11 +480,9 @@ jobs:
           echo "latest.json written:"
           cat latest.json
 
-      # Final step: publish the release. All per-platform artefacts are
-      # already uploaded by the `build` matrix (each into the same draft).
-      # Setting draft: false here flips it to "published", which fires
-      # `release: published` and triggers `update-cask.yml` to open the
-      # Homebrew tap bump PR.
+      # Publish the release. All per-platform artefacts are already
+      # uploaded by the `build` matrix (each into the same draft). Setting
+      # draft: false flips it to "published".
       - name: Upload latest.json and publish release
         uses: softprops/action-gh-release@e7a8f85e1c67a31e6ed99a94b41bd0b71bbee6b8 # v2.0.9
         with:
@@ -470,3 +491,14 @@ jobs:
           tag_name: ${{ github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # `release: published` events emitted by github-actions[bot] using
+      # GITHUB_TOKEN do NOT trigger other workflows — GHA's anti-loop
+      # protection. So `update-cask.yml` won't fire on its own when we
+      # publish above. Explicitly dispatch it instead. The action must
+      # come from main (not the tag ref) since update-cask.yml lives
+      # there and reads the freshly-published release by tag name.
+      - name: Trigger Homebrew Cask bump
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run update-cask.yml --ref main
