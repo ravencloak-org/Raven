@@ -61,33 +61,84 @@ async function installTauriBridge(
 
   await page.addInitScript(
     ({ precheck, pullFrames }: { precheck: PrecheckResult; pullFrames: PullProgressEvent[] }) => {
-      type Listener = (e: { payload: unknown }) => void
-      const listeners: Record<string, Set<Listener>> = {}
+      // Map of event-name → callbackIds returned by transformCallback. The
+      // real Tauri 2 `listen()` calls invoke('plugin:event|listen', …) under
+      // the hood and Rust delivers events by calling window[`_${id}`](…) —
+      // so we need to mimic that machinery, not the older __TAURI_EVENT__
+      // direct bus.
+      const eventToCallbacks: Record<string, Set<number>> = {}
+      let nextCallbackId = 1
 
-      // Surface helpers the test can call from page.evaluate to drive events
-      // and check call history.
-      ;(window as unknown as { __ravenTestBridge: unknown }).__ravenTestBridge = {
-        invokes: [] as Array<{ cmd: string; args: unknown }>,
-        emit(event: string, payload: unknown) {
-          listeners[event]?.forEach((cb) => cb({ payload }))
-        },
-        listenerCount(event: string): number {
-          return listeners[event]?.size ?? 0
-        },
+      function deliver(event: string, payload: unknown): void {
+        eventToCallbacks[event]?.forEach((id) => {
+          const cb = (window as unknown as Record<string, unknown>)[`_${id}`] as
+            | ((e: { event: string; payload: unknown; id: number }) => void)
+            | undefined
+          cb?.({ event, payload, id })
+        })
       }
 
-      // Tauri 2 invoke dispatcher.
+      // Sticky-event store: events emitted by the Rust shell on boot can
+      // race ahead of the frontend listener registration. Mirror that
+      // timing-tolerant behaviour by storing the latest payload per event
+      // and replaying it whenever a new listener subscribes.
+      const sticky: Record<string, unknown> = {
+        'precheck:result': precheck,
+      }
+
+      // Tauri 2 INTERNALS shim — implements the bits @tauri-apps/api/core
+      // and @tauri-apps/api/event actually reach for.
       ;(window as unknown as { __TAURI_INTERNALS__: unknown }).__TAURI_INTERNALS__ = {
+        // Registers a global callback under window[`_${id}`] and returns the
+        // id, matching Tauri's runtime contract used by `listen()`.
+        transformCallback: (callback: (arg: unknown) => void, once?: boolean) => {
+          const id = nextCallbackId++
+          ;(window as unknown as Record<string, unknown>)[`_${id}`] = (
+            result: unknown,
+          ) => {
+            if (once) {
+              delete (window as unknown as Record<string, unknown>)[`_${id}`]
+            }
+            callback(result)
+          }
+          return id
+        },
         invoke: async (cmd: string, args: unknown) => {
           ;(
             window as unknown as { __ravenTestBridge: { invokes: unknown[] } }
           ).__ravenTestBridge.invokes.push({ cmd, args })
 
+          if (cmd === 'plugin:event|listen') {
+            const { event, handler } = args as { event: string; handler: number }
+            if (!eventToCallbacks[event]) eventToCallbacks[event] = new Set()
+            eventToCallbacks[event].add(handler)
+            // Replay sticky payload on a microtask so the handler isn't
+            // invoked inside listen() itself.
+            if (event in sticky) {
+              const payload = sticky[event]
+              void Promise.resolve().then(() => {
+                const cb = (window as unknown as Record<string, unknown>)[
+                  `_${handler}`
+                ] as
+                  | ((e: { event: string; payload: unknown; id: number }) => void)
+                  | undefined
+                cb?.({ event, payload, id: handler })
+              })
+            }
+            // Tauri's listen() expects the resolved value to be an eventId
+            // (number) it can later pass to plugin:event|unlisten.
+            return handler
+          }
+          if (cmd === 'plugin:event|unlisten') {
+            const { event, eventId } = args as { event: string; eventId: number }
+            eventToCallbacks[event]?.delete(eventId)
+            return null
+          }
           if (cmd === 'ollama_pull_model') {
             // Stream the recorded progress frames, then resolve.
             for (const frame of pullFrames) {
               await new Promise((r) => setTimeout(r, 20))
-              listeners['ollama:pull-progress']?.forEach((cb) => cb({ payload: frame }))
+              deliver('ollama:pull-progress', frame)
             }
             return null
           }
@@ -98,15 +149,17 @@ async function installTauriBridge(
         },
       }
 
-      // Tauri 2 event bus shim.
-      ;(window as unknown as { __TAURI_EVENT__: unknown }).__TAURI_EVENT__ = {
-        listen: async (event: string, handler: Listener) => {
-          if (!listeners[event]) listeners[event] = new Set()
-          listeners[event].add(handler)
-          return () => listeners[event].delete(handler)
+      // Surface helpers the test can call from page.evaluate to drive
+      // events and inspect invoke history. Both backed by the real
+      // Tauri-2 callback table above so they behave like the runtime.
+      ;(window as unknown as { __ravenTestBridge: unknown }).__ravenTestBridge = {
+        invokes: [] as Array<{ cmd: string; args: unknown }>,
+        emit(event: string, payload: unknown) {
+          deliver(event, payload)
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        emit: async (_event: string, _payload: unknown) => {},
+        listenerCount(event: string): number {
+          return eventToCallbacks[event]?.size ?? 0
+        },
       }
 
       // Patch window.fetch BEFORE the app boots so /api/v1/config and the
@@ -139,11 +192,8 @@ async function installTauriBridge(
         return originalFetch(input, init)
       }
 
-      // Replay the initial precheck:result so the model picker has a
-      // RAM tier ready immediately after subscribe.
-      setTimeout(() => {
-        listeners['precheck:result']?.forEach((cb) => cb({ payload: precheck }))
-      }, 0)
+      // The sticky-event store above handles replay; no extra setTimeout
+      // emit is needed.
     },
     { precheck, pullFrames },
   )

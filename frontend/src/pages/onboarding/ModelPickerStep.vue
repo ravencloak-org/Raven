@@ -41,7 +41,19 @@ const visibleModels = computed(() => {
   return allModels.filter((m) => tierRank[m.minTier] <= tierRank[tier])
 })
 
-const selectedModel = ref<string>(tierToDefault[precheck.tier] ?? 'llama3.2:3b')
+// The precheck result arrives asynchronously from the Rust shell (via the
+// `precheck:result` event), so `precheck.tier` can flip from 'unknown' →
+// 'low/mid/high' after this component has mounted. A plain ref captured at
+// setup time would freeze the default to whatever tier was known on first
+// render. Track an explicit user override so the default follows the tier
+// until the user picks a radio.
+const userSelected = ref<string | null>(null)
+const selectedModel = computed<string>({
+  get: () => userSelected.value ?? tierToDefault[precheck.tier] ?? 'llama3.2:3b',
+  set: (v) => {
+    userSelected.value = v
+  },
+})
 
 const pullState = ref<'idle' | 'pulling' | 'done' | 'error'>('idle')
 const percent = ref(0)

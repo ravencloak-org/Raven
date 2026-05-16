@@ -3,12 +3,13 @@ import { setActivePinia, createPinia } from 'pinia'
 import { usePrecheckStore, ramTier } from './precheck'
 
 describe('ramTier', () => {
-  it('classifies under 8 GB as floor', () => {
+  it('classifies up to 8 GB as floor', () => {
     expect(ramTier(4)).toBe('floor')
     expect(ramTier(7)).toBe('floor')
+    expect(ramTier(8)).toBe('floor')
   })
-  it('classifies 8-11 as low', () => {
-    expect(ramTier(8)).toBe('low')
+  it('classifies 9-11 as low', () => {
+    expect(ramTier(9)).toBe('low')
     expect(ramTier(11)).toBe('low')
   })
   it('classifies 12-15 as mid', () => {
