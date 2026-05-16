@@ -22,6 +22,7 @@ from collections.abc import AsyncIterator
 import anthropic
 import asyncpg
 import grpc
+import redis as syncredis
 import redis.asyncio as aioredis
 import structlog
 from openai import AsyncOpenAI
@@ -29,6 +30,7 @@ from openai import AsyncOpenAI
 from raven_worker.config import settings
 from raven_worker.crypto import decrypt_api_key
 from raven_worker.generated import ai_worker_pb2
+from raven_worker.llm_fuse import FuseTripped, LLMSpendFuse
 from raven_worker.memory import MEMORY_TOOL, MemoryStore
 from raven_worker.providers.registry import get_provider_for_request
 from raven_worker.retrieval.bm25_search import bm25_search
@@ -38,6 +40,39 @@ from raven_worker.retrieval.rrf import reciprocal_rank_fusion
 from raven_worker.retrieval.vector_search import vector_search
 
 logger = structlog.get_logger(__name__)
+
+# ── LLM spend fuse ────────────────────────────────────────────────────────
+# Module-level lazy fuse. Used by the public demo to bound runaway LLM
+# spend; disabled when ``settings.llm_daily_usd_cap <= 0``. The cost is a
+# flat per-request estimate — accurate per-model pricing is a follow-up
+# once we wire a token-usage callback into the stream readers. For demo
+# purposes the goal is "fail closed once the day's $-cap is crossed",
+# not an accurate cost ledger.
+_LLM_REQUEST_COST_USD = 0.02
+
+_llm_fuse_sync_client: syncredis.Redis | None = None
+_llm_fuse_singleton: LLMSpendFuse | None = None
+
+
+def _get_llm_fuse() -> LLMSpendFuse | None:
+    """Return the module-level LLMSpendFuse, or None when disabled.
+
+    Lazy construction lets this module import cleanly in tests that never
+    touch the fuse. The sync Redis client is acceptable here because each
+    guard/charge call is a single tiny Redis round-trip — not enough to
+    matter against the orders-of-magnitude-longer LLM stream that follows.
+    """
+    global _llm_fuse_sync_client, _llm_fuse_singleton
+    if settings.llm_daily_usd_cap <= 0:
+        return None
+    if _llm_fuse_singleton is None:
+        _llm_fuse_sync_client = syncredis.from_url(settings.valkey_url)
+        _llm_fuse_singleton = LLMSpendFuse(
+            redis=_llm_fuse_sync_client,
+            daily_cap_usd=settings.llm_daily_usd_cap,
+        )
+    return _llm_fuse_singleton
+
 
 SYSTEM_PROMPT = """You are a helpful assistant. Answer the question based on the provided context.
 If the answer is not in the context, say you don't know.
@@ -674,6 +709,13 @@ class RAGServicer:
         messages: list[dict],
     ) -> AsyncIterator[ai_worker_pb2.RAGChunk]:
         """Stream tokens from the OpenAI Chat Completions API."""
+        # Demo $-fuse: refuse new LLM requests once today's cap is crossed.
+        # FuseTripped propagates up to QueryRAG, which translates to
+        # gRPC RESOURCE_EXHAUSTED.
+        fuse = _get_llm_fuse()
+        if fuse is not None:
+            fuse.guard(_LLM_REQUEST_COST_USD)
+
         client = AsyncOpenAI(api_key=api_key)
         full_messages = [{"role": "system", "content": system_prompt}, *messages]
 
@@ -682,6 +724,15 @@ class RAGServicer:
             messages=full_messages,  # type: ignore[arg-type]
             stream=True,
         )
+        # Charge after the stream is established; guard already verified
+        # we're under the cap. If charge crosses the cap mid-day we still
+        # let this in-flight request finish (it's already running).
+        if fuse is not None:
+            try:
+                fuse.charge(_LLM_REQUEST_COST_USD)
+            except FuseTripped:
+                logger.warning("llm_fuse_charge_crossed_cap", request_cost=_LLM_REQUEST_COST_USD)
+
         async for event in stream:  # type: ignore[union-attr]
             delta = event.choices[0].delta.content if event.choices else None
             if delta:
@@ -713,6 +764,17 @@ class RAGServicer:
           server-side ``web_search_20260209`` tool is included so Claude can
           supplement knowledge-base context with live web results.
         """
+        # Demo $-fuse: refuse new LLM requests once today's cap is crossed.
+        # Charged once per user-facing exchange — the memory-preflight and
+        # tool-iteration sub-calls below don't bill an extra fuse charge.
+        fuse = _get_llm_fuse()
+        if fuse is not None:
+            fuse.guard(_LLM_REQUEST_COST_USD)
+            try:
+                fuse.charge(_LLM_REQUEST_COST_USD)
+            except FuseTripped:
+                logger.warning("llm_fuse_charge_crossed_cap", request_cost=_LLM_REQUEST_COST_USD)
+
         client = anthropic.AsyncAnthropic(api_key=api_key)
 
         # ── Prompt caching: wrap system prompt as a cacheable block ──────────
