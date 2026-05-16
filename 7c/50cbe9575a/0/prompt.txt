@@ -207,3 +207,342 @@ The CI `go.yml` already had the correct SHA-pinned action with `version: v2.11.4
 ---
 
 continue
+
+---
+
+<task-notification>
+<task-id>a3c53057da799ff5c</task-id>
+<tool-use-id>toolu_01QRMz13bCAs7gF1a1hXEEho</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Implement #426: Tauri auto-update channel" completed</summary>
+<result>PR is open, auto-squash-merge queued. Done.
+
+---
+
+**PR:** https://github.com/ravencloak-org/Raven/pull/542 — queued for auto squash-merge.
+
+**What was implemented:**
+
+- `/desktop/src-tauri/src/updater.rs` — new module: 24h-debounced update check on launch, offline-safe (never blocks launch), `updater_install_and_restart` Tauri command, emits `updater:available` / `updater:error` / `updater:ready` events
+- `/desktop/src-tauri/src/lib.rs` — added `pub mod updater`
+- `/desktop/src-tauri/src/main.rs` — registered `tauri-plugin-updater` + `tauri-plugin-process`, wired `spawn_update_check` in setup, exposed `updater_install_and_restart` invoke handler
+- `/desktop/src-tauri/Cargo.toml` — added `tauri-plugin-updater = "2"`, `tauri-plugin-process = "2"`, `anyhow = "1"`
+- `/desktop/src-tauri/tauri.conf.json` — `plugins.updater` block: endpoint `https://download.raven.app/local/latest.json`, placeholder pubkey, `dialog: false`; macOS/Windows bundle signing stubs
+- `/desktop/ui/splash.html` — non-blocking update banner: appears on `updater:available`, "Restart to apply" triggers install, dismiss button, invisible in plain-browser previews
+- `/.github/workflows/desktop-release.yml` — macOS Apple Developer ID signing + notarization, Windows PFX signing (both gated on secret presence so CI passes unsigned), `.sig` upload alongside artifacts, new `manifest` job assembling `latest.json` via `jq` after all three platform builds
+
+**Manual setup required before first signed release:**
+
+1. **Generate Tauri key pair:** `cargo tauri signer generate -w ~/.tauri/raven-local.key` — put the public key in `tauri.conf.json` → `plugins.updater.pubkey`; add private key + password as `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` secrets
+2. **macOS secrets:** `APPLE_CERTIFICATE` (base64 .p12), `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`
+3. **Windows secrets:** `WINDOWS_PFX_BASE64` (base64 .pfx), `WINDOWS_PFX_PASSWORD`
+4. **Host the manifest:** `latest.json` is uploaded to each draft release — serve it at `https://download.raven.app/local/latest.json` (e.g. Cloudflare Pages redirect or R2)</result>
+<usage><total_tokens>99308</total_tokens><tool_uses>66</tool_uses><duration_ms>680471</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ab102b1529f4b4915</task-id>
+<tool-use-id>toolu_012NRnNtKn1Xds8R4pHhWffC</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix #535: re-enable raven-ai-onboarding e2e tests" completed</summary>
+<result>PR #544 is open with auto-squash-merge queued. Merge is blocked (waiting for CI checks). 
+
+Here is a summary of what was done:
+
+**Approach that worked:** Two-pronged fix — synchronous window flag in the store + router guard correction.
+
+**Root cause 1 — Router guard regression (PR #529):**
+`router/index.ts` was blocking `/onboarding` unconditionally in single-user mode (`to.path === '/onboarding'` → redirect `/dashboard`). This was introduced during the Raven Local → Raven AI rename. Fixed by importing `useOnboardingStore` and only redirecting when `onboarding.completed === true`.
+
+**Root cause 2 — Async fetch race:**
+Vue Router's initial navigation fires before `serverConfig.load()` resolves. `singleUser` was `false` when the guard ran, causing the wizard to fall through to the multi-user auth flow. Fixed by adding `window.__RAVEN_SINGLE_USER` as a synchronous pre-seed mechanism in `server-config.ts`.
+
+**Test fix:** `addInitScript` in `beforeEach` sets `window.__RAVEN_SINGLE_USER = true` and clears `localStorage.onboarding_completed` before the app boots, ensuring clean state per test.
+
+**Files changed:**
+- `/frontend/src/stores/server-config.ts` — synchronous window flag seeding
+- `/frontend/src/router/index.ts` — allow `/onboarding` in single-user mode when wizard not yet complete
+- `/frontend/e2e/raven-ai-onboarding.spec.ts` — `addInitScript` in `beforeEach`, all 4 `test.skip` → `test`
+
+**PR:** https://github.com/ravencloak-org/Raven/pull/544 — auto-squash-merge queued, waiting for CI.</result>
+<usage><total_tokens>155243</total_tokens><tool_uses>117</tool_uses><duration_ms>1913516</duration_ms></usage>
+<worktree><worktreePath>/Users/jobinlawrance/Project/raven/.claude/worktrees/agent-ab102b1529f4b4915</worktreePath><worktreeBranch>worktree-agent-ab102b1529f4b4915</worktreeBranch></worktree>
+</task-notification>
+
+---
+
+Done with 1, proceed with 2 and 3
+
+---
+
+<task-notification>
+<task-id>a2e47e66a19f525b7</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Rebase #542 feat/tauri-auto-update on main" completed</summary>
+<result>The pre-rebase stash (`stash@{0}`) contained a modification to `package.json`. I'll leave that stashed since it's not part of the PR work — it's the worktree's own in-progress state.
+
+**Summary:**
+
+- Fetched `origin/feat/tauri-auto-update-pr` (the real branch name for PR #542)
+- Stashed local unstaged changes and removed a blocking untracked `package-lock.json`, then rebased onto `origin/main`
+- Resolved 3 conflicted files:
+  - **`.github/workflows/desktop-release.yml`**: kept the tauri branch's `sig_glob` matrix entries and `src-tauri/target/...` paths; applied the SHA pin `ea165f8d65b6e75b540449e92b4886f43607fa02 # v4` from #543 to both `upload-artifact` usages; pinned `download-artifact` to `3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v4` (consistent with rest of repo)
+  - **`desktop/src-tauri/src/main.rs`**: kept `raven_local_lib` crate name + `updater` import/handler
+  - **`desktop/src-tauri/tauri.conf.json`**: kept the full `plugins.updater` block + proper macOS/Windows signing config
+- Force-pushed with `--force-with-lease`
+- Confirmed: `gh pr view 542 --json mergeable` → `"mergeable":"MERGEABLE"`</result>
+<usage><total_tokens>64380</total_tokens><tool_uses>37</tool_uses><duration_ms>291399</duration_ms></usage>
+</task-notification>
+
+---
+
+check
+
+---
+
+fix the conflic in the PR
+
+---
+
+done
+
+---
+
+let's do that
+
+---
+
+don't remember password, let's create again
+
+---
+
+Please enter a password to protect the secret key.
+Password:
+Password (one more time):
+Deriving a key from the password in order to encrypt the secret key... done
+
+thread 'main' (29414903) panicked at /Users/jobinlawrance/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-cli-2.11.1/src/signer/generate.rs:40:10:
+Unable to write keypair: GenericError("Key generation aborted:\n/Users/jobinlawrance/.tauri/raven-local.key already exists\nIf you really want to overwrite the existing key pair, add the --force switch to force this operation.")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---
+
+Environment variables used to sign:
+- `TAURI_SIGNING_PRIVATE_KEY`: String of your private key
+- `TAURI_SIGNING_PRIVATE_KEY_PATH`: Path to your private key file
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`:  Your private key password (optional if key has no password)
+
+---
+
+done
+
+---
+
+I think there is one already running https://github.com/ravencloak-org/Raven/actions/runs/25915212334, let's shut that and start a new one
+
+---
+
+confirm
+
+---
+
+also is there a fasten it by using cache or something, maybe use precompiled dependencies idk
+
+---
+
+done
+
+---
+
+https://github.com/ravencloak-org/Raven/actions/runs/25927029660 failed
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+continue
+
+---
+
+yes
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   - Fix all 3 open GitHub issues (ravencloak-org/Raven) in parallel: #521 (pin golangci-lint), #535 (re-enable Playwright e2e tests), #426 (Tauri auto-update channel)
+   - Set up Tauri signing infrastructure (key pair generation, GitHub secrets)
+   - Speed up the desktop release CI with caching
+   - Get the `raven-ai-v0.1.6` desktop release workflow running successfully
+
+2. Key Technical Concepts:
+   - Tauri v2 desktop app with auto-updater plugin (`tauri-plugin-updater`)
+   - Minisign key pairs for Tauri update signing
+   - GitHub Actions workflow caching (`Swatinem/rust-cache`, `actions/cache`)
+   - Playwright e2e tests with Tauri bridge mocking
+   - Vue Router guard logic and async race conditions
+   - `window.__RAVEN_SINGLE_USER` flag for synchronous pre-seeding in tests
+   - RAM tier classification: floor (<8GB), low (8-11GB), mid (12-15GB), high (16+GB)
+   - Actionlint rule: `secrets` context not allowed in step-level `if:` conditions
+   - golangci-lint version pinning (local v2.12.2 vs CI v2.11.4)
+   - Crate rename: `raven_local_lib` → `raven_ai_lib` (Raven Local → Raven AI rebrand)
+   - DCO (Developer Certificate of Origin) — all commits require `Signed-off-by` trailer
+
+3. Files and Code Sections:
+
+   - `.github/workflows/desktop-release.yml`
+     - Major file touched multiple times throughout session
+     - Added signing jobs (macOS Apple Developer ID, Windows PFX), manifest job, Tauri CLI caching
+     - Fixed Actionlint: moved `secrets.*` checks from step `if:` conditions to job-level `env:` vars
+     - Added `cache-on-failure: true` to Swatinem/rust-cache
+     - Added `actions/cache` step for `~/.cargo/bin/cargo-tauri` keyed on version+OS
+     - Key pattern for Actionlint fix:
+       ```yaml
+       env:
+         HAVE_APPLE_CERT: ${{ secrets.APPLE_CERTIFICATE != '' }}
+         HAVE_WINDOWS_PFX: ${{ secrets.WINDOWS_PFX_BASE64 != '' }}
+       # Then in steps:
+       if: matrix.os == 'macos-latest' && env.HAVE_APPLE_CERT == 'true'
+       ```
+     - Cache improvement:
+       ```yaml
+       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+         with:
+           workspaces: desktop -> desktop/target
+           cache-on-failure: true
+       - name: Cache Tauri CLI binary
+         id: cache-tauri-cli
+         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+         with:
+           path: ~/.cargo/bin/cargo-tauri
+           key: tauri-cli-2.11.1-${{ runner.os }}-${{ runner.arch }}
+       - name: Install Tauri CLI
+         if: steps.cache-tauri-cli.outputs.cache-hit != 'true'
+         run: cargo install tauri-cli --version '=2.11.1' --locked
+       ```
+
+   - `desktop/src-tauri/src/main.rs`
+     - **Current fix in PR #588**: all 11 occurrences of `raven_local_lib` replaced with `raven_ai_lib`
+     - Imports that were broken:
+       ```rust
+       use raven_local_lib::compose::{ComposeManager, StatusEvent};
+       use raven_local_lib::precheck::{run_precheck, skip_requested, RealSystemInfo};
+       use raven_local_lib::tray::{self, TrayStatus};
+       use raven_local_lib::updater;
+       // and inline uses: raven_local_lib::compose::ComposeStatus::*
+       // and invoke_handler: raven_local_lib::ollama::*, raven_local_lib::updater::*
+       ```
+     - Fixed to `raven_ai_lib::*` throughout
+
+   - `desktop/src-tauri/Cargo.toml`
+     - `[lib] name = "raven_ai_lib"` — actual lib crate name
+     - Added `tauri-plugin-updater = "2"`, `tauri-plugin-process = "2"`, `anyhow = "1"`
+
+   - `desktop/src-tauri/tauri.conf.json`
+     - Updated `plugins.updater.pubkey` from placeholder to real minisign public key:
+       `REDACTED`
+     - Key ID: A6F93C1C5F531CB
+     - Endpoint: `https://download.raven.app/local/latest.json`
+
+   - `desktop/src-tauri/src/updater.rs` (new file, added by agent for #426)
+     - 24h-debounced update check on launch, offline-safe
+     - Emits `updater:available`, `updater:error`, `updater:ready` events
+     - `updater_install_and_restart` Tauri command
+
+   - `frontend/e2e/raven-ai-onboarding.spec.ts`
+     - Re-enabled 4 `test.skip` → `test`
+     - Fixed "mid-tier" test: `ram_gb: 12` → `ram_gb: 16`, renamed to "high-tier host pre-selects 8b"
+     - Uses `window.__RAVEN_SINGLE_USER = true` in `addInitScript` for synchronous pre-seeding
+     - Uses `page.route()` for API mocking instead of `addInitScript` fetch override
+
+   - `frontend/src/stores/server-config.ts`
+     - Added `window.__RAVEN_SINGLE_USER` synchronous flag seeding
+
+   - `frontend/src/router/index.ts`
+     - Fixed router guard: only redirect `/onboarding` → `/dashboard` when `onboarding.completed === true` (was blocking unconditionally in single-user mode)
+
+   - `.githooks/pre-commit`
+     - Added version guard: checks installed golangci-lint matches v2.11.4, exits 1 with install instructions on mismatch
+
+4. Errors and Fixes:
+   - **PR #542 merge conflict** with `desktop-release.yml`: PR #543 (repin upload-artifact) landed first. Agent resolved by rebasing, keeping both the SHA pins from #543 and signing jobs from #542.
+   - **PR #544 Playwright CI failure post-merge**: `ram_gb: 12` = "mid" tier → selects `llama3.2:3b`, not `llama3.1:8b`. Fixed in PR #579 by using `ram_gb: 16` (high tier).
+   - **PR #542 Actionlint failure**: `secrets` context not allowed in step `if:`. Fixed in PR #582 by promoting to job-level `env:` vars.
+   - **PR #582 repeated merge conflicts**: `desktop-release.yml` touched by PRs #580/#581. Resolved by aborting rebase, resetting to main, re-applying changes cleanly, force-pushing.
+   - **Tauri key password forgotten**: User regenerated key with `--force` flag. Old key secrets replaced.
+   - **All 3 platform builds failing**: `cannot find module or crate 'raven_local_lib'` — crate renamed to `raven_ai_lib` in Cargo.toml `[lib]` section but `main.rs` imports not updated. Fixed in PR #588.
+
+5. Problem Solving:
+   - Identified the RAM tier boundary (mid = 12-15GB maps to 3b model, high = 16+GB maps to 8b) from `precheck.spec.ts` unit tests
+   - Discovered GitHub Actions does not allow `secrets` context in `if:` conditions (Actionlint enforces this) — solution is job-level env vars
+   - `cargo install tauri-cli` was the biggest CI bottleneck (~8 min) since `~/.cargo/bin` is not covered by `Swatinem/rust-cache`; solved with dedicated `actions/cache` step
+   - GitHub sometimes doesn't re-trigger workflows on force-pushed tags; solved with `gh workflow run` `workflow_dispatch`
+   - Crate rename regression (raven_local_lib → raven_ai_lib) went undetected until CI build
+
+6. All User Messages:
+   - "let's fix each of these in parallel https://github.com/ravencloak-org/Raven/issues"
+   - "continue"
+   - "Done with 1, proceed with 2 and 3"
+   - "check"
+   - "done"
+   - "let's do that" (referring to Tauri signing manual setup steps)
+   - "done re release again" (re-trigger release after cache PR merged)
+   - "I think there is one already running https://github.com/ravencloak-org/Raven/actions/runs/25915212334, let's shut that and start a new one"
+   - "also is there a fasten it by using cache or something, maybe use precompiled dependencies idk"
+   - "done" (after setting TAURI_SIGNING_PRIVATE_KEY_PASSWORD)
+   - "done re release again"
+   - "https://github.com/ravencloak-org/Raven/actions/runs/25927029660 failed"
+   - "confirm" (confirming tag move)
+   - "don't remember password, let's create again"
+   - "[cargo tauri signer generate output]" (user ran key generation)
+   - "yes" (watch for PR #588 merge and auto-trigger release)
+   - "[Request interrupted by user for tool use] continue" (user interrupted a push command then said continue)
+
+   **Security-relevant constraints (verbatim):**
+   - From CLAUDE.md: "Every commit MUST be signed off — append `Signed-off-by: Jobin Lawrance <jobinlawrance@gmail.com>` (use `git commit -s`)"
+   - From CLAUDE.md: "No AI attribution — do not add `Co-Authored-By:` trailers to any commit message"
+   - From CLAUDE.md: "Never use `--no-verify` — all hooks must pass"
+   - From CLAUDE.md: "Never push directly to `main` — always use a PR"
+   - From CLAUDE.md: "After creating a PR with `gh pr create`, always immediately queue it for auto-merge: `gh pr merge <PR_NUMBER> --auto --squash`"
+
+7. Pending Tasks:
+   - PR #588 (fix `raven_local_lib` → `raven_ai_lib` in `main.rs`) is open and queued for auto-merge — Monitor is watching for merge
+   - Once #588 merges: move tag `raven-ai-v0.1.6` to new main HEAD and trigger `workflow_dispatch` on `desktop-release.yml`
+   - Apple and Windows signing secrets still needed when certificates are available: `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`, `WINDOWS_PFX_BASE64`, `WINDOWS_PFX_PASSWORD`
+   - Host `latest.json` update manifest at `https://download.raven.app/local/latest.json`
+
+8. Current Work:
+   All 3 platforms failed on `cargo tauri build` with:
+   ```
+   error[E0433]: cannot find module or crate `raven_local_lib` in this scope
+   error[E0432]: unresolved import `raven_local_lib`
+   could not compile `raven-ai` (bin "raven-ai") due to 12 previous errors
+   ```
+   Root cause: `desktop/src-tauri/src/main.rs` still imports `raven_local_lib::*` but the `[lib]` name in `Cargo.toml` is `raven_ai_lib`. Fixed by replacing all 11 occurrences. PR #588 created on branch `ci/cache-tauri-cli`, queued for auto-merge. A Monitor is running waiting for PR #588 to merge.
+
+9. Optional Next Step:
+   The monitor is waiting for PR #588 to merge. When it fires, the next steps are (exactly as planned before the summary request):
+   1. Fetch new main HEAD after #588 merges
+   2. Delete and recreate tag `raven-ai-v0.1.6` at the new HEAD: `git push origin :refs/tags/raven-ai-v0.1.6 && git tag -f raven-ai-v0.1.6 <new-sha> && git push origin raven-ai-v0.1.6`
+   3. If tag push doesn't trigger the workflow: `gh workflow run desktop-release.yml --repo ravencloak-org/Raven --ref main --field tag=raven-ai-v0.1.6`
+
+   Direct quote from last exchange:
+   User: "yes" (confirming: "Want me to watch for the merge and do that automatically, or will you kick it off?")
+   Assistant launched Monitor: `until gh pr view 588 --repo ravencloak-org/Raven --json state --jq '.state' 2>/dev/null | grep -q MERGED; do sleep 15; done && echo "PR_588_MERGED"`
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/jobinlawrance/.REDACTED.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+it failed https://github.com/ravencloak-org/Raven/actions/runs/25947514768

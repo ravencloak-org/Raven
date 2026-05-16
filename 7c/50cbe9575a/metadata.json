@@ -5,10 +5,8 @@
   "branch": "fix/desktop-attest-paths",
   "checkpoints_count": 3,
   "files_touched": [
-    ".claude/worktrees/agent-a0b9e309acd5c05e6/.env.ci",
-    ".claude/worktrees/agent-a3c53057da799ff5c/.env.ci",
-    ".claude/worktrees/agent-ab102b1529f4b4915/.env.ci",
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
+    ".github/workflows/desktop-release.yml",
     "CONTEXT.md",
     "cmd/api/main.go",
     "frontend/src/components/AppSidebar.vue",
@@ -45,10 +43,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 103,
-    "cache_creation_tokens": 1350614,
-    "cache_read_tokens": 35236313,
-    "output_tokens": 43526,
-    "api_call_count": 74
+    "input_tokens": 328,
+    "cache_creation_tokens": 2028589,
+    "cache_read_tokens": 53528847,
+    "output_tokens": 111789,
+    "api_call_count": 249
   }
 }
