@@ -6,11 +6,9 @@ import { getPlans, createSubscription, type Plan, type BillingCycle } from '../.
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-const PRO_PLAN_ID = 'plan_pro'
-const MIN_SEATS = 5
-// Price per seat per month in paise (₹1,700 = 170,000 paise)
-const PRICE_PER_SEAT_PAISE = 170_000
-// Annual = 10× monthly (2 months free)
+// Billing-cycle constant: annual price = 10× monthly (i.e. 2 months free).
+// This is a property of the billing math, not plan-specific data, so it
+// stays hardcoded here rather than coming from the API.
 const ANNUAL_MONTHS = 10
 
 const HYPERSWITCH_PUBLISHABLE_KEY =
@@ -25,13 +23,38 @@ const router = useRouter()
 const orgId = computed(() => route.params.orgId as string)
 
 // ---------------------------------------------------------------------------
+// Plan loading — fetched on mount, drives every pricing computation.
+// ---------------------------------------------------------------------------
+const loadingPlans = ref(false)
+const plansError = ref<string | null>(null)
+const plans = ref<Plan[]>([])
+
+// Resolve the Pro plan by tier — matches the backend PlanTierPro constant
+// and is stable even if the plan id or display name ever changes.
+const proPlan = computed<Plan | null>(
+  () => plans.value.find((p) => p.tier === 'pro') ?? null,
+)
+
+// True once the API has responded but no Pro plan came back. This is a hard
+// error: we deliberately do NOT fall back to hardcoded prices, because the
+// whole point of #615 is that the UI and the gateway charge must agree.
+const proPlanMissing = computed(
+  () => !loadingPlans.value && !plansError.value && plans.value.length > 0 && !proPlan.value,
+)
+
+const minSeats = computed(() => proPlan.value?.min_seats ?? 1)
+const pricePerSeatPaise = computed(() => proPlan.value?.price_per_seat_monthly ?? 0)
+
+// ---------------------------------------------------------------------------
 // Step 1 & 2 state — seat count + billing cycle
 // ---------------------------------------------------------------------------
-const seatCount = ref(MIN_SEATS)
+// Initialise to 1; reconciled up to the plan's min_seats once the API responds.
+const seatCount = ref(1)
 const billingCycle = ref<BillingCycle>('monthly')
 
 function clampSeats(v: number): number {
-  return Math.max(MIN_SEATS, Math.floor(isNaN(v) ? MIN_SEATS : v))
+  const min = minSeats.value
+  return Math.max(min, Math.floor(isNaN(v) ? min : v))
 }
 
 function onSeatInput(evt: Event) {
@@ -47,13 +70,23 @@ function decrementSeats() {
   seatCount.value = clampSeats(seatCount.value - 1)
 }
 
+// Reactively bump seat count up to min_seats when the plan resolves
+// (or if the API value ever changes underneath us).
+watch(minSeats, (min) => {
+  if (seatCount.value < min) {
+    seatCount.value = min
+  }
+})
+
 // ---------------------------------------------------------------------------
-// Pricing helpers
+// Pricing helpers — all derived from the API-resolved Pro plan.
 // ---------------------------------------------------------------------------
-const monthlyTotalPaise = computed(() => PRICE_PER_SEAT_PAISE * seatCount.value)
-const annualTotalPaise = computed(() => PRICE_PER_SEAT_PAISE * seatCount.value * ANNUAL_MONTHS)
+const monthlyTotalPaise = computed(() => pricePerSeatPaise.value * seatCount.value)
+const annualTotalPaise = computed(
+  () => pricePerSeatPaise.value * seatCount.value * ANNUAL_MONTHS,
+)
 const annualMonthlySavingsPaise = computed(
-  () => PRICE_PER_SEAT_PAISE * seatCount.value * 2,
+  () => pricePerSeatPaise.value * seatCount.value * 2,
 )
 
 function formatINR(paise: number): string {
@@ -78,9 +111,6 @@ const savingsLabel = computed(() =>
 // ---------------------------------------------------------------------------
 // Step 3 — payment
 // ---------------------------------------------------------------------------
-const loadingPlans = ref(false)
-const plansError = ref<string | null>(null)
-const plans = ref<Plan[]>([])
 
 const creatingSubscription = ref(false)
 const subscriptionError = ref<string | null>(null)
@@ -178,7 +208,7 @@ watch(clientSecret, async (secret) => {
 // ---------------------------------------------------------------------------
 // onMounted — fetch plans
 // ---------------------------------------------------------------------------
-onMounted(async () => {
+async function loadPlans() {
   loadingPlans.value = true
   plansError.value = null
   try {
@@ -188,6 +218,10 @@ onMounted(async () => {
   } finally {
     loadingPlans.value = false
   }
+}
+
+onMounted(() => {
+  void loadPlans()
 })
 
 onUnmounted(() => {
@@ -198,6 +232,12 @@ onUnmounted(() => {
 // Step: create subscription → get client_secret → init payment element
 // ---------------------------------------------------------------------------
 async function proceedToPayment() {
+  const plan = proPlan.value
+  if (!plan) {
+    subscriptionError.value = 'Pro plan is unavailable. Please reload the page or contact support.'
+    return
+  }
+
   creatingSubscription.value = true
   subscriptionError.value = null
   clientSecret.value = null
@@ -205,7 +245,7 @@ async function proceedToPayment() {
 
   try {
     const result = await createSubscription({
-      plan_id: PRO_PLAN_ID,
+      plan_id: plan.id,
       seat_count: seatCount.value,
       billing_cycle: billingCycle.value,
     })
@@ -279,9 +319,54 @@ function retryPayment() {
     </div>
 
     <!-- Plans loading / error -->
-    <div v-if="loadingPlans" class="text-slate-400 text-sm">Loading plan details…</div>
-    <div v-else-if="plansError" class="rounded-lg bg-red-900/40 border border-red-500/50 p-4 text-sm text-red-300">
-      {{ plansError }}
+    <div
+      v-if="loadingPlans"
+      class="flex items-center gap-2 text-slate-400 text-sm"
+      role="status"
+      aria-live="polite"
+    >
+      <svg class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+      </svg>
+      Loading plan details…
+    </div>
+    <div
+      v-else-if="plansError"
+      class="rounded-lg bg-red-900/40 border border-red-500/50 p-4 text-sm text-red-300 space-y-3"
+      role="alert"
+    >
+      <p>{{ plansError }}</p>
+      <button
+        class="rounded-lg border border-red-500/60 px-3 py-1.5 text-xs font-medium text-red-200 hover:bg-red-900/60 transition-colors"
+        @click="loadPlans"
+      >
+        Try again
+      </button>
+    </div>
+    <div
+      v-else-if="proPlanMissing"
+      class="rounded-lg bg-red-900/40 border border-red-500/50 p-4 text-sm text-red-300 space-y-3"
+      role="alert"
+    >
+      <p>
+        We couldn't find the Pro plan in the catalogue right now. This usually clears up on its
+        own — please retry or contact support if it persists.
+      </p>
+      <div class="flex flex-wrap gap-2">
+        <button
+          class="rounded-lg border border-red-500/60 px-3 py-1.5 text-xs font-medium text-red-200 hover:bg-red-900/60 transition-colors"
+          @click="loadPlans"
+        >
+          Try again
+        </button>
+        <a
+          href="mailto:support@ravencloak.org?subject=Pro%20plan%20unavailable%20at%20checkout"
+          class="rounded-lg border border-red-500/60 px-3 py-1.5 text-xs font-medium text-red-200 hover:bg-red-900/60 transition-colors"
+        >
+          Contact support
+        </a>
+      </div>
     </div>
 
     <template v-else>
@@ -298,7 +383,7 @@ function retryPayment() {
             <div class="flex items-center gap-3">
               <button
                 class="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-700 transition-colors disabled:opacity-40"
-                :disabled="seatCount <= MIN_SEATS"
+                :disabled="seatCount <= minSeats"
                 aria-label="Decrease seat count"
                 @click="decrementSeats"
               >
@@ -309,7 +394,7 @@ function retryPayment() {
               <input
                 :value="seatCount"
                 type="number"
-                :min="MIN_SEATS"
+                :min="minSeats"
                 class="w-20 rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-center text-white text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 aria-label="Number of seats"
                 @change="onSeatInput"
@@ -323,10 +408,10 @@ function retryPayment() {
                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
                 </svg>
               </button>
-              <span class="text-sm text-slate-400">seats (minimum {{ MIN_SEATS }})</span>
+              <span class="text-sm text-slate-400">seats (minimum {{ minSeats }})</span>
             </div>
             <p class="mt-2 text-xs text-slate-500">
-              ₹1,700 per seat / month &nbsp;·&nbsp; {{ formatINR(PRICE_PER_SEAT_PAISE) }} per seat/mo
+              {{ formatINR(pricePerSeatPaise) }} per seat / month
             </p>
           </section>
 
@@ -483,7 +568,7 @@ function retryPayment() {
           <dl class="space-y-3 text-sm">
             <div class="flex justify-between">
               <dt class="text-slate-400">Plan</dt>
-              <dd class="font-medium text-white">Pro</dd>
+              <dd class="font-medium text-white">{{ proPlan?.name ?? 'Pro' }}</dd>
             </div>
             <div class="flex justify-between">
               <dt class="text-slate-400">Seats</dt>
@@ -491,7 +576,7 @@ function retryPayment() {
             </div>
             <div class="flex justify-between">
               <dt class="text-slate-400">Per seat</dt>
-              <dd class="font-medium text-white">{{ formatINR(PRICE_PER_SEAT_PAISE) }}/mo</dd>
+              <dd class="font-medium text-white">{{ formatINR(pricePerSeatPaise) }}/mo</dd>
             </div>
             <div class="flex justify-between">
               <dt class="text-slate-400">Cycle</dt>
