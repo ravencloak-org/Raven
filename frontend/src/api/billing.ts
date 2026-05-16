@@ -13,6 +13,7 @@ export interface BillingUsage {
 }
 
 export type PlanName = 'free' | 'pro' | 'enterprise'
+export type PlanTier = 'free' | 'pro' | 'enterprise'
 export type BillingCycle = 'monthly' | 'annual'
 
 export interface Subscription {
@@ -46,10 +47,15 @@ export interface UpdateSeatCountRequest {
   seat_count: number
 }
 
+// Plan mirrors the backend `model.Plan` (see internal/model/billing.go).
+// JSON keys must stay in sync with the Go struct tags so the UI can read
+// pricing data directly from GET /billing/plans.
 export interface Plan {
   id: string
-  name: PlanName
-  price_per_seat_paise: number
+  tier: PlanTier
+  name: string
+  // Per-seat price in paise (1 INR = 100 paise); 0 for the free tier.
+  price_per_seat_monthly: number
   min_seats: number
 }
 
