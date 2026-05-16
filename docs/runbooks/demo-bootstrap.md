@@ -49,18 +49,21 @@ terraform apply demo.tfplan
 - Tail cloud-init log: `tail -f /var/log/cloud-init-output.log` until "raven-stack: ok" appears.
 - Visit `https://demo.raven.ravencloak.org` — Cloudflare Access should prompt for your email (Phase 1 gate).
 
-## Terraform backend (one-time, before first `terraform init`)
+## Terraform state
 
-```bash
-aws s3api create-bucket --region ap-south-1 --bucket raven-tf-state \
-  --create-bucket-configuration LocationConstraint=ap-south-1
-aws s3api put-bucket-versioning --bucket raven-tf-state \
-  --versioning-configuration Status=Enabled
-aws s3api put-bucket-encryption --bucket raven-tf-state \
-  --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
-aws dynamodb create-table --region ap-south-1 \
-  --table-name raven-tf-locks \
-  --attribute-definitions AttributeName=LockID,AttributeType=S \
-  --key-schema AttributeName=LockID,KeyType=HASH \
-  --billing-mode PAY_PER_REQUEST
-```
+Local state — no remote backend, no S3 bucket for state, no DynamoDB
+lock table. The state file lives at `deploy/terraform/demo/terraform.tfstate`
+on the operator's machine and is gitignored. This is a deliberate
+solo-operator choice: nothing to bootstrap, nothing to pay for, no
+backend contention.
+
+If the operator's machine is lost and the state file is gone with it,
+re-create the stack with `terraform apply` and re-import the EBS data
+volume (which has `prevent_destroy = true` and therefore survives even
+when its TF reference is forgotten). The `docs/runbooks/demo-restore.md`
+runbook covers this path.
+
+The `raven-demo-backups` S3 bucket (for `pg_dump` + `clickhouse-backup`
+uploads) is **not** the state bucket — it's a separate resource that
+Terraform itself creates via `deploy/terraform/demo/s3.tf`. No manual
+`aws s3api` step is required.

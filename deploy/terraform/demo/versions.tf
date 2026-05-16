@@ -12,11 +12,11 @@ terraform {
     }
   }
 
-  backend "s3" {
-    bucket         = "raven-tf-state"
-    key            = "demo/terraform.tfstate"
-    region         = "ap-south-1"
-    encrypt        = true
-    dynamodb_table = "raven-tf-locks"
-  }
+  # Local state — solo-operator demo, no team concurrency to protect
+  # against. The state file lives at deploy/terraform/demo/terraform.tfstate
+  # on the operator's machine (gitignored). If the machine is lost, the
+  # demo can be re-created from scratch by re-running `terraform apply`;
+  # the EBS data volume has prevent_destroy so re-import after re-create
+  # is straightforward. Switch to a remote backend if/when more than one
+  # operator ever needs to drive this stack.
 }
