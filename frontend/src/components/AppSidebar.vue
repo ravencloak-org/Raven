@@ -70,7 +70,7 @@
 
         <!-- Voice Sessions -->
         <RouterLink
-          v-if="orgPrefix"
+          v-if="orgPrefix && isVoiceEnabled()"
           :to="`${orgPrefix}/voice`"
           :class="[
             'flex items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white',
@@ -195,6 +195,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
+import { isVoiceEnabled } from '../lib/featureFlags'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()

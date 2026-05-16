@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { isVoiceEnabled } from '../lib/featureFlags'
 import { useAuthStore } from '../stores/auth'
 import { useServerConfigStore } from '../stores/server-config'
 import { useOnboardingStore } from '../stores/onboarding'
@@ -171,6 +172,13 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
+  // Public-demo gate: voice routes redirect to the dashboard when voice
+  // is disabled. The demo runs behind Cloudflare Tunnel which can't carry
+  // WebRTC's UDP, so the voice UI is hidden end-to-end.
+  if (!isVoiceEnabled() && to.name && String(to.name).startsWith('voice-')) {
+    return '/dashboard'
+  }
+
   const serverConfig = useServerConfigStore()
   const auth = useAuthStore()
 

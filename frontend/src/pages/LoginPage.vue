@@ -20,9 +20,17 @@
         <h2 class="text-2xl font-bold text-neutral-900 dark:text-white mb-2">Welcome back</h2>
         <p class="text-neutral-500 text-sm mb-8">Sign in to your account to continue</p>
 
+        <TurnstileWidget
+          v-if="turnstileSiteKey"
+          :site-key="turnstileSiteKey"
+          class="mb-4"
+          @token="(t) => (turnstileToken = t)"
+          @expired="turnstileToken = ''"
+        />
+
         <button
-          class="w-full flex items-center justify-center gap-3 bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white font-medium py-3.5 px-4 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors shadow-sm"
-          :disabled="loading"
+          class="w-full flex items-center justify-center gap-3 bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white font-medium py-3.5 px-4 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          :disabled="loading || (turnstileSiteKey !== '' && !turnstileToken)"
           @click="signInWithGoogle"
         >
           <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24">
@@ -48,11 +56,15 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import TurnstileWidget from '../components/TurnstileWidget.vue'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
 const loading = ref(false)
 const error = ref('')
+
+const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY ?? ''
+const turnstileToken = ref('')
 
 async function signInWithGoogle() {
   loading.value = true
