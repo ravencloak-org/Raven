@@ -26,6 +26,7 @@ type BillingRepository interface {
 	GetSubscriptionByHyperswitchID(ctx context.Context, tx pgx.Tx, hsID string) (*model.Subscription, error)
 	GetActiveSubscription(ctx context.Context, tx pgx.Tx, orgID string) (*model.Subscription, error)
 	UpdateSubscriptionStatus(ctx context.Context, tx pgx.Tx, orgID, subscriptionID string, status model.SubscriptionStatus) (*model.Subscription, error)
+	CancelWithRefund(ctx context.Context, tx pgx.Tx, orgID, subscriptionID, refundID string) (*model.Subscription, error)
 	ExtendSubscriptionPeriod(ctx context.Context, tx pgx.Tx, hyperswitchID string) (*model.Subscription, error)
 	CreatePaymentIntent(ctx context.Context, tx pgx.Tx, pi *model.PaymentIntent) (*model.PaymentIntent, error)
 	InsertPaymentEvent(ctx context.Context, tx pgx.Tx, orgID, eventType, paymentID, status string, rawPayload []byte) (bool, error)
@@ -36,6 +37,7 @@ type BillingRepository interface {
 type HyperswitchClient interface {
 	CreatePayment(ctx context.Context, req *hyperswitch.CreatePaymentRequest) (*hyperswitch.PaymentResponse, error)
 	CancelPayment(ctx context.Context, paymentID string) error
+	CreateRefund(ctx context.Context, req *hyperswitch.CreateRefundRequest) (*hyperswitch.RefundResponse, error)
 }
 
 // BillingService contains business logic for subscription and payment management
@@ -210,6 +212,13 @@ func (s *BillingService) CreateSubscription(ctx context.Context, orgID string, r
 }
 
 // CancelSubscription cancels the subscription for the given organisation.
+//
+// Monthly subscriptions are cancelled immediately with no refund (low-commitment).
+// Annual subscriptions receive a prorated refund for unused complete months:
+//
+//	refund_amount = PricePerSeatMonthly × SeatCount × floor((period_end - now) / 30 days)
+//
+// Access continues until current_period_end regardless of billing cycle.
 func (s *BillingService) CancelSubscription(ctx context.Context, orgID string, subscriptionID string) error {
 	var sub *model.Subscription
 	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
@@ -225,17 +234,65 @@ func (s *BillingService) CancelSubscription(ctx context.Context, orgID string, s
 		return apierror.NewNotFound("subscription not found")
 	}
 
-	// Cancel on Hyperswitch if there is a linked payment.
-	if sub.HyperswitchSubscriptionID != "" {
-		if err := s.hsClient.CancelPayment(ctx, sub.HyperswitchSubscriptionID); err != nil {
-			slog.ErrorContext(ctx, "failed to cancel Hyperswitch payment", "error", err)
-			return apierror.NewInternal("failed to cancel Hyperswitch payment")
-		}
+	if sub.BillingCycle == "annual" && sub.HyperswitchSubscriptionID != "" {
+		return s.cancelAnnualSubscription(ctx, orgID, sub)
 	}
 
-	// Update status in DB.
+	// Monthly or free subscription: cancel immediately with no refund.
 	return db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
 		_, e := s.repo.UpdateSubscriptionStatus(ctx, tx, orgID, subscriptionID, model.SubscriptionStatusCanceled)
+		return e
+	})
+}
+
+// cancelAnnualSubscription handles cancellation of an annual subscription with prorated refund.
+// It calculates unused complete months and triggers a Hyperswitch refund if applicable.
+func (s *BillingService) cancelAnnualSubscription(ctx context.Context, orgID string, sub *model.Subscription) error {
+	now := time.Now().UTC()
+
+	// Calculate unused complete months = floor((period_end - now) / 30 days).
+	remaining := sub.CurrentPeriodEnd.Sub(now)
+	unusedMonths := int(remaining.Hours() / (24 * 30))
+
+	plan, err := s.GetPlanByID(sub.PlanID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to look up plan for refund calculation", "plan_id", sub.PlanID, "error", err)
+		return apierror.NewInternal("failed to look up plan for refund calculation")
+	}
+
+	refundID := ""
+	if unusedMonths > 0 {
+		refundAmount := plan.PricePerSeatMonthly * int64(sub.SeatCount) * int64(unusedMonths)
+		slog.InfoContext(ctx, "annual cancellation: issuing prorated refund",
+			"subscription_id", sub.ID,
+			"unused_months", unusedMonths,
+			"refund_amount_paise", refundAmount,
+		)
+
+		refundResp, refundErr := s.hsClient.CreateRefund(ctx, &hyperswitch.CreateRefundRequest{
+			PaymentID: sub.HyperswitchSubscriptionID,
+			Amount:    refundAmount,
+			Reason:    "annual_cancellation",
+		})
+		if refundErr != nil {
+			slog.ErrorContext(ctx, "failed to create Hyperswitch refund", "error", refundErr)
+			return apierror.NewInternal("failed to create refund")
+		}
+		refundID = refundResp.RefundID
+	} else {
+		slog.InfoContext(ctx, "annual cancellation: zero unused months, no refund issued",
+			"subscription_id", sub.ID,
+			"period_end", sub.CurrentPeriodEnd,
+		)
+	}
+
+	// Persist cancellation + refund ID atomically.
+	return db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+		if refundID != "" {
+			_, e := s.repo.CancelWithRefund(ctx, tx, orgID, sub.ID, refundID)
+			return e
+		}
+		_, e := s.repo.UpdateSubscriptionStatus(ctx, tx, orgID, sub.ID, model.SubscriptionStatusCanceled)
 		return e
 	})
 }

@@ -88,6 +88,42 @@ func (c *Client) CancelPayment(ctx context.Context, paymentID string) error {
 	return nil
 }
 
+// CreateRefundRequest is the request body for POST /refunds.
+type CreateRefundRequest struct {
+	PaymentID string `json:"payment_id"`
+	Amount    int64  `json:"amount"`            // amount in paise (INR smallest unit)
+	Reason    string `json:"reason,omitempty"`
+}
+
+// RefundResponse is the response from the Hyperswitch /refunds endpoint.
+type RefundResponse struct {
+	RefundID string `json:"refund_id"`
+	Status   string `json:"status"`
+	Amount   int64  `json:"amount"`
+}
+
+// CreateRefund calls POST /refunds to initiate a refund for a payment.
+func (c *Client) CreateRefund(ctx context.Context, req *CreateRefundRequest) (*RefundResponse, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("hyperswitch: marshal refund request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/refunds", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("hyperswitch: create refund request: %w", err)
+	}
+	c.setHeaders(httpReq)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("hyperswitch: execute refund request: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	return decodeResponse[RefundResponse](resp)
+}
+
 // GetPayment calls GET /payments/{id} to retrieve payment status.
 func (c *Client) GetPayment(ctx context.Context, paymentID string) (*PaymentResponse, error) {
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/payments/"+paymentID, nil)

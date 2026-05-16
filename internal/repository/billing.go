@@ -31,26 +31,26 @@ const (
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING id, org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id,
 		          current_period_start, current_period_end, created_at,
-		          trial_ends_at, grace_period_ends_at`
+		          trial_ends_at, grace_period_ends_at, refund_id`
 
 	sqlSubscriptionByID = `
 		SELECT id, org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id,
 		       current_period_start, current_period_end, created_at,
-		       trial_ends_at, grace_period_ends_at
+		       trial_ends_at, grace_period_ends_at, refund_id
 		FROM subscriptions
 		WHERE id = $1 AND org_id = $2`
 
 	sqlSubscriptionByHyperswitchID = `
 		SELECT id, org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id,
 		       current_period_start, current_period_end, created_at,
-		       trial_ends_at, grace_period_ends_at
+		       trial_ends_at, grace_period_ends_at, refund_id
 		FROM subscriptions
 		WHERE hyperswitch_subscription_id = $1`
 
 	sqlSubscriptionActiveByOrg = `
 		SELECT id, org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id,
 		       current_period_start, current_period_end, created_at,
-		       trial_ends_at, grace_period_ends_at
+		       trial_ends_at, grace_period_ends_at, refund_id
 		FROM subscriptions
 		WHERE org_id = $1 AND status IN ('active', 'trialing', 'past_due', 'expired')
 		LIMIT 1`
@@ -60,7 +60,7 @@ const (
 		WHERE id = $1 AND org_id = $2
 		RETURNING id, org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id,
 		          current_period_start, current_period_end, created_at,
-		          trial_ends_at, grace_period_ends_at`
+		          trial_ends_at, grace_period_ends_at, refund_id`
 
 	sqlSubscriptionExtendPeriod = `
 		UPDATE subscriptions SET
@@ -70,7 +70,14 @@ const (
 		WHERE hyperswitch_subscription_id = $1
 		RETURNING id, org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id,
 		          current_period_start, current_period_end, created_at,
-		          trial_ends_at, grace_period_ends_at`
+		          trial_ends_at, grace_period_ends_at, refund_id`
+
+	sqlSubscriptionCancelWithRefund = `
+		UPDATE subscriptions SET status = 'canceled', refund_id = $3
+		WHERE id = $1 AND org_id = $2
+		RETURNING id, org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id,
+		          current_period_start, current_period_end, created_at,
+		          trial_ends_at, grace_period_ends_at, refund_id`
 
 	sqlPaymentIntentInsert = `
 		INSERT INTO payment_intents (org_id, amount, currency, status, hyperswitch_payment_id, client_secret)
@@ -103,9 +110,9 @@ const (
 		UPDATE subscriptions
 		SET trial_ends_at = NULL, grace_period_ends_at = NULL
 		WHERE id = $1 AND org_id = $2
-		RETURNING id, org_id, plan_id, status, hyperswitch_subscription_id,
+		RETURNING id, org_id, plan_id, status, seat_count, billing_cycle, hyperswitch_subscription_id,
 		          current_period_start, current_period_end, created_at,
-		          trial_ends_at, grace_period_ends_at`
+		          trial_ends_at, grace_period_ends_at, refund_id`
 )
 
 func scanSubscription(row pgx.Row) (*model.Subscription, error) {
@@ -123,6 +130,7 @@ func scanSubscription(row pgx.Row) (*model.Subscription, error) {
 		&s.CreatedAt,
 		&s.TrialEndsAt,
 		&s.GracePeriodEndsAt,
+		&s.RefundID,
 	)
 	if err != nil {
 		return nil, err
@@ -224,6 +232,17 @@ func (r *BillingRepository) UpdateSubscriptionStatus(ctx context.Context, tx pgx
 	s, err := scanSubscription(row)
 	if err != nil {
 		return nil, fmt.Errorf("BillingRepository.UpdateSubscriptionStatus: %w", err)
+	}
+	return s, nil
+}
+
+// CancelWithRefund sets status=canceled and records the refund ID atomically.
+// Used for annual subscription cancellations where a prorated refund was issued.
+func (r *BillingRepository) CancelWithRefund(ctx context.Context, tx pgx.Tx, orgID, subscriptionID, refundID string) (*model.Subscription, error) {
+	row := tx.QueryRow(ctx, sqlSubscriptionCancelWithRefund, subscriptionID, orgID, refundID)
+	s, err := scanSubscription(row)
+	if err != nil {
+		return nil, fmt.Errorf("BillingRepository.CancelWithRefund: %w", err)
 	}
 	return s, nil
 }

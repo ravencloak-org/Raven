@@ -100,6 +100,7 @@ type Subscription struct {
 	CreatedAt                 time.Time          `json:"created_at"`
 	TrialEndsAt               *time.Time         `json:"trial_ends_at,omitempty"`
 	GracePeriodEndsAt         *time.Time         `json:"grace_period_ends_at,omitempty"`
+	RefundID                  *string            `json:"refund_id,omitempty"`
 	// ClientSecret is a transient field (not persisted) returned to the frontend
 	// so it can open the Hyperswitch SDK / Razorpay checkout for the first payment.
 	ClientSecret string `json:"client_secret,omitempty"`
