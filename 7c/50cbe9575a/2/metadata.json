@@ -3,30 +3,32 @@
   "checkpoint_id": "7c50cbe9575a",
   "session_id": "4a604303-c534-47a5-b60a-68cbe34ce70f",
   "strategy": "manual-commit",
-  "created_at": "2026-05-16T14:17:02.302618Z",
-  "branch": "feat/demo-llm-fuse-wiring",
+  "created_at": "2026-05-16T20:16:09.328795Z",
+  "branch": "feat/billing-plans-comparison-page",
   "checkpoints_count": 1,
   "files_touched": [
-    "CONTEXT.md"
+    "internal/model/billing.go",
+    "internal/repository/billing.go",
+    "internal/service/billing.go",
+    "internal/service/billing_test.go"
   ],
   "agent": "Claude Code",
-  "transcript_identifier_at_start": "596f341b-5025-4267-8637-72b2de36f126",
-  "checkpoint_transcript_start": 311,
-  "transcript_lines_at_start": 311,
+  "checkpoint_transcript_start": 379,
+  "transcript_lines_at_start": 379,
   "token_usage": {
-    "input_tokens": 23,
-    "cache_creation_tokens": 3888,
-    "cache_read_tokens": 552111,
-    "output_tokens": 2587,
-    "api_call_count": 9
+    "input_tokens": 285,
+    "cache_creation_tokens": 780106,
+    "cache_read_tokens": 29129443,
+    "output_tokens": 104420,
+    "api_call_count": 229
   },
   "initial_attribution": {
-    "calculated_at": "2026-05-16T14:17:02.107701Z",
-    "agent_lines": 0,
-    "human_added": 434,
-    "human_modified": 78,
+    "calculated_at": "2026-05-16T20:16:09.077377Z",
+    "agent_lines": 64,
+    "human_added": 2847,
+    "human_modified": 118,
     "human_removed": 0,
-    "total_committed": 512,
-    "agent_percentage": 0
+    "total_committed": 3029,
+    "agent_percentage": 2.1129085506767913
   }
 }

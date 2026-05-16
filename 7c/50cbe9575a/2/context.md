@@ -131,3 +131,127 @@ cool
 
 yeah
 
+### Prompt 30
+
+yes
+
+### Prompt 31
+
+yes let's do that create issues and milestone for it
+
+### Prompt 32
+
+Base directory for this skill: /Users/jobinlawrance/.claude/skills/to-issues
+
+# To Issues
+
+Break a plan into independently-grabbable issues using vertical slices (tracer bullets).
+
+The issue tracker and triage label vocabulary should have been provided to you — run `/setup-matt-pocock-skills` if not.
+
+## Process
+
+### 1. Gather context
+
+Work from whatever is already in the conversation context. If the user passes an issue reference (issue number, URL, or path) as an argument, fetch it from the ...
+
+### Prompt 33
+
+yes
+
+### Prompt 34
+
+yes start with it and rest of them in parallel using teams agents
+
+### Prompt 35
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/using-git-worktrees
+
+# Using Git Worktrees
+
+## Overview
+
+Ensure work happens in an isolated workspace. Prefer your platform's native worktree tools. Fall back to manual git worktrees only when no native tool is available.
+
+**Core principle:** Detect existing isolation first. Then use native tools. Then fall back to git. Never fight the harness.
+
+**Announce at start:** "I'm u...
+
+### Prompt 36
+
+<task-notification>
+<task-id>aec1d4c09c0062a6b</task-id>
+<tool-use-id>toolu_01HAsbFCFvkvFGL7oJR9AMzv</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Implement #592: annual billing cycle (with permissions)" completed</summary>
+<result>All tests pass. Here is a summary of what was done:
+
+---
+
+**Worktree:** `/Users/jobinlawrance/Project/r...
+
+### Prompt 37
+
+<task-notification>
+<task-id>adf2ea13309b605d2</task-id>
+<tool-use-id>toolu_017EWor1MjZCVqQ3xQ8ykrkP</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Implement #593: trial lifecycle (with permissions)" completed</summary>
+<result>Done. Here is a summary of what was implemented:
+
+---
+
+**Worktree:** `/Users/jobinlawrance/Project/raven/.cl...
+
+### Prompt 38
+
+resolve conflicts
+
+### Prompt 39
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   - User started by showing an error from `pi` CLI tool (pi.dev coding agent) using Claude API
+   - Then invoked `/grill-with-docs` skill to design a payment model for Raven that would cover ₹5.2 lakh/month in costs and generate profit
+   - After designing the model via Q&A, user requested creating GitH...
+
+### Prompt 40
+
+continue
+
+### Prompt 41
+
+continue
+
+### Prompt 42
+
+continue
+
+### Prompt 43
+
+continue
+
+### Prompt 44
+
+is there frontend for this as well that connects to this then?
+
+### Prompt 45
+
+yes
+
+### Prompt 46
+
+other pricing tier frontend is connected?
+
+### Prompt 47
+
+yes
+
+### Prompt 48
+
+parallel
+
