@@ -16,28 +16,30 @@
       <span class="text-[10px] font-medium">Home</span>
     </RouterLink>
 
-    <!-- Voice — only active when orgId is known -->
-    <RouterLink
-      v-if="currentOrgId"
-      :to="`/orgs/${currentOrgId}/voice`"
-      class="flex flex-col items-center justify-center gap-0.5 min-w-[56px] min-h-[44px] px-2 transition-colors"
-      :class="route.name === 'voice-session-list' ? 'text-indigo-400' : 'text-slate-400'"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
-        <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd" />
-      </svg>
-      <span class="text-[10px] font-medium">Voice</span>
-    </RouterLink>
-    <span
-      v-else
-      class="flex flex-col items-center justify-center gap-0.5 min-w-[56px] min-h-[44px] px-2 text-slate-600"
-      aria-disabled="true"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
-        <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd" />
-      </svg>
-      <span class="text-[10px] font-medium">Voice</span>
-    </span>
+    <!-- Voice — only active when orgId is known AND voice is enabled -->
+    <template v-if="isVoiceEnabled()">
+      <RouterLink
+        v-if="currentOrgId"
+        :to="`/orgs/${currentOrgId}/voice`"
+        class="flex flex-col items-center justify-center gap-0.5 min-w-[56px] min-h-[44px] px-2 transition-colors"
+        :class="route.name === 'voice-session-list' ? 'text-indigo-400' : 'text-slate-400'"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd" />
+        </svg>
+        <span class="text-[10px] font-medium">Voice</span>
+      </RouterLink>
+      <span
+        v-else
+        class="flex flex-col items-center justify-center gap-0.5 min-w-[56px] min-h-[44px] px-2 text-slate-600"
+        aria-disabled="true"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd" />
+        </svg>
+        <span class="text-[10px] font-medium">Voice</span>
+      </span>
+    </template>
 
     <!-- Calls -->
     <RouterLink
@@ -120,6 +122,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import { isVoiceEnabled } from '../lib/featureFlags'
 import BottomSheet from './BottomSheet.vue'
 
 const route = useRoute()

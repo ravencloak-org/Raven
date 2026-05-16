@@ -61,6 +61,7 @@ import (
 	"github.com/ravencloak-org/Raven/internal/stt"
 	"github.com/ravencloak-org/Raven/internal/telemetry"
 	"github.com/ravencloak-org/Raven/internal/tmdb"
+	"github.com/ravencloak-org/Raven/internal/turnstile"
 	"github.com/ravencloak-org/Raven/internal/tts"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 	lk "github.com/ravencloak-org/Raven/pkg/livekit"
@@ -578,7 +579,16 @@ func main() {
 	// can intercept signinup, session/refresh, callback, etc.
 	// Not registered in single-user mode (no SuperTokens; no auth flows).
 	if !cfg.Server.SingleUser {
-		router.Any("/auth/*path", handler.SuperTokensMiddleware())
+		// Public demo abuse control: Cloudflare Turnstile gates the
+		// signup POSTs before they reach SuperTokens. Existing-account
+		// sign-in, session refresh, etc. are unaffected. Pass-through
+		// when TURNSTILE_SECRET_KEY is empty (dev / non-demo).
+		turnstileVerifier := turnstile.NewVerifier(os.Getenv("TURNSTILE_SECRET_KEY"))
+		turnstileBypass := os.Getenv("TURNSTILE_BYPASS_SECRET") // CI / E2E only
+		router.Any("/auth/*path",
+			turnstile.SignupOnly(turnstileVerifier, turnstileBypass),
+			handler.SuperTokensMiddleware(),
+		)
 	}
 
 	// Protected API routes — JWT validation applied per-group, not globally.
