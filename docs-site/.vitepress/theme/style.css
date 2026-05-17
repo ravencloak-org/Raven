@@ -1,28 +1,37 @@
 /**
- * Raven docs brand tokens — black on white, white on near-black, with a
- * single red accent. The chosen red passes WCAG AA against both the light
- * and dark VitePress backgrounds.
+ * Raven docs brand tokens — black on warm white, light on near-black,
+ * with a single red accent. Mirrors the brand tokens used on
+ * raven.ravencloak.org (landing/src/styles/tailwind.css).
  */
 
 :root {
-  /* Brand red (rose-600 family). Verified WCAG AA on light + dark. */
-  --vp-c-brand-1: #e11d48;
-  --vp-c-brand-2: #be123c;
-  --vp-c-brand-3: #9f1239;
-  --vp-c-brand-soft: rgba(225, 29, 72, 0.14);
+  /* Brand red — red-600 / red-700 / red-800 to match landing's
+     --color-accent (oklch 0.578 0.214 27 ≈ #dc2626). */
+  --vp-c-brand-1: #dc2626;
+  --vp-c-brand-2: #b91c1c;
+  --vp-c-brand-3: #991b1b;
+  --vp-c-brand-soft: rgba(220, 38, 38, 0.14);
 
   /* Neutralise the default purple-leaning hover/active accents so the
      red is the only chromatic colour on the page. */
   --vp-c-accent: var(--vp-c-brand-1);
   --vp-c-accent-hover: var(--vp-c-brand-2);
   --vp-c-accent-active: var(--vp-c-brand-3);
+
+  /* Warm off-white surface to match landing (oklch 0.98 0.005 75 ≈ #fafaf9).
+     VitePress derives soft/mute backgrounds from --vp-c-bg, so overriding
+     the base is enough to tint the rest of the chrome. */
+  --vp-c-bg: #fafaf9;
+  --vp-c-bg-alt: #f5f5f4;
+  --vp-c-bg-elv: #ffffff;
 }
 
 .dark {
-  --vp-c-brand-1: #fb7185;
-  --vp-c-brand-2: #f43f5e;
-  --vp-c-brand-3: #e11d48;
-  --vp-c-brand-soft: rgba(251, 113, 133, 0.16);
+  /* Lighter red shades for contrast against the dark surface. */
+  --vp-c-brand-1: #f87171;
+  --vp-c-brand-2: #ef4444;
+  --vp-c-brand-3: #dc2626;
+  --vp-c-brand-soft: rgba(248, 113, 113, 0.16);
 }
 
 /* Tighten the homepage hero so the three feature cards line up with the
