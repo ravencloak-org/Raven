@@ -1,7 +1,9 @@
 /**
- * Raven docs brand tokens — black on warm white, light on near-black,
- * with a single red accent. Mirrors the brand tokens used on
- * raven.ravencloak.org (landing/src/styles/tailwind.css).
+ * Raven docs brand tokens — keep VitePress's tuned surface colors
+ * (white in light mode, near-black in dark) so the default body-text
+ * tokens — which include semi-transparent muted variants — retain
+ * the contrast they were designed for. Only the brand accent is
+ * overridden, matching landing's red-600.
  */
 
 :root {
@@ -17,13 +19,6 @@
   --vp-c-accent: var(--vp-c-brand-1);
   --vp-c-accent-hover: var(--vp-c-brand-2);
   --vp-c-accent-active: var(--vp-c-brand-3);
-
-  /* Warm off-white surface to match landing (oklch 0.98 0.005 75 ≈ #fafaf9).
-     VitePress derives soft/mute backgrounds from --vp-c-bg, so overriding
-     the base is enough to tint the rest of the chrome. */
-  --vp-c-bg: #fafaf9;
-  --vp-c-bg-alt: #f5f5f4;
-  --vp-c-bg-elv: #ffffff;
 }
 
 .dark {
