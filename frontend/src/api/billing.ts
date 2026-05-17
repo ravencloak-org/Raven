@@ -57,6 +57,15 @@ export interface Plan {
   // Per-seat price in paise (1 INR = 100 paise); 0 for the free tier.
   price_per_seat_monthly: number
   min_seats: number
+  // Feature-matrix limits. The Go backend serialises these on every
+  // `Plan` payload (see `internal/model/billing.go`). A value of `-1`
+  // means unlimited and should be rendered as "Unlimited" in the UI.
+  max_users?: number
+  max_workspaces?: number
+  max_kbs?: number
+  max_storage_mb?: number
+  max_concurrent_voice_sessions?: number
+  max_voice_minutes_monthly?: number
 }
 
 export interface CreateSubscriptionRequest {

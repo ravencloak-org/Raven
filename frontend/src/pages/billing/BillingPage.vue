@@ -122,7 +122,7 @@ async function handleCancelConfirmed() {
             </p>
           </div>
 
-          <div class="flex flex-col sm:flex-row gap-2">
+          <div class="flex flex-col sm:flex-row gap-3 sm:items-center">
             <button
               v-if="canUpgradeSeats"
               type="button"
@@ -132,6 +132,13 @@ async function handleCancelConfirmed() {
             >
               Upgrade seats
             </button>
+            <RouterLink
+              :to="`/orgs/${orgId}/billing/plans`"
+              class="inline-flex items-center justify-center min-h-[44px] rounded-lg border border-slate-600 px-5 text-sm font-medium text-slate-200 hover:bg-slate-700 transition-colors"
+              aria-label="Compare Free, Pro and Enterprise plans"
+            >
+              Compare plans
+            </RouterLink>
             <RouterLink
               :to="`/orgs/${orgId}/billing/upgrade`"
               class="inline-flex items-center justify-center min-h-[44px] rounded-lg bg-indigo-600 px-6 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"

@@ -145,6 +145,12 @@ const router = createRouter({
           component: () => import('../pages/billing/CheckoutPage.vue'),
           meta: { requiresAuth: true },
         },
+        {
+          path: 'orgs/:orgId/billing/plans',
+          name: 'billing-plans',
+          component: () => import('../pages/billing/PlansPage.vue'),
+          meta: { requiresAuth: true },
+        },
       ],
     },
     {
