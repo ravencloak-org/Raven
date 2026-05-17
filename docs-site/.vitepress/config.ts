@@ -65,7 +65,7 @@ export default withMermaid(defineConfig({
   themeConfig: {
     // Use the bird mark as the nav logo; siteTitle becomes the
     // wordmark next to it. Matches the brand on raven.ravencloak.org.
-    logo: { src: "/logo-mark.svg", alt: "Raven" },
+    logo: { light: "/logo-mark.svg", dark: "/logo-mark-dark.svg", alt: "Raven" },
     siteTitle: "Raven Docs",
 
     nav: [
