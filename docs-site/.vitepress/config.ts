@@ -53,13 +53,21 @@ export default withMermaid(defineConfig({
   },
 
   head: [
-    ["link", { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" }],
-    ["meta", { name: "theme-color", content: "#e11d48" }],
+    ["link", { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32x32.png" }],
+    ["link", { rel: "icon", type: "image/png", sizes: "16x16", href: "/favicon-16x16.png" }],
+    ["link", { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" }],
+    ["link", { rel: "manifest", href: "/site.webmanifest" }],
+    ["meta", { name: "theme-color", content: "#dc2626" }],
     ["meta", { property: "og:type", content: "website" }],
     ["meta", { property: "og:site_name", content: "Raven Docs" }],
   ],
 
   themeConfig: {
+    // Use the bird mark as the nav logo; siteTitle becomes the
+    // wordmark next to it. Matches the brand on raven.ravencloak.org.
+    logo: { src: "/logo-mark.svg", alt: "Raven" },
+    siteTitle: "Raven Docs",
+
     nav: [
       { text: "Get Started", link: "/get-started/installation" },
       { text: "Guides", link: "/guides/workspaces-and-tenancy" },
