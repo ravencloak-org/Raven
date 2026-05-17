@@ -11,7 +11,7 @@ const plans = [
   {
     name: 'Cloud',
     headline: 'Managed by us, ready to scale.',
-    price: 'From ₹X / seat / month',
+    price: 'From ₹1,700 / seat / month',
     cta: { label: 'See pricing', href: '/pricing', variant: 'outline' as const },
   },
 ]

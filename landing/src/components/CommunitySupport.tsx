@@ -26,7 +26,7 @@ export function CommunitySupport() {
                 GitHub Discussions
               </a>
             </li>
-            <li>Need a paid SLA? <a className="text-[var(--color-accent)] underline" href="/pricing/">See Cloud Pro</a>.</li>
+            <li>Need a paid SLA? <a className="text-[var(--color-accent)] underline" href="/pricing/">See Pro &amp; Enterprise plans</a>.</li>
           </ul>
         </div>
       </Container>
