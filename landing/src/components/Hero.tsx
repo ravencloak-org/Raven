@@ -33,7 +33,7 @@ export function Hero() {
         <Button href={REPO_URL} variant="outline" color="ink">
           <svg
             aria-hidden="true"
-            className="-mr-1 h-5 w-5 flex-none"
+            className="mr-2 h-5 w-5 flex-none"
             viewBox="0 0 24 24"
             fill="currentColor"
           >
