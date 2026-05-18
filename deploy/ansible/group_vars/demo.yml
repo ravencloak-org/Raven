@@ -1,8 +1,13 @@
 ---
 # Demo-specific Ansible variables. Loaded explicitly by cloud-init.
 raven_env: demo
-raven_domain: demo.raven.ravencloak.org
-raven_observability_domain: observability.demo.raven.ravencloak.org
+raven_domain: demo.ravencloak.org
+raven_observability_domain: observability.ravencloak.org
+
+# Path prefix the demo is served under (e.g. https://demo.ravencloak.org/raven/).
+# Empty string = served at root. Wired into both the Go API (RAVEN_PATH_PREFIX)
+# and the frontend image (VITE_BASE_PATH build arg, must include trailing slash).
+raven_path_prefix: /raven
 
 # Compose overlay file applied on top of docker-compose.yml
 raven_compose_overlay: docker-compose.demo.yml

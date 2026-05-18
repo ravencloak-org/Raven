@@ -308,6 +308,11 @@ type ServerConfig struct {
 	// org_id=local without contacting SuperTokens. The /auth/* routes are not
 	// registered. Default false (standard multi-user mode).
 	SingleUser bool `mapstructure:"single_user"`
+
+	// PathPrefix mounts every route under this prefix (e.g. "/raven" for the
+	// public demo at https://demo.ravencloak.org/raven/...). Empty string =
+	// served at root, which is the default and matches local/dev/desktop.
+	PathPrefix string `mapstructure:"path_prefix"`
 }
 
 // DatabaseConfig holds database connection settings.
@@ -346,6 +351,7 @@ func Load() (*Config, error) {
 	// Set defaults
 	v.SetDefault("server.port", 8081)
 	v.SetDefault("server.mode", "debug")
+	v.SetDefault("server.path_prefix", "")
 	v.SetDefault("server.read_header_timeout", "5s")
 	v.SetDefault("server.read_timeout", "30s")
 	v.SetDefault("server.write_timeout", "60s")
@@ -495,6 +501,7 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("googleoauth.client_secret", "GOOGLE_CLIENT_SECRET")
 	_ = v.BindEnv("server.port", "RAVEN_SERVER_PORT")
 	_ = v.BindEnv("server.mode", "RAVEN_SERVER_MODE")
+	_ = v.BindEnv("server.path_prefix", "RAVEN_PATH_PREFIX")
 	_ = v.BindEnv("server.read_header_timeout", "RAVEN_HTTP_READ_HEADER_TIMEOUT")
 	_ = v.BindEnv("server.read_timeout", "RAVEN_HTTP_READ_TIMEOUT")
 	_ = v.BindEnv("server.write_timeout", "RAVEN_HTTP_WRITE_TIMEOUT")

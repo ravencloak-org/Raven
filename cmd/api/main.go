@@ -554,9 +554,15 @@ func main() {
 	router.Use(middleware.CORSMiddleware(&cfg.CORS, &apiKeyLookupAdapter{repo: apiKeyRepo}))
 	router.Use(apierror.ErrorHandler())
 
+	// All routes mount under cfg.Server.PathPrefix. Empty string (default) keeps
+	// behaviour unchanged for local/dev/desktop. The public demo sets this to
+	// "/raven" so a request to https://demo.ravencloak.org/raven/api/v1/... is
+	// matched by the same handlers as a local request to /api/v1/...
+	root := router.Group(cfg.Server.PathPrefix)
+
 	// Infrastructure endpoint — intentionally outside the versioned group.
 	// Excluded from rate limiting.
-	router.GET("/healthz", middleware.Deadline(1*time.Second), handler.HealthCheck)
+	root.GET("/healthz", middleware.Deadline(1*time.Second), handler.HealthCheck)
 
 	// Frontend config endpoint — public, unauthenticated. Returns feature flags
 	// that the frontend reads on boot to decide behaviour (e.g. single-user mode).
