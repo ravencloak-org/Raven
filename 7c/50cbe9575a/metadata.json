@@ -2,14 +2,15 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "branch": "feat/billing-plans-comparison-page",
-  "checkpoints_count": 9,
+  "branch": "fix/api-path-prefix-route-mount",
+  "checkpoints_count": 11,
   "files_touched": [
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
     ".claude/worktrees/feat-billing-annual-refund/.env.ci",
     ".claude/worktrees/feat-enterprise-onboarding/.env.ci",
     "cmd/api/main.go",
     "deploy/ansible/group_vars/all.yml",
+    "deploy/ansible/group_vars/demo.yml",
     "deploy/ansible/inventory/hosts.yml",
     "deploy/ansible/roles/cloudflared/tasks/main.yml",
     "deploy/ansible/roles/raven-stack/tasks/main.yml",
@@ -23,6 +24,8 @@
     "deploy/terraform/demo/outputs.tf",
     "deploy/terraform/demo/security_group.tf",
     "deploy/terraform/demo/vpc.tf",
+    "docker-compose.demo.yml",
+    "frontend/playwright.raven.config.ts",
     "frontend/src/components/AppSidebar.vue",
     "frontend/src/components/MobileTabBar.vue",
     "frontend/src/components/TurnstileWidget.vue",
@@ -257,13 +260,20 @@
       "context": "/7c/50cbe9575a/3/context.md",
       "content_hash": "/7c/50cbe9575a/3/content_hash.txt",
       "prompt": "/7c/50cbe9575a/3/prompt.txt"
+    },
+    {
+      "metadata": "/7c/50cbe9575a/4/metadata.json",
+      "transcript": "/7c/50cbe9575a/4/full.jsonl",
+      "context": "/7c/50cbe9575a/4/context.md",
+      "content_hash": "/7c/50cbe9575a/4/content_hash.txt",
+      "prompt": "/7c/50cbe9575a/4/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 645,
-    "cache_creation_tokens": 2632356,
-    "cache_read_tokens": 83124911,
-    "output_tokens": 235165,
-    "api_call_count": 494
+    "input_tokens": 769,
+    "cache_creation_tokens": 3516663,
+    "cache_read_tokens": 91673413,
+    "output_tokens": 286129,
+    "api_call_count": 574
   }
 }
