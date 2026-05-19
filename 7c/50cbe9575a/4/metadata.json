@@ -3,30 +3,30 @@
   "checkpoint_id": "7c50cbe9575a",
   "session_id": "337cea8f-5a6b-4199-bc68-1de07b76ec01",
   "strategy": "manual-commit",
-  "created_at": "2026-05-19T08:03:47.893371Z",
-  "branch": "fix/api-path-prefix-route-mount",
-  "checkpoints_count": 2,
+  "created_at": "2026-05-19T12:47:55.207994Z",
+  "branch": "fix/release-pipeline-multiarch-and-demo-tags",
+  "checkpoints_count": 3,
   "files_touched": [
-    "deploy/ansible/group_vars/demo.yml",
-    "deploy/ansible/roles/raven-stack/templates/env.server.j2",
-    "docker-compose.demo.yml",
-    "frontend/playwright.raven.config.ts"
+    "cmd/api/path_prefix_test.go"
   ],
   "agent": "Claude Code",
+  "transcript_identifier_at_start": "e67c11d4-6725-458c-89be-cf0bdac669ac",
+  "checkpoint_transcript_start": 338,
+  "transcript_lines_at_start": 338,
   "token_usage": {
-    "input_tokens": 124,
-    "cache_creation_tokens": 884307,
-    "cache_read_tokens": 8548502,
-    "output_tokens": 50964,
-    "api_call_count": 80
+    "input_tokens": 112,
+    "cache_creation_tokens": 118766,
+    "cache_read_tokens": 19698337,
+    "output_tokens": 79744,
+    "api_call_count": 87
   },
   "initial_attribution": {
-    "calculated_at": "2026-05-19T08:03:47.827459Z",
+    "calculated_at": "2026-05-19T12:47:55.103604Z",
     "agent_lines": 0,
-    "human_added": 105,
-    "human_modified": 27,
+    "human_added": 36,
+    "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 132,
+    "total_committed": 36,
     "agent_percentage": 0
   }
 }

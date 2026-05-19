@@ -2,15 +2,15 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "branch": "fix/api-path-prefix-route-mount",
-  "checkpoints_count": 11,
+  "branch": "fix/release-pipeline-multiarch-and-demo-tags",
+  "checkpoints_count": 12,
   "files_touched": [
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
     ".claude/worktrees/feat-billing-annual-refund/.env.ci",
     ".claude/worktrees/feat-enterprise-onboarding/.env.ci",
     "cmd/api/main.go",
+    "cmd/api/path_prefix_test.go",
     "deploy/ansible/group_vars/all.yml",
-    "deploy/ansible/group_vars/demo.yml",
     "deploy/ansible/inventory/hosts.yml",
     "deploy/ansible/roles/cloudflared/tasks/main.yml",
     "deploy/ansible/roles/raven-stack/tasks/main.yml",
@@ -24,8 +24,6 @@
     "deploy/terraform/demo/outputs.tf",
     "deploy/terraform/demo/security_group.tf",
     "deploy/terraform/demo/vpc.tf",
-    "docker-compose.demo.yml",
-    "frontend/playwright.raven.config.ts",
     "frontend/src/components/AppSidebar.vue",
     "frontend/src/components/MobileTabBar.vue",
     "frontend/src/components/TurnstileWidget.vue",
@@ -270,10 +268,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 769,
-    "cache_creation_tokens": 3516663,
-    "cache_read_tokens": 91673413,
-    "output_tokens": 286129,
-    "api_call_count": 574
+    "input_tokens": 757,
+    "cache_creation_tokens": 2751122,
+    "cache_read_tokens": 102823248,
+    "output_tokens": 314909,
+    "api_call_count": 581
   }
 }
