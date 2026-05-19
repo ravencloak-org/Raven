@@ -49,3 +49,39 @@ it's merged, what next..check if it's live and working
 ---
 
 done
+
+---
+
+https://github.REDACTED failing
+
+---
+
+Check status of Release + Demo deploy workflows for tag v0.4.0, and verify whether https://demo.ravencloak.org/raven/api/v1/config now returns valid JSON (proves PR #626 route fix landed). Report status under 300 words. If demo-deploy completed and API works but frontend assets still 404, remind user about the FRONTEND_IMAGE override SSM command (Task #15).
+
+---
+
+it's merged
+
+---
+
+<task-notification>
+<task-id>bmhlvpw97</task-id>
+<tool-use-id>toolu_01Y6Uq7d1E5kroRnPkeYGrsc</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Watch Release v0.4.1 to completion" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+https://github.REDACTED https://github.REDACTED
+
+---
+
+<task-notification>
+<task-id>byma6t41d</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Watch Release v0.4.1 retry to completion" completed (exit code 0)</summary>
+</task-notification>

@@ -2,14 +2,15 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "branch": "fix/release-pipeline-multiarch-and-demo-tags",
-  "checkpoints_count": 12,
+  "branch": "feat/demo-deploy-vultr-cutover",
+  "checkpoints_count": 15,
   "files_touched": [
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
     ".claude/worktrees/feat-billing-annual-refund/.env.ci",
     ".claude/worktrees/feat-enterprise-onboarding/.env.ci",
+    ".github/workflows/demo-deploy.yml",
+    ".github/workflows/release.yml",
     "cmd/api/main.go",
-    "cmd/api/path_prefix_test.go",
     "deploy/ansible/group_vars/all.yml",
     "deploy/ansible/inventory/hosts.yml",
     "deploy/ansible/roles/cloudflared/tasks/main.yml",
@@ -268,10 +269,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 757,
-    "cache_creation_tokens": 2751122,
-    "cache_read_tokens": 102823248,
-    "output_tokens": 314909,
-    "api_call_count": 581
+    "input_tokens": 738,
+    "cache_creation_tokens": 2716493,
+    "cache_read_tokens": 102485846,
+    "output_tokens": 284922,
+    "api_call_count": 552
   }
 }

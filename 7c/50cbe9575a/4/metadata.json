@@ -3,30 +3,30 @@
   "checkpoint_id": "7c50cbe9575a",
   "session_id": "337cea8f-5a6b-4199-bc68-1de07b76ec01",
   "strategy": "manual-commit",
-  "created_at": "2026-05-19T12:47:55.207994Z",
-  "branch": "fix/release-pipeline-multiarch-and-demo-tags",
-  "checkpoints_count": 3,
+  "created_at": "2026-05-19T15:35:55.176423Z",
+  "branch": "feat/demo-deploy-vultr-cutover",
+  "checkpoints_count": 6,
   "files_touched": [
-    "cmd/api/path_prefix_test.go"
+    ".github/workflows/demo-deploy.yml",
+    ".github/workflows/release.yml"
   ],
   "agent": "Claude Code",
-  "transcript_identifier_at_start": "e67c11d4-6725-458c-89be-cf0bdac669ac",
-  "checkpoint_transcript_start": 338,
-  "transcript_lines_at_start": 338,
+  "checkpoint_transcript_start": 743,
+  "transcript_lines_at_start": 743,
   "token_usage": {
-    "input_tokens": 112,
-    "cache_creation_tokens": 118766,
-    "cache_read_tokens": 19698337,
-    "output_tokens": 79744,
-    "api_call_count": 87
+    "input_tokens": 93,
+    "cache_creation_tokens": 84137,
+    "cache_read_tokens": 19360935,
+    "output_tokens": 49757,
+    "api_call_count": 58
   },
   "initial_attribution": {
-    "calculated_at": "2026-05-19T12:47:55.103604Z",
+    "calculated_at": "2026-05-19T15:35:55.03399Z",
     "agent_lines": 0,
-    "human_added": 36,
-    "human_modified": 0,
+    "human_added": 237,
+    "human_modified": 77,
     "human_removed": 0,
-    "total_committed": 36,
+    "total_committed": 237,
     "agent_percentage": 0
   }
 }
