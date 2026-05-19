@@ -299,7 +299,13 @@ jobs:
           IMAGE: ghcr.io/${{ github.repository_owner }}/${{ matrix.component }}
         run: |
           tag_args=$(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON")
-          digest_args=$(printf '%s@sha256:%s ' "$IMAGE" *)
+          # Build one IMAGE@sha256:DIGEST source per digest file. The
+          # previous printf-with-two-%s form mis-cycled when more than
+          # one arch was present (printf consumes args in pairs).
+          digest_args=""
+          for d in *; do
+            digest_args="$digest_args $IMAGE@sha256:$d"
+          done
           # shellcheck disable=SC2086  # intentional word-splitting on tag_args + digest_args
           docker buildx imagetools create $tag_args $digest_args
 

@@ -12,6 +12,9 @@ services:
     environment:
       RAVEN_VOICE_ENABLED: "false"
       RAVEN_TURNSTILE_SECRET_KEY: "${TURNSTILE_SECRET_KEY}"
+      # Demo is served behind /raven/ on demo.ravencloak.org. The Go API mounts
+      # all routes under this prefix so cloudflared can forward the full path.
+      RAVEN_PATH_PREFIX: "${RAVEN_PATH_PREFIX:-/raven}"
 
   python-worker:
     environment:

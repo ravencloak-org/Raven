@@ -13,14 +13,20 @@ resource "cloudflare_tunnel_config" "demo" {
   tunnel_id  = cloudflare_tunnel.demo.id
 
   config {
+    # API requests at <demo_hostname><prefix>/api/* → Go API on 8081.
+    # cloudflared forwards the full path (including the prefix); the Go API
+    # router mounts everything under cfg.Server.PathPrefix so paths line up.
     ingress_rule {
       hostname = var.demo_hostname
-      service  = "http://localhost:8180"
-      path     = "/api/.*"
+      service  = "http://localhost:8081"
+      path     = "${var.demo_path_prefix}/api/.*"
     }
+    # Everything else under the prefix → Vue SPA on 3080 (Vite built with
+    # base=<prefix>/ so asset URLs resolve correctly).
     ingress_rule {
       hostname = var.demo_hostname
-      service  = "http://localhost:8080"
+      service  = "http://localhost:3080"
+      path     = "${var.demo_path_prefix}/.*"
     }
     ingress_rule {
       hostname = var.observability_hostname
