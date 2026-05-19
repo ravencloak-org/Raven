@@ -29,13 +29,19 @@ variable "cloudflare_zone_id" {
 variable "demo_hostname" {
   description = "Public hostname for the demo"
   type        = string
-  default     = "demo.raven.ravencloak.org"
+  default     = "demo.ravencloak.org"
+}
+
+variable "demo_path_prefix" {
+  description = "URL path prefix the demo app is served under (e.g. /raven). No trailing slash."
+  type        = string
+  default     = "/raven"
 }
 
 variable "observability_hostname" {
   description = "Public hostname for the OpenObserve UI"
   type        = string
-  default     = "observability.demo.raven.ravencloak.org"
+  default     = "observability.ravencloak.org"
 }
 
 variable "access_email" {

@@ -5,7 +5,7 @@ import { useServerConfigStore } from '../stores/server-config'
 import { useOnboardingStore } from '../stores/onboarding'
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
