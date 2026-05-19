@@ -28,17 +28,22 @@ jobs:
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
+          # release.yml publishes image tags via docker/metadata-action's
+          # {{version}} pattern, which strips the leading `v` from the
+          # SemVer tag. The git ref still carries `v` (e.g. v0.4.1) so we
+          # normalise to the published image-tag form here.
+          IMG_TAG="${TAG#v}"
           for svc in go-api python-worker frontend; do
             for i in {1..30}; do
-              if docker manifest inspect ghcr.io/ravencloak-org/$svc:$TAG > /dev/null 2>&1; then
-                echo "Found $svc:$TAG"
+              if docker manifest inspect "ghcr.io/ravencloak-org/$svc:$IMG_TAG" > /dev/null 2>&1; then
+                echo "Found $svc:$IMG_TAG"
                 break
               fi
               if [ "$i" = "30" ]; then
-                echo "Timed out waiting for $svc:$TAG"
+                echo "Timed out waiting for $svc:$IMG_TAG"
                 exit 1
               fi
-              echo "Waiting for $svc:$TAG (attempt $i/30)..."
+              echo "Waiting for $svc:$IMG_TAG (attempt $i/30)..."
               sleep 30
             done
           done
@@ -75,11 +80,21 @@ jobs:
           INSTANCE_ID: ${{ steps.instance.outputs.instance_id }}
         run: |
           set -euo pipefail
+          # git checkout uses the v-prefixed git tag; update.sh `--tag`
+          # takes the SemVer string (no v) because that's how release.yml
+          # publishes to GHCR. See wait-for-images for the same reasoning.
+          IMG_TAG="${TAG#v}"
+          # After update.sh pulls the standard frontend image (built with
+          # VITE_BASE_PATH=/), swap to the path-prefixed variant for demo
+          # so the SPA's asset URLs resolve under /raven/. The variant
+          # tag is produced by a follow-up CI matrix (Task #9); until
+          # then we use the one-off :raven-prefixed tag.
+          FRONTEND_DEMO_IMAGE="ghcr.io/ravencloak-org/frontend:raven-prefixed"
           CMD_ID=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name AWS-RunShellScript \
             --comment "demo deploy $TAG" \
-            --parameters "commands=[\"cd /opt/raven && git fetch --tags && git checkout $TAG && bash deploy/ec2/update.sh --tag $TAG\"]" \
+            --parameters "commands=[\"cd /opt/raven && git fetch --tags && git checkout $TAG && bash deploy/ec2/update.sh --tag $IMG_TAG && sed -i 's|^FRONTEND_IMAGE=.*|FRONTEND_IMAGE=$FRONTEND_DEMO_IMAGE|' .env.server && DOCKER_HOST=unix:///run/raven/docker.sock docker compose -f deploy/ec2/docker-compose.server.yml --env-file .env.server pull frontend && DOCKER_HOST=unix:///run/raven/docker.sock docker compose -f deploy/ec2/docker-compose.server.yml --env-file .env.server up -d --remove-orphans frontend\"]" \
             --timeout-seconds 1800 \
             --query 'Command.CommandId' --output text)
           echo "command_id=$CMD_ID" >> "$GITHUB_OUTPUT"
@@ -109,15 +124,20 @@ jobs:
           echo "Timed out waiting for SSM command"
           exit 1
 
-      - name: Smoke-test /healthz
+      - name: Smoke-test demo /raven/api/v1/config
         run: |
-          for i in {1..20}; do
-            if curl -fsS https://demo.raven.ravencloak.org/healthz; then
+          # Hits the path-prefixed public-config endpoint via cloudflared.
+          # demo.raven.ravencloak.org is offline since the DNS cutover;
+          # /raven/api/v1/config is publicly reachable, returns JSON, and
+          # exercises both the tunnel ingress rule and the Go API's
+          # PathPrefix-mounted route group (verifies the fix from #626).
+          for _ in {1..20}; do
+            if curl -fsS https://demo.ravencloak.org/raven/api/v1/config | grep -q single_user; then
               echo "OK"; exit 0
             fi
             sleep 15
           done
-          echo "Health check never went green"
+          echo "Demo API never went green"
           exit 1
 
   notify:

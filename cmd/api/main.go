@@ -554,13 +554,19 @@ func main() {
 	router.Use(middleware.CORSMiddleware(&cfg.CORS, &apiKeyLookupAdapter{repo: apiKeyRepo}))
 	router.Use(apierror.ErrorHandler())
 
+	// All routes mount under cfg.Server.PathPrefix. Empty string (default) keeps
+	// behaviour unchanged for local/dev/desktop. The public demo sets this to
+	// "/raven" so a request to https://demo.ravencloak.org/raven/api/v1/... is
+	// matched by the same handlers as a local request to /api/v1/...
+	root := router.Group(cfg.Server.PathPrefix)
+
 	// Infrastructure endpoint — intentionally outside the versioned group.
 	// Excluded from rate limiting.
-	router.GET("/healthz", middleware.Deadline(1*time.Second), handler.HealthCheck)
+	root.GET("/healthz", middleware.Deadline(1*time.Second), handler.HealthCheck)
 
 	// Frontend config endpoint — public, unauthenticated. Returns feature flags
 	// that the frontend reads on boot to decide behaviour (e.g. single-user mode).
-	router.GET("/api/v1/config", func(c *gin.Context) {
+	root.GET("/api/v1/config", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"single_user": cfg.Server.SingleUser,
 		})
@@ -569,11 +575,11 @@ func main() {
 	// One-click unsubscribe — public, authenticated via a signed token embedded
 	// in the link (RFC 8058). Placed outside /api/v1 so email clients can hit
 	// it without triggering CORS/auth middleware.
-	router.GET("/api/v1/notifications/unsubscribe", middleware.Deadline(10*time.Second), notifPrefsHandler.Unsubscribe)
-	router.POST("/api/v1/notifications/unsubscribe", middleware.Deadline(10*time.Second), notifPrefsHandler.UnsubscribePost)
+	root.GET("/api/v1/notifications/unsubscribe", middleware.Deadline(10*time.Second), notifPrefsHandler.Unsubscribe)
+	root.POST("/api/v1/notifications/unsubscribe", middleware.Deadline(10*time.Second), notifPrefsHandler.UnsubscribePost)
 
 	// Swagger UI — served at /api/docs (unauthenticated; disable in prod via env).
-	router.GET("/api/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	root.GET("/api/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// SuperTokens SDK routes — catch-all for /auth/* so the SDK middleware
 	// can intercept signinup, session/refresh, callback, etc.
@@ -585,7 +591,7 @@ func main() {
 		// when TURNSTILE_SECRET_KEY is empty (dev / non-demo).
 		turnstileVerifier := turnstile.NewVerifier(os.Getenv("TURNSTILE_SECRET_KEY"))
 		turnstileBypass := os.Getenv("TURNSTILE_BYPASS_SECRET") // CI / E2E only
-		router.Any("/auth/*path",
+		root.Any("/auth/*path",
 			turnstile.SignupOnly(turnstileVerifier, turnstileBypass),
 			handler.SuperTokensMiddleware(),
 		)
@@ -601,7 +607,7 @@ func main() {
 	// (chat, voice, upload) for tighter budgets than the 60s http.Server
 	// WriteTimeout. Endpoints without their own Deadline are bounded by
 	// WriteTimeout — acceptable for default-CRUD route groups.
-	api := router.Group("/api/v1")
+	api := root.Group("/api/v1")
 
 	// Single-user mode: inject synthetic local session without SuperTokens.
 	// Multi-user mode: verify session via SuperTokens and resolve DB user.
@@ -925,7 +931,7 @@ func main() {
 	}
 
 	// Public chat routes — API key authentication (for embeddable chat widget).
-	chatAPI := router.Group("/api/v1/chat")
+	chatAPI := root.Group("/api/v1/chat")
 	// 30s budget for streaming completions (not under api, so full 30s is effective).
 	chatAPI.Use(middleware.Deadline(30 * time.Second))
 	chatAPI.Use(middleware.APIKeyAuth(&apiKeyLookupAdapter{repo: apiKeyRepo}))
@@ -950,15 +956,15 @@ func main() {
 	}
 
 	// --- Hyperswitch Billing Webhook (public, no JWT — uses HMAC signature verification) ---
-	router.POST("/api/v1/billing/webhook", middleware.Deadline(10*time.Second), billingHandler.Webhook)
+	root.POST("/api/v1/billing/webhook", middleware.Deadline(10*time.Second), billingHandler.Webhook)
 
 	// --- Meta Graph API Webhook (public, no JWT — Meta sends to a single URL) ---
 	metaWebhookHandler := handler.NewMetaWebhookHandler(cfg.Meta.AppSecret, cfg.Meta.WebhookToken, nil)
-	router.GET("/webhooks/meta", middleware.Deadline(10*time.Second), metaWebhookHandler.VerifyWebhook)
-	router.POST("/webhooks/meta", middleware.Deadline(10*time.Second), metaWebhookHandler.HandleEvent)
+	root.GET("/webhooks/meta", middleware.Deadline(10*time.Second), metaWebhookHandler.VerifyWebhook)
+	root.POST("/webhooks/meta", middleware.Deadline(10*time.Second), metaWebhookHandler.HandleEvent)
 
 	// --- Admin routes (seed key auth required) ---
-	admin := router.Group("/api/v1/admin")
+	admin := root.Group("/api/v1/admin")
 	admin.Use(middleware.Deadline(10 * time.Second))
 	admin.Use(func(c *gin.Context) {
 		seedKey := c.GetHeader("X-Seed-Key")
@@ -978,7 +984,7 @@ func main() {
 	demoJoiner := service.NewDemoOrgJoiner(orgSvc, wsSvc)
 	authHandler := handler.NewAuthHandler(userSvc, demoJoiner)
 	if !cfg.Server.SingleUser {
-		router.GET("/api/v1/auth/callback", middleware.Deadline(10*time.Second), func(c *gin.Context) {
+		root.GET("/api/v1/auth/callback", middleware.Deadline(10*time.Second), func(c *gin.Context) {
 			info, err := authProvider.VerifySession(c.Request)
 			if err != nil || info == nil {
 				c.AbortWithStatusJSON(401, gin.H{"error": "invalid_session"})

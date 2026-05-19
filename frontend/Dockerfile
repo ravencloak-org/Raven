@@ -12,6 +12,10 @@ ARG VITE_API_URL=https://api.ravencloak.org
 ARG VITE_API_BASE_URL=https://api.ravencloak.org/api/v1
 ARG VITE_API_DOMAIN=https://api.ravencloak.org
 ARG VITE_LIVEKIT_URL=
+# Vite base path. Override at build time (e.g. --build-arg VITE_BASE_PATH=/raven/)
+# when serving under a path prefix. Must include trailing slash. Default: root.
+ARG VITE_BASE_PATH=/
+ENV VITE_BASE_PATH=$VITE_BASE_PATH
 
 RUN npm run build
 
