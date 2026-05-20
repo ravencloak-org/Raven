@@ -104,6 +104,37 @@ if [ ! -f "$ENV_FILE" ]; then
   echo "[bootstrap] WROTE template $ENV_FILE — populate secrets before deploying."
 fi
 
+# ─── docker-compose.override.yml (locked-down baseline) ──────────────────────
+# This override is the production-safe baseline for the demo box:
+#   - go-api entrypoint skips dotenvx (compose already injects the env via
+#     env_file), avoiding the "dotenvx not found" crash loop.
+#   - healthcheck targets /raven/healthz to match the path-prefixed routing
+#     that the demo cloudflared ingress maps to / on the box.
+#   - NO ports: overrides — docker keeps the base compose's 127.0.0.1:
+#     bindings so the only public ingress is cloudflared (outbound tunnel,
+#     no inbound ports). DO NOT add 0.0.0.0: bindings here; if you need to
+#     reach the box without cloudflared for an emergency debug, do it via
+#     SSH port-forward (e.g. ssh -L 8081:127.0.0.1:8081 root@<box>), NOT by
+#     publishing the port. Public bindings are the lockdown anti-pattern
+#     that deploy/vultr/lockdown.sh exists to undo.
+OVERRIDE_FILE="$REPO_DIR/docker-compose.override.yml"
+if [ ! -f "$OVERRIDE_FILE" ]; then
+  echo "[bootstrap] writing locked-down $OVERRIDE_FILE..."
+  cat > "$OVERRIDE_FILE" <<'EOF'
+# Locked-down compose override for the Vultr demo box.
+# Managed by deploy/vultr/bootstrap.sh — see that script for rationale.
+# DO NOT add `ports:` overrides here; public ingress goes via cloudflared only.
+services:
+  go-api:
+    entrypoint: ["/app/api"]
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/raven/healthz"]
+EOF
+else
+  echo "[bootstrap] $OVERRIDE_FILE already exists; leaving it alone."
+  echo "[bootstrap] If it contains 0.0.0.0: port bindings, run deploy/vultr/lockdown.sh to remove them."
+fi
+
 echo
 echo "[bootstrap] DONE. Next steps:"
 echo "  1. populate $ENV_FILE with real secrets (POSTGRES_PASSWORD, SUPERTOKENS_API_KEY, etc.)"
