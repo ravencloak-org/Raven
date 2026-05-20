@@ -1,3 +1,43 @@
+####
+# `cloudflare_tunnel.demo` was originally created by `terraform apply` from
+# this file (tunnel id `9bae2af2-f8e8-45ed-aa61-e1eb29182c3c`, connected
+# from an AWS EC2 box). On 2026-05-18 the demo was cut over to Vultr per
+# `docs/runbooks/demo-cutover.md` — a SECOND tunnel
+# (`ac5bd284-c908-4c7d-8666-f6e8e824c693`) was created out-of-band in the
+# Cloudflare dashboard with the same two `/raven/...` ingress rules, the
+# Vultr cloudflared registered against it, and `demo.ravencloak.org`'s
+# CNAME was flipped to the new tunnel. The old `9bae2af2` tunnel is now
+# dormant and will be deleted alongside the AWS decommission.
+#
+# The `import` blocks below adopt the new (Vultr) tunnel + its config
+# into the same `cloudflare_tunnel.demo` / `cloudflare_tunnel_config.demo`
+# addresses so Terraform converges on reality. The dashboard-configured
+# ingress rules are identical to those declared in `cloudflare_tunnel_config.demo`
+# below, so the post-import plan should be a clean no-op refresh.
+#
+# `secret` is kept (provider schema makes it required) but wrapped in
+# `lifecycle { ignore_changes }` so Terraform does NOT rotate the
+# dashboard-issued secret on first apply — rotating it would invalidate
+# the token the Vultr cloudflared connector is bootstrapped from. The
+# `random_id.tunnel_secret` + `aws_ssm_parameter.*` resources below are
+# AWS-only and will be removed by the parallel AWS-decommission PR.
+#
+# REVIEWER NOTE: state currently has `cloudflare_tunnel.demo` +
+# `cloudflare_tunnel_config.demo` bound to the OLD tunnel
+# (`9bae2af2-…`). Before `terraform plan`, run:
+#   terraform state rm cloudflare_tunnel.demo cloudflare_tunnel_config.demo
+# so the `import` blocks have a clean slot to re-populate.
+####
+import {
+  to = cloudflare_tunnel.demo
+  id = "${var.cloudflare_account_id}/${var.demo_tunnel_id}"
+}
+
+import {
+  to = cloudflare_tunnel_config.demo
+  id = "${var.cloudflare_account_id}/${var.demo_tunnel_id}"
+}
+
 resource "random_id" "tunnel_secret" {
   byte_length = 35
 }
@@ -5,7 +45,16 @@ resource "random_id" "tunnel_secret" {
 resource "cloudflare_tunnel" "demo" {
   account_id = var.cloudflare_account_id
   name       = "raven-demo"
-  secret     = random_id.tunnel_secret.b64_std
+  # `secret` is required by the provider schema, but the imported (Vultr)
+  # tunnel was created in the dashboard with its own server-generated
+  # secret; the live Vultr cloudflared connector was bootstrapped from
+  # that secret's token and would disconnect if Terraform rotated it.
+  # We seed the argument from `random_id.tunnel_secret` to satisfy the
+  # schema and `ignore_changes` to prevent any rotation post-import.
+  secret = random_id.tunnel_secret.b64_std
+  lifecycle {
+    ignore_changes = [secret]
+  }
 }
 
 resource "cloudflare_tunnel_config" "demo" {

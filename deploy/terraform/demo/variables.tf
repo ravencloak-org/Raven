@@ -26,6 +26,12 @@ variable "cloudflare_zone_id" {
   type        = string
 }
 
+variable "demo_tunnel_id" {
+  description = "ID of the Cloudflare tunnel that fronts demo.ravencloak.org. After the AWS→Vultr cutover (see docs/runbooks/demo-cutover.md) this points at the Vultr-side tunnel created out-of-band in the dashboard."
+  type        = string
+  default     = "ac5bd284-c908-4c7d-8666-f6e8e824c693"
+}
+
 variable "demo_hostname" {
   description = "Public hostname for the demo"
   type        = string
