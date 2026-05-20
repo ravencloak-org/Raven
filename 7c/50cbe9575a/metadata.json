@@ -2,13 +2,13 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "branch": "feat/frontend-raven-prefixed-ci-variant",
-  "checkpoints_count": 28,
+  "branch": "docs/demo-cutover-runbook",
+  "checkpoints_count": 10,
   "files_touched": [
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
     ".claude/worktrees/feat-billing-annual-refund/.env.ci",
     ".claude/worktrees/feat-enterprise-onboarding/.env.ci",
-    ".github/workflows/demo-deploy.yml",
+    ".github/workflows/docker.yml",
     "cmd/api/main.go",
     "deploy/ansible/group_vars/all.yml",
     "deploy/ansible/inventory/hosts.yml",
@@ -25,10 +25,9 @@
     "deploy/terraform/demo/security_group.tf",
     "deploy/terraform/demo/vpc.tf",
     "deploy/vultr/.env.server.example",
-    "deploy/vultr/bootstrap.sh",
-    "deploy/vultr/fetch-tunnel-creds.sh",
     "deploy/vultr/update.sh",
-    "frontend/nginx.conf.vultr",
+    "frontend/Dockerfile",
+    "frontend/nginx.conf",
     "frontend/src/components/AppSidebar.vue",
     "frontend/src/components/MobileTabBar.vue",
     "frontend/src/components/TurnstileWidget.vue",
@@ -36,6 +35,7 @@
     "frontend/src/pages/LoginPage.vue",
     "frontend/src/plugins/supertokens.ts",
     "frontend/src/router/index.ts",
+    "frontend/src/stores/server-config.ts",
     "internal/model/billing.go",
     "internal/repository/billing.go",
     "internal/service/billing.go",
@@ -273,10 +273,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 894,
-    "cache_creation_tokens": 4268312,
-    "cache_read_tokens": 141583896,
-    "output_tokens": 378676,
-    "api_call_count": 623
+    "input_tokens": 697,
+    "cache_creation_tokens": 3232617,
+    "cache_read_tokens": 110443929,
+    "output_tokens": 267895,
+    "api_call_count": 541
   }
 }

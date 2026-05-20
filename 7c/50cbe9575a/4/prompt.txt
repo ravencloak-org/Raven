@@ -293,3 +293,7 @@ did you open the port on vultr?
 ---
 
 done, no more public port. added ssh only firewall
+
+---
+
+yes do that

@@ -221,3 +221,7 @@ did you open the port on vultr?
 
 done, no more public port. added ssh only firewall
 
+### Prompt 36
+
+yes do that
+
