@@ -155,9 +155,107 @@ If Step 5 already ran (AWS cloudflared stopped) and you need to roll back: re-en
 ## Post-cutover follow-ups (separate PRs)
 
 - **Terraform import** of the now-canonical tunnel `ac5bd284` and replace `cloudflare_tunnel.demo` + `cloudflare_tunnel_config.demo` references. Drop the orphaned `9bae2af2` resource. Touches `deploy/terraform/demo/cloudflare.tf` + `terraform import` blocks.
-- **AWS decommission**: `terraform destroy` of `aws_instance.demo` + IAM + S3 backup bucket + SSM parameters. Tracked as Task #11.
+- **AWS decommission**: `terraform destroy` of `aws_instance.demo` + IAM + S3 backup bucket + SSM parameters. Tracked as Task #11. The terraform code removal lands in a separate PR ahead of the destroy; see the data-export checklist below.
 - **Vultr lockdown**: now that the demo serves through cloudflared, the public-IP ports `13080` + `18081` are no longer needed. Either add a Vultr cloud-firewall rule restricting them to SSH-only, OR rebind compose ports back to `127.0.0.1:` in `docker-compose.override.yml` on the box.
 - **Frontend image cleanup**: retire the one-off `ghcr.io/ravencloak-org/frontend:raven-prefixed` tag I hand-built — every release tag now produces `frontend-raven:<version>` via CI (#631).
+
+### AWS data-export + destroy checklist (Task #11)
+
+Run this **only after** cutover has been stable for ~24h, and **only after** the
+terraform-code-removal PR has merged (the one that deletes `ec2.tf`, `iam.tf`,
+`s3.tf`, `backup.tf`, `oidc.tf`, `security_group.tf`, `vpc.tf`, `ebs.tf`,
+`user_data.sh.tpl`). Order matters — back up first, destroy second.
+
+1. **Export S3 backups locally** (postgres + clickhouse dumps written by the
+   nightly job). The bucket name is `raven-demo-backups`:
+
+   ```bash
+   aws s3 sync s3://raven-demo-backups ./local-backups/ \
+     --region ap-south-1
+   # Optional: push the copy to Vultr / OneDrive / wherever long-term lives.
+   du -sh ./local-backups/
+   ```
+
+   Verify a sample tarball untars and the latest postgres dump is restorable
+   before proceeding.
+
+2. **Preview the full destroy** so nothing unexpected is in the blast radius:
+
+   ```bash
+   cd deploy/terraform/demo
+   terraform plan -destroy -out=destroy.tfplan
+   ```
+
+   The plan should show only `aws_*` resources plus the two
+   `aws_ssm_parameter.*` entries living in `cloudflare.tf`. Anything
+   `cloudflare_*` should be UNCHANGED — if it isn't, stop and reconcile.
+
+3. **Targeted destroy in safe order** (each `-target` invocation is its own
+   `terraform destroy`):
+
+   ```bash
+   # a. Compute first — frees the EBS attachment and IAM-profile association.
+   terraform destroy -target=aws_volume_attachment.data
+   terraform destroy -target=aws_instance.demo
+
+   # b. EBS data volume. Note: lifecycle.prevent_destroy = true in ebs.tf —
+   #    once that file is deleted, the protection is gone, BUT terraform may
+   #    still complain it's referenced. Remove from state manually if needed:
+   #      terraform state rm aws_ebs_volume.data
+   #    then destroy via the AWS console / CLI.
+   terraform destroy -target=aws_ebs_volume.data
+
+   # c. S3 backup bucket (only after step 1 above succeeded).
+   terraform destroy -target=aws_s3_bucket_lifecycle_configuration.backups
+   terraform destroy -target=aws_s3_bucket_public_access_block.backups
+   terraform destroy -target=aws_s3_bucket_server_side_encryption_configuration.backups
+   terraform destroy -target=aws_s3_bucket_versioning.backups
+   terraform destroy -target=aws_s3_bucket.backups   # bucket must be empty first
+
+   # d. Backup vault + plan + selection + role.
+   terraform destroy -target=aws_backup_selection.demo
+   terraform destroy -target=aws_backup_plan.demo
+   terraform destroy -target=aws_backup_vault.demo
+   terraform destroy -target=aws_iam_role_policy_attachment.backup
+   terraform destroy -target=aws_iam_role.backup
+
+   # e. IAM instance profile + role + inline policies.
+   terraform destroy -target=aws_iam_instance_profile.demo
+   terraform destroy -target=aws_iam_role_policy.s3_backups
+   terraform destroy -target=aws_iam_role_policy.ssm_read
+   terraform destroy -target=aws_iam_role_policy_attachment.ssm_core
+   terraform destroy -target=aws_iam_role.demo
+
+   # f. GitHub Actions OIDC role (the OIDC provider itself is account-wide;
+   #    leave it unless no other AWS account workflows use it).
+   terraform destroy -target=aws_iam_role_policy.github_demo_deploy
+   terraform destroy -target=aws_iam_role.github_demo_deploy
+
+   # g. SSM parameters living in cloudflare.tf (cleaned up by the parallel
+   #    tunnel-import PR; if that hasn't landed yet, do them by hand here).
+   terraform destroy -target=aws_ssm_parameter.tunnel_credentials
+   terraform destroy -target=aws_ssm_parameter.tunnel_id
+
+   # h. Network: route table assoc → IGW → subnet → VPC.
+   terraform destroy -target=aws_route_table_association.demo
+   terraform destroy -target=aws_route_table.demo
+   terraform destroy -target=aws_internet_gateway.demo
+   terraform destroy -target=aws_security_group.demo
+   terraform destroy -target=aws_subnet.demo
+   terraform destroy -target=aws_vpc.demo
+   ```
+
+   Alternatively, once the terraform code is removed, a plain
+   `terraform apply` (against the now-orphaned state) will destroy everything
+   in dependency order. Use `terraform plan -destroy` first to inspect.
+
+4. **Sanity-check the AWS console** that no `raven-demo-*` resources remain in
+   `ap-south-1`: EC2 instances, EBS volumes, S3 buckets, IAM roles,
+   VPCs/subnets, Backup vaults, SSM parameters.
+
+5. **Update task #11 → completed** and write a Stash entry under
+   `/projects/raven/infra` recording the final destroy date so future agents
+   know AWS is officially out of the demo path.
 
 ## What success looks like
 

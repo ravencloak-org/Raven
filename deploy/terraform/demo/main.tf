@@ -1,4 +1,9 @@
 provider "aws" {
+  # Retained solely so the legacy aws_ssm_parameter.tunnel_credentials /
+  # aws_ssm_parameter.tunnel_id resources still living in cloudflare.tf can
+  # be torn down by the post-cutover terraform destroy. Will be removed in
+  # the follow-up tunnel-import PR once those SSM params are deleted from
+  # state.
   region = var.aws_region
 }
 
@@ -12,18 +17,5 @@ locals {
     Project     = "raven"
     Environment = "demo"
     ManagedBy   = "terraform"
-  }
-}
-
-data "aws_ami" "al2023_arm" {
-  most_recent = true
-  owners      = [var.ami_owner]
-  filter {
-    name   = "name"
-    values = ["al2023-ami-2023*-arm64"]
-  }
-  filter {
-    name   = "architecture"
-    values = ["arm64"]
   }
 }
