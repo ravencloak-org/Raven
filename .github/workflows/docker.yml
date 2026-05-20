@@ -86,6 +86,23 @@ jobs:
             platform: linux/arm64
             arch: arm64
             runner: ubuntu-24.04-arm
+          # Path-prefixed variant of the frontend, baked with
+          # VITE_BASE_PATH=/raven/. Used by the public demo so the SPA's
+          # assets + same-origin API calls resolve under /raven/. Same
+          # Dockerfile + context as `frontend`; only the build-args differ
+          # (handled in the build-push step via matrix.image).
+          - image: frontend-raven
+            context: frontend
+            dockerfile: frontend/Dockerfile
+            platform: linux/amd64
+            arch: amd64
+            runner: ubuntu-latest
+          - image: frontend-raven
+            context: frontend
+            dockerfile: frontend/Dockerfile
+            platform: linux/arm64
+            arch: arm64
+            runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
@@ -116,6 +133,10 @@ jobs:
             ${{ matrix.image == 'frontend' && format('VITE_API_URL={0}', vars.VITE_API_URL || 'https://api.ravencloak.org') || '' }}
             ${{ matrix.image == 'frontend' && format('VITE_API_BASE_URL={0}', vars.VITE_API_BASE_URL || 'https://api.ravencloak.org/api/v1') || '' }}
             ${{ matrix.image == 'frontend' && format('VITE_LIVEKIT_URL={0}', vars.VITE_LIVEKIT_URL || '') || '' }}
+            ${{ matrix.image == 'frontend-raven' && 'VITE_BASE_PATH=/raven/' || '' }}
+            ${{ matrix.image == 'frontend-raven' && format('VITE_API_URL={0}/raven', vars.RAVEN_DEMO_BASE_URL || 'https://demo.ravencloak.org') || '' }}
+            ${{ matrix.image == 'frontend-raven' && format('VITE_API_BASE_URL={0}/raven/api/v1', vars.RAVEN_DEMO_BASE_URL || 'https://demo.ravencloak.org') || '' }}
+            ${{ matrix.image == 'frontend-raven' && format('VITE_API_DOMAIN={0}', vars.RAVEN_DEMO_BASE_URL || 'https://demo.ravencloak.org') || '' }}
           labels: ${{ steps.meta.outputs.labels }}
           tags: ${{ steps.meta.outputs.tags }}
 
@@ -143,6 +164,9 @@ jobs:
             context: ai-worker
             dockerfile: ai-worker/Dockerfile
           - image: frontend
+            context: frontend
+            dockerfile: frontend/Dockerfile
+          - image: frontend-raven
             context: frontend
             dockerfile: frontend/Dockerfile
     steps:
@@ -184,6 +208,10 @@ jobs:
             ${{ matrix.image == 'frontend' && format('VITE_API_URL={0}', vars.VITE_API_URL || 'https://api.ravencloak.org') || '' }}
             ${{ matrix.image == 'frontend' && format('VITE_API_BASE_URL={0}', vars.VITE_API_BASE_URL || 'https://api.ravencloak.org/api/v1') || '' }}
             ${{ matrix.image == 'frontend' && format('VITE_LIVEKIT_URL={0}', vars.VITE_LIVEKIT_URL || '') || '' }}
+            ${{ matrix.image == 'frontend-raven' && 'VITE_BASE_PATH=/raven/' || '' }}
+            ${{ matrix.image == 'frontend-raven' && format('VITE_API_URL={0}/raven', vars.RAVEN_DEMO_BASE_URL || 'https://demo.ravencloak.org') || '' }}
+            ${{ matrix.image == 'frontend-raven' && format('VITE_API_BASE_URL={0}/raven/api/v1', vars.RAVEN_DEMO_BASE_URL || 'https://demo.ravencloak.org') || '' }}
+            ${{ matrix.image == 'frontend-raven' && format('VITE_API_DOMAIN={0}', vars.RAVEN_DEMO_BASE_URL || 'https://demo.ravencloak.org') || '' }}
           labels: ${{ steps.meta.outputs.labels }}
           tags: ${{ steps.meta.outputs.tags }}
           provenance: false

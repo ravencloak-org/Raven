@@ -196,6 +196,21 @@ jobs:
             platform: linux/arm64
             arch: arm64
             runner: ubuntu-24.04-arm
+          # Path-prefixed variant for the demo (VITE_BASE_PATH=/raven/).
+          # Same Dockerfile + context; build-args differ via the
+          # `Build and push by digest` step's conditional below.
+          - component: frontend-raven
+            context: frontend
+            dockerfile: frontend/Dockerfile
+            platform: linux/amd64
+            arch: amd64
+            runner: ubuntu-latest
+          - component: frontend-raven
+            context: frontend
+            dockerfile: frontend/Dockerfile
+            platform: linux/arm64
+            arch: arm64
+            runner: ubuntu-24.04-arm
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
@@ -229,6 +244,14 @@ jobs:
           cache-to:   type=gha,scope=${{ matrix.component }}-${{ matrix.arch }},mode=max
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/${{ matrix.component }},push-by-digest=true,name-canonical=true,push=true
+          build-args: |
+            ${{ matrix.component == 'frontend' && format('VITE_API_URL={0}', vars.VITE_API_URL || 'https://api.ravencloak.org') || '' }}
+            ${{ matrix.component == 'frontend' && format('VITE_API_BASE_URL={0}', vars.VITE_API_BASE_URL || 'https://api.ravencloak.org/api/v1') || '' }}
+            ${{ matrix.component == 'frontend' && format('VITE_LIVEKIT_URL={0}', vars.VITE_LIVEKIT_URL || '') || '' }}
+            ${{ matrix.component == 'frontend-raven' && 'VITE_BASE_PATH=/raven/' || '' }}
+            ${{ matrix.component == 'frontend-raven' && format('VITE_API_URL={0}/raven', vars.RAVEN_DEMO_BASE_URL || 'https://demo.ravencloak.org') || '' }}
+            ${{ matrix.component == 'frontend-raven' && format('VITE_API_BASE_URL={0}/raven/api/v1', vars.RAVEN_DEMO_BASE_URL || 'https://demo.ravencloak.org') || '' }}
+            ${{ matrix.component == 'frontend-raven' && format('VITE_API_DOMAIN={0}', vars.RAVEN_DEMO_BASE_URL || 'https://demo.ravencloak.org') || '' }}
           provenance: false
           sbom: false
 
@@ -264,7 +287,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        component: [go-api, python-worker, frontend]
+        component: [go-api, python-worker, frontend, frontend-raven]
     steps:
       - name: Download digests
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1

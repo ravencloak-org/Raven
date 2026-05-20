@@ -41,7 +41,9 @@ done
 if [ -n "${REF}" ]; then
   GO_API_IMAGE="ghcr.io/ravencloak-org/go-api:${REF}"
   PYTHON_WORKER_IMAGE="ghcr.io/ravencloak-org/python-worker:${REF}"
-  FRONTEND_IMAGE="ghcr.io/ravencloak-org/frontend:${REF}"
+  # Vultr always runs the path-prefixed variant (built with VITE_BASE_PATH=/raven/
+  # by the docker.yml/release.yml `frontend-raven` matrix entry).
+  FRONTEND_IMAGE="ghcr.io/ravencloak-org/frontend-raven:${REF}"
 
   set_or_append() {
     local key="$1" value="$2"

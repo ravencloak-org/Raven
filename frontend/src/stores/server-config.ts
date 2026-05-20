@@ -31,9 +31,10 @@ export const useServerConfigStore = defineStore('serverConfig', () => {
   async function load() {
     if (loaded.value) return
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/api/v1/config`,
-      )
+      // VITE_API_BASE_URL already ends with /api/v1 (matches the
+      // convention used everywhere else in src/api/*) — appending it
+      // again here doubled the path on path-prefixed deployments.
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/config`)
       if (res.ok) {
         const data: ServerConfig = await res.json()
         singleUser.value = data.single_user ?? false
