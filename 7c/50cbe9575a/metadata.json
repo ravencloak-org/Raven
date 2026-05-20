@@ -2,14 +2,13 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "branch": "feat/demo-deploy-vultr-cutover",
-  "checkpoints_count": 15,
+  "branch": "feat/frontend-raven-prefixed-ci-variant",
+  "checkpoints_count": 28,
   "files_touched": [
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
     ".claude/worktrees/feat-billing-annual-refund/.env.ci",
     ".claude/worktrees/feat-enterprise-onboarding/.env.ci",
     ".github/workflows/demo-deploy.yml",
-    ".github/workflows/release.yml",
     "cmd/api/main.go",
     "deploy/ansible/group_vars/all.yml",
     "deploy/ansible/inventory/hosts.yml",
@@ -25,6 +24,11 @@
     "deploy/terraform/demo/outputs.tf",
     "deploy/terraform/demo/security_group.tf",
     "deploy/terraform/demo/vpc.tf",
+    "deploy/vultr/.env.server.example",
+    "deploy/vultr/bootstrap.sh",
+    "deploy/vultr/fetch-tunnel-creds.sh",
+    "deploy/vultr/update.sh",
+    "frontend/nginx.conf.vultr",
     "frontend/src/components/AppSidebar.vue",
     "frontend/src/components/MobileTabBar.vue",
     "frontend/src/components/TurnstileWidget.vue",
@@ -269,10 +273,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 738,
-    "cache_creation_tokens": 2716493,
-    "cache_read_tokens": 102485846,
-    "output_tokens": 284922,
-    "api_call_count": 552
+    "input_tokens": 894,
+    "cache_creation_tokens": 4268312,
+    "cache_read_tokens": 141583896,
+    "output_tokens": 378676,
+    "api_call_count": 623
   }
 }

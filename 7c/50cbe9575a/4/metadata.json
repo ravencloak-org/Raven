@@ -3,30 +3,34 @@
   "checkpoint_id": "7c50cbe9575a",
   "session_id": "337cea8f-5a6b-4199-bc68-1de07b76ec01",
   "strategy": "manual-commit",
-  "created_at": "2026-05-19T15:35:55.176423Z",
-  "branch": "feat/demo-deploy-vultr-cutover",
-  "checkpoints_count": 6,
+  "created_at": "2026-05-20T18:20:47.241673Z",
+  "branch": "feat/frontend-raven-prefixed-ci-variant",
+  "checkpoints_count": 19,
   "files_touched": [
     ".github/workflows/demo-deploy.yml",
-    ".github/workflows/release.yml"
+    "deploy/vultr/.env.server.example",
+    "deploy/vultr/bootstrap.sh",
+    "deploy/vultr/fetch-tunnel-creds.sh",
+    "deploy/vultr/update.sh",
+    "frontend/nginx.conf.vultr"
   ],
   "agent": "Claude Code",
-  "checkpoint_transcript_start": 743,
-  "transcript_lines_at_start": 743,
+  "checkpoint_transcript_start": 1026,
+  "transcript_lines_at_start": 1026,
   "token_usage": {
-    "input_tokens": 93,
-    "cache_creation_tokens": 84137,
-    "cache_read_tokens": 19360935,
-    "output_tokens": 49757,
-    "api_call_count": 58
+    "input_tokens": 249,
+    "cache_creation_tokens": 1635956,
+    "cache_read_tokens": 58458985,
+    "output_tokens": 143511,
+    "api_call_count": 129
   },
   "initial_attribution": {
-    "calculated_at": "2026-05-19T15:35:55.03399Z",
+    "calculated_at": "2026-05-20T18:20:47.030162Z",
     "agent_lines": 0,
-    "human_added": 237,
-    "human_modified": 77,
+    "human_added": 76,
+    "human_modified": 71,
     "human_removed": 0,
-    "total_committed": 237,
+    "total_committed": 145,
     "agent_percentage": 0
   }
 }
