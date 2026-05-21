@@ -16,14 +16,19 @@ type SuperTokensInitConfig struct {
 	APIKey        string
 	APIDomain     string // e.g. https://api.ravencloak.org
 	WebsiteDomain string // e.g. https://app.ravencloak.org
+	// PathPrefix prepends to apiBasePath + websiteBasePath so the SuperTokens
+	// SDK matches incoming requests at the same path the Go API actually
+	// mounts auth routes under. The demo runs under /raven; SaaS at root.
+	// Empty string = no prefix.
+	PathPrefix string
 }
 
 // InitSuperTokens initialises the SuperTokens Go SDK with the ThirdParty and
 // Session recipes. The SDK must be initialised once, before any route
-// registration, so that supertokens.Middleware can intercept /auth/* paths.
+// registration, so that supertokens.Middleware can intercept the auth paths.
 func InitSuperTokens(cfg SuperTokensInitConfig) error {
-	apiBasePath := "/auth"
-	websiteBasePath := "/auth"
+	apiBasePath := cfg.PathPrefix + "/auth"
+	websiteBasePath := cfg.PathPrefix + "/auth"
 
 	// Cookie domain for cross-subdomain session sharing.
 	// api.ravencloak.org sets cookies, app.ravencloak.org reads them.
