@@ -201,6 +201,7 @@ func main() {
 			APIKey:        cfg.SuperTokens.APIKey,
 			APIDomain:     cfg.SuperTokens.APIDomain,
 			WebsiteDomain: cfg.SuperTokens.WebsiteDomain,
+			PathPrefix:    cfg.Server.PathPrefix,
 		}); err != nil {
 			log.Fatalf("failed to initialize SuperTokens: %v", err)
 		}
