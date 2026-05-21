@@ -2,11 +2,11 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "branch": "chore/terraform-import-vultr-tunnel",
+  "branch": "feat/auth-path-prefix-google-oauth",
   "checkpoints_count": 9,
   "files_touched": [
     ".claude/worktrees/agent-a22eedb86f8e10dc3/.env.ci",
-    ".claude/worktrees/agent-a957d24c9bb2dc179/.env.ci",
+    ".claude/worktrees/agent-a68724f0c7b159959/.env.ci",
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
     ".claude/worktrees/feat-billing-annual-refund/.env.ci",
     ".claude/worktrees/feat-enterprise-onboarding/.env.ci",
@@ -285,10 +285,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 668,
-    "cache_creation_tokens": 3258283,
-    "cache_read_tokens": 88134147,
-    "output_tokens": 256257,
-    "api_call_count": 503
+    "input_tokens": 2838,
+    "cache_creation_tokens": 3292300,
+    "cache_read_tokens": 87682222,
+    "output_tokens": 250221,
+    "api_call_count": 502
   }
 }
