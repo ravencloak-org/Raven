@@ -1444,9 +1444,9 @@ livekit-blingfire==1.1.0 \
     --hash=sha256:f5f6a40e498940f5b2e53d9753f5f7fb7f909e12a93a158844c9e3e99a5486b8 \
     --hash=sha256:fb8f6a9e69b0e58abd913e0b3b5f27bd79ae498887a9e6708c2255a6841a3f1b
     # via livekit-agents
-livekit-protocol==1.1.8 \
-    --hash=sha256:b3850c09847d54aaa538c87a90ffb5cf267123a0725f2b03874e39e88fc59ccb \
-    --hash=sha256:dc379b3e713dc8d8642f694c72d9a38b41220f05b2ce8fc6662f445d20953c17
+livekit-protocol==1.1.9 \
+    --hash=sha256:8bc581ce1b9aa8c330d3aac3d8143f06992c603d22c473d9b881693cee17799b \
+    --hash=sha256:b978135198ac9faf25e90e1f07e653d593741da5a606d9a704161dd0dc0bd502
     # via
     #   livekit-agents
     #   livekit-api
