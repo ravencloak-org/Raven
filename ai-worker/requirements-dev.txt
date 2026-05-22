@@ -1738,9 +1738,9 @@ numpy==2.4.4 \
     # via
     #   livekit
     #   livekit-agents
-openai==2.36.0 \
-    --hash=sha256:139dea0edd2f1b30c33d46ae1a6929e03906254140318e4608e98fe8c566f2e7 \
-    --hash=sha256:143f6194b548dbc2c921af1f1b03b9f14c85fed8a75b5b516f5bcc11a2a50c63
+openai==2.38.0 \
+    --hash=sha256:798694c6cf74145541fda94325b6f8f72d8e1fd0262cc137c8d728177a6a4ce3 \
+    --hash=sha256:ec6661c57b2dcc47414a767e6e3335c7ed3d19c9696999283a3c82e95c756a3c
     # via
     #   raven-worker (pyproject.toml)
     #   livekit-agents
