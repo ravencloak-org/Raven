@@ -355,3 +355,32 @@ same issue
 
 it was always this values since yesterday
 
+### Prompt 56
+
+https://accounts.google.com/signin/oauth/error?REDACTED...
+
+### Prompt 57
+
+<task-notification>
+<task-id>bu72r1osz</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Rebuild + push + deploy frontend with /raven/callback fix" completed (exit code 0)</summary>
+</task-notification>
+
+### Prompt 58
+
+check now
+
+### Prompt 59
+
+still the sameCallbackPage-BUA74cVe.js:1 Callback error: Error: Auth callback failed (500)
+    at Proxy.o (index-BrDQDEUD.js:6:65554)
+    at async CallbackPage-BUA74cVe.js:1:346
+
+### Prompt 60
+
+is it working?
+rpc error: code = Internal desc = Multiple exceptions: [Errno 111] Connect call failed ('::1', 5432, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 5432) this was ossies wotj chat in https://demo.ravencloak.REDACTED
+
