@@ -36,9 +36,14 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function loginWithGoogle() {
+    // BASE_URL (from Vite's `base`) is "/" for root deployments and
+    // "/raven/" for the path-prefixed demo. Without it, prefixed
+    // deployments send Google a redirect_uri of `<origin>/callback`
+    // which (a) doesn't match Google Console's authorised URIs and
+    // (b) bypasses Vue Router's base-path mapping for /callback.
     const authUrl = await getAuthorisationURLWithQueryParamsAndSetState({
       thirdPartyId: 'google',
-      frontendRedirectURI: `${window.location.origin}/callback`,
+      frontendRedirectURI: `${window.location.origin}${import.meta.env.BASE_URL}callback`,
     })
     window.location.assign(authUrl)
   }
