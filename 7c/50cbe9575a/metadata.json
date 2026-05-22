@@ -2,7 +2,7 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "branch": "fix/frontend-auth-base-path",
+  "branch": "fix/frontend-redirect-uri-base-path",
   "checkpoints_count": 14,
   "files_touched": [
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
@@ -23,6 +23,7 @@
     "deploy/terraform/demo/outputs.tf",
     "deploy/terraform/demo/security_group.tf",
     "deploy/terraform/demo/vpc.tf",
+    "frontend/Dockerfile",
     "frontend/src/components/AppSidebar.vue",
     "frontend/src/components/MobileTabBar.vue",
     "frontend/src/components/TurnstileWidget.vue",
@@ -30,7 +31,6 @@
     "frontend/src/pages/LoginPage.vue",
     "frontend/src/plugins/supertokens.ts",
     "frontend/src/router/index.ts",
-    "internal/auth/supertokens_init.go",
     "internal/model/billing.go",
     "internal/repository/billing.go",
     "internal/service/billing.go",
@@ -268,10 +268,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 753,
-    "cache_creation_tokens": 4144050,
-    "cache_read_tokens": 119543608,
-    "output_tokens": 294387,
-    "api_call_count": 547
+    "input_tokens": 702,
+    "cache_creation_tokens": 3408944,
+    "cache_read_tokens": 99407893,
+    "output_tokens": 257630,
+    "api_call_count": 516
   }
 }
