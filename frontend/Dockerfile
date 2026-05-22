@@ -15,13 +15,17 @@ ARG VITE_LIVEKIT_URL=
 # Vite base path. Override at build time (e.g. --build-arg VITE_BASE_PATH=/raven/)
 # when serving under a path prefix. Must include trailing slash. Default: root.
 ARG VITE_BASE_PATH=/
+# SuperTokens apiBasePath for the supertokens-web-js SDK. Must match the
+# Go API's apiBasePath (internal/auth/supertokens_init.go). For prefixed
+# deployments set to e.g. /raven/auth; root deployments use /auth.
+ARG VITE_AUTH_BASE_PATH=/auth
 
 # Vite reads env vars from `.env.production.local` ahead of `.env.production`
 # in production builds, so writing them here is the most reliable way to feed
 # ARG values into the build (process env from ARGs isn't propagated by default).
 # Whatever's already in .env.production stays as the fallback if no ARG is set.
-RUN printf 'VITE_BASE_PATH=%s\nVITE_API_URL=%s\nVITE_API_BASE_URL=%s\nVITE_API_DOMAIN=%s\nVITE_LIVEKIT_URL=%s\n' \
-      "$VITE_BASE_PATH" "$VITE_API_URL" "$VITE_API_BASE_URL" "$VITE_API_DOMAIN" "$VITE_LIVEKIT_URL" \
+RUN printf 'VITE_BASE_PATH=%s\nVITE_API_URL=%s\nVITE_API_BASE_URL=%s\nVITE_API_DOMAIN=%s\nVITE_LIVEKIT_URL=%s\nVITE_AUTH_BASE_PATH=%s\n' \
+      "$VITE_BASE_PATH" "$VITE_API_URL" "$VITE_API_BASE_URL" "$VITE_API_DOMAIN" "$VITE_LIVEKIT_URL" "$VITE_AUTH_BASE_PATH" \
       > .env.production.local \
  && npm run build
 
