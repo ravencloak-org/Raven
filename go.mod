@@ -14,7 +14,7 @@ require (
 	github.com/hibiken/asynq v0.26.0
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/lib/pq v1.12.3
-	github.com/pgvector/pgvector-go v0.3.0
+	github.com/pgvector/pgvector-go v0.4.0
 	github.com/pressly/goose/v3 v3.27.1
 	github.com/redis/go-redis/v9 v9.19.0
 	github.com/samber/lo v1.53.0
