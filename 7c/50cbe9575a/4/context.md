@@ -243,3 +243,77 @@ Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude
 
 You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions and context, you ensure they stay focused and succeed at their task. They should never inherit your session's context or history — you construct exactly what they need. This also preserves your own...
 
+### Prompt 40
+
+<task-notification>
+<task-id>a54f5078a745c4043</task-id>
+<tool-use-id>toolu_0158yUm9dY8FQn5Gs9sDntX2</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Stand up second cloudflared tunnel" completed</summary>
+<result>## Phase 2 complete — all green
+
+| Check | Result |
+|---|---|
+| `cloudflared-observability.service` is-active | `active` |...
+
+### Prompt 41
+
+let's get the whole raven stack including demo up and running along with the cloud on Vultr, forget aws
+
+### Prompt 42
+
+<task-notification>
+<task-id>a54f5078a745c4043</task-id>
+<tool-use-id>toolu_01CXy38TD777vQDYDgAxPa1X</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Stand up second cloudflared tunnel" completed</summary>
+<result>## Phase 3 — DNS flipped, but `/raven/api/v1/config` returned 404
+
+| Check | Result |
+|---|---|
+| `cloudflared-demo` is-ac...
+
+### Prompt 43
+
+done
+
+### Prompt 44
+
+let's set up the actual google login
+
+### Prompt 45
+
+done, 371751291825-vmdpo4gb3nmtrdt8979lobcqg137r5rh.apps.googleusercontent.com
+client id
+
+### Prompt 46
+
+➜  raven git:(feat/auth-path-prefix-google-oauth) ✗    read -rs -p 'paste Google Client Secret + Enter: ' GS && echo && \
+  ssh -i ~/.ssh/id_ed25519 root@64.176.97.248 \
+    "cd /opt/raven && \
+     cp .env.server .env.server.bak.\$(date -u +%Y%m%dT%H%M%SZ) && \
+     sed -i 's|^GOOGLE_CLIENT_ID=.*|REDACTED.apps.googleusercontent.com|' .env.server && \
+     sed -i 's|^GOOGLE_CLIENT_SECRET=.*|GOOGLE_CLIENT_SECRET=$GS|' .env.server && \
+    ...
+
+### Prompt 47
+
+paste Google Client Secret + Enter:
+=== verify (values redacted) ===
+GOOGLE_CLIENT_ID=…
+GOOGLE_CLIENT_SECRET=…
+=== length sanity check ===
+secret length: 35
+
+### Prompt 48
+
+<task-notification>
+<task-id>bvu3hs9pj</task-id>
+<tool-use-id>toolu_01KqPZDtDHJqQmj6u2oDpQz9</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Watch docker.yml run to publish completion" completed (exit code 0)</summary>
+</task-notification>
+

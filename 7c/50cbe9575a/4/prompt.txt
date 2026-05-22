@@ -487,3 +487,141 @@ From debugging session (2025-10-03):
 - All investigations completed concurrently
 - All fixes integrated successfully
 - Zero conflicts between agent changes
+
+---
+
+<task-notification>
+<task-id>a54f5078a745c4043</task-id>
+<tool-use-id>toolu_0158yUm9dY8FQn5Gs9sDntX2</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Stand up second cloudflared tunnel" completed</summary>
+<result>## Phase 2 complete — all green
+
+| Check | Result |
+|---|---|
+| `cloudflared-observability.service` is-active | `active` |
+| `cloudflared-epoqgrid.service` is-active (existing tenant unbroken) | `active` |
+| `Registered tunnel connection` count in journal | **4** |
+| `curl -sS https://observability.ravencloak.org/` | **HTTP 308** (OpenObserve redirect to `/web/` — expected) |
+
+**Tunnel UUID:** `d082d1f0-4104-4c8d-9c31-7c5f0e7d1176`
+**CNAME:** `observability.ravencloak.org` → `d082d1f0-4104-4c8d-9c31-7c5f0e7d1176.cfargotunnel.com`
+
+### Artifacts on the box
+- `/etc/cloudflared/observability.yml` — ingress to `http://localhost:5080`, 404 catch-all
+- `/etc/cloudflared/d082d1f0-4104-4c8d-9c31-7c5f0e7d1176.json` — credentials, mode `600`, owner `root`
+- `/etc/systemd/system/cloudflared-observability.service` — shape copied from `cloudflared-epoqgrid.service` (`Restart=on-failure`, `--no-autoupdate tunnel run`, `WantedBy=multi-user.target`); enabled + started
+
+### Untouched (as required)
+- `cloudflared.service` (still inactive/disabled — the raven unit no one was using)
+- `cloudflared-epoqgrid.service` (still active, 4 connectors, serving the other tenant)
+- `/etc/cloudflared/config.yml`, `epoqgrid-cms.yml`, `ac5bd284-….json`, `1c8c33c5-….json`
+- DNS: only `observability.ravencloak.org` was rewritten via `--overwrite-dns` (replacing the prior CNAME that pointed at `9bae2af2-…` / raven-demo). No other zone records touched.
+- `/opt/raven` stack — not touched.
+
+### Drift to reconcile in a future PR (do not action now)
+`deploy/terraform/demo/cloudflare.tf` resource `cloudflare_record.observability` still encodes the old target (`9bae2af2-f8e8-45ed-aa61-e1eb29182c3c.cfargotunnel.com`). Next `terraform plan` will show drift on that single record; update its `value` to `d082d1f0-4104-4c8d-9c31-7c5f0e7d1176.cfargotunnel.com` when reconciling. No repo commit made.
+
+Phase 2 done — observability tunnel is live and serving OpenObserve.</result>
+<usage><total_tokens>51556</total_tokens><tool_uses>1</tool_uses><duration_ms>47465</duration_ms></usage>
+</task-notification>
+
+---
+
+let's get the whole raven stack including demo up and running along with the cloud on Vultr, forget aws
+
+---
+
+<task-notification>
+<task-id>a54f5078a745c4043</task-id>
+<tool-use-id>toolu_01CXy38TD777vQDYDgAxPa1X</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Stand up second cloudflared tunnel" completed</summary>
+<result>## Phase 3 — DNS flipped, but `/raven/api/v1/config` returned 404
+
+| Check | Result |
+|---|---|
+| `cloudflared-demo` is-active | `active` |
+| `cloudflared-observability` is-active | `active` (untouched) |
+| `cloudflared-epoqgrid` is-active | `active` (untouched) |
+| `Registered tunnel connection` count | **4** |
+| `GET /raven/api/v1/config` | **HTTP 404** `text/plain` — `404 page not found` |
+| `GET /raven/` (SPA shell) | **HTTP 200** `text/html`, served, `cf-ray: ...-SIN` |
+
+**Tunnel UUID:** `c508cea5-e96e-4786-85f6-d4700a07f98a`
+**CNAME:** `demo.ravencloak.org` → `c508cea5-e96e-4786-85f6-d4700a07f98a.cfargotunnel.com`
+
+### What this tells us
+
+End-to-end path works (CF edge → new Vultr tunnel → frontend nginx → SPA index) — `/raven/` returns 200 HTML from this box. **DNS flip succeeded.** SPA loads from cf-ray SIN edge — that's a fresh hit, not stale AWS.
+
+The 404 on `/raven/api/v1/config` is **not a tunnel problem** — it's the upstream returning 404. The frontend nginx is reverse-proxying the request and either:
+- the path isn't matched by the new `/raven/api/*` location block in `frontend/nginx.conf` (compare with the in-flight changes you have staged: `M frontend/nginx.conf`, `M cmd/api/main.go`, `M internal/config/config.go` — the path prefix work for this branch `feat/demo-path-prefix`), or
+- go-api doesn't register `/raven/api/v1/config` at this prefix (cmd/api/main.go is also modified), or
+- the running container image `ghcr.io/ravencloak-org/frontend:raven-self-contained` predates the `/raven/api/*` nginx changes.
+
+Note the `404 page not found` text + `text/plain` — that's a Go (Gin/net-http) default 404, not nginx. Means the request **did** reach go-api but no route matched. So `frontend nginx` proxied correctly; the path-prefix changes on the API side aren't deployed yet, or the route is registered under a different prefix.
+
+### Rollback decision
+
+**Not rolling back.** SPA serves 200, tunnel is healthy on 4 connectors, and the AWS-side `raven-demo` tunnel would have returned the same 404 (same upstream stack, branch-in-flight). The failure is application-level, not infra-level — rolling DNS back to AWS would change nothing.
+
+### Drift to note
+
+- `cloudflare_record.demo` (or equivalent) in `deploy/terraform/demo/cloudflare.tf` previously pointed at `9bae2af2-…cfargotunnel.com`; now `c508cea5-e96e-4786-85f6-d4700a07f98a.cfargotunnel.com`. Same drift pattern as observability — reconcile in the same follow-up PR.
+- AWS box still runs `cloudflared` on tunnel `raven-demo` — now orphaned, harmless. User said they'll shut it down later.
+
+### Recommended next step
+
+Inspect the in-flight branch's nginx + go-api path-prefix changes and confirm what image tag is running in the `frontend` and `api` containers on this Vultr box vs. what's in the branch. The 404 is almost certainly stale-image, not infra. Awaiting your call.</result>
+<usage><total_tokens>56966</total_tokens><tool_uses>1</tool_uses><duration_ms>78647</duration_ms></usage>
+</task-notification>
+
+---
+
+done
+
+---
+
+let's set up the actual google login
+
+---
+
+done, 371751291825-vmdpo4gb3nmtrdt8979lobcqg137r5rh.apps.googleusercontent.com
+client id
+
+---
+
+➜  raven git:(feat/auth-path-prefix-google-oauth) ✗    read -rs -p 'paste Google Client Secret + Enter: ' GS && echo && \
+  ssh -i ~/.ssh/id_ed25519 root@64.176.97.248 \
+    "cd /opt/raven && \
+     cp .env.server .env.server.bak.\$(date -u +%Y%m%dT%H%M%SZ) && \
+     sed -i 's|^GOOGLE_CLIENT_ID=.*|REDACTED.apps.googleusercontent.com|' .env.server && \
+     sed -i 's|^GOOGLE_CLIENT_SECRET=.*|GOOGLE_CLIENT_SECRET=$GS|' .env.server && \
+     echo '=== verify (values redacted) ===' && \
+     grep ^GOOGLE_ .env.server | sed 's/=.*\$/=…/' && \
+     echo '=== length sanity check (secret should be ~24 chars for Google) ===' && \
+     awk -F= '/^GOOGLE_CLIENT_SECRET=/ {print \"secret length:\", length(\$2)}' .env.server" && \
+  unset GS
+read: -p: no coprocess
+
+---
+
+paste Google Client Secret + Enter:
+=== verify (values redacted) ===
+GOOGLE_CLIENT_ID=…
+GOOGLE_CLIENT_SECRET=…
+=== length sanity check ===
+secret length: 35
+
+---
+
+<task-notification>
+<task-id>bvu3hs9pj</task-id>
+<tool-use-id>toolu_01KqPZDtDHJqQmj6u2oDpQz9</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Watch docker.yml run to publish completion" completed (exit code 0)</summary>
+</task-notification>
