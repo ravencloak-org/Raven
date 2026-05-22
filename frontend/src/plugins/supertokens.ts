@@ -36,7 +36,10 @@ export function initSuperTokens() {
     appInfo: {
       appName: "Raven",
       apiDomain: import.meta.env.VITE_API_DOMAIN || "http://localhost:8081",
-      apiBasePath: "/auth",
+      // Must match the apiBasePath the Go API's SuperTokens SDK is initialised
+      // with (internal/auth/supertokens_init.go). The demo runs path-prefixed
+      // (/raven/auth); SaaS/dev defaults to /auth.
+      apiBasePath: import.meta.env.VITE_AUTH_BASE_PATH || "/auth",
     },
     recipeList: [
       Session.init(),

@@ -252,6 +252,7 @@ jobs:
             ${{ matrix.component == 'frontend-raven' && format('VITE_API_URL={0}/raven', vars.RAVEN_DEMO_BASE_URL || 'https://demo.ravencloak.org') || '' }}
             ${{ matrix.component == 'frontend-raven' && format('VITE_API_BASE_URL={0}/raven/api/v1', vars.RAVEN_DEMO_BASE_URL || 'https://demo.ravencloak.org') || '' }}
             ${{ matrix.component == 'frontend-raven' && format('VITE_API_DOMAIN={0}', vars.RAVEN_DEMO_BASE_URL || 'https://demo.ravencloak.org') || '' }}
+            ${{ matrix.component == 'frontend-raven' && 'VITE_AUTH_BASE_PATH=/raven/auth' || '' }}
           provenance: false
           sbom: false
 
