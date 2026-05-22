@@ -189,9 +189,12 @@ export async function addSource(
   kbId: string,
   url: string,
 ): Promise<KBSource> {
+  // Backend requires `source_type` (one of: web_page | web_site | sitemap |
+  // rss_feed) alongside `url`. Default to web_page for the simple URL-source
+  // entry box; a future picker can let users choose web_site/sitemap.
   return authFetch<KBSource>(`${kbBasePath(orgId, wsId)}/${kbId}/sources`, {
     method: 'POST',
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({ source_type: 'web_page', url }),
   })
 }
 
