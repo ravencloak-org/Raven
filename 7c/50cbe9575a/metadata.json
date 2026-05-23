@@ -2,12 +2,13 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "branch": "fix/docker-build-paths",
-  "checkpoints_count": 12,
+  "branch": "fix/supertokens-backend-header-mode",
+  "checkpoints_count": 13,
   "files_touched": [
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
     ".claude/worktrees/feat-billing-annual-refund/.env.ci",
     ".claude/worktrees/feat-enterprise-onboarding/.env.ci",
+    ".github/workflows/docker.yml",
     "cmd/api/main.go",
     "deploy/ansible/group_vars/all.yml",
     "deploy/ansible/inventory/hosts.yml",
@@ -267,10 +268,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 708,
-    "cache_creation_tokens": 4542053,
-    "cache_read_tokens": 108018820,
-    "output_tokens": 254109,
-    "api_call_count": 522
+    "input_tokens": 777,
+    "cache_creation_tokens": 2978133,
+    "cache_read_tokens": 100294262,
+    "output_tokens": 283418,
+    "api_call_count": 571
   }
 }
