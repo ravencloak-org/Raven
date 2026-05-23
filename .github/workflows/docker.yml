@@ -5,23 +5,55 @@ on:
     branches: [main]
     # Tag builds are handled by release.yml (with cosign signing). This
     # workflow is for main-branch CI + PR-gate builds only.
+    #
+    # The path filter must cover everything Docker COPYs into a layer the
+    # source actually changes — Dockerfile alone isn't enough. Previously
+    # frontend/src/** and ai-worker/raven_worker/** edits silently skipped
+    # the build, leaving :main + :raven-self-contained stale relative to
+    # source. Same hole existed for cmd/** and internal/** (Go).
     paths:
       - 'Dockerfile'
+      - 'cmd/**'
+      - 'internal/**'
+      - 'pkg/**'
+      - 'go.mod'
+      - 'go.sum'
       - 'ai-worker/Dockerfile'
+      - 'ai-worker/raven_worker/**'
       - 'ai-worker/requirements.txt'
       - 'ai-worker/requirements-dev.txt'
       - 'frontend/Dockerfile'
       - 'frontend/nginx.conf'
+      - 'frontend/src/**'
+      - 'frontend/public/**'
+      - 'frontend/index.html'
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
+      - 'frontend/vite.config.ts'
+      - 'frontend/tsconfig*.json'
       - 'docker-compose.yml'
   pull_request:
     branches: [main]
     paths:
       - 'Dockerfile'
+      - 'cmd/**'
+      - 'internal/**'
+      - 'pkg/**'
+      - 'go.mod'
+      - 'go.sum'
       - 'ai-worker/Dockerfile'
+      - 'ai-worker/raven_worker/**'
       - 'ai-worker/requirements.txt'
       - 'ai-worker/requirements-dev.txt'
       - 'frontend/Dockerfile'
       - 'frontend/nginx.conf'
+      - 'frontend/src/**'
+      - 'frontend/public/**'
+      - 'frontend/index.html'
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
+      - 'frontend/vite.config.ts'
+      - 'frontend/tsconfig*.json'
       - 'docker-compose.yml'
       # NOTE: `.github/workflows/docker.yml` is intentionally NOT a path
       # filter trigger. Internal edits to this workflow (Dependabot SHA
