@@ -2,8 +2,8 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "branch": "fix/frontend-add-source-source-type",
-  "checkpoints_count": 13,
+  "branch": "fix/supertokens-header-based-auth",
+  "checkpoints_count": 12,
   "files_touched": [
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
     ".claude/worktrees/feat-billing-annual-refund/.env.ci",
@@ -23,6 +23,7 @@
     "deploy/terraform/demo/outputs.tf",
     "deploy/terraform/demo/security_group.tf",
     "deploy/terraform/demo/vpc.tf",
+    "frontend/src/api/knowledge-bases.ts",
     "frontend/src/components/AppSidebar.vue",
     "frontend/src/components/MobileTabBar.vue",
     "frontend/src/components/TurnstileWidget.vue",
@@ -30,7 +31,6 @@
     "frontend/src/pages/LoginPage.vue",
     "frontend/src/plugins/supertokens.ts",
     "frontend/src/router/index.ts",
-    "frontend/src/stores/auth.ts",
     "internal/model/billing.go",
     "internal/repository/billing.go",
     "internal/service/billing.go",
@@ -268,10 +268,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 715,
-    "cache_creation_tokens": 3539774,
-    "cache_read_tokens": 119952300,
-    "output_tokens": 282201,
-    "api_call_count": 540
+    "input_tokens": 721,
+    "cache_creation_tokens": 2683459,
+    "cache_read_tokens": 115636336,
+    "output_tokens": 261445,
+    "api_call_count": 531
   }
 }

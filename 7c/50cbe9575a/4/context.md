@@ -384,3 +384,29 @@ still the sameCallbackPage-BUA74cVe.js:1 Callback error: Error: Auth callback fa
 is it working?
 rpc error: code = Internal desc = Multiple exceptions: [Errno 111] Connect call failed ('::1', 5432, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 5432) this was ossies wotj chat in https://demo.ravencloak.REDACTED
 
+### Prompt 61
+
+neither of it is working, now even file uploads don't show in queued status, it just refreshes and logs out
+
+### Prompt 62
+
+[Request interrupted by user]
+
+### Prompt 63
+
+continue but use chrome extension to test everything yourself
+
+### Prompt 64
+
+<task-notification>
+<task-id>b2n39eu9q</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Frontend rebuild from correct cwd, no-cache, with source_type fix" completed (exit code 0)</summary>
+</task-notification>
+
+### Prompt 65
+
+still the same issue and also fix the issue where hard reload is causing the spa to logout, use https://supertokens.com/docs/llms-full.txt to learn how to properly use supertokens
+
