@@ -126,7 +126,7 @@ Bytebase by default writes to its own `bytebase` schema per managed DB. We overr
 | Profile | `AutoMigrate` | Source |
 |---|---|---|
 | Edge (default) | `true` | Hardcoded default in `config.Defaults()` |
-| Cloud | `false` | Environment override of `Database.AutoMigrate` in cloud Helm/compose values (exact env-var name per existing `internal/config` conventions) |
+| Cloud | `false` | `RAVEN_DB_AUTO_MIGRATE=false` in cloud Helm/compose values |
 
 **`cmd/api/main.go` changes:**
 
@@ -242,7 +242,7 @@ Bytebase's auto-rollback feature is **disabled** in project config — we don't 
 | `.bytebase/sql-review.json` | New policy file. |
 | `Makefile` | New `sql-review-local` target. |
 | Edge compose | No change. |
-| Cloud Helm/compose | New `bytebase` service in control plane; `AutoMigrate=false` env override on `cmd/api`. |
+| Cloud Helm/compose | New `bytebase` service in control plane; `RAVEN_DB_AUTO_MIGRATE=false` on `cmd/api`. |
 | Branch protection on `main` | Add `sql-review` as required check. |
 | Migration SOP doc | Update with escape-hatch label + Bytebase approval flow. |
 
