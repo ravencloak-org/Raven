@@ -3,12 +3,11 @@
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
   "branch": "fix/supertokens-backend-header-mode",
-  "checkpoints_count": 13,
+  "checkpoints_count": 14,
   "files_touched": [
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
     ".claude/worktrees/feat-billing-annual-refund/.env.ci",
     ".claude/worktrees/feat-enterprise-onboarding/.env.ci",
-    ".github/workflows/docker.yml",
     "cmd/api/main.go",
     "deploy/ansible/group_vars/all.yml",
     "deploy/ansible/inventory/hosts.yml",
@@ -31,6 +30,7 @@
     "frontend/src/pages/LoginPage.vue",
     "frontend/src/plugins/supertokens.ts",
     "frontend/src/router/index.ts",
+    "internal/auth/supertokens_init.go",
     "internal/model/billing.go",
     "internal/repository/billing.go",
     "internal/service/billing.go",
@@ -268,10 +268,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 777,
-    "cache_creation_tokens": 2978133,
-    "cache_read_tokens": 100294262,
-    "output_tokens": 283418,
-    "api_call_count": 571
+    "input_tokens": 717,
+    "cache_creation_tokens": 2665852,
+    "cache_read_tokens": 88827484,
+    "output_tokens": 253007,
+    "api_call_count": 531
   }
 }

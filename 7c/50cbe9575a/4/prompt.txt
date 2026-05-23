@@ -941,3 +941,29 @@ done
 ---
 
 what's happening?
+
+---
+
+done, logged in
+
+---
+
+its merged
+
+---
+
+where is it running the docker command?
+
+---
+
+this failed https://github.REDACTED
+
+---
+
+<task-notification>
+<task-id>bsktzf9py</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for PR #672 merge then post-merge docker build" completed (exit code 0)</summary>
+</task-notification>
