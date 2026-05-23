@@ -288,7 +288,7 @@ jobs:
           retention-days: 5
           if-no-files-found: ignore
 
-      - uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
+      - uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/cov.out
@@ -310,7 +310,7 @@ jobs:
       - name: Install eBPF build tools
         run: sudo apt-get install -y clang llvm libbpf-dev "linux-tools-$(uname -r)" || sudo apt-get install -y clang llvm libbpf-dev
 
-      - uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9
+      - uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee # v9
         with:
           version: v2.11.4
           # Match the pre-commit hook policy: report only NEW violations

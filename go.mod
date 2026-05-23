@@ -14,7 +14,7 @@ require (
 	github.com/hibiken/asynq v0.26.0
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/lib/pq v1.12.3
-	github.com/pgvector/pgvector-go v0.3.0
+	github.com/pgvector/pgvector-go v0.4.0
 	github.com/pressly/goose/v3 v3.27.1
 	github.com/redis/go-redis/v9 v9.19.0
 	github.com/samber/lo v1.53.0
@@ -35,7 +35,7 @@ require (
 	go.opentelemetry.io/otel/sdk/log v0.19.0
 	go.opentelemetry.io/otel/sdk/metric v1.43.0
 	go.opentelemetry.io/otel/trace v1.43.0
-	golang.org/x/sys v0.44.0
+	golang.org/x/sys v0.45.0
 	google.golang.org/grpc v1.81.1
 	google.golang.org/protobuf v1.36.11
 )
