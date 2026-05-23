@@ -42,7 +42,14 @@ export function initSuperTokens() {
       apiBasePath: import.meta.env.VITE_AUTH_BASE_PATH || "/auth",
     },
     recipeList: [
-      Session.init(),
+      // Header-based auth: SDK stores access/refresh tokens in localStorage
+      // and sends them via `Authorization: Bearer` + `st-refresh-token`
+      // headers instead of cookies. Removes the SameSite / Secure /
+      // cross-domain cookie issues that plagued the path-prefixed demo
+      // deploy. Matches SuperTokens' recommended SPA configuration.
+      Session.init({
+        tokenTransferMethod: 'header',
+      }),
       ThirdParty.init({
         preAPIHook: async (context) => attachTurnstileTokenOnSignup(context),
       }),
