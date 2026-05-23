@@ -2,7 +2,7 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "branch": "fix/supertokens-header-based-auth",
+  "branch": "fix/docker-build-paths",
   "checkpoints_count": 12,
   "files_touched": [
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
@@ -23,7 +23,6 @@
     "deploy/terraform/demo/outputs.tf",
     "deploy/terraform/demo/security_group.tf",
     "deploy/terraform/demo/vpc.tf",
-    "frontend/src/api/knowledge-bases.ts",
     "frontend/src/components/AppSidebar.vue",
     "frontend/src/components/MobileTabBar.vue",
     "frontend/src/components/TurnstileWidget.vue",
@@ -268,10 +267,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 721,
-    "cache_creation_tokens": 2683459,
-    "cache_read_tokens": 115636336,
-    "output_tokens": 261445,
-    "api_call_count": 531
+    "input_tokens": 708,
+    "cache_creation_tokens": 4542053,
+    "cache_read_tokens": 108018820,
+    "output_tokens": 254109,
+    "api_call_count": 522
   }
 }
