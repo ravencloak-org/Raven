@@ -3,7 +3,7 @@
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
   "branch": "fix/supertokens-backend-header-mode",
-  "checkpoints_count": 14,
+  "checkpoints_count": 15,
   "files_touched": [
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
     ".claude/worktrees/feat-billing-annual-refund/.env.ci",
@@ -23,6 +23,7 @@
     "deploy/terraform/demo/outputs.tf",
     "deploy/terraform/demo/security_group.tf",
     "deploy/terraform/demo/vpc.tf",
+    "docs/superpowers/specs/2026-05-23-bytebase-tiered-design.md",
     "frontend/src/components/AppSidebar.vue",
     "frontend/src/components/MobileTabBar.vue",
     "frontend/src/components/TurnstileWidget.vue",
@@ -265,13 +266,20 @@
       "context": "/7c/50cbe9575a/4/context.md",
       "content_hash": "/7c/50cbe9575a/4/content_hash.txt",
       "prompt": "/7c/50cbe9575a/4/prompt.txt"
+    },
+    {
+      "metadata": "/7c/50cbe9575a/5/metadata.json",
+      "transcript": "/7c/50cbe9575a/5/full.jsonl",
+      "context": "/7c/50cbe9575a/5/context.md",
+      "content_hash": "/7c/50cbe9575a/5/content_hash.txt",
+      "prompt": "/7c/50cbe9575a/5/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 717,
-    "cache_creation_tokens": 2665852,
-    "cache_read_tokens": 88827484,
-    "output_tokens": 253007,
-    "api_call_count": 531
+    "input_tokens": 817,
+    "cache_creation_tokens": 2990725,
+    "cache_read_tokens": 92563951,
+    "output_tokens": 278359,
+    "api_call_count": 577
   }
 }
