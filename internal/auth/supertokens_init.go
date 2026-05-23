@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"net/http"
+
 	"github.com/supertokens/supertokens-golang/recipe/session"
 	"github.com/supertokens/supertokens-golang/recipe/session/sessmodels"
 	"github.com/supertokens/supertokens-golang/recipe/thirdparty"
@@ -44,6 +46,17 @@ func InitSuperTokens(cfg SuperTokensInitConfig) error {
 		session.Init(&sessmodels.TypeInput{
 			CookieDomain:  &cookieDomain,
 			CookieSameSite: strPtr("none"),
+			// Pin tokens to the Authorization header / response-header path so
+			// the supertokens-web-js SDK (configured with
+			// tokenTransferMethod: 'header' in frontend/src/plugins/supertokens.ts)
+			// receives tokens it can store in localStorage. Without this, the
+			// backend's default ("any") chose cookies on the OAuth callback
+			// response, leaving localStorage empty — Session.doesSessionExist()
+			// then returned false on the next page-load and the SPA bounced the
+			// user to /login (the long-running "logout on navigation" bug).
+			GetTokenTransferMethod: func(_ *http.Request, _ bool, _ supertokens.UserContext) sessmodels.TokenTransferMethod {
+				return sessmodels.HeaderTransferMethod
+			},
 		}),
 	}
 
