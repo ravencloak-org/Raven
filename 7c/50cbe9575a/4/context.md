@@ -486,3 +486,27 @@ this failed https://github.REDACTED
 <summary>Background command "Wait for PR #672 merge then post-merge docker build" completed (exit code 0)</summary>
 </task-notification>
 
+### Prompt 79
+
+Logged in
+
+### Prompt 80
+
+continue
+
+### Prompt 81
+
+check now
+
+### Prompt 82
+
+continue
+
+### Prompt 83
+
+signed in
+
+### Prompt 84
+
+ah okay, then fix our auth? is it a vue js issue?
+

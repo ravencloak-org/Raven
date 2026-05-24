@@ -967,3 +967,27 @@ this failed https://github.REDACTED
 <status>completed</status>
 <summary>Background command "Wait for PR #672 merge then post-merge docker build" completed (exit code 0)</summary>
 </task-notification>
+
+---
+
+Logged in
+
+---
+
+continue
+
+---
+
+check now
+
+---
+
+continue
+
+---
+
+signed in
+
+---
+
+ah okay, then fix our auth? is it a vue js issue?
