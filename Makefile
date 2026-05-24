@@ -1,4 +1,4 @@
-.PHONY: build build-cover run dev test test-integration bench-integration coverage coverage-unit coverage-integration coverage-html coverage-clean lint migrate-up migrate-down proto swagger compose compose-down
+.PHONY: build build-cover run dev test test-integration bench-integration coverage coverage-unit coverage-integration coverage-html coverage-clean lint migrate-up migrate-down proto swagger compose compose-down sql-lint-local
 
 build:
 	go build -o bin/api ./cmd/api
@@ -67,3 +67,7 @@ compose:
 compose-down:
 	@if [ -f ./.env.keys ]; then set -a; . ./.env.keys; set +a; fi; \
 	docker compose down
+
+sql-lint-local:
+	@echo "Running squawk against migrations/*.sql ..."
+	@npx --yes squawk-cli@latest 'migrations/*.sql'
