@@ -430,9 +430,11 @@ jobs:
         env:
           VERSION: ${{ needs.preflight.outputs.version }}
         run: |
+          # cosign v3 derives the OIDC issuer + Fulcio/Rekor URLs from the
+          # bundled Sigstore signing config; passing --oidc-issuer here
+          # trips "cannot specify service URLs and use signing config".
           cosign sign-blob \
             --yes \
-            --oidc-issuer=https://token.actions.githubusercontent.com \
             --output-signature "frontend-${VERSION}.tgz.sig" \
             --output-certificate "frontend-${VERSION}.tgz.pem" \
             "frontend-${VERSION}.tgz"
