@@ -68,9 +68,22 @@ func VerifyMigrationsState(ctx context.Context, databaseURL string) error {
 		return fmt.Errorf("ping postgres for verify: %w", err)
 	}
 
+	// goose_db_version is append-only: every Up and Down appends a row, so a
+	// rollback+re-apply produces multiple is_applied=true rows for the same
+	// version_id. Count only the LATEST row per version_id (highest id) and
+	// keep it iff its is_applied=true. bool_and across the history would
+	// incorrectly drop versions that were rolled back and re-applied.
 	var appliedCount int
 	if err := sqlDB.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM goose_db_version WHERE is_applied = true AND version_id > 0`,
+		`SELECT COUNT(*)
+		FROM goose_db_version g
+		WHERE g.version_id > 0
+		  AND g.is_applied = true
+		  AND g.id = (
+		      SELECT MAX(sub.id)
+		      FROM goose_db_version sub
+		      WHERE sub.version_id = g.version_id
+		  )`,
 	).Scan(&appliedCount); err != nil {
 		return fmt.Errorf("count goose_db_version: %w", err)
 	}
