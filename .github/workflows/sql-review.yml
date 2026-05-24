@@ -9,20 +9,36 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write  # squawk-action posts inline review comments
+  pull-requests: write
 
 jobs:
   sql-review:
     name: Squawk migration lint
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR head
+      - name: Checkout full history (needed for diff vs base)
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Lint migrations with squawk
+      - name: Collect migrations modified in this PR
+        id: changed
+        run: |
+          modified="$(git diff --diff-filter=d --name-only \
+            origin/${GITHUB_BASE_REF}...origin/${GITHUB_HEAD_REF} \
+            -- 'migrations/*.sql' | tr '\n' ' ')"
+          echo "Modified migrations: ${modified:-<none>}"
+          echo "files=${modified}" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if no migrations modified
+        if: steps.changed.outputs.files == ''
+        run: echo "No migrations changed in this PR — nothing to lint."
+
+      - name: Lint modified migrations with squawk
+        if: steps.changed.outputs.files != ''
         uses: sbdchd/squawk-action@v2
         with:
-          pattern: 'migrations/*.sql'
+          files: ${{ steps.changed.outputs.files }}
           version: 'latest'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
