@@ -1,0 +1,20 @@
+# Squawk config — Postgres migration linter.
+# Triggered by .github/workflows/sql-review.yml on PRs touching migrations/.
+# Local equivalent: `make sql-lint-local`.
+
+# Goose wraps each `-- +goose Up` migration in a transaction. Lint rules that
+# care about transactional context (e.g. require-concurrent-index-creation)
+# need this hint to evaluate correctly.
+assume_in_transaction = true
+
+# Match Raven's runtime Postgres version so version-gated rules
+# (e.g. prefer-identity, prefer-bigint-over-int) lint against the right
+# capabilities.
+pg_version = "18.0"
+
+# Use squawk's default-on ruleset for all PR checks. Add rules to
+# excluded_rules below ONLY when there is a documented project-level
+# reason (e.g. an existing pattern that the codebase already follows
+# and is intentionally OK with). Per-statement exceptions belong in the
+# migration file as `-- squawk-ignore <rule>` comments, not here.
+excluded_rules = []
