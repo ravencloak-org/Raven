@@ -261,3 +261,30 @@ Bytebase's auto-rollback feature is **disabled** in project config — we don't 
 - Bytebase SQL Review GH Action: <https://github.com/bytebase/sql-review-action>
 - pgBackRest restore runbook: existing internal docs
 - OpenObserve audit log pipeline: existing internal docs
+
+## Squawk Backlog Snapshot (2026-05-25)
+
+Initial `squawk` run against the 43 existing migrations surfaced 271
+findings under the default ruleset. These are pre-existing debt, NOT
+blockers for Plan A — the PR-time workflow is configured to lint only
+files modified in a PR (same convention as `golangci-lint --new-from-rev`
+in this repo).
+
+Counts by rule:
+
+| Rule | Count |
+|------|-------|
+| `require-timeout-settings` | 82 |
+| `prefer-text-field` | 68 |
+| `ban-drop-table` | 40 |
+| `prefer-bigint-over-int` | 33 |
+| `require-concurrent-index-deletion` | 20 |
+| `ban-drop-column` | 13 |
+| `require-concurrent-index-creation` | 9 |
+| `renaming-column` | 2 |
+| Other | 4 |
+
+Tracking issue to be opened post-merge for incremental cleanup. Each
+legitimate destructive op should land an inline `-- squawk-ignore <rule>`
+comment with rationale; other findings should be fixed via forward
+migrations where feasible.
