@@ -310,7 +310,7 @@ const proratedDisplay = computed(() => {
         :class="seatInputError ? 'text-amber-400' : 'text-transparent'"
         role="status"
       >
-        {{ seatInputError ?? ' ' }}
+        {{ seatInputError ?? '\u00A0' }}
       </p>
 
       <p v-if="plansError" class="mt-1 text-xs text-slate-500">
