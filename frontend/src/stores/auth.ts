@@ -21,6 +21,16 @@ export const useAuthStore = defineStore('auth', () => {
    * are bad UX — the app would never mount and the user would see a
    * blank page. A 5s timeout + try/catch falls back to "no session" so
    * the router guard sends the user to /login as expected.
+   *
+   * Cold-boot race: on a hard page load (vs in-app navigation),
+   * Session.doesSessionExist() can return false EVEN when the
+   * sFrontToken cookie is present and unexpired — the SDK's internal
+   * state hasn't hydrated from cookies yet. Calling it again ~50ms later
+   * returns true. To avoid bouncing the user to /login on every page
+   * reload, fall back to parsing the sFrontToken cookie directly: if
+   * its session expiry (`up.exp`) is in the future, treat as a valid
+   * session. The SDK will catch up and subsequent calls behave
+   * normally.
    */
   async function init() {
     try {
@@ -33,6 +43,34 @@ export const useAuthStore = defineStore('auth', () => {
     } catch {
       sessionExists.value = false
     }
+    if (!sessionExists.value && hasValidFrontTokenCookie()) {
+      sessionExists.value = true
+    }
+  }
+
+  function hasValidFrontTokenCookie(): boolean {
+    const raw = readCookie('sFrontToken')
+    if (!raw) return false
+    try {
+      const payload = JSON.parse(atob(decodeURIComponent(raw))) as {
+        up?: { exp?: number }
+      }
+      const expSec = payload?.up?.exp
+      if (typeof expSec !== 'number') return false
+      // `up.exp` is seconds-since-epoch (matches the embedded JWT claim).
+      return expSec * 1000 > Date.now()
+    } catch {
+      return false
+    }
+  }
+
+  function readCookie(name: string): string | null {
+    const prefix = `${name}=`
+    for (const part of document.cookie.split(';')) {
+      const trimmed = part.trim()
+      if (trimmed.startsWith(prefix)) return trimmed.slice(prefix.length)
+    }
+    return null
   }
 
   async function loginWithGoogle() {
