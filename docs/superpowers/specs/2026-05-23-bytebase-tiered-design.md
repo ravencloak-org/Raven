@@ -68,28 +68,31 @@ Two deployment profiles share one source-of-truth (the `migrations/` directory i
 
 ## PR-time SQL Review (Layer 1)
 
-**Tool:** `bytebase/sql-review-action` (official GitHub Action, no server required).
+> **Pivot note (2026-05-25):** the original design proposed `bytebase/sql-review-action` as a server-less PR-time linter. During implementation we confirmed no such standalone action exists — Bytebase's `bytebase-action check` requires a running Bytebase server (`--url`, `--service-account`). Plan A pivoted to [`sbdchd/squawk-action@v2`](https://github.com/sbdchd/squawk-action), a Postgres-specific server-less linter. The Plan A goals (catch unsafe DDL before merge, no server runtime, edge-footprint-friendly) are unchanged; only the tool differs. Plan B still introduces a Bytebase server in the cloud control plane for workflow/approval features.
 
-**Workflow:** new job `sql-review` in `.github/workflows/sql-review.yml`. Triggers on PRs that touch `migrations/**`. Wired into branch protection on `main` as a required check.
+**Tool:** [`sbdchd/squawk-action@v2`](https://github.com/sbdchd/squawk-action) — wraps the [`squawk`](https://squawkhq.com) CLI, no server required.
 
-**Policy file:** `.bytebase/sql-review.json`. Initial ruleset:
+**Workflow:** `.github/workflows/sql-review.yml`. Triggers on PRs that touch `migrations/**`, `.squawk.toml`, or the workflow file itself. Wired into branch protection on `main` as a required check (manual step — documented in `docs/runbooks/migrations.md`).
 
-| Rule | Severity | Reason |
-|---|---|---|
-| `naming.column` (snake_case) | ERROR | Consistency with 43 existing migrations |
-| `column.required` (created_at, updated_at on new tables) | WARNING | Matches existing convention |
-| `column.no-null` on PK / FK columns | ERROR | Catch obvious mistakes |
-| `statement.disallow-commit` | ERROR | Migrations must be transactional |
-| `statement.disallow-truncate` | ERROR | Destructive ops need explicit override |
-| `statement.disallow-rm-tbl-cascade` | ERROR | Destructive ops need explicit override |
-| `statement.add-column-without-default` (non-null) | WARNING | Forces backfill thinking |
-| `statement.create-index-concurrently` | WARNING | Edge OK, cloud tenants may be large |
-| `index.no-duplicate` | ERROR | Catch redundant indexes |
-| `schema.backward-compatibility` | WARNING | Heads-up on breaking renames/drops |
+**Scope:** lints only migrations **modified in the current PR** (diff-based selection via `git diff origin/$BASE...origin/$HEAD`). The initial squawk run against the 43 shipped migrations surfaced 271 findings under the default ruleset, which is pre-existing debt — diff-based linting protects new PRs from it while a separate backlog initiative pays it down. Mirrors the `golangci-lint --new-from-rev=HEAD` convention used elsewhere in the repo.
 
-**Failure UX:** action posts inline review comments on offending file/line. ERROR blocks merge; WARNING surfaces as a reviewer checklist.
+**Config file:** `.squawk.toml` at the repo root. Squawk auto-discovers it.
 
-**Escape hatch:** PR label `migration:approved-destructive` skips destructive-op rules. Label applicable only by maintainers (codeowner enforcement). Documented in the migration SOP.
+```toml
+assume_in_transaction = true   # goose wraps each migration in BEGIN/COMMIT
+pg_version = "18.0"            # matches Raven runtime; gates version-specific rules
+excluded_rules = []            # full default ruleset on; per-statement exceptions go inline
+```
+
+**Initial ruleset:** squawk's default-on set (~30 rules), including `ban-drop-table`, `ban-drop-column`, `ban-truncate-cascade`, `require-concurrent-index-creation`, `require-concurrent-index-deletion`, `adding-required-field`, `prefer-text-field`, `prefer-bigint-over-int`, `require-timeout-settings`, `transaction-nesting`, `renaming-column`, `renaming-table`, `changing-column-type`, and more. Full list: <https://squawkhq.com/docs/rules>. Customisation lives in `.squawk.toml` (`excluded_rules`/`included_rules`).
+
+**Failure UX:** the action posts findings as inline review comments on the PR. Any finding fails the job → PR cannot merge until resolved.
+
+**Escape hatch:** per-statement `-- squawk-ignore <rule-name>` comment immediately before the offending SQL line. The audit trail co-locates with the change — every `squawk-ignore` in a PR diff requires explicit reviewer attention. This replaces the original PR-label-based escape hatch (squawk has no concept of labels and the inline form is cleaner). See `docs/runbooks/migrations.md` for the SOP.
+
+**Policy self-test:** `.github/workflows/sql-review-selftest.yml` runs squawk against `.squawk/fixtures/bad/*.sql` (three fixtures violating `ban-drop-table`, `adding-required-field`, `require-concurrent-index-creation`) and asserts non-zero exit. Catches regressions where a future PR weakens `.squawk.toml`.
+
+**Local equivalent:** `make sql-lint-local` runs squawk via `npx squawk-cli@latest` against migrations modified versus `origin/main` — same semantics as CI.
 
 ## GitOps Wiring + History Coexistence (Cloud, Layer 2)
 
@@ -196,8 +199,8 @@ Bytebase's auto-rollback feature is **disabled** in project config — we don't 
 
 **Layer 1 — PR SQL Review action.**
 
-- Self-test: fixture PR in CI with an intentionally banned pattern must be rejected. `.github/workflows/sql-review-selftest.yml`, runs on push to `main`.
-- Policy file `.bytebase/sql-review.json` linted in CI with `bb sql-review --check-policy`.
+- Self-test: `.github/workflows/sql-review-selftest.yml` runs squawk against `.squawk/fixtures/bad/*.sql` and asserts non-zero exit. Triggered on push to `main` and on PRs touching `.squawk.toml`, fixtures, or the workflow itself.
+- `.squawk.toml` syntax is a TOML file; if invalid, squawk-action fails fast on first use — no separate linter needed.
 
 **Layer 2 — Migration unit tests.**
 
@@ -227,7 +230,7 @@ Bytebase's auto-rollback feature is **disabled** in project config — we don't 
 - GitHub webhook path end-to-end (would need real GitHub; test the receiver-side by feeding migration files directly).
 - New tests for edge migration path — `migrations_test.go` already covers it.
 
-**Local dev:** `make sql-review-local` runs the action against current branch's `migrations/**` diff so authors get the same feedback they'd get from CI before pushing.
+**Local dev:** `make sql-lint-local` runs squawk (via `npx squawk-cli@latest`) against the current branch's `migrations/**` diff vs `origin/main` so authors get the same feedback they'd get from CI before pushing.
 
 ## What Changes vs What Stays
 
@@ -238,13 +241,14 @@ Bytebase's auto-rollback feature is **disabled** in project config — we don't 
 | `internal/db/migrate.go` | Add `VerifyMigrationsState(ctx, url) error`. |
 | `cmd/api/main.go` | Add unconditional call to `VerifyMigrationsState` after the existing `AutoMigrate` block. |
 | `internal/config/config.go` | No change (reuse `Database.AutoMigrate`). |
-| `.github/workflows/` | New `sql-review.yml`, `sql-review-selftest.yml`. |
-| `.bytebase/sql-review.json` | New policy file. |
-| `Makefile` | New `sql-review-local` target. |
+| `.github/workflows/` | New `sql-review.yml`, `sql-review-selftest.yml` (Plan A). |
+| `.squawk.toml` | New squawk config at repo root (Plan A). |
+| `.squawk/fixtures/bad/*.sql` | Three banned-rule fixtures for the self-test workflow (Plan A). |
+| `Makefile` | New `sql-lint-local` target running squawk via npx (Plan A). |
+| `docs/runbooks/migrations.md` | New developer-facing SOP (Plan A). |
 | Edge compose | No change. |
-| Cloud Helm/compose | New `bytebase` service in control plane; `RAVEN_DB_AUTO_MIGRATE=false` on `cmd/api`. |
-| Branch protection on `main` | Add `sql-review` as required check. |
-| Migration SOP doc | Update with escape-hatch label + Bytebase approval flow. |
+| Cloud Helm/compose | New `bytebase` service in control plane; `RAVEN_DB_AUTO_MIGRATE=false` on `cmd/api` (Plan B). |
+| Branch protection on `main` | Add `Squawk migration lint` as required check after first workflow run (Plan A, manual step). |
 
 ## Open Questions / Plan-Time Decisions
 
@@ -257,8 +261,9 @@ Bytebase's auto-rollback feature is **disabled** in project config — we don't 
 - `internal/db/migrate.go` — current goose runner
 - `migrations/` — 43 SQL files (00001–00043)
 - `migrations/embed.go`, `migrations/migrations_test.go`
-- Bytebase docs: <https://www.bytebase.com/docs/>
-- Bytebase SQL Review GH Action: <https://github.com/bytebase/sql-review-action>
+- Bytebase docs (Plan B): <https://www.bytebase.com/docs/>
+- Squawk action (Plan A): <https://github.com/sbdchd/squawk-action>
+- Squawk rule reference (Plan A): <https://squawkhq.com/docs/rules>
 - pgBackRest restore runbook: existing internal docs
 - OpenObserve audit log pipeline: existing internal docs
 

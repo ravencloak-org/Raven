@@ -1,12 +1,20 @@
 # Bytebase Tiered Adoption — Plan A: PR-time SQL Review + Edge Readiness
 
+> **POST-EXECUTION PIVOT NOTE (2026-05-25):** Tasks 3–7 below were written assuming `bytebase/sql-review-action` existed as a server-less PR linter. It does not — `bytebase-action check` requires a running Bytebase server. During execution we pivoted to [`sbdchd/squawk-action@v2`](https://github.com/sbdchd/squawk-action) (a Postgres-specific server-less linter) and re-did Tasks 3–7. The high-level goal and `VerifyMigrationsState`/cmd-api wiring (Tasks 1 & 2) are unchanged. For the as-shipped configuration and tool details, read the updated design spec at `docs/superpowers/specs/2026-05-23-bytebase-tiered-design.md` and the runbook at `docs/runbooks/migrations.md`. The Task 3–7 text below is preserved as historical record of what was originally proposed.
+>
+> **Key as-shipped facts:**
+> - PR-time linter: `sbdchd/squawk-action@v2` (not Bytebase). Config: `.squawk.toml` (TOML, not JSON). Fixtures: `.squawk/fixtures/bad/` (not `.bytebase/fixtures/bad/`).
+> - PR workflow is **diff-based** (`git diff origin/$BASE...origin/$HEAD`), not full-tree — 271 pre-existing findings on the 43 shipped migrations are tracked in the spec as backlog, not blocking new PRs. Same convention as `golangci-lint --new-from-rev=HEAD` in this repo.
+> - Escape hatch is inline `-- squawk-ignore <rule>` comments, not a `migration:approved-destructive` PR label (squawk has no concept of labels).
+> - Makefile target is `make sql-lint-local` (not `sql-review-local`), uses `npx squawk-cli`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Land the ship-anywhere half of the Bytebase tiered adoption — PR-time SQL Review action against `migrations/*.sql`, plus a `VerifyMigrationsState` startup check that gates `cmd/api` readiness. No Bytebase server runtime is introduced. This delivers value to both edge and cloud profiles today.
+**Goal:** Land the ship-anywhere half of the tiered adoption — PR-time SQL review against `migrations/*.sql`, plus a `VerifyMigrationsState` startup check that gates `cmd/api` readiness. No Bytebase server runtime is introduced in Plan A. This delivers value to both edge and cloud profiles today.
 
-**Architecture:** Two coordinated changes. (1) A new Go function `db.VerifyMigrationsState` compares `count(goose_db_version where is_applied=true and version_id>0)` against the count of embedded `*.sql` files; called unconditionally from `cmd/api/main.go` after the existing `RunMigrations` block. (2) A new GitHub Actions workflow runs `bytebase/sql-review-action` against PR diffs touching `migrations/**`, using a policy at `.bytebase/sql-review.json`. A self-test workflow exercises the policy against intentionally-bad fixtures so regressions in the rules surface immediately.
+**Architecture (as shipped):** Two coordinated changes. (1) A new Go function `db.VerifyMigrationsState` compares the count of distinct currently-applied migration versions in `goose_db_version` (latest row per `version_id`) against the count of embedded `*.sql` files; called unconditionally from `cmd/api/main.go` after the existing `RunMigrations` block. (2) `.github/workflows/sql-review.yml` runs `sbdchd/squawk-action@v2` against PR-modified migration files only (diff-based) using `.squawk.toml` config. A self-test workflow exercises the policy against intentionally-bad fixtures so regressions in the rules surface immediately.
 
-**Tech Stack:** Go 1.x, `github.com/pressly/goose/v3`, `github.com/lib/pq`, `github.com/testcontainers/testcontainers-go`, `github.com/stretchr/testify/require`, GitHub Actions, `bytebase/sql-review-action` (v1), JSON policy file.
+**Tech Stack:** Go 1.x, `github.com/pressly/goose/v3`, `github.com/lib/pq`, `github.com/testcontainers/testcontainers-go`, `github.com/stretchr/testify/require`, GitHub Actions, `sbdchd/squawk-action@v2`, TOML config file.
 
 **Source spec:** `docs/superpowers/specs/2026-05-23-bytebase-tiered-design.md`
 
