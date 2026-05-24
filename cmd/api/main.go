@@ -272,6 +272,15 @@ func main() {
 		slog.Info("database migrations applied")
 	}
 
+	// Always verify migration state, regardless of profile. In edge mode this
+	// confirms RunMigrations applied everything; in cloud mode (AutoMigrate=false)
+	// this gates startup on the out-of-band migrator having finished. The error
+	// is fatal — surface it loudly rather than serving traffic against a stale
+	// schema.
+	if err := db.VerifyMigrationsState(context.Background(), cfg.Database.URL); err != nil {
+		log.Fatalf("verify migration state: %v", err)
+	}
+
 	// --- Database pool ---
 	pool, err := db.New(context.Background(), cfg.Database.URL)
 	if err != nil {
