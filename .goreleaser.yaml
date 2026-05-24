@@ -93,7 +93,9 @@ signs:
     certificate: "${artifact}.pem"
     args:
       - "sign-blob"
-      - "--oidc-issuer=https://token.actions.githubusercontent.com"
+      # cosign v3 derives the OIDC issuer from the bundled Sigstore
+      # signing config; passing --oidc-issuer trips "cannot specify
+      # service URLs and use signing config" and fails the step.
       - "--output-certificate=${certificate}"
       - "--output-signature=${signature}"
       - "${artifact}"
