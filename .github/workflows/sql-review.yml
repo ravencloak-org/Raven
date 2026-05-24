@@ -1,0 +1,28 @@
+name: SQL Review
+
+on:
+  pull_request:
+    paths:
+      - 'migrations/**'
+      - '.squawk.toml'
+      - '.github/workflows/sql-review.yml'
+
+permissions:
+  contents: read
+  pull-requests: write  # squawk-action posts inline review comments
+
+jobs:
+  sql-review:
+    name: Squawk migration lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+
+      - name: Lint migrations with squawk
+        uses: sbdchd/squawk-action@v2
+        with:
+          pattern: 'migrations/*.sql'
+          version: 'latest'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
