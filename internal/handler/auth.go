@@ -25,18 +25,41 @@ type DemoOrgJoiner interface {
 	JoinDemoOrg(ctx context.Context, userID string)
 }
 
+// EmailLookup is an optional dependency that fetches the user's email from the
+// auth provider's user record by external ID. Used as a fallback when the
+// session access-token payload doesn't carry an email — the default for
+// SuperTokens' ThirdParty (Google) signin, which doesn't bake claims into the
+// JWT. Implementations should return ("", error) on lookup failure so the
+// handler can fall back to creating the user with an empty email rather than
+// 500-ing the OAuth callback.
+type EmailLookup interface {
+	LookupEmail(ctx context.Context, externalID string) (string, error)
+}
+
 // AuthHandler handles authentication callback endpoints.
 type AuthHandler struct {
-	svc      AuthServicer
-	demoJoin DemoOrgJoiner
+	svc         AuthServicer
+	demoJoin    DemoOrgJoiner
+	emailLookup EmailLookup
 }
 
 // NewAuthHandler creates a new AuthHandler.
-// Pass optional DemoOrgJoiner instances (at most one) to enable auto-join on signup.
-func NewAuthHandler(svc AuthServicer, opts ...DemoOrgJoiner) *AuthHandler {
+//
+// Optional dependencies (zero or one of each):
+//   - DemoOrgJoiner: auto-joins new users to the demo org.
+//   - EmailLookup:   resolves the user's email from the auth provider's user
+//     record when the session claims don't include it (Google/ThirdParty).
+//
+// Detection is type-based, so callers can pass them in either order.
+func NewAuthHandler(svc AuthServicer, opts ...any) *AuthHandler {
 	h := &AuthHandler{svc: svc}
-	if len(opts) > 0 {
-		h.demoJoin = opts[0]
+	for _, opt := range opts {
+		switch v := opt.(type) {
+		case DemoOrgJoiner:
+			h.demoJoin = v
+		case EmailLookup:
+			h.emailLookup = v
+		}
 	}
 	return h
 }
@@ -57,6 +80,17 @@ func (h *AuthHandler) Callback(c *gin.Context) {
 	emailStr, _ := email.(string)
 	name, _ := c.Get(string(middleware.ContextKeyUserName))
 	nameStr, _ := name.(string)
+
+	// SuperTokens' ThirdParty (Google) signin doesn't include email in the
+	// access-token payload, so the middleware-populated emailStr is empty for
+	// Google logins. Fetch it from the SuperTokens core user record so newly
+	// created rows in our `users` table carry the email (used for emailing,
+	// audit logs, and the eventual /api/v1/me response).
+	if emailStr == "" && h.emailLookup != nil {
+		if resolved, err := h.emailLookup.LookupEmail(c.Request.Context(), externalIDStr); err == nil {
+			emailStr = resolved
+		}
+	}
 
 	// Check if user exists
 	user, err := h.svc.GetByExternalID(c.Request.Context(), externalIDStr)
