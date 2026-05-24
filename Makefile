@@ -69,5 +69,11 @@ compose-down:
 	docker compose down
 
 sql-lint-local:
-	@echo "Running squawk against migrations/*.sql ..."
-	@npx --yes squawk-cli@latest 'migrations/*.sql'
+	@base=$$(git merge-base HEAD origin/main 2>/dev/null || echo HEAD~); \
+	files=$$(git diff --diff-filter=d --name-only $$base...HEAD -- 'migrations/*.sql' | tr '\n' ' '); \
+	if [ -z "$$files" ]; then \
+		echo "No migrations modified vs origin/main — nothing to lint."; \
+	else \
+		echo "Linting modified migrations: $$files"; \
+		npx --yes squawk-cli@latest $$files; \
+	fi
