@@ -983,7 +983,11 @@ func main() {
 	// relying on SessionMiddleware (cookies may not be available yet).
 	// Not registered in single-user mode — there is no sign-in flow.
 	demoJoiner := service.NewDemoOrgJoiner(orgSvc, wsSvc)
-	authHandler := handler.NewAuthHandler(userSvc, demoJoiner)
+	// authProvider already implements handler.EmailLookup (SuperTokens-backed
+	// ThirdParty user lookup) so we can pass it through. In single-user mode
+	// authProvider is the local stub which doesn't implement EmailLookup; the
+	// handler treats a nil lookup as "skip backfill" so this is safe either way.
+	authHandler := handler.NewAuthHandler(userSvc, demoJoiner, authProvider)
 	if !cfg.Server.SingleUser {
 		root.GET("/api/v1/auth/callback", middleware.Deadline(10*time.Second), func(c *gin.Context) {
 			info, err := authProvider.VerifySession(c.Request)

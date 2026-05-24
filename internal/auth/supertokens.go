@@ -1,11 +1,13 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 
 	"github.com/supertokens/supertokens-golang/recipe/session"
+	"github.com/supertokens/supertokens-golang/recipe/thirdparty"
 )
 
 // SuperTokensProvider implements AuthProvider using the SuperTokens Go SDK.
@@ -47,6 +49,26 @@ func (p *SuperTokensProvider) VerifySession(r *http.Request) (*SessionInfo, erro
 		Email:      email,
 		Name:       name,
 	}, nil
+}
+
+// LookupEmail resolves a user's email by their SuperTokens external ID via
+// the ThirdParty recipe's user record. Used by the auth callback handler to
+// backfill email on first login when the access-token payload is empty (the
+// default for Google signin). Returns an empty string + nil error when the
+// user has no email on record; returns a non-nil error only for transport /
+// SDK failures.
+func (p *SuperTokensProvider) LookupEmail(_ context.Context, externalID string) (string, error) {
+	if externalID == "" {
+		return "", fmt.Errorf("LookupEmail: empty external ID")
+	}
+	user, err := thirdparty.GetUserByID(externalID)
+	if err != nil {
+		return "", fmt.Errorf("thirdparty.GetUserByID(%s): %w", externalID, err)
+	}
+	if user == nil {
+		return "", nil
+	}
+	return user.Email, nil
 }
 
 // RevokeSession invalidates the session identified by the request's access token.
