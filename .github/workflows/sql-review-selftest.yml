@@ -1,0 +1,46 @@
+name: SQL Review Policy Self-Test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.squawk.toml'
+      - '.squawk/fixtures/**'
+      - '.github/workflows/sql-review-selftest.yml'
+  pull_request:
+    paths:
+      - '.squawk.toml'
+      - '.squawk/fixtures/**'
+      - '.github/workflows/sql-review-selftest.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  policy-selftest:
+    name: Squawk fires on banned fixtures
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run squawk against banned fixtures (must fail)
+        id: lint
+        continue-on-error: true
+        uses: sbdchd/squawk-action@v2
+        with:
+          pattern: '.squawk/fixtures/bad/*.sql'
+          version: 'latest'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Assert squawk rejected the fixtures
+        if: steps.lint.outcome == 'success'
+        run: |
+          echo "::error::Squawk did NOT reject the banned fixtures."
+          echo "Either the fixtures no longer match a rule, or .squawk.toml has weakened."
+          echo "Inspect .squawk/fixtures/bad/*.sql and .squawk.toml."
+          exit 1
+
+      - name: Confirm squawk fired
+        if: steps.lint.outcome == 'failure'
+        run: echo "Squawk correctly rejected the banned fixtures."
