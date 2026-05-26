@@ -1,4 +1,4 @@
-.PHONY: build build-cover run dev test test-integration bench-integration coverage coverage-unit coverage-integration coverage-html coverage-clean lint migrate-up migrate-down proto swagger compose compose-down
+.PHONY: build build-cover run dev test test-integration bench-integration coverage coverage-unit coverage-integration coverage-html coverage-clean lint migrate-up migrate-down proto swagger compose compose-down sql-lint-local
 
 build:
 	go build -o bin/api ./cmd/api
@@ -67,3 +67,13 @@ compose:
 compose-down:
 	@if [ -f ./.env.keys ]; then set -a; . ./.env.keys; set +a; fi; \
 	docker compose down
+
+sql-lint-local:
+	@base=$$(git merge-base HEAD origin/main 2>/dev/null || echo HEAD~); \
+	files=$$(git diff --diff-filter=d --name-only $$base...HEAD -- 'migrations/*.sql' | tr '\n' ' '); \
+	if [ -z "$$files" ]; then \
+		echo "No migrations modified vs origin/main — nothing to lint."; \
+	else \
+		echo "Linting modified migrations: $$files"; \
+		npx --yes squawk-cli@latest $$files; \
+	fi
