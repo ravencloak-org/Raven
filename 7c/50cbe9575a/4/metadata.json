@@ -3,29 +3,33 @@
   "checkpoint_id": "7c50cbe9575a",
   "session_id": "337cea8f-5a6b-4199-bc68-1de07b76ec01",
   "strategy": "manual-commit",
-  "created_at": "2026-05-26T17:45:37.528715Z",
-  "branch": "feat/llm-test-connection-and-install-hints",
+  "created_at": "2026-05-26T22:41:54.706591Z",
+  "branch": "fix/llm-provider-add-ollama-enum",
   "checkpoints_count": 1,
   "files_touched": [
-    "frontend/src/pages/llm-providers/LlmProviderListPage.vue"
+    "cmd/api/main.go",
+    "frontend/src/api/llm-providers.ts",
+    "frontend/src/pages/llm-providers/LlmProviderListPage.vue",
+    "internal/handler/llm_provider.go",
+    "internal/service/llm_provider_test_connection.go"
   ],
   "agent": "Claude Code",
-  "checkpoint_transcript_start": 5628,
-  "transcript_lines_at_start": 5628,
+  "checkpoint_transcript_start": 5692,
+  "transcript_lines_at_start": 5692,
   "token_usage": {
-    "input_tokens": 19,
-    "cache_creation_tokens": 10879,
-    "cache_read_tokens": 9314430,
-    "output_tokens": 8725,
-    "api_call_count": 14
+    "input_tokens": 37,
+    "cache_creation_tokens": 26731,
+    "cache_read_tokens": 21898510,
+    "output_tokens": 20161,
+    "api_call_count": 32
   },
   "initial_attribution": {
-    "calculated_at": "2026-05-26T17:45:36.847647Z",
-    "agent_lines": 0,
-    "human_added": 571,
-    "human_modified": 13,
+    "calculated_at": "2026-05-26T22:41:53.969866Z",
+    "agent_lines": 11,
+    "human_added": 84,
+    "human_modified": 2,
     "human_removed": 0,
-    "total_committed": 580,
-    "agent_percentage": 0
+    "total_committed": 97,
+    "agent_percentage": 11.34020618556701
   }
 }

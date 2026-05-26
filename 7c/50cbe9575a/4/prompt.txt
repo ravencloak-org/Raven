@@ -1172,3 +1172,7 @@ Cancel
 ---
 
 can we not suggest some local tunnel that opens local ollama to raven
+
+---
+
+we should also show urls to install cloudflare or ngrok

@@ -606,3 +606,7 @@ Cancel
 
 can we not suggest some local tunnel that opens local ollama to raven
 
+### Prompt 103
+
+we should also show urls to install cloudflare or ngrok
+

@@ -2,7 +2,7 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "branch": "feat/llm-test-connection-and-install-hints",
+  "branch": "fix/llm-provider-add-ollama-enum",
   "checkpoints_count": 11,
   "files_touched": [
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
@@ -25,6 +25,7 @@
     "deploy/terraform/demo/vpc.tf",
     "docs/superpowers/plans/2026-05-23-bytebase-tiered-plan-a.md",
     "docs/superpowers/specs/2026-05-23-bytebase-tiered-design.md",
+    "frontend/src/api/llm-providers.ts",
     "frontend/src/components/AppSidebar.vue",
     "frontend/src/components/MobileTabBar.vue",
     "frontend/src/components/TurnstileWidget.vue",
@@ -33,10 +34,12 @@
     "frontend/src/pages/llm-providers/LlmProviderListPage.vue",
     "frontend/src/plugins/supertokens.ts",
     "frontend/src/router/index.ts",
+    "internal/handler/llm_provider.go",
     "internal/model/billing.go",
     "internal/repository/billing.go",
     "internal/service/billing.go",
     "internal/service/billing_test.go",
+    "internal/service/llm_provider_test_connection.go",
     "internal/turnstile/middleware.go",
     "internal/turnstile/middleware_test.go",
     "node-compile-cache/v25.9.0-arm64-392347a2-501/02774df2",
@@ -277,10 +280,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 873,
-    "cache_creation_tokens": 3488010,
-    "cache_read_tokens": 121147696,
-    "output_tokens": 351172,
-    "api_call_count": 655
+    "input_tokens": 891,
+    "cache_creation_tokens": 3503862,
+    "cache_read_tokens": 133731776,
+    "output_tokens": 362608,
+    "api_call_count": 673
   }
 }
