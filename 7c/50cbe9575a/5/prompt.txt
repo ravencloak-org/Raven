@@ -187,3 +187,734 @@ continue
 ---
 
 continue
+
+---
+
+go for it
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/writing-plans
+
+# Writing Plans
+
+## Overview
+
+Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code, testing, docs they might need to check, how to test it. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD. Frequent commits.
+
+Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they don't know good test design very well.
+
+**Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
+
+**Context:** If working in an isolated worktree, it should have been created via the `superpowers:using-git-worktrees` skill at execution time.
+
+**Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`
+- (User preferences for plan location override this default)
+
+## Scope Check
+
+If the spec covers multiple independent subsystems, it should have been broken into sub-project specs during brainstorming. If it wasn't, suggest breaking this into separate plans — one per subsystem. Each plan should produce working, testable software on its own.
+
+## File Structure
+
+Before defining tasks, map out which files will be created or modified and what each one is responsible for. This is where decomposition decisions get locked in.
+
+- Design units with clear boundaries and well-defined interfaces. Each file should have one clear responsibility.
+- You reason best about code you can hold in context at once, and your edits are more reliable when files are focused. Prefer smaller, focused files over large ones that do too much.
+- Files that change together should live together. Split by responsibility, not by technical layer.
+- In existing codebases, follow established patterns. If the codebase uses large files, don't unilaterally restructure - but if a file you're modifying has grown unwieldy, including a split in the plan is reasonable.
+
+This structure informs the task decomposition. Each task should produce self-contained changes that make sense independently.
+
+## Bite-Sized Task Granularity
+
+**Each step is one action (2-5 minutes):**
+- "Write the failing test" - step
+- "Run it to make sure it fails" - step
+- "Implement the minimal code to make the test pass" - step
+- "Run the tests and make sure they pass" - step
+- "Commit" - step
+
+## Plan Document Header
+
+**Every plan MUST start with this header:**
+
+```markdown
+# [Feature Name] Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** [One sentence describing what this builds]
+
+**Architecture:** [2-3 sentences about approach]
+
+**Tech Stack:** [Key technologies/libraries]
+
+---
+```
+
+## Task Structure
+
+````markdown
+### Task N: [Component Name]
+
+**Files:**
+- Create: `exact/path/to/file.py`
+- Modify: `exact/path/to/existing.py:123-145`
+- Test: `tests/exact/path/to/test.py`
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+def test_specific_behavior():
+    result = function(input)
+    assert result == expected
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `pytest tests/path/test.py::test_name -v`
+Expected: FAIL with "function not defined"
+
+- [ ] **Step 3: Write minimal implementation**
+
+```python
+def function(input):
+    return expected
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `pytest tests/path/test.py::test_name -v`
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add tests/path/test.py src/path/file.py
+git commit -m "feat: add specific feature"
+```
+````
+
+## No Placeholders
+
+Every step must contain the actual content an engineer needs. These are **plan failures** — never write them:
+- "TBD", "TODO", "implement later", "fill in details"
+- "Add appropriate error handling" / "add validation" / "handle edge cases"
+- "Write tests for the above" (without actual test code)
+- "Similar to Task N" (repeat the code — the engineer may be reading tasks out of order)
+- Steps that describe what to do without showing how (code blocks required for code steps)
+- References to types, functions, or methods not defined in any task
+
+## Remember
+- Exact file paths always
+- Complete code in every step — if a step changes code, show the code
+- Exact commands with expected output
+- DRY, YAGNI, TDD, frequent commits
+
+## Self-Review
+
+After writing the complete plan, look at the spec with fresh eyes and check the plan against it. This is a checklist you run yourself — not a subagent dispatch.
+
+**1. Spec coverage:** Skim each section/requirement in the spec. Can you point to a task that implements it? List any gaps.
+
+**2. Placeholder scan:** Search your plan for red flags — any of the patterns from the "No Placeholders" section above. Fix them.
+
+**3. Type consistency:** Do the types, method signatures, and property names you used in later tasks match what you defined in earlier tasks? A function called `clearLayers()` in Task 3 but `clearFullLayers()` in Task 7 is a bug.
+
+If you find issues, fix them inline. No need to re-review — just fix and move on. If you find a spec requirement with no task, add the task.
+
+## Execution Handoff
+
+After saving the plan, offer execution choice:
+
+**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Two execution options:**
+
+**1. Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
+
+**2. Inline Execution** - Execute tasks in this session using executing-plans, batch execution with checkpoints
+
+**Which approach?"**
+
+**If Subagent-Driven chosen:**
+- **REQUIRED SUB-SKILL:** Use superpowers:subagent-driven-development
+- Fresh subagent per task + two-stage review
+
+**If Inline Execution chosen:**
+- **REQUIRED SUB-SKILL:** Use superpowers:executing-plans
+- Batch execution with checkpoints for review
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/subagent-driven-development
+
+# Subagent-Driven Development
+
+Execute plan by dispatching fresh subagent per task, with two-stage review after each: spec compliance review first, then code quality review.
+
+**Why subagents:** You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions and context, you ensure they stay focused and succeed at their task. They should never inherit your session's context or history — you construct exactly what they need. This also preserves your own context for coordination work.
+
+**Core principle:** Fresh subagent per task + two-stage review (spec then quality) = high quality, fast iteration
+
+**Continuous execution:** Do not pause to check in with your human partner between tasks. Execute all tasks from the plan without stopping. The only reasons to stop are: BLOCKED status you cannot resolve, ambiguity that genuinely prevents progress, or all tasks complete. "Should I continue?" prompts and progress summaries waste their time — they asked you to execute the plan, so execute it.
+
+## When to Use
+
+```dot
+digraph when_to_use {
+    "Have implementation plan?" [shape=diamond];
+    "Tasks mostly independent?" [shape=diamond];
+    "Stay in this session?" [shape=diamond];
+    "subagent-driven-development" [shape=box];
+    "executing-plans" [shape=box];
+    "Manual execution or brainstorm first" [shape=box];
+
+    "Have implementation plan?" -> "Tasks mostly independent?" [label="yes"];
+    "Have implementation plan?" -> "Manual execution or brainstorm first" [label="no"];
+    "Tasks mostly independent?" -> "Stay in this session?" [label="yes"];
+    "Tasks mostly independent?" -> "Manual execution or brainstorm first" [label="no - tightly coupled"];
+    "Stay in this session?" -> "subagent-driven-development" [label="yes"];
+    "Stay in this session?" -> "executing-plans" [label="no - parallel session"];
+}
+```
+
+**vs. Executing Plans (parallel session):**
+- Same session (no context switch)
+- Fresh subagent per task (no context pollution)
+- Two-stage review after each task: spec compliance first, then code quality
+- Faster iteration (no human-in-loop between tasks)
+
+## The Process
+
+```dot
+digraph process {
+    rankdir=TB;
+
+    subgraph cluster_per_task {
+        label="Per Task";
+        "Dispatch implementer subagent (./implementer-prompt.md)" [shape=box];
+        "Implementer subagent asks questions?" [shape=diamond];
+        "Answer questions, provide context" [shape=box];
+        "Implementer subagent implements, tests, commits, self-reviews" [shape=box];
+        "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [shape=box];
+        "Spec reviewer subagent confirms code matches spec?" [shape=diamond];
+        "Implementer subagent fixes spec gaps" [shape=box];
+        "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [shape=box];
+        "Code quality reviewer subagent approves?" [shape=diamond];
+        "Implementer subagent fixes quality issues" [shape=box];
+        "Mark task complete in TodoWrite" [shape=box];
+    }
+
+    "Read plan, extract all tasks with full text, note context, create TodoWrite" [shape=box];
+    "More tasks remain?" [shape=diamond];
+    "Dispatch final code reviewer subagent for entire implementation" [shape=box];
+    "Use superpowers:finishing-a-development-branch" [shape=box style=filled fillcolor=lightgreen];
+
+    "Read plan, extract all tasks with full text, note context, create TodoWrite" -> "Dispatch implementer subagent (./implementer-prompt.md)";
+    "Dispatch implementer subagent (./implementer-prompt.md)" -> "Implementer subagent asks questions?";
+    "Implementer subagent asks questions?" -> "Answer questions, provide context" [label="yes"];
+    "Answer questions, provide context" -> "Dispatch implementer subagent (./implementer-prompt.md)";
+    "Implementer subagent asks questions?" -> "Implementer subagent implements, tests, commits, self-reviews" [label="no"];
+    "Implementer subagent implements, tests, commits, self-reviews" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)";
+    "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" -> "Spec reviewer subagent confirms code matches spec?";
+    "Spec reviewer subagent confirms code matches spec?" -> "Implementer subagent fixes spec gaps" [label="no"];
+    "Implementer subagent fixes spec gaps" -> "Dispatch spec reviewer subagent (./spec-reviewer-prompt.md)" [label="re-review"];
+    "Spec reviewer subagent confirms code matches spec?" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="yes"];
+    "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" -> "Code quality reviewer subagent approves?";
+    "Code quality reviewer subagent approves?" -> "Implementer subagent fixes quality issues" [label="no"];
+    "Implementer subagent fixes quality issues" -> "Dispatch code quality reviewer subagent (./code-quality-reviewer-prompt.md)" [label="re-review"];
+    "Code quality reviewer subagent approves?" -> "Mark task complete in TodoWrite" [label="yes"];
+    "Mark task complete in TodoWrite" -> "More tasks remain?";
+    "More tasks remain?" -> "Dispatch implementer subagent (./implementer-prompt.md)" [label="yes"];
+    "More tasks remain?" -> "Dispatch final code reviewer subagent for entire implementation" [label="no"];
+    "Dispatch final code reviewer subagent for entire implementation" -> "Use superpowers:finishing-a-development-branch";
+}
+```
+
+## Model Selection
+
+Use the least powerful model that can handle each role to conserve cost and increase speed.
+
+**Mechanical implementation tasks** (isolated functions, clear specs, 1-2 files): use a fast, cheap model. Most implementation tasks are mechanical when the plan is well-specified.
+
+**Integration and judgment tasks** (multi-file coordination, pattern matching, debugging): use a standard model.
+
+**Architecture, design, and review tasks**: use the most capable available model.
+
+**Task complexity signals:**
+- Touches 1-2 files with a complete spec → cheap model
+- Touches multiple files with integration concerns → standard model
+- Requires design judgment or broad codebase understanding → most capable model
+
+## Handling Implementer Status
+
+Implementer subagents report one of four statuses. Handle each appropriately:
+
+**DONE:** Proceed to spec compliance review.
+
+**DONE_WITH_CONCERNS:** The implementer completed the work but flagged doubts. Read the concerns before proceeding. If the concerns are about correctness or scope, address them before review. If they're observations (e.g., "this file is getting large"), note them and proceed to review.
+
+**NEEDS_CONTEXT:** The implementer needs information that wasn't provided. Provide the missing context and re-dispatch.
+
+**BLOCKED:** The implementer cannot complete the task. Assess the blocker:
+1. If it's a context problem, provide more context and re-dispatch with the same model
+2. If the task requires more reasoning, re-dispatch with a more capable model
+3. If the task is too large, break it into smaller pieces
+4. If the plan itself is wrong, escalate to the human
+
+**Never** ignore an escalation or force the same model to retry without changes. If the implementer said it's stuck, something needs to change.
+
+## Prompt Templates
+
+- `./implementer-prompt.md` - Dispatch implementer subagent
+- `./spec-reviewer-prompt.md` - Dispatch spec compliance reviewer subagent
+- `./code-quality-reviewer-prompt.md` - Dispatch code quality reviewer subagent
+
+## Example Workflow
+
+```
+You: I'm using Subagent-Driven Development to execute this plan.
+
+[Read plan file once: docs/superpowers/plans/feature-plan.md]
+[Extract all 5 tasks with full text and context]
+[Create TodoWrite with all tasks]
+
+Task 1: Hook installation script
+
+[Get Task 1 text and context (already extracted)]
+[Dispatch implementation subagent with full task text + context]
+
+Implementer: "Before I begin - should the hook be installed at user or system level?"
+
+You: "User level (~/.config/superpowers/hooks/)"
+
+Implementer: "Got it. Implementing now..."
+[Later] Implementer:
+  - Implemented install-hook command
+  - Added tests, 5/5 passing
+  - Self-review: Found I missed --force flag, added it
+  - Committed
+
+[Dispatch spec compliance reviewer]
+Spec reviewer: ✅ Spec compliant - all requirements met, nothing extra
+
+[Get git SHAs, dispatch code quality reviewer]
+Code reviewer: Strengths: Good test coverage, clean. Issues: None. Approved.
+
+[Mark Task 1 complete]
+
+Task 2: Recovery modes
+
+[Get Task 2 text and context (already extracted)]
+[Dispatch implementation subagent with full task text + context]
+
+Implementer: [No questions, proceeds]
+Implementer:
+  - Added verify/repair modes
+  - 8/8 tests passing
+  - Self-review: All good
+  - Committed
+
+[Dispatch spec compliance reviewer]
+Spec reviewer: ❌ Issues:
+  - Missing: Progress reporting (spec says "report every 100 items")
+  - Extra: Added --json flag (not requested)
+
+[Implementer fixes issues]
+Implementer: Removed --json flag, added progress reporting
+
+[Spec reviewer reviews again]
+Spec reviewer: ✅ Spec compliant now
+
+[Dispatch code quality reviewer]
+Code reviewer: Strengths: Solid. Issues (Important): Magic number (100)
+
+[Implementer fixes]
+Implementer: Extracted PROGRESS_INTERVAL constant
+
+[Code reviewer reviews again]
+Code reviewer: ✅ Approved
+
+[Mark Task 2 complete]
+
+...
+
+[After all tasks]
+[Dispatch final code-reviewer]
+Final reviewer: All requirements met, ready to merge
+
+Done!
+```
+
+## Advantages
+
+**vs. Manual execution:**
+- Subagents follow TDD naturally
+- Fresh context per task (no confusion)
+- Parallel-safe (subagents don't interfere)
+- Subagent can ask questions (before AND during work)
+
+**vs. Executing Plans:**
+- Same session (no handoff)
+- Continuous progress (no waiting)
+- Review checkpoints automatic
+
+**Efficiency gains:**
+- No file reading overhead (controller provides full text)
+- Controller curates exactly what context is needed
+- Subagent gets complete information upfront
+- Questions surfaced before work begins (not after)
+
+**Quality gates:**
+- Self-review catches issues before handoff
+- Two-stage review: spec compliance, then code quality
+- Review loops ensure fixes actually work
+- Spec compliance prevents over/under-building
+- Code quality ensures implementation is well-built
+
+**Cost:**
+- More subagent invocations (implementer + 2 reviewers per task)
+- Controller does more prep work (extracting all tasks upfront)
+- Review loops add iterations
+- But catches issues early (cheaper than debugging later)
+
+## Red Flags
+
+**Never:**
+- Start implementation on main/master branch without explicit user consent
+- Skip reviews (spec compliance OR code quality)
+- Proceed with unfixed issues
+- Dispatch multiple implementation subagents in parallel (conflicts)
+- Make subagent read plan file (provide full text instead)
+- Skip scene-setting context (subagent needs to understand where task fits)
+- Ignore subagent questions (answer before letting them proceed)
+- Accept "close enough" on spec compliance (spec reviewer found issues = not done)
+- Skip review loops (reviewer found issues = implementer fixes = review again)
+- Let implementer self-review replace actual review (both are needed)
+- **Start code quality review before spec compliance is ✅** (wrong order)
+- Move to next task while either review has open issues
+
+**If subagent asks questions:**
+- Answer clearly and completely
+- Provide additional context if needed
+- Don't rush them into implementation
+
+**If reviewer finds issues:**
+- Implementer (same subagent) fixes them
+- Reviewer reviews again
+- Repeat until approved
+- Don't skip the re-review
+
+**If subagent fails task:**
+- Dispatch fix subagent with specific instructions
+- Don't try to fix manually (context pollution)
+
+## Integration
+
+**Required workflow skills:**
+- **superpowers:using-git-worktrees** - Ensures isolated workspace (creates one or verifies existing)
+- **superpowers:writing-plans** - Creates the plan this skill executes
+- **superpowers:requesting-code-review** - Code review template for reviewer subagents
+- **superpowers:finishing-a-development-branch** - Complete development after all tasks
+
+**Subagents should use:**
+- **superpowers:test-driven-development** - Subagents follow TDD for each task
+
+**Alternative workflow:**
+- **superpowers:executing-plans** - Use for parallel session instead of same-session execution
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/using-git-worktrees
+
+# Using Git Worktrees
+
+## Overview
+
+Ensure work happens in an isolated workspace. Prefer your platform's native worktree tools. Fall back to manual git worktrees only when no native tool is available.
+
+**Core principle:** Detect existing isolation first. Then use native tools. Then fall back to git. Never fight the harness.
+
+**Announce at start:** "I'm using the using-git-worktrees skill to set up an isolated workspace."
+
+## Step 0: Detect Existing Isolation
+
+**Before creating anything, check if you are already in an isolated workspace.**
+
+```bash
+GIT_DIR=$(cd "$(git rev-parse --git-dir)" 2>/dev/null && pwd -P)
+GIT_COMMON=$(cd "$(git rev-parse --git-common-dir)" 2>/dev/null && pwd -P)
+BRANCH=$(git branch --show-current)
+```
+
+**Submodule guard:** `GIT_DIR != GIT_COMMON` is also true inside git submodules. Before concluding "already in a worktree," verify you are not in a submodule:
+
+```bash
+# If this returns a path, you're in a submodule, not a worktree — treat as normal repo
+git rev-parse --show-superproject-working-tree 2>/dev/null
+```
+
+**If `GIT_DIR != GIT_COMMON` (and not a submodule):** You are already in a linked worktree. Skip to Step 3 (Project Setup). Do NOT create another worktree.
+
+Report with branch state:
+- On a branch: "Already in isolated workspace at `<path>` on branch `<name>`."
+- Detached HEAD: "Already in isolated workspace at `<path>` (detached HEAD, externally managed). Branch creation needed at finish time."
+
+**If `GIT_DIR == GIT_COMMON` (or in a submodule):** You are in a normal repo checkout.
+
+Has the user already indicated their worktree preference in your instructions? If not, ask for consent before creating a worktree:
+
+> "Would you like me to set up an isolated worktree? It protects your current branch from changes."
+
+Honor any existing declared preference without asking. If the user declines consent, work in place and skip to Step 3.
+
+## Step 1: Create Isolated Workspace
+
+**You have two mechanisms. Try them in this order.**
+
+### 1a. Native Worktree Tools (preferred)
+
+The user has asked for an isolated workspace (Step 0 consent). Do you already have a way to create a worktree? It might be a tool with a name like `EnterWorktree`, `WorktreeCreate`, a `/worktree` command, or a `--worktree` flag. If you do, use it and skip to Step 3.
+
+Native tools handle directory placement, branch creation, and cleanup automatically. Using `git worktree add` when you have a native tool creates phantom state your harness can't see or manage.
+
+Only proceed to Step 1b if you have no native worktree tool available.
+
+### 1b. Git Worktree Fallback
+
+**Only use this if Step 1a does not apply** — you have no native worktree tool available. Create a worktree manually using git.
+
+#### Directory Selection
+
+Follow this priority order. Explicit user preference always beats observed filesystem state.
+
+1. **Check your instructions for a declared worktree directory preference.** If the user has already specified one, use it without asking.
+
+2. **Check for an existing project-local worktree directory:**
+   ```bash
+   ls -d .worktrees 2>/dev/null     # Preferred (hidden)
+   ls -d worktrees 2>/dev/null      # Alternative
+   ```
+   If found, use it. If both exist, `.worktrees` wins.
+
+3. **Check for an existing global directory:**
+   ```bash
+   project=$(basename "$(git rev-parse --show-toplevel)")
+   ls -d ~/.config/superpowers/worktrees/$project 2>/dev/null
+   ```
+   If found, use it (backward compatibility with legacy global path).
+
+4. **If there is no other guidance available**, default to `.worktrees/` at the project root.
+
+#### Safety Verification (project-local directories only)
+
+**MUST verify directory is ignored before creating worktree:**
+
+```bash
+git check-ignore -q .worktrees 2>/dev/null || git check-ignore -q worktrees 2>/dev/null
+```
+
+**If NOT ignored:** Add to .gitignore, commit the change, then proceed.
+
+**Why critical:** Prevents accidentally committing worktree contents to repository.
+
+Global directories (`~/.config/superpowers/worktrees/`) need no verification.
+
+#### Create the Worktree
+
+```bash
+project=$(basename "$(git rev-parse --show-toplevel)")
+
+# Determine path based on chosen location
+# For project-local: path="$LOCATION/$BRANCH_NAME"
+# For global: path="~/.config/superpowers/worktrees/$project/$BRANCH_NAME"
+
+git worktree add "$path" -b "$BRANCH_NAME"
+cd "$path"
+```
+
+**Sandbox fallback:** If `git worktree add` fails with a permission error (sandbox denial), tell the user the sandbox blocked worktree creation and you're working in the current directory instead. Then run setup and baseline tests in place.
+
+## Step 3: Project Setup
+
+Auto-detect and run appropriate setup:
+
+```bash
+# Node.js
+if [ -f package.json ]; then npm install; fi
+
+# Rust
+if [ -f Cargo.toml ]; then cargo build; fi
+
+# Python
+if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+if [ -f pyproject.toml ]; then poetry install; fi
+
+# Go
+if [ -f go.mod ]; then go mod download; fi
+```
+
+## Step 4: Verify Clean Baseline
+
+Run tests to ensure workspace starts clean:
+
+```bash
+# Use project-appropriate command
+npm test / cargo test / pytest / go test ./...
+```
+
+**If tests fail:** Report failures, ask whether to proceed or investigate.
+
+**If tests pass:** Report ready.
+
+### Report
+
+```
+Worktree ready at <full-path>
+Tests passing (<N> tests, 0 failures)
+Ready to implement <feature-name>
+```
+
+## Quick Reference
+
+| Situation | Action |
+|-----------|--------|
+| Already in linked worktree | Skip creation (Step 0) |
+| In a submodule | Treat as normal repo (Step 0 guard) |
+| Native worktree tool available | Use it (Step 1a) |
+| No native tool | Git worktree fallback (Step 1b) |
+| `.worktrees/` exists | Use it (verify ignored) |
+| `worktrees/` exists | Use it (verify ignored) |
+| Both exist | Use `.worktrees/` |
+| Neither exists | Check instruction file, then default `.worktrees/` |
+| Global path exists | Use it (backward compat) |
+| Directory not ignored | Add to .gitignore + commit |
+| Permission error on create | Sandbox fallback, work in place |
+| Tests fail during baseline | Report failures + ask |
+| No package.json/Cargo.toml | Skip dependency install |
+
+## Common Mistakes
+
+### Fighting the harness
+
+- **Problem:** Using `git worktree add` when the platform already provides isolation
+- **Fix:** Step 0 detects existing isolation. Step 1a defers to native tools.
+
+### Skipping detection
+
+- **Problem:** Creating a nested worktree inside an existing one
+- **Fix:** Always run Step 0 before creating anything
+
+### Skipping ignore verification
+
+- **Problem:** Worktree contents get tracked, pollute git status
+- **Fix:** Always use `git check-ignore` before creating project-local worktree
+
+### Assuming directory location
+
+- **Problem:** Creates inconsistency, violates project conventions
+- **Fix:** Follow priority: existing > global legacy > instruction file > default
+
+### Proceeding with failing tests
+
+- **Problem:** Can't distinguish new bugs from pre-existing issues
+- **Fix:** Report failures, get explicit permission to proceed
+
+## Red Flags
+
+**Never:**
+- Create a worktree when Step 0 detects existing isolation
+- Use `git worktree add` when you have a native worktree tool (e.g., `EnterWorktree`). This is the #1 mistake — if you have it, use it.
+- Skip Step 1a by jumping straight to Step 1b's git commands
+- Create worktree without verifying it's ignored (project-local)
+- Skip baseline test verification
+- Proceed with failing tests without asking
+
+**Always:**
+- Run Step 0 detection first
+- Prefer native tools over git fallback
+- Follow directory priority: existing > global legacy > instruction file > default
+- Verify directory is ignored for project-local
+- Auto-detect and run project setup
+- Verify clean test baseline
+
+---
+
+<task-notification>
+<task-id>a0cff9b90dd3cb514</task-id>
+<tool-use-id>toolu_0141wk8VmydX3mXT5JDb1eXq</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Task 1: VerifyMigrationsState TDD" completed</summary>
+<result>---
+
+**Commit SHA:** `fc3d2789`
+
+**Test results (3 PASS):**
+- `TestVerifyMigrationsState_AllAppliedPasses` — PASS (2.75s)
+- `TestVerifyMigrationsState_MismatchReturnsError` — PASS (2.68s)
+- `TestVerifyMigrationsState_RollbackThenReapplyPasses` — PASS (2.59s)
+- Package total: `ok github.com/ravencloak-org/Raven/internal/db 3.749s`
+
+**Lint:** 0 new issues.
+
+**Reviewer notes:**
+- Added a 3-line comment above the SQL explaining the append-only semantics and why `bool_and` is wrong — protects against a well-meaning future refactor "simplifying" it back to the broken form.
+- The correlated subquery is fine on a tiny table like `goose_db_version` (one row per migration event); no index hint needed.
+- Goose's `goose_db_version.id` column is documented as `serial` (monotonic per insert), so using `MAX(id)` to mean "latest event" is correct. If a future goose version changed that, this query would need to switch to `MAX(tstamp)`, but `id` is the more reliable ordering since `tstamp` could collide on fast machines.</result>
+<usage><total_tokens>48818</total_tokens><tool_uses>9</tool_uses><duration_ms>76928</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aa472759bd35af521</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Task 2: Wire into cmd/api" completed</summary>
+<result>**Commit SHA:** `62998a85`
+
+**Build:** clean (exit 0)
+
+**Lint:** 0 new issues
+
+The 4-line comment block at `cmd/api/main.go:275-279` has been replaced with the single-line `// Fatal: ensures schema matches before serving traffic.` at line 275.</result>
+<usage><total_tokens>40705</total_tokens><tool_uses>5</tool_uses><duration_ms>42915</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a267732a5a4771dca</task-id>
+<tool-use-id>toolu_01U3rop7WCxJrG2TekDWBerD</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Task 7: Makefile squawk target" completed</summary>
+<result>All three commits landed cleanly on `feat/bytebase-tiered-plan-a`.
+
+---
+
+**Status: DONE**
+
+**Branch:** `feat/bytebase-tiered-plan-a`
+
+**Commits (oldest first):**
+- **Commit A** `ed8ca227` — `ci(sql-review): lint only migrations modified in the PR`
+- **Commit B** `4e6153a5` — `build(sql-lint-local): lint only migrations modified vs origin/main`
+- **Commit C** `8399bd27` — `docs(spec): record squawk backlog snapshot`
+
+**YAML validation:** `.github/workflows/sql-review.yml` parsed via `python3 yaml.safe_load` → `YAML OK`.
+
+**`make sql-lint-local` on this branch:**
+- Output: `No migrations modified vs origin/main — nothing to lint.`
+- Exit code: `0` (as expected — this feat branch touches no migrations)
+
+**Files modified:**
+- `/Users/jobinlawrance/Project/raven/.claude/worktrees/feat+bytebase-tiered-plan-a/.github/workflows/sql-review.yml`
+- `/Users/jobinlawrance/Project/raven/.claude/worktrees/feat+bytebase-tiered-plan-a/Makefile`
+- `/Users/jobinlawrance/Project/raven/.claude/worktrees/feat+bytebase-tiered-plan-a/docs/superpowers/specs/2026-05-23-bytebase-tiered-design.md`
+
+All commits signed off with `-s`, no AI attribution trailers, tabs used in Makefile recipe lines.</result>
+<usage><total_tokens>46168</total_tokens><tool_uses>13</tool_uses><duration_ms>100508</duration_ms></usage>
+</task-notification>

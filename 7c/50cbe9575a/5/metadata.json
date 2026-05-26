@@ -3,27 +3,31 @@
   "checkpoint_id": "7c50cbe9575a",
   "session_id": "8a28770d-0bb7-4b1c-9673-f3f9210d4525",
   "strategy": "manual-commit",
-  "created_at": "2026-05-23T15:14:42.298603Z",
-  "branch": "fix/supertokens-backend-header-mode",
+  "created_at": "2026-05-26T13:00:02.932158Z",
+  "branch": "feat/bytebase-tiered-plan-a",
   "checkpoints_count": 1,
   "files_touched": [
+    "docs/superpowers/plans/2026-05-23-bytebase-tiered-plan-a.md",
     "docs/superpowers/specs/2026-05-23-bytebase-tiered-design.md"
   ],
   "agent": "Claude Code",
+  "transcript_identifier_at_start": "e1765f0e-06a2-467f-a970-70664920eee6",
+  "checkpoint_transcript_start": 193,
+  "transcript_lines_at_start": 193,
   "token_usage": {
-    "input_tokens": 100,
-    "cache_creation_tokens": 324873,
-    "cache_read_tokens": 3736467,
-    "output_tokens": 25352,
-    "api_call_count": 46
+    "input_tokens": 209,
+    "cache_creation_tokens": 844775,
+    "cache_read_tokens": 28708355,
+    "output_tokens": 107282,
+    "api_call_count": 147
   },
   "initial_attribution": {
-    "calculated_at": "2026-05-23T15:14:42.254168Z",
+    "calculated_at": "2026-05-26T13:00:02.733714Z",
     "agent_lines": 0,
-    "human_added": 993,
+    "human_added": 1831,
     "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 993,
+    "total_committed": 1831,
     "agent_percentage": 0
   }
 }
