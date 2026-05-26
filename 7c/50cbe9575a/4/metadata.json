@@ -3,36 +3,32 @@
   "checkpoint_id": "7c50cbe9575a",
   "session_id": "337cea8f-5a6b-4199-bc68-1de07b76ec01",
   "strategy": "manual-commit",
-  "created_at": "2026-05-26T10:25:01.270617Z",
-  "branch": "fix/api-no-store-cache-headers",
-  "checkpoints_count": 2,
+  "created_at": "2026-05-26T12:58:02.014478Z",
+  "branch": "deps/langsmith-cve-2026-45134",
+  "checkpoints_count": 1,
   "files_touched": [
-    ".githooks/pre-push",
-    ".github/workflows/release.yml",
-    ".goreleaser.yaml",
     "cmd/api/main.go",
-    "frontend/src/components/billing/SeatUpgradePanel.vue",
-    "internal/auth/supertokens.go",
-    "internal/handler/auth.go",
-    "internal/handler/auth_test.go"
+    "internal/middleware/nocache.go",
+    "internal/middleware/nocache_test.go",
+    "migrations/00044_source_type_add_web_page_web_site.sql"
   ],
   "agent": "Claude Code",
-  "checkpoint_transcript_start": 4040,
-  "transcript_lines_at_start": 4040,
+  "checkpoint_transcript_start": 4425,
+  "transcript_lines_at_start": 4425,
   "token_usage": {
-    "input_tokens": 128,
-    "cache_creation_tokens": 82239,
-    "cache_read_tokens": 37321353,
-    "output_tokens": 44362,
-    "api_call_count": 108
+    "input_tokens": 73,
+    "cache_creation_tokens": 463208,
+    "cache_read_tokens": 25647153,
+    "output_tokens": 26026,
+    "api_call_count": 63
   },
   "initial_attribution": {
-    "calculated_at": "2026-05-26T10:25:00.652135Z",
-    "agent_lines": 254,
-    "human_added": 126,
-    "human_modified": 2,
+    "calculated_at": "2026-05-26T12:58:01.399865Z",
+    "agent_lines": 0,
+    "human_added": 31,
+    "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 382,
-    "agent_percentage": 66.49214659685863
+    "total_committed": 31,
+    "agent_percentage": 0
   }
 }

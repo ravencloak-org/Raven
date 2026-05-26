@@ -522,3 +522,7 @@ let's do the follow up tasks as well, i've already decommisioned aws, ignore tha
 
 close them
 
+### Prompt 88
+
+did you check with docs upload, url etc if the demo is working using playwright/
+
