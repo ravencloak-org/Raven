@@ -9,6 +9,7 @@ import (
 
 	"github.com/ravencloak-org/Raven/internal/middleware"
 	"github.com/ravencloak-org/Raven/internal/model"
+	"github.com/ravencloak-org/Raven/internal/service"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
 
@@ -49,6 +50,43 @@ func NewLLMProviderHandler(svc LLMProviderServicer) *LLMProviderHandler {
 // @Failure     403 {object} apierror.AppError
 // @Failure     422 {object} apierror.AppError
 // @Router      /orgs/{org_id}/llm-providers [post]
+// TestConnection handles POST /api/v1/orgs/:org_id/llm-providers/test.
+//
+// Probes the supplied provider credentials WITHOUT persisting anything.
+// The dialog uses this as a green-light gate before letting the user
+// click Create, so a bad key / unreachable Base URL fails loudly here
+// instead of inside the chat pipeline minutes later.
+//
+// @Summary     Test LLM provider connectivity
+// @Tags        llm-providers
+// @Accept      json
+// @Produce     json
+// @Security    BearerAuth
+// @Param       org_id  path string true "Organisation ID"
+// @Param       request body model.CreateLLMProviderRequest true "Payload to probe (same shape as Create)"
+// @Success     200 {object} service.TestConnectionResult
+// @Failure     422 {object} apierror.AppError
+// @Router      /orgs/{org_id}/llm-providers/test [post]
+func (h *LLMProviderHandler) TestConnection(c *gin.Context) {
+	var req model.CreateLLMProviderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(&apierror.AppError{
+			Code:    http.StatusUnprocessableEntity,
+			Message: "Unprocessable Entity",
+			Detail:  err.Error(),
+		})
+		c.Abort()
+		return
+	}
+	result, err := service.TestConnection(c.Request.Context(), req)
+	if err != nil {
+		_ = c.Error(apierror.NewInternal("provider probe failed: " + err.Error()))
+		c.Abort()
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
 func (h *LLMProviderHandler) Create(c *gin.Context) {
 	orgID := c.Param("org_id")
 	userID, _ := c.Get(string(middleware.ContextKeyUserID))

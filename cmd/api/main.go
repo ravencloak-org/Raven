@@ -770,6 +770,10 @@ func main() {
 		llm := api.Group("/orgs/:org_id/llm-providers")
 		{
 			llm.POST("", middleware.RequireOrgRole("org_admin"), llmHandler.Create)
+			// Probe-before-create; same body as POST "" but doesn't persist.
+			// Kept admin-only since it carries the API key, even though no
+			// row is written — limits how loud bad keys can get in the logs.
+			llm.POST("/test", middleware.RequireOrgRole("org_admin"), llmHandler.TestConnection)
 			llm.GET("", llmHandler.List)
 			llm.POST("/test", middleware.RequireOrgRole("org_admin"), llmHandler.Test)
 			llm.GET("/:provider_id", llmHandler.Get)

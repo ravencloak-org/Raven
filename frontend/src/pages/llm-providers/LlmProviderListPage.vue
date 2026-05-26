@@ -486,18 +486,108 @@ async function handleEditSave() {
 // mode is the recommended first option — no account, no install of
 // anything Raven-side, free, auto-TLS. ngrok is the fallback for users
 // who already have it set up.
-const ollamaTunnels: { label: string; command: string; note?: string }[] = [
+//
+// `install` carries platform-specific install one-liners + a download
+// docs URL for users who don't already have the binary. Detecting the
+// host OS via navigator.userAgent picks the matching command; the docs
+// link is always shown as the universal fallback.
+const ollamaTunnels: {
+  label: string
+  command: string
+  note?: string
+  install: { docsHref: string; macos: string; windows: string; linux: string }
+}[] = [
   {
     label: 'Cloudflare Tunnel (recommended)',
     command: 'cloudflared tunnel --url http://localhost:11434',
     note: 'Prints an https://<random>.trycloudflare.com URL. No account needed. Paste it into Base URL above.',
+    install: {
+      docsHref: 'https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/',
+      macos: 'brew install cloudflared',
+      windows: 'winget install --id Cloudflare.cloudflared',
+      linux: 'See the download page for your distro\'s package or static binary.',
+    },
   },
   {
     label: 'ngrok',
     command: 'ngrok http 11434',
     note: 'Free account required for stable URLs. Use the https Forwarding address.',
+    install: {
+      docsHref: 'https://ngrok.com/download',
+      macos: 'brew install ngrok',
+      windows: 'winget install ngrok.ngrok',
+      linux: 'curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null && echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list && sudo apt update && sudo apt install ngrok',
+    },
   },
 ]
+
+// Best-effort platform detection — userAgent is fine here because we
+// only use it to pick a default install one-liner, not for anything
+// security-sensitive. Falls back to the docs URL if unsure.
+function detectOS(): 'macos' | 'windows' | 'linux' | 'unknown' {
+  const ua = navigator.userAgent.toLowerCase()
+  if (ua.includes('mac')) return 'macos'
+  if (ua.includes('win')) return 'windows'
+  if (ua.includes('linux')) return 'linux'
+  return 'unknown'
+}
+const userOS = detectOS()
+function installCommandForOS(t: (typeof ollamaTunnels)[number]) {
+  if (userOS === 'macos') return t.install.macos
+  if (userOS === 'windows') return t.install.windows
+  if (userOS === 'linux') return t.install.linux
+  return null
+}
+function installLabelForOS(): string {
+  if (userOS === 'macos') return 'Install on macOS'
+  if (userOS === 'windows') return 'Install on Windows'
+  if (userOS === 'linux') return 'Install on Linux'
+  return 'Install'
+}
+
+// Test-connection state machine. testStatus drives the icon/colour
+// shown on the Test button and the Create button's disabled state:
+//   - 'idle'  : nothing tested yet (Create is disabled if the user
+//               hasn't confirmed the creds work).
+//   - 'testing'
+//   - 'pass'  : last probe succeeded → Create unlocked.
+//   - 'fail'  : last probe failed → Create stays disabled, error
+//               surfaced in testDetail.
+// Any edit to the form fields rolls the state back to 'idle' so the
+// user re-tests after changing the key / endpoint.
+type TestStatus = 'idle' | 'testing' | 'pass' | 'fail'
+const testStatus = ref<TestStatus>('idle')
+const testDetail = ref<string>('')
+async function runTestConnection() {
+  testStatus.value = 'testing'
+  testDetail.value = ''
+  try {
+    const help = providerHelp[form.value.provider]
+    const api_key = help.requiresKey ? form.value.api_key : 'not-required'
+    const result = await testLlmProviderConnection(orgId.value, {
+      ...form.value,
+      api_key,
+    })
+    testStatus.value = result.ok ? 'pass' : 'fail'
+    testDetail.value = result.detail
+  } catch (e: unknown) {
+    testStatus.value = 'fail'
+    testDetail.value = e instanceof Error ? e.message : 'Test failed'
+  }
+}
+
+// Invalidate the test result whenever a form field that affects the
+// probe changes — so the user can't pass a test on one key, swap it,
+// and slip a bad config past the gate.
+watch(
+  () => [form.value.provider, form.value.api_key, form.value.base_url],
+  () => {
+    if (testStatus.value !== 'idle') {
+      testStatus.value = 'idle'
+      testDetail.value = ''
+    }
+  },
+)
 
 const copied = ref<string | null>(null)
 async function copyTunnel(command: string) {
@@ -741,8 +831,8 @@ onMounted(() => store.fetchProviders(orgId.value))
     </div>
 
     <!-- Create Dialog -->
-    <div v-if="showCreateDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+    <div v-if="showCreateDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div class="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
         <h2 class="mb-4 text-lg font-semibold">Add LLM Provider</h2>
         <form class="space-y-4" @submit.prevent="handleCreate">
           <div>
@@ -780,18 +870,46 @@ onMounted(() => store.fetchProviders(orgId.value))
               <p class="text-xs font-medium text-gray-700">
                 {{ ravenHost }} can't reach <code class="font-mono">{{ form.base_url }}</code> on your machine. Expose Ollama temporarily:
               </p>
-              <ul class="mt-2 space-y-2">
+              <ul class="mt-2 space-y-3">
                 <li v-for="t in ollamaTunnels" :key="t.label" class="text-xs">
                   <div class="font-medium text-gray-600">{{ t.label }}</div>
-                  <div class="mt-0.5 flex items-center gap-1.5">
-                    <code class="flex-1 truncate rounded bg-gray-900 px-2 py-1 text-[11px] text-gray-100">{{ t.command }}</code>
-                    <button
-                      type="button"
-                      class="shrink-0 rounded border border-gray-300 bg-white px-2 py-1 text-[11px] text-gray-700 hover:bg-gray-100"
-                      @click="copyTunnel(t.command)"
-                    >
-                      {{ copied === t.command ? 'Copied' : 'Copy' }}
-                    </button>
+                  <!-- Install one-liner for the user's detected OS, with a
+                       fallback link to the upstream download docs that
+                       cover Linux distros + manual installs. -->
+                  <div v-if="installCommandForOS(t)" class="mt-0.5">
+                    <div class="text-[11px] text-gray-500">{{ installLabelForOS() }}:</div>
+                    <div class="mt-0.5 flex items-center gap-1.5">
+                      <code class="flex-1 truncate rounded bg-gray-800 px-2 py-1 text-[11px] text-gray-100">{{ installCommandForOS(t) }}</code>
+                      <button
+                        type="button"
+                        class="shrink-0 rounded border border-gray-300 bg-white px-2 py-1 text-[11px] text-gray-700 hover:bg-gray-100"
+                        @click="copyTunnel(installCommandForOS(t) ?? '')"
+                      >
+                        {{ copied === installCommandForOS(t) ? 'Copied' : 'Copy' }}
+                      </button>
+                    </div>
+                  </div>
+                  <a
+                    :href="t.install.docsHref"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="mt-1 inline-flex items-center text-[11px] text-indigo-600 underline hover:text-indigo-800"
+                  >
+                    Other install options
+                    <svg class="ml-0.5 h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg>
+                  </a>
+                  <div class="mt-1.5">
+                    <div class="text-[11px] text-gray-500">Then run:</div>
+                    <div class="mt-0.5 flex items-center gap-1.5">
+                      <code class="flex-1 truncate rounded bg-gray-900 px-2 py-1 text-[11px] text-gray-100">{{ t.command }}</code>
+                      <button
+                        type="button"
+                        class="shrink-0 rounded border border-gray-300 bg-white px-2 py-1 text-[11px] text-gray-700 hover:bg-gray-100"
+                        @click="copyTunnel(t.command)"
+                      >
+                        {{ copied === t.command ? 'Copied' : 'Copy' }}
+                      </button>
+                    </div>
                   </div>
                   <p v-if="t.note" class="mt-0.5 text-gray-500">{{ t.note }}</p>
                 </li>
@@ -831,9 +949,47 @@ onMounted(() => store.fetchProviders(orgId.value))
             This will be set as your default provider since it's the first one.
           </p>
           <p v-if="createError" class="text-red-500 text-sm">{{ createError }}</p>
+          <!-- Test-connection gate. The Create button is locked until
+               the probe returns 'pass' so a bad key / unreachable
+               endpoint can't slip into the DB. -->
+          <div class="rounded-md border p-3 text-xs" :class="{
+            'border-gray-200 bg-gray-50': testStatus === 'idle',
+            'border-blue-200 bg-blue-50': testStatus === 'testing',
+            'border-green-200 bg-green-50': testStatus === 'pass',
+            'border-red-200 bg-red-50': testStatus === 'fail',
+          }">
+            <div class="flex items-center justify-between gap-2">
+              <span class="font-medium" :class="{
+                'text-gray-700': testStatus === 'idle',
+                'text-blue-700': testStatus === 'testing',
+                'text-green-700': testStatus === 'pass',
+                'text-red-700': testStatus === 'fail',
+              }">
+                <template v-if="testStatus === 'idle'">Test the connection before saving</template>
+                <template v-else-if="testStatus === 'testing'">Testing…</template>
+                <template v-else-if="testStatus === 'pass'">✓ Connection looks good</template>
+                <template v-else>✕ Connection failed</template>
+              </span>
+              <button
+                type="button"
+                class="rounded border border-gray-300 bg-white px-3 py-1 text-xs text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                :disabled="testStatus === 'testing' || !form.display_name || (currentProviderHelp.requiresKey && !form.api_key)"
+                @click="runTestConnection"
+              >
+                {{ testStatus === 'pass' ? 'Re-test' : testStatus === 'testing' ? 'Testing…' : 'Test connection' }}
+              </button>
+            </div>
+            <p v-if="testDetail" class="mt-1 text-xs" :class="{
+              'text-green-700': testStatus === 'pass',
+              'text-red-700': testStatus === 'fail',
+              'text-gray-600': testStatus !== 'pass' && testStatus !== 'fail',
+            }">
+              {{ testDetail }}
+            </p>
+          </div>
           <div class="flex justify-end gap-2 pt-2">
             <button type="button" class="rounded px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" @click="showCreateDialog = false">Cancel</button>
-            <button type="submit" :disabled="creating || !form.display_name || (currentProviderHelp.requiresKey && !form.api_key)" class="rounded bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-50">
+            <button type="submit" :disabled="creating || testStatus !== 'pass' || !form.display_name || (currentProviderHelp.requiresKey && !form.api_key)" class="rounded bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-50">
               {{ creating ? 'Creating...' : 'Create' }}
             </button>
           </div>
