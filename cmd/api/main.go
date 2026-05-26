@@ -382,7 +382,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to initialise LLM provider service: %v", err)
 	}
-	uploadSvc := service.NewUploadService(docRepo, pool, seaweedClient, cfg.Upload.MaxSizeBytes, cfg.Upload.AllowedTypes)
+	uploadSvc := service.NewUploadService(docRepo, pool, seaweedClient, queueClient, cfg.Upload.MaxSizeBytes, cfg.Upload.AllowedTypes)
 	processingSvc := service.NewProcessingEventService(processingEventRepo, docRepo, pool)
 	apiKeySvc := service.NewAPIKeyService(apiKeyRepo, pool)
 	routingSvc := service.NewRoutingService(routingRepo, kbRepo, pool)

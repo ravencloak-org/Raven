@@ -49,6 +49,31 @@ services:
       - raven-net
     restart: unless-stopped
 
+  # ─── Asynq queue worker ────────────────────────────────────────────────────
+  # Consumes the background-job queue (document processing, URL crawl,
+  # webhook delivery, email summaries). Same image as go-api but runs the
+  # `/app/worker` binary instead of `/app/api`. Without this container,
+  # every enqueue from the API silently piles up in Valkey forever — every
+  # uploaded document, every URL source, every queued webhook stays stuck
+  # at processing_status=queued until manually reprocessed.
+  worker:
+    image: ${GO_API_IMAGE:-ghcr.io/ravencloak-org/go-api:latest}
+    env_file: .env.server
+    environment:
+      SUPERTOKENS_CONNECTION_URI: "http://supertokens:3567"
+      SUPERTOKENS_API_KEY: "${SUPERTOKENS_API_KEY}"
+    entrypoint: ["dotenvx", "run", "--", "/app/worker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+      python-worker:
+        condition: service_started
+    networks:
+      - raven-net
+    restart: unless-stopped
+
   # ─── Python AI Worker (gRPC) ───────────────────────────────────────────────
   python-worker:
     image: ${PYTHON_WORKER_IMAGE:-ghcr.io/ravencloak-org/python-worker:latest}

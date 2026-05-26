@@ -40,7 +40,7 @@ func (m *mockStorageClient) Delete(ctx context.Context, fid string) error {
 
 func TestUploadService_ValidateFileType_Rejected(t *testing.T) {
 	store := &mockStorageClient{}
-	svc := service.NewUploadService(nil, nil, store, 50*1024*1024, []string{
+	svc := service.NewUploadService(nil, nil, store, nil, 50*1024*1024, []string{
 		"application/pdf",
 		"text/plain",
 	})
@@ -70,7 +70,7 @@ func TestUploadService_ValidateFileType_Rejected(t *testing.T) {
 
 func TestUploadService_ValidateFileSize_Rejected(t *testing.T) {
 	store := &mockStorageClient{}
-	svc := service.NewUploadService(nil, nil, store, 1024, []string{"text/plain"})
+	svc := service.NewUploadService(nil, nil, store, nil, 1024, []string{"text/plain"})
 
 	_, err := svc.Upload(context.Background(), service.UploadParams{
 		OrgID:           "org-1",
@@ -99,7 +99,7 @@ func TestUploadService_AllowedType_CaseInsensitive(t *testing.T) {
 	store := &mockStorageClient{}
 
 	// Configure with mixed-case type.
-	svc := service.NewUploadService(nil, nil, store, 50*1024*1024, []string{
+	svc := service.NewUploadService(nil, nil, store, nil, 50*1024*1024, []string{
 		"Application/PDF",
 	})
 

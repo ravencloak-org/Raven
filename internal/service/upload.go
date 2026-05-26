@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log/slog"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -14,25 +15,40 @@ import (
 
 	"github.com/ravencloak-org/Raven/internal/db"
 	"github.com/ravencloak-org/Raven/internal/model"
+	"github.com/ravencloak-org/Raven/internal/queue"
 	"github.com/ravencloak-org/Raven/internal/repository"
 	"github.com/ravencloak-org/Raven/internal/storage"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
+
+// DocumentProcessEnqueuer is the narrow slice of the queue client this
+// service needs. Kept as an interface so the unit tests can pass a stub
+// without standing up a real Valkey.
+type DocumentProcessEnqueuer interface {
+	EnqueueDocumentProcess(ctx context.Context, p queue.DocumentProcessPayload) error
+}
 
 // UploadService contains business logic for document uploads.
 type UploadService struct {
 	repo         *repository.DocumentRepository
 	pool         *pgxpool.Pool
 	store        storage.Client
+	queueCli     DocumentProcessEnqueuer
 	maxSizeBytes int64
 	allowedTypes map[string]bool
 }
 
 // NewUploadService creates a new UploadService.
+//
+// queueCli may be nil — in that case the service writes the document row
+// with status=queued but skips the background enqueue. Production wiring
+// in cmd/api/main.go always supplies a real client; nil is reserved for
+// tests and degraded modes where the queue can't be reached.
 func NewUploadService(
 	repo *repository.DocumentRepository,
 	pool *pgxpool.Pool,
 	store storage.Client,
+	queueCli DocumentProcessEnqueuer,
 	maxSizeBytes int64,
 	allowedTypes []string,
 ) *UploadService {
@@ -43,6 +59,7 @@ func NewUploadService(
 		repo:         repo,
 		pool:         pool,
 		store:        store,
+		queueCli:     queueCli,
 		maxSizeBytes: maxSizeBytes,
 		allowedTypes: allowed,
 	}
@@ -132,6 +149,27 @@ func (s *UploadService) Upload(ctx context.Context, params UploadParams) (*model
 		// Attempt to clean up the stored file on DB failure.
 		_ = s.store.Delete(ctx, fid)
 		return nil, apierror.NewInternal("failed to create document record: " + err.Error())
+	}
+
+	// Hand the document off to the Asynq worker for parsing → chunking →
+	// embedding. We log + continue on enqueue failure rather than rolling
+	// back the upload: the row is already in the DB with status=queued, so
+	// an operator (or a future reaper job) can re-enqueue it. Failing the
+	// HTTP request after the file has been stored would be more confusing
+	// for the user than a delayed processing run.
+	if s.queueCli != nil {
+		if enqErr := s.queueCli.EnqueueDocumentProcess(ctx, queue.DocumentProcessPayload{
+			DocumentID:      doc.ID,
+			OrgID:           doc.OrgID,
+			KnowledgeBaseID: doc.KnowledgeBaseID,
+		}); enqErr != nil {
+			slog.Default().Error("upload: enqueue document process failed",
+				"document_id", doc.ID,
+				"org_id", doc.OrgID,
+				"kb_id", doc.KnowledgeBaseID,
+				"error", enqErr.Error(),
+			)
+		}
 	}
 
 	return doc, nil
