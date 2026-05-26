@@ -1007,3 +1007,115 @@ close them
 ---
 
 did you check with docs upload, url etc if the demo is working using playwright/
+
+---
+
+Run aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+Run aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514
+Run echo "dir=$HOME/.local/bin/trivy-bin" >> $GITHUB_OUTPUT
+Run actions/cache/restore@9255dc7a253b0ccc959486e2bca901246202afeb
+Cache hit for: trivy-binary-v0.70.0-Linux-X64
+Received 43751221 of 43751221 (100.0%), 69.8 MBs/sec
+Cache Size: ~42 MB (43751221 B)
+/usr/bin/tar -xf /home/runner/work/_temp/79ad6235-f151-4fbf-97fd-172f157a97fd/cache.tzst -P -C /home/runner/work/Raven/Raven --use-compress-program unzstd
+Cache restored successfully
+Cache restored from key: trivy-binary-v0.70.0-Linux-X64
+Run echo /home/runner/.local/bin/trivy-bin >> $GITHUB_PATH
+Run echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+Run actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
+Cache not found for input keys: cache-trivy-2026-05-26, cache-trivy-
+Run echo "$GITHUB_ACTION_PATH" >> $GITHUB_PATH
+Run rm -f trivy_envs.txt
+Run # Note: There is currently no way to distinguish between undefined variables and empty strings in GitHub Actions.
+Run entrypoint.sh
+Running Trivy with options: trivy fs .
+2026-05-26T10:25:36Z    INFO    [vulndb] Need to update DB
+2026-05-26T10:25:36Z    INFO    [vulndb] Downloading vulnerability DB...
+2026-05-26T10:25:36Z    INFO    [vulndb] Downloading artifact...    repo="mirror.gcr.io/aquasec/trivy-db:2"
+16.63 MiB / 93.10 MiB [---------->__________________________________________________] 17.87% ? p/s ?69.02 MiB / 93.10 MiB [--------------------------------------------->_______________] 74.14% ? p/s ?93.10 MiB / 93.10 MiB [----------------------------------------------------------->] 100.00% ? p/s ?93.10 MiB / 93.10 MiB [--------------------------------------------->] 100.00% 127.47 MiB p/s ETA 0s93.10 MiB / 93.10 MiB [--------------------------------------------->] 100.00% 127.47 MiB p/s ETA 0s93.10 MiB / 93.10 MiB [--------------------------------------------->] 100.00% 127.47 MiB p/s ETA 0s93.10 MiB / 93.10 MiB [--------------------------------------------->] 100.00% 119.25 MiB p/s ETA 0s93.10 MiB / 93.10 MiB [--------------------------------------------->] 100.00% 119.25 MiB p/s ETA 0s93.10 MiB / 93.10 MiB [--------------------------------------------->] 100.00% 119.25 MiB p/s ETA 0s93.10 MiB / 93.10 MiB [--------------------------------------------->] 100.00% 111.55 MiB p/s ETA 0s93.10 MiB / 93.10 MiB [--------------------------------------------->] 100.00% 111.55 MiB p/s ETA 0s93.10 MiB / 93.10 MiB [--------------------------------------------->] 100.00% 111.55 MiB p/s ETA 0s93.10 MiB / 93.10 MiB [--------------------------------------------->] 100.00% 104.36 MiB p/s ETA 0s93.10 MiB / 93.10 MiB [--------------------------------------------->] 100.00% 104.36 MiB p/s ETA 0s93.10 MiB / 93.10 MiB [--------------------------------------------->] 100.00% 104.36 MiB p/s ETA 0s93.10 MiB / 93.10 MiB [-------------------------------------------------] 100.00% 31.21 MiB p/s 3.2s2026-05-26T10:25:40Z    INFO    [vulndb] Artifact successfully downloaded    repo="mirror.gcr.io/aquasec/trivy-db:2"
+2026-05-26T10:25:40Z    INFO    [vuln] Vulnerability scanning is enabled
+2026-05-26T10:25:40Z    INFO    [secret] Secret scanning is enabled
+2026-05-26T10:25:40Z    INFO    [secret] If your scanning is slow, please try '--scanners vuln' to disable secret scanning
+2026-05-26T10:25:40Z    INFO    [secret] Please see https://trivy.dev/docs/v0.70/guide/scanner/secret#recommendation for faster secret detection
+2026-05-26T10:25:41Z    INFO    [bun] To collect the license information of packages, "bun install" needs to be performed beforehand    dir="node_modules"
+2026-05-26T10:25:41Z    INFO    [npm] To collect the license information of packages, "npm install" needs to be performed beforehand    dir="docs-site/node_modules"
+2026-05-26T10:25:41Z    INFO    [npm] To collect the license information of packages, "npm install" needs to be performed beforehand    dir="frontend/node_modules"
+2026-05-26T10:25:41Z    INFO    [npm] To collect the license information of packages, "npm install" needs to be performed beforehand    dir="landing/node_modules"
+2026-05-26T10:25:41Z    INFO    [npm] To collect the license information of packages, "npm install" needs to be performed beforehand    dir="node_modules"
+2026-05-26T10:25:41Z    INFO    [npm] To collect the license information of packages, "npm install" needs to be performed beforehand    dir="ravenlogoassets/node_modules"
+2026-05-26T10:25:41Z    WARN    [pip] Unable to find python `site-packages` directory. License detection is skipped.    err="site-packages directory not found"
+2026-05-26T10:25:41Z    INFO    Suppressing dependencies for development and testing. To display them, try the '--include-dev-deps' flag.
+2026-05-26T10:25:41Z    INFO    Number of language-specific files    num=10
+2026-05-26T10:25:41Z    INFO    [cargo] Detecting vulnerabilities...
+2026-05-26T10:25:41Z    INFO    [gomod] Detecting vulnerabilities...
+2026-05-26T10:25:41Z    INFO    [npm] Detecting vulnerabilities...
+2026-05-26T10:25:41Z    INFO    [pip] Detecting vulnerabilities...
+2026-05-26T10:25:41Z    INFO    [uv] Detecting vulnerabilities...
+
+Report Summary
+
+┌───────────────────────────────────┬───────┬─────────────────┬─────────┐
+│              Target               │ Type  │ Vulnerabilities │ Secrets │
+├───────────────────────────────────┼───────┼─────────────────┼─────────┤
+│ ai-worker/requirements.txt        │  pip  │        0        │    -    │
+├───────────────────────────────────┼───────┼─────────────────┼─────────┤
+│ ai-worker/uv.lock                 │  uv   │        1        │    -    │
+├───────────────────────────────────┼───────┼─────────────────┼─────────┤
+│ desktop/Cargo.lock                │ cargo │        0        │    -    │
+├───────────────────────────────────┼───────┼─────────────────┼─────────┤
+│ docs-site/package-lock.json       │  npm  │        0        │    -    │
+├───────────────────────────────────┼───────┼─────────────────┼─────────┤
+│ frontend/package-lock.json        │  npm  │        0        │    -    │
+├───────────────────────────────────┼───────┼─────────────────┼─────────┤
+│ go.mod                            │ gomod │        0        │    -    │
+├───────────────────────────────────┼───────┼─────────────────┼─────────┤
+│ landing/package-lock.json         │  npm  │        0        │    -    │
+├───────────────────────────────────┼───────┼─────────────────┼─────────┤
+│ package-lock.json                 │  npm  │        0        │    -    │
+├───────────────────────────────────┼───────┼─────────────────┼─────────┤
+│ ravenlogoassets/package-lock.json │  npm  │        0        │    -    │
+└───────────────────────────────────┴───────┴─────────────────┴─────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+
+For OSS Maintainers: VEX Notice
+--------------------------------
+If you're an OSS maintainer and Trivy has detected vulnerabilities in your project that you believe are not actually exploitable, consider issuing a VEX (Vulnerability Exploitability eXchange) statement.
+VEX allows you to communicate the actual status of vulnerabilities in your project, improving security transparency and reducing false positives for your users.
+Learn more and start using VEX: https://trivy.dev/docs/v0.70/guide/supply-chain/vex/repo#publishing-vex-documents
+
+To disable this notice, set the TRIVY_DISABLE_VEX_NOTICE environment variable.
+
+
+ai-worker/uv.lock (uv)
+======================
+Total: 1 (HIGH: 1, CRITICAL: 0)
+
+┌───────────┬────────────────┬──────────┬────────┬───────────────────┬───────────────┬──────────────────────────────────────────────────────────┐
+│  Library  │ Vulnerability  │ Severity │ Status │ Installed Version │ Fixed Version │                          Title                           │
+├───────────┼────────────────┼──────────┼────────┼───────────────────┼───────────────┼──────────────────────────────────────────────────────────┤
+│ langsmith │ CVE-2026-45134 │ HIGH     │ fixed  │ 0.7.33            │ 0.8.0         │ LangSmith SDK: Public prompt pull deserializes untrusted │
+│           │                │          │        │                   │               │ manifests without trust boundary warning...              │
+│           │                │          │        │                   │               │ https://avd.aquasec.com/nvd/cve-2026-45134               │
+└───────────┴────────────────┴──────────┴────────┴───────────────────┴───────────────┴──────────────────────────────────────────────────────────┘
+Error: Process completed with exit code 1.
+Run rm -f trivy_envs.txt
+    https://github.REDACTED
+
+---
+
+what's next? did you test if document upload and processing is working?
+
+---
+
+check if the docs got processed
+
+---
+
+yes let's use s3 sdk, but where are we storing the documents in the backend. I don't remember setting up any s3 bucket
+
+---
+
+b

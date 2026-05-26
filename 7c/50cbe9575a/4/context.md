@@ -526,3 +526,30 @@ close them
 
 did you check with docs upload, url etc if the demo is working using playwright/
 
+### Prompt 89
+
+Run aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+Run aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514
+Run echo "dir=$HOME/.local/bin/trivy-bin" >> $GITHUB_OUTPUT
+Run actions/cache/restore@9255dc7a253b0ccc959486e2bca901246202afeb
+Cache hit for: trivy-binary-v0.70.0-Linux-X64
+Received 43751221 of 43751221 (100.0%), 69.8 MBs/sec
+Cache Size: ~42 MB (43751221 B)
+/usr/bin/tar -xf /home/runner/work/_temp/79ad6235-f151-4fbf-97fd-172f157a97fd/cache.tzst -P -C /home/...
+
+### Prompt 90
+
+what's next? did you test if document upload and processing is working?
+
+### Prompt 91
+
+check if the docs got processed
+
+### Prompt 92
+
+yes let's use s3 sdk, but where are we storing the documents in the backend. I don't remember setting up any s3 bucket
+
+### Prompt 93
+
+b
+
