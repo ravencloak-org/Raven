@@ -363,7 +363,21 @@ func main() {
 	}()
 
 	// --- Wire storage client ---
-	seaweedClient := storage.NewSeaweedFSClient(cfg.SeaweedFS.MasterURL, nil)
+	// S3-compatible storage (SeaweedFS filer with -s3 in dev/demo, real
+	// S3 / MinIO / R2 in prod). Replaces the hand-rolled SeaweedFS HTTP
+	// client which stored multipart envelope bytes alongside file content
+	// — see internal/storage/s3.go for the rationale + storage path layout.
+	storageClient, err := storage.NewS3Client(context.Background(), storage.S3Config{
+		Endpoint:        cfg.S3.Endpoint,
+		Region:          cfg.S3.Region,
+		Bucket:          cfg.S3.Bucket,
+		AccessKeyID:     cfg.S3.AccessKeyID,
+		SecretAccessKey: cfg.S3.SecretAccessKey,
+		UsePathStyle:    true,
+	})
+	if err != nil {
+		log.Fatalf("failed to initialise S3 storage: %v", err)
+	}
 
 	// --- Wire billing & quota ---
 	subCache := service.NewValkeySubscriptionCache(valkeyClient)
@@ -387,7 +401,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to initialise LLM provider service: %v", err)
 	}
-	uploadSvc := service.NewUploadService(docRepo, pool, seaweedClient, queueClient, cfg.Upload.MaxSizeBytes, cfg.Upload.AllowedTypes)
+	uploadSvc := service.NewUploadService(docRepo, pool, storageClient, queueClient, cfg.Upload.MaxSizeBytes, cfg.Upload.AllowedTypes)
 	processingSvc := service.NewProcessingEventService(processingEventRepo, docRepo, pool)
 	apiKeySvc := service.NewAPIKeyService(apiKeyRepo, pool)
 	routingSvc := service.NewRoutingService(routingRepo, kbRepo, pool)
@@ -544,7 +558,7 @@ func main() {
 	leadHandler := handler.NewLeadHandler(leadSvc)
 	whatsappHandler := handler.NewWhatsAppHandler(whatsappSvc)
 	billingHandler := handler.NewBillingHandler(billingSvc)
-	seedSvc := service.NewSeedService(orgSvc, wsSvc, kbSvc, docRepo, pool, tmdbClient, seaweedClient, queueClient)
+	seedSvc := service.NewSeedService(orgSvc, wsSvc, kbSvc, docRepo, pool, tmdbClient, storageClient, queueClient)
 	seedHandler := handler.NewSeedHandler(seedSvc)
 
 	// Create router

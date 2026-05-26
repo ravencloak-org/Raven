@@ -41,7 +41,17 @@ func main() {
 	docRepo := repository.NewDocumentRepository(pool)
 	chunkRepo := repository.NewChunkRepository(pool)
 	airbyteRepo := repository.NewAirbyteRepository(pool)
-	storageClient := storage.NewSeaweedFSClient(cfg.SeaweedFS.MasterURL, nil)
+	storageClient, err := storage.NewS3Client(context.Background(), storage.S3Config{
+		Endpoint:        cfg.S3.Endpoint,
+		Region:          cfg.S3.Region,
+		Bucket:          cfg.S3.Bucket,
+		AccessKeyID:     cfg.S3.AccessKeyID,
+		SecretAccessKey: cfg.S3.SecretAccessKey,
+		UsePathStyle:    true,
+	})
+	if err != nil {
+		log.Fatalf("failed to initialise S3 storage: %v", err)
+	}
 
 	// Queue client used by webhook dispatch fan-out when job handlers emit
 	// outbound webhook events. Re-uses the same Valkey/Asynq instance as the
