@@ -23,6 +23,7 @@ type Config struct {
 	Queue        QueueConfig
 	Encryption   EncryptionConfig
 	SeaweedFS    SeaweedFSConfig
+	S3           S3Config
 	Upload       UploadConfig
 	PostHog      PostHogConfig
 	Hyperswitch  HyperswitchConfig
@@ -231,8 +232,25 @@ type EncryptionConfig struct {
 }
 
 // SeaweedFSConfig holds SeaweedFS connection settings.
+//
+// Retained for the unfinished native-fid Download path and any legacy
+// callers; new uploads route through S3Config below, since SeaweedFS's
+// hand-rolled HTTP multipart upload had a class of envelope-leakage bugs.
 type SeaweedFSConfig struct {
 	MasterURL string `mapstructure:"master_url"`
+}
+
+// S3Config holds settings for the S3-compatible storage backend.
+//
+// Defaults target the in-cluster SeaweedFS filer's S3 API (port 8333 on
+// service `seaweedfs-filer`). Swap Endpoint + credentials to point at
+// real AWS S3, MinIO, R2, etc. without code changes.
+type S3Config struct {
+	Endpoint        string `mapstructure:"endpoint"`          // e.g. http://seaweedfs-filer:8333
+	Region          string `mapstructure:"region"`            // SDK requires a value; SeaweedFS ignores it
+	Bucket          string `mapstructure:"bucket"`            // e.g. raven-docs
+	AccessKeyID     string `mapstructure:"access_key_id"`     // empty for anonymous
+	SecretAccessKey string `mapstructure:"secret_access_key"` // empty for anonymous
 }
 
 // UploadConfig holds file upload settings.
@@ -395,6 +413,13 @@ func Load() (*Config, error) {
 	v.SetDefault("queue.concurrency", 10)
 	v.SetDefault("queue.max_retry", 5)
 	v.SetDefault("seaweedfs.master_url", "http://seaweedfs-master:9333")
+	// S3-compatible storage. In-cluster default points at the SeaweedFS
+	// filer's S3 API (compose: seaweedfs-filer started with `-s3`).
+	v.SetDefault("s3.endpoint", "http://seaweedfs-filer:8333")
+	v.SetDefault("s3.region", "us-east-1")
+	v.SetDefault("s3.bucket", "raven-docs")
+	v.SetDefault("s3.access_key_id", "")
+	v.SetDefault("s3.secret_access_key", "")
 	v.SetDefault("posthog.api_key", "")
 	v.SetDefault("posthog.host", "https://us.i.posthog.com")
 	v.SetDefault("ses.region", "ap-south-1")
