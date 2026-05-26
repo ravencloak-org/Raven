@@ -2,18 +2,13 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "branch": "fix/seaweedfs-upload-multipart-envelope",
-  "checkpoints_count": 14,
+  "branch": "fix/frontend-docs-list-field-name",
+  "checkpoints_count": 12,
   "files_touched": [
-    ".claude/scheduled_tasks.lock",
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
     ".claude/worktrees/feat-billing-annual-refund/.env.ci",
     ".claude/worktrees/feat-enterprise-onboarding/.env.ci",
-    ".playwright-mcp/console-2026-05-26T14-26-40-339Z.log",
-    ".playwright-mcp/page-2026-05-26T14-26-40-724Z.yml",
-    "Dockerfile",
     "cmd/api/main.go",
-    "cmd/worker/main.go",
     "deploy/ansible/group_vars/all.yml",
     "deploy/ansible/inventory/hosts.yml",
     "deploy/ansible/roles/cloudflared/tasks/main.yml",
@@ -28,7 +23,6 @@
     "deploy/terraform/demo/outputs.tf",
     "deploy/terraform/demo/security_group.tf",
     "deploy/terraform/demo/vpc.tf",
-    "docker-compose.yml",
     "docs/superpowers/plans/2026-05-23-bytebase-tiered-plan-a.md",
     "docs/superpowers/specs/2026-05-23-bytebase-tiered-design.md",
     "frontend/src/components/AppSidebar.vue",
@@ -38,13 +32,11 @@
     "frontend/src/pages/LoginPage.vue",
     "frontend/src/plugins/supertokens.ts",
     "frontend/src/router/index.ts",
-    "internal/config/config.go",
     "internal/model/billing.go",
     "internal/repository/billing.go",
     "internal/service/billing.go",
     "internal/service/billing_test.go",
     "internal/service/upload.go",
-    "internal/storage/s3.go",
     "internal/turnstile/middleware.go",
     "internal/turnstile/middleware_test.go",
     "node-compile-cache/v25.9.0-arm64-392347a2-501/02774df2",
@@ -285,10 +277,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 1026,
-    "cache_creation_tokens": 4955834,
-    "cache_read_tokens": 183709659,
-    "output_tokens": 405507,
-    "api_call_count": 788
+    "input_tokens": 895,
+    "cache_creation_tokens": 3504915,
+    "cache_read_tokens": 127006755,
+    "output_tokens": 358069,
+    "api_call_count": 667
   }
 }

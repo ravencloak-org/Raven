@@ -553,3 +553,15 @@ yes let's use s3 sdk, but where are we storing the documents in the backend. I d
 
 b
 
+### Prompt 94
+
+uploaded
+
+### Prompt 95
+
+refreshing the page after upload, removes the document all together and then upload breaks all together
+
+### Prompt 96
+
+again it dissaperead, test yourself with playwright
+
