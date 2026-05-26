@@ -609,6 +609,13 @@ func main() {
 	// WriteTimeout. Endpoints without their own Deadline are bounded by
 	// WriteTimeout — acceptable for default-CRUD route groups.
 	api := root.Group("/api/v1")
+	// Mark every /api/v1 response as non-cacheable. Without this, browsers
+	// and shared HTTP caches pin authenticated GET responses (list endpoints
+	// in particular) and serve stale state after writes — caught by an
+	// end-to-end Playwright trace showing GET .../documents returning total=1
+	// while the DB had two rows. Must be installed before the body-producing
+	// middleware so the headers ship on every code path.
+	api.Use(middleware.NoStoreAPI())
 
 	// Single-user mode: inject synthetic local session without SuperTokens.
 	// Multi-user mode: verify session via SuperTokens and resolve DB user.
