@@ -12,7 +12,8 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w -extldflags '-static'" -o /api ./cmd/api
+RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w -extldflags '-static'" -o /api ./cmd/api \
+ && CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w -extldflags '-static'" -o /worker ./cmd/worker
 
 # ── Stage 2: Runtime ─────────────────────────────────────────────────────────
 FROM alpine:3.23@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
@@ -36,6 +37,10 @@ RUN apk add --no-cache ca-certificates tzdata curl \
     && adduser -u 1000 -G raven -D raven
 
 COPY --from=builder /api /app/api
+# The Asynq queue consumer. Same image, separate process — deploy as a
+# second container that overrides CMD to /app/worker. Lives in the same
+# image to keep the multi-arch build matrix from doubling.
+COPY --from=builder /worker /app/worker
 
 WORKDIR /app
 

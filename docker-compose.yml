@@ -59,6 +59,29 @@ services:
     restart: unless-stopped
     # eBPF capabilities (CAP_BPF, CAP_NET_ADMIN) are in docker-compose.ebpf.yml overlay
 
+  # ─── Asynq queue worker ────────────────────────────────────────────────────
+  # Shares the go-api image; entrypoint flips to /app/worker so the same
+  # binary set drives both the HTTP API and the Asynq consumer. Without
+  # this container, jobs enqueued by the API (document processing, URL
+  # crawls, webhook delivery, scheduled email summaries) pile up forever.
+  worker:
+    image: ${GO_API_IMAGE:-ghcr.io/ravencloak-org/go-api:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
+    entrypoint: ["dotenvx", "run", "--", "/app/worker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+      python-worker:
+        condition: service_started
+    networks:
+      - raven-net
+    restart: unless-stopped
+
   # ─── Python AI Worker (gRPC) ───────────────────────────────────────────────
   python-worker:
     build:
