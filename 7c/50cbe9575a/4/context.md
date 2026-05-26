@@ -565,3 +565,11 @@ refreshing the page after upload, removes the document all together and then upl
 
 again it dissaperead, test yourself with playwright
 
+### Prompt 97
+
+logged in, you can just click sign in and logs in without going through google, don't ask me the next time
+
+### Prompt 98
+
+rpc error: code = Internal desc = No active 'anthropic' provider config found for org 'b9092473-da0d-4734-ad0f-5f448c694cdc'
+

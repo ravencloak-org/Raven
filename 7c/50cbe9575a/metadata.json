@@ -2,7 +2,7 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "branch": "fix/frontend-docs-list-field-name",
+  "branch": "feat/llm-provider-onboarding-help",
   "checkpoints_count": 12,
   "files_touched": [
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
@@ -25,6 +25,7 @@
     "deploy/terraform/demo/vpc.tf",
     "docs/superpowers/plans/2026-05-23-bytebase-tiered-plan-a.md",
     "docs/superpowers/specs/2026-05-23-bytebase-tiered-design.md",
+    "frontend/src/api/knowledge-bases.ts",
     "frontend/src/components/AppSidebar.vue",
     "frontend/src/components/MobileTabBar.vue",
     "frontend/src/components/TurnstileWidget.vue",
@@ -36,7 +37,6 @@
     "internal/repository/billing.go",
     "internal/service/billing.go",
     "internal/service/billing_test.go",
-    "internal/service/upload.go",
     "internal/turnstile/middleware.go",
     "internal/turnstile/middleware_test.go",
     "node-compile-cache/v25.9.0-arm64-392347a2-501/02774df2",
@@ -277,10 +277,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 895,
-    "cache_creation_tokens": 3504915,
-    "cache_read_tokens": 127006755,
-    "output_tokens": 358069,
-    "api_call_count": 667
+    "input_tokens": 897,
+    "cache_creation_tokens": 3496631,
+    "cache_read_tokens": 128838071,
+    "output_tokens": 351432,
+    "api_call_count": 669
   }
 }
