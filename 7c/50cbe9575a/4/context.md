@@ -510,3 +510,15 @@ signed in
 
 ah okay, then fix our auth? is it a vue js issue?
 
+### Prompt 85
+
+done
+
+### Prompt 86
+
+let's do the follow up tasks as well, i've already decommisioned aws, ignore that one
+
+### Prompt 87
+
+close them
+

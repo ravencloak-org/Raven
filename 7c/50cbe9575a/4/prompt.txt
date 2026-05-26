@@ -991,3 +991,15 @@ signed in
 ---
 
 ah okay, then fix our auth? is it a vue js issue?
+
+---
+
+done
+
+---
+
+let's do the follow up tasks as well, i've already decommisioned aws, ignore that one
+
+---
+
+close them
