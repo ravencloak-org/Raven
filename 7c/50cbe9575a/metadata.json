@@ -2,8 +2,8 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "branch": "feat/llm-provider-onboarding-help",
-  "checkpoints_count": 12,
+  "branch": "fix/spa-refetch-org-on-cold-boot",
+  "checkpoints_count": 11,
   "files_touched": [
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
     ".claude/worktrees/feat-billing-annual-refund/.env.ci",
@@ -25,12 +25,12 @@
     "deploy/terraform/demo/vpc.tf",
     "docs/superpowers/plans/2026-05-23-bytebase-tiered-plan-a.md",
     "docs/superpowers/specs/2026-05-23-bytebase-tiered-design.md",
-    "frontend/src/api/knowledge-bases.ts",
     "frontend/src/components/AppSidebar.vue",
     "frontend/src/components/MobileTabBar.vue",
     "frontend/src/components/TurnstileWidget.vue",
     "frontend/src/lib/featureFlags.ts",
     "frontend/src/pages/LoginPage.vue",
+    "frontend/src/pages/llm-providers/LlmProviderListPage.vue",
     "frontend/src/plugins/supertokens.ts",
     "frontend/src/router/index.ts",
     "internal/model/billing.go",
@@ -277,10 +277,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 897,
-    "cache_creation_tokens": 3496631,
-    "cache_read_tokens": 128838071,
-    "output_tokens": 351432,
-    "api_call_count": 669
+    "input_tokens": 874,
+    "cache_creation_tokens": 3489994,
+    "cache_read_tokens": 121187777,
+    "output_tokens": 349233,
+    "api_call_count": 656
   }
 }

@@ -573,3 +573,7 @@ logged in, you can just click sign in and logs in without going through google, 
 
 rpc error: code = Internal desc = No active 'anthropic' provider config found for org 'b9092473-da0d-4734-ad0f-5f448c694cdc'
 
+### Prompt 99
+
+There should have been a UI flow where the user is given an enpoint to fetch anthropic key and dump in our system for their org
+

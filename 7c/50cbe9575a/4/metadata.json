@@ -3,29 +3,29 @@
   "checkpoint_id": "7c50cbe9575a",
   "session_id": "337cea8f-5a6b-4199-bc68-1de07b76ec01",
   "strategy": "manual-commit",
-  "created_at": "2026-05-26T16:23:31.096384Z",
-  "branch": "feat/llm-provider-onboarding-help",
-  "checkpoints_count": 2,
+  "created_at": "2026-05-26T16:38:26.57064Z",
+  "branch": "fix/spa-refetch-org-on-cold-boot",
+  "checkpoints_count": 1,
   "files_touched": [
-    "frontend/src/api/knowledge-bases.ts"
+    "frontend/src/pages/llm-providers/LlmProviderListPage.vue"
   ],
   "agent": "Claude Code",
-  "checkpoint_transcript_start": 5320,
-  "transcript_lines_at_start": 5320,
+  "checkpoint_transcript_start": 5430,
+  "transcript_lines_at_start": 5430,
   "token_usage": {
-    "input_tokens": 43,
-    "cache_creation_tokens": 19500,
-    "cache_read_tokens": 17004805,
-    "output_tokens": 8985,
-    "api_call_count": 28
+    "input_tokens": 20,
+    "cache_creation_tokens": 12863,
+    "cache_read_tokens": 9354511,
+    "output_tokens": 6786,
+    "api_call_count": 15
   },
   "initial_attribution": {
-    "calculated_at": "2026-05-26T16:23:30.424233Z",
+    "calculated_at": "2026-05-26T16:38:25.871726Z",
     "agent_lines": 0,
-    "human_added": 60,
-    "human_modified": 0,
+    "human_added": 79,
+    "human_modified": 2,
     "human_removed": 0,
-    "total_committed": 60,
+    "total_committed": 81,
     "agent_percentage": 0
   }
 }
