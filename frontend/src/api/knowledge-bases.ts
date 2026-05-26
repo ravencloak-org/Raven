@@ -145,10 +145,21 @@ export async function getDocuments(
   wsId: string,
   kbId: string,
 ): Promise<KBDocument[]> {
-  const data = await authFetch<Record<string, unknown>[] | { items: Record<string, unknown>[] }>(
-    `${kbBasePath(orgId, wsId)}/${kbId}/documents`,
-  )
-  const items = Array.isArray(data) ? data : (data.items ?? [])
+  // The Go API's document list endpoint wraps results as
+  // `{ documents, total, page, page_size }` (see model.DocumentListResponse),
+  // not the `{ items, total, ... }` shape other paginated endpoints use.
+  // Accept either field — plus a bare array — so this code keeps working
+  // if either side normalises later.
+  const data = await authFetch<
+    | Record<string, unknown>[]
+    | { items?: Record<string, unknown>[]; documents?: Record<string, unknown>[] }
+  >(`${kbBasePath(orgId, wsId)}/${kbId}/documents`)
+  let items: Record<string, unknown>[]
+  if (Array.isArray(data)) {
+    items = data
+  } else {
+    items = data.documents ?? data.items ?? []
+  }
   return items.map(normalizeDoc)
 }
 
