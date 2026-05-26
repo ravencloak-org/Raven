@@ -34,6 +34,32 @@ const providerTypes: { value: ProviderType; label: string }[] = [
   { value: 'custom', label: 'Custom' },
 ]
 
+// Per-provider onboarding guidance shown in the Add-Provider dialog.
+// `keyHref` deep-links to the vendor's API-key console so the user can
+// mint a key without leaving the flow; `keyPrefix` is shown in the
+// placeholder so they know what shape the key should have; `helpText`
+// is a one-liner above the API-key field. Keyed off ProviderType.
+const providerHelp: Record<ProviderType, { keyHref?: string; keyPrefix?: string; helpText: string }> = {
+  openai: {
+    keyHref: 'https://platform.openai.com/api-keys',
+    keyPrefix: 'sk-...',
+    helpText: 'Generate a Secret Key in the OpenAI dashboard and paste it below.',
+  },
+  anthropic: {
+    keyHref: 'https://console.anthropic.com/settings/keys',
+    keyPrefix: 'sk-ant-...',
+    helpText: 'Generate an API key in the Anthropic Console and paste it below.',
+  },
+  ollama: {
+    keyPrefix: 'ollama',
+    helpText: 'Ollama runs locally — no API key required, but the field can\'t be empty. Use any placeholder (e.g. "ollama") and set the Base URL to your daemon.',
+  },
+  custom: {
+    keyPrefix: 'your provider\'s key',
+    helpText: 'For any OpenAI-compatible provider (Together, Groq, Fireworks, vLLM, etc.). Set Base URL to the provider\'s /v1 endpoint.',
+  },
+}
+
 function modelsForType(type: ProviderType) {
   return PROVIDER_MODELS[type] ?? []
 }
@@ -50,7 +76,15 @@ async function handleCreate() {
   creating.value = true
   createError.value = ''
   try {
-    await store.addProvider(orgId.value, { ...form.value })
+    // Mark the first provider as default automatically — the chat / RAG
+    // path 500s ("No active 'X' provider config found") until something
+    // is the default, so a fresh org has zero chance of a working chat
+    // unless we set this on their behalf.
+    const isFirst = store.providers.length === 0
+    await store.addProvider(orgId.value, {
+      ...form.value,
+      ...(isFirst ? { is_default: true } : {}),
+    })
     showCreateDialog.value = false
     form.value = { provider: 'openai', display_name: '', base_url: null, api_key: '' }
   } catch (e: unknown) {
@@ -59,6 +93,8 @@ async function handleCreate() {
     creating.value = false
   }
 }
+
+const currentProviderHelp = computed(() => providerHelp[form.value.provider])
 
 function confirmDelete(id: string, name: string) {
   providerToDelete.value = id
@@ -183,7 +219,29 @@ onMounted(() => store.fetchProviders(orgId.value))
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">API Key</label>
-            <input v-model="form.api_key" type="password" class="mt-1 block w-full rounded border-gray-300 shadow-sm" placeholder="sk-..." />
+            <p class="mt-1 text-xs text-gray-500">
+              {{ currentProviderHelp.helpText }}
+              <a
+                v-if="currentProviderHelp.keyHref"
+                :href="currentProviderHelp.keyHref"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="ml-1 inline-flex items-center text-indigo-600 underline hover:text-indigo-800"
+              >
+                Get a key
+                <svg class="ml-0.5 h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg>
+              </a>
+            </p>
+            <input
+              v-model="form.api_key"
+              type="password"
+              autocomplete="off"
+              class="mt-2 block w-full rounded border-gray-300 shadow-sm"
+              :placeholder="currentProviderHelp.keyPrefix ?? 'sk-...'"
+            />
+            <p v-if="store.providers.length === 0" class="mt-1 text-xs text-gray-400">
+              This will be set as your default provider since it's the first one.
+            </p>
           </div>
           <p v-if="createError" class="text-red-500 text-sm">{{ createError }}</p>
           <div class="flex justify-end gap-2 pt-2">
