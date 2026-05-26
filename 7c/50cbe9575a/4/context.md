@@ -602,3 +602,7 @@ This will be set as your default provider since it's the first one.
 Cancel
  are the models fetched from local ollama installation, what will be the url. put in the default one and remove the api key field if not required
 
+### Prompt 102
+
+can we not suggest some local tunnel that opens local ollama to raven
+

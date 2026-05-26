@@ -2,7 +2,7 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "branch": "feat/llm-ollama-tunnel-hint",
+  "branch": "feat/llm-test-connection-and-install-hints",
   "checkpoints_count": 11,
   "files_touched": [
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
@@ -277,10 +277,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 876,
-    "cache_creation_tokens": 3492888,
-    "cache_read_tokens": 122921475,
-    "output_tokens": 354438,
-    "api_call_count": 658
+    "input_tokens": 873,
+    "cache_creation_tokens": 3488010,
+    "cache_read_tokens": 121147696,
+    "output_tokens": 351172,
+    "api_call_count": 655
   }
 }
