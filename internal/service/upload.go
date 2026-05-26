@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"mime"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -20,6 +21,22 @@ import (
 	"github.com/ravencloak-org/Raven/internal/storage"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
+
+// normaliseContentType strips MIME parameters (charset, boundary, etc.)
+// so the allow-list check works on the media type alone. Go's
+// http.DetectContentType returns "text/plain; charset=utf-8" for most
+// text-shaped files; without this strip step every plain-text / markdown
+// upload 400s against the bare "text/plain" allow-list entry.
+//
+// Falls back to the raw value when ParseMediaType can't parse — better
+// to surface a clear "not allowed" than to crash on a malformed header.
+func normaliseContentType(raw string) string {
+	mediaType, _, err := mime.ParseMediaType(raw)
+	if err != nil {
+		return raw
+	}
+	return mediaType
+}
 
 // DocumentProcessEnqueuer is the narrow slice of the queue client this
 // service needs. Kept as an interface so the unit tests can pass a stub
@@ -78,8 +95,11 @@ type UploadParams struct {
 
 // Upload validates, deduplicates, stores, and records a new document upload.
 func (s *UploadService) Upload(ctx context.Context, params UploadParams) (*model.Document, error) {
-	// Validate file type.
-	if !s.allowedTypes[strings.ToLower(params.FileType)] {
+	// Validate file type. Normalise away MIME parameters (charset etc.) so
+	// "text/plain; charset=utf-8" matches the bare "text/plain" entry in
+	// the allow-list. The user-facing error retains the original header
+	// so a misconfigured client can see what was actually rejected.
+	if !s.allowedTypes[strings.ToLower(normaliseContentType(params.FileType))] {
 		return nil, apierror.NewBadRequest(fmt.Sprintf("file type not allowed: %s", params.FileType))
 	}
 
