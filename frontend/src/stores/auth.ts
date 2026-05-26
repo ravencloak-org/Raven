@@ -46,6 +46,27 @@ export const useAuthStore = defineStore('auth', () => {
     if (!sessionExists.value && hasValidFrontTokenCookie()) {
       sessionExists.value = true
     }
+
+    // sessionStorage is per-tab; closing/re-opening the tab wipes raven_org_id
+    // so hasOrg falls to false on the next cold-boot. The router guard then
+    // bounces every authenticated user to /onboarding even when their org has
+    // existed for days. Refetch orgId from /api/v1/me whenever the session
+    // exists but the in-memory orgId is missing — that's the canonical source
+    // for the current user's org_id, set by the backend on every login.
+    if (sessionExists.value && !orgId.value) {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/me`, {
+          credentials: 'include',
+        })
+        if (res.ok) {
+          const me = (await res.json()) as { org_id?: string }
+          if (me.org_id) setOrgId(me.org_id)
+        }
+      } catch {
+        // Swallow — if /me is unreachable the router will send the user to
+        // /onboarding which can re-derive the org from the auth callback.
+      }
+    }
   }
 
   function hasValidFrontTokenCookie(): boolean {
