@@ -2,7 +2,7 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "branch": "feat/llm-provider-ollama-defaults",
+  "branch": "feat/llm-ollama-tunnel-hint",
   "checkpoints_count": 11,
   "files_touched": [
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
@@ -30,9 +30,9 @@
     "frontend/src/components/TurnstileWidget.vue",
     "frontend/src/lib/featureFlags.ts",
     "frontend/src/pages/LoginPage.vue",
+    "frontend/src/pages/llm-providers/LlmProviderListPage.vue",
     "frontend/src/plugins/supertokens.ts",
     "frontend/src/router/index.ts",
-    "frontend/src/stores/auth.ts",
     "internal/model/billing.go",
     "internal/repository/billing.go",
     "internal/service/billing.go",
@@ -277,10 +277,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 889,
-    "cache_creation_tokens": 3491218,
-    "cache_read_tokens": 124578828,
-    "output_tokens": 350512,
-    "api_call_count": 661
+    "input_tokens": 876,
+    "cache_creation_tokens": 3492888,
+    "cache_read_tokens": 122921475,
+    "output_tokens": 354438,
+    "api_call_count": 658
   }
 }

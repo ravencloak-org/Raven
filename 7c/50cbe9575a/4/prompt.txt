@@ -1147,3 +1147,24 @@ There should have been a UI flow where the user is given an enpoint to fetch ant
 ---
 
 that url redirects me to https://demo.ravencloak.org/raven/onboarding
+
+---
+
+Provider Type
+
+Ollama
+Display Name
+Ollama
+Model
+
+Llama 3
+Base URL
+https://api.example.com/v1
+API Key
+Ollama runs locally — no API key required, but the field can't be empty. Use any placeholder (e.g. "ollama") and set the Base URL to your daemon.
+
+••••••
+This will be set as your default provider since it's the first one.
+
+Cancel
+ are the models fetched from local ollama installation, what will be the url. put in the default one and remove the api key field if not required
