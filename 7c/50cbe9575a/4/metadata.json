@@ -3,29 +3,30 @@
   "checkpoint_id": "7c50cbe9575a",
   "session_id": "337cea8f-5a6b-4199-bc68-1de07b76ec01",
   "strategy": "manual-commit",
-  "created_at": "2026-05-27T09:26:50.390767Z",
+  "created_at": "2026-05-27T11:30:34.576259Z",
   "branch": "feat/llm-test-connection-and-install-hints",
-  "checkpoints_count": 2,
+  "checkpoints_count": 1,
   "files_touched": [
-    "frontend/src/pages/llm-providers/LlmProviderListPage.vue"
+    "cmd/api/main.go",
+    "internal/service/chat.go"
   ],
   "agent": "Claude Code",
-  "checkpoint_transcript_start": 5993,
-  "transcript_lines_at_start": 5993,
+  "checkpoint_transcript_start": 6088,
+  "transcript_lines_at_start": 6088,
   "token_usage": {
-    "input_tokens": 32,
-    "cache_creation_tokens": 20177,
-    "cache_read_tokens": 16342795,
-    "output_tokens": 10048,
+    "input_tokens": 27,
+    "cache_creation_tokens": 776583,
+    "cache_read_tokens": 15998942,
+    "output_tokens": 7115,
     "api_call_count": 22
   },
   "initial_attribution": {
-    "calculated_at": "2026-05-27T09:26:49.660405Z",
+    "calculated_at": "2026-05-27T11:30:33.845936Z",
     "agent_lines": 0,
-    "human_added": 85,
-    "human_modified": 0,
+    "human_added": 121,
+    "human_modified": 1,
     "human_removed": 0,
-    "total_committed": 85,
+    "total_committed": 122,
     "agent_percentage": 0
   }
 }

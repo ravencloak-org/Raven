@@ -673,3 +673,7 @@ works add that comment in the command dialog
 Test connection
 Request failed (404) but the cf endpoint is working https://sustained-copyrights-how-shoppers.trycloudflare.com/
 
+### Prompt 115
+
+even with ollama i'm getting error for chat rpc error: code = Internal desc = No active 'anthropic' provider config found for org 'b9092473-da0d-4734-ad0f-5f448c694cdc'
+
