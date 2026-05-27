@@ -677,3 +677,11 @@ Request failed (404) but the cf endpoint is working https://sustained-copyrights
 
 even with ollama i'm getting error for chat rpc error: code = Internal desc = No active 'anthropic' provider config found for org 'b9092473-da0d-4734-ad0f-5f448c694cdc'
 
+### Prompt 116
+
+rpc error: code = Internal desc = ollama embed failed: status=400 body='{"error":"model is required"}'
+
+### Prompt 117
+
+rpc error: code = Internal desc = cannot perform operation: another operation is in progress
+

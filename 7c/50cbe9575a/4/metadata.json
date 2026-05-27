@@ -3,30 +3,30 @@
   "checkpoint_id": "7c50cbe9575a",
   "session_id": "337cea8f-5a6b-4199-bc68-1de07b76ec01",
   "strategy": "manual-commit",
-  "created_at": "2026-05-27T11:30:34.576259Z",
+  "created_at": "2026-05-27T11:58:12.77499Z",
   "branch": "feat/llm-test-connection-and-install-hints",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
-    "cmd/api/main.go",
-    "internal/service/chat.go"
+    "ai-worker/raven_worker/providers/registry.py",
+    "ai-worker/raven_worker/services/rag.py"
   ],
   "agent": "Claude Code",
-  "checkpoint_transcript_start": 6088,
-  "transcript_lines_at_start": 6088,
+  "checkpoint_transcript_start": 6167,
+  "transcript_lines_at_start": 6167,
   "token_usage": {
-    "input_tokens": 27,
-    "cache_creation_tokens": 776583,
-    "cache_read_tokens": 15998942,
-    "output_tokens": 7115,
-    "api_call_count": 22
+    "input_tokens": 58,
+    "cache_creation_tokens": 784518,
+    "cache_read_tokens": 32989798,
+    "output_tokens": 22172,
+    "api_call_count": 43
   },
   "initial_attribution": {
-    "calculated_at": "2026-05-27T11:30:33.845936Z",
-    "agent_lines": 0,
-    "human_added": 121,
-    "human_modified": 1,
+    "calculated_at": "2026-05-27T11:58:12.047004Z",
+    "agent_lines": 22,
+    "human_added": 261,
+    "human_modified": 5,
     "human_removed": 0,
-    "total_committed": 122,
-    "agent_percentage": 0
+    "total_committed": 288,
+    "agent_percentage": 7.638888888888889
   }
 }
