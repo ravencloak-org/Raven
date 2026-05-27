@@ -499,8 +499,14 @@ const ollamaTunnels: {
 }[] = [
   {
     label: 'Cloudflare Tunnel (recommended)',
-    command: 'cloudflared tunnel --url http://localhost:11434',
-    note: 'Prints an https://<random>.trycloudflare.com URL. No account needed. Paste it into Base URL above.',
+    // --http-host-header localhost is critical: Ollama's HTTP server rejects
+    // any request whose Host header isn't 127.0.0.1 / localhost (security
+    // hardening). cloudflared's default forwards the public tunnel hostname
+    // as Host, which Ollama returns 403 to with an empty body. The flag
+    // tells cloudflared to rewrite Host to "localhost" on the upstream hop
+    // so Ollama treats it as a local call.
+    command: 'cloudflared tunnel --url http://localhost:11434 --http-host-header localhost',
+    note: 'Prints an https://<random>.trycloudflare.com URL. No account needed. The --http-host-header flag is mandatory — Ollama 403s any other Host. Paste the printed URL into Base URL above.',
     install: {
       docsHref: 'https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/',
       macos: 'brew install cloudflared',
@@ -510,8 +516,12 @@ const ollamaTunnels: {
   },
   {
     label: 'ngrok',
-    command: 'ngrok http 11434',
-    note: 'Free account required for stable URLs. Use the https Forwarding address.',
+    // --host-header=rewrite serves the same purpose as cloudflared's
+    // --http-host-header: rewrites the Host on the upstream hop to
+    // 127.0.0.1:11434 so Ollama's Host-allowlist check accepts the call.
+    // Without it, ngrok forwards Host: <subdomain>.ngrok.app and Ollama 403s.
+    command: 'ngrok http 11434 --host-header=rewrite',
+    note: 'Free account required for stable URLs. The --host-header=rewrite flag is mandatory — Ollama 403s any other Host. Use the https Forwarding address.',
     install: {
       docsHref: 'https://ngrok.com/download',
       macos: 'brew install ngrok',
