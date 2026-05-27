@@ -12,16 +12,21 @@ const (
 	LLMProviderCohere     LLMProvider = "cohere"
 	LLMProviderGoogle     LLMProvider = "google"
 	LLMProviderAzureOpenAI LLMProvider = "azure_openai"
+	LLMProviderOllama     LLMProvider = "ollama"
 	LLMProviderCustom     LLMProvider = "custom"
 )
 
 // ValidLLMProviders is the set of valid LLM provider enum values.
+// Must stay in sync with the llm_provider Postgres enum (see
+// migrations/00045_llm_provider_add_ollama.sql) and the
+// `_SUPPORTED_PROVIDERS` set in ai-worker/raven_worker/providers/registry.py.
 var ValidLLMProviders = map[LLMProvider]bool{
 	LLMProviderOpenAI:      true,
 	LLMProviderAnthropic:   true,
 	LLMProviderCohere:      true,
 	LLMProviderGoogle:      true,
 	LLMProviderAzureOpenAI: true,
+	LLMProviderOllama:      true,
 	LLMProviderCustom:      true,
 }
 
