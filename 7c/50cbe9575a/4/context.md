@@ -610,3 +610,56 @@ can we not suggest some local tunnel that opens local ollama to raven
 
 we should also show urls to install cloudflare or ngrok
 
+### Prompt 104
+
+yes
+
+### Prompt 105
+
+which is the Which is the latest LLM model that I can use which runs locally and performs best according to benchmarks?
+
+### Prompt 106
+
+my m1 macbook pro and for using ollama as the provider for raven
+
+### Prompt 107
+
+Apple M1 Pro
+
+### Prompt 108
+
+Access to catch-mls-smilies-mrs.trycloudflare.com was denied
+You don't have authorisation to view this page.
+HTTP ERROR 403  --- CONNECTIVITY PRE-CHECKS ----------------------------------------------------
+COMPONENT         TARGET                     STATUS  DETAILS
+DNS Resolution    region1.v2.argotunnel.com  PASS    DNS Resolved successfully
+DNS Resolution    region2.v2.argotunnel.com  PASS    DNS Resolved successfully
+UDP Connectivity  region1.v2.argotunnel.com  PASS    QUIC connection succes...
+
+### Prompt 109
+
+Access to vocabulary-supervision-finder-upc.trycloudflare.com was denied
+You don't have authorisation to view this page.
+HTTP ERROR 403
+
+### Prompt 110
+
+it just gives empty response
+
+### Prompt 111
+
+curl -i https://vocabulary-supervision-finder-upc.trycloudflare.com/api/tags
+HTTP/2 403
+date: Wed, 27 May 2026 06:14:59 GMT
+content-length: 0
+cf-ray: a022e1e61dc69f61-MAA
+cf-cache-status: DYNAMIC
+server: cloudflare
+
+➜  raven git:(fix/llm-provider-add-ollama-enum) ✗
+
+### Prompt 112
+
+raven git:(fix/llm-provider-add-ollama-enum) ✗ cloudflared tunnel --url http://127.0.0.1:11434
+2026-05-27T06:11:31Z INF Thank you for trying Cloudflare Tunnel. Doing so, without a Cloudflare account, is a quick way to experiment and try it out. However, be aware that these account-less Tunnels have no uptime guarantee, are subject to the Cloudflare Online Services Terms of Use (https://www.cloudflare.com/website-terms/), and Cloudflare reserves the right to investigate your use of Tunnels for ...
+
