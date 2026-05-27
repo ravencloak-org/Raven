@@ -1296,3 +1296,13 @@ SUMMARY: Environment is healthy. cloudflared will use 'quic' as primary protocol
 2026-05-27T06:11:43Z INF precheck component="TCP Connectivity" details="HTTP/2 connection successful" run_id=81753c08-8a06-49f3-9fff-89a7b7a27b17 status=pass target=region2.v2.argotunnel.com
 2026-05-27T06:11:43Z INF precheck component="Cloudflare API" details="API is reachable" run_id=81753c08-8a06-49f3-9fff-89a7b7a27b17 status=pass target=api.cloudflare.com:443
 2026-05-27T06:11:43Z INF precheck complete hard_fail=false run_id=81753c08-8a06-49f3-9fff-89a7b7a27b17 suggested_protocol=quic
+
+---
+
+works add that comment in the command dialog
+
+---
+
+✕ Connection failed
+Test connection
+Request failed (404) but the cf endpoint is working https://sustained-copyrights-how-shoppers.trycloudflare.com/

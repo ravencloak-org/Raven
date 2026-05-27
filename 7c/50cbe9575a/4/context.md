@@ -663,3 +663,13 @@ server: cloudflare
 raven git:(fix/llm-provider-add-ollama-enum) ✗ cloudflared tunnel --url http://127.0.0.1:11434
 2026-05-27T06:11:31Z INF Thank you for trying Cloudflare Tunnel. Doing so, without a Cloudflare account, is a quick way to experiment and try it out. However, be aware that these account-less Tunnels have no uptime guarantee, are subject to the Cloudflare Online Services Terms of Use (https://www.cloudflare.com/website-terms/), and Cloudflare reserves the right to investigate your use of Tunnels for ...
 
+### Prompt 113
+
+works add that comment in the command dialog
+
+### Prompt 114
+
+✕ Connection failed
+Test connection
+Request failed (404) but the cf endpoint is working https://sustained-copyrights-how-shoppers.trycloudflare.com/
+
