@@ -283,7 +283,16 @@ func NewDocumentProcessHandler(
 			setFailed(ctx, pool, p.OrgID, p.DocumentID, docRepo, logger, err)
 			return fmt.Errorf("read file content: %w", err)
 		}
-		content := string(raw)
+
+		// Per-mime parsing: text-based formats go in as-is, binary formats
+		// (PDF for now) get text-extracted first. Anything we can't extract
+		// fails the doc clearly instead of stuffing binary into a text
+		// column and 500-ing on the UTF-8 check.
+		content, err := extractTextByMIME(doc.FileType, raw)
+		if err != nil {
+			setFailed(ctx, pool, p.OrgID, p.DocumentID, docRepo, logger, err)
+			return fmt.Errorf("%w: %w", asynq.SkipRetry, err)
+		}
 
 		// Mark as chunking.
 		if err := updateDocStatus(ctx, pool, p.OrgID, p.DocumentID, docRepo, model.ProcessingStatusChunking, ""); err != nil {
