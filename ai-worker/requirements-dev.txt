@@ -1140,9 +1140,9 @@ httpx==0.28.1 \
     #   langsmith
     #   openai
     #   respx
-huggingface-hub==1.14.0 \
-    --hash=sha256:d6d2c9cd6be1d02ae9ec6672d5587d10a427f377db688e82528f426a041622c2 \
-    --hash=sha256:efe075535c62e130b30e836b138e13785f6f043d1f0539e0a39aa411a99e90b8
+huggingface-hub==1.17.0 \
+    --hash=sha256:3b8156d23118e87f6a587648bfbc04f04a12a757ccb4ed298b35c4ae638bf24c \
+    --hash=sha256:fad842b6763ef70ebc3919665b1b9273645203185400a7d6c5eddc2323cc3435
     # via tokenizers
 idna==3.15 \
     --hash=sha256:048adeaf8c2d788c40fee287673ccaa74c24ffd8dcf09ffa555a2fbb59f10ac8 \
