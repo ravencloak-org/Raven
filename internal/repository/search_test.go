@@ -35,6 +35,21 @@ func TestChunkWithRankFields(t *testing.T) {
 	if chunk.ID != "chunk-1" {
 		t.Errorf("expected ID 'chunk-1', got %q", chunk.ID)
 	}
+	if chunk.OrgID != "org-1" {
+		t.Errorf("expected OrgID 'org-1', got %q", chunk.OrgID)
+	}
+	if chunk.KnowledgeBaseID != "kb-1" {
+		t.Errorf("expected KnowledgeBaseID 'kb-1', got %q", chunk.KnowledgeBaseID)
+	}
+	if chunk.Content != "test content" {
+		t.Errorf("expected Content 'test content', got %q", chunk.Content)
+	}
+	if chunk.ChunkIndex != 0 {
+		t.Errorf("expected ChunkIndex 0, got %d", chunk.ChunkIndex)
+	}
+	if chunk.ChunkType != "text" {
+		t.Errorf("expected ChunkType 'text', got %q", chunk.ChunkType)
+	}
 	if chunk.Rank != 0.75 {
 		t.Errorf("expected Rank 0.75, got %f", chunk.Rank)
 	}
