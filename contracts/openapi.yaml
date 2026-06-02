@@ -22,6 +22,15 @@ tags:
     description: Authenticated user profile endpoints.
   - name: Search
     description: Full-text and hybrid retrieval over knowledge-base chunks.
+  - name: Marketplace
+    description: |
+      Cross-tenant discovery surface for Public KBs. Authenticated User
+      endpoints for listing, previewing, importing, publishing, and
+      unpublishing. See ADR-0001, ADR-0002, ADR-0007.
+  - name: Marketplace Admin
+    description: |
+      Admin-only moderation surface: report queue, takedown actions, and
+      the DMCA counter-notice intake. See ADR-0006.
 
 security:
   - bearerAuth: []
@@ -211,6 +220,151 @@ components:
           type: integer
           description: Effective top_k after server-side clamping.
       required: [results, query, top_k]
+
+    MarketplaceListItem:
+      type: object
+      description: |
+        Card-shape row for the Marketplace listing. Returned by the
+        `marketplace_list_public_kbs()` SECURITY DEFINER function and any
+        per-User filtering applied above it. `source_*` fields are
+        populated when this Public KB was itself imported from another
+        Public KB (one-hop lineage; see ADR-0001).
+      properties:
+        kb_id:                     { type: string, format: uuid }
+        org_slug:                  { type: string }
+        org_display_name:          { type: string }
+        kb_slug:                   { type: string }
+        name:                      { type: string }
+        description:               { type: string }
+        last_modified_at:          { type: string, format: date-time }
+        license_spdx_id:           { type: string, description: "SPDX id from the 7-item allow-list (ADR-0006)." }
+        import_count:              { type: integer, minimum: 0 }
+        source_public_kb_id:       { type: string, format: uuid, nullable: true }
+        source_org_slug:           { type: string, nullable: true }
+        source_org_display_name:   { type: string, nullable: true }
+      required: [kb_id, org_slug, org_display_name, kb_slug, name, last_modified_at, license_spdx_id, import_count]
+
+    MarketplaceListing:
+      type: object
+      description: |
+        Paginated Marketplace listing response. `next_cursor` is opaque;
+        callers must treat it as a black-box string to be echoed back.
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/MarketplaceListItem' }
+        next_cursor:
+          type: string
+          nullable: true
+        total:
+          type: integer
+          description: Total matching rows when cheaply computable; omitted otherwise.
+      required: [items]
+
+    PreviewChunk:
+      type: object
+      description: |
+        Single sample Chunk returned by the Marketplace preview surface
+        (ADR-0007). Backed by `marketplace_preview_kb()`; the function
+        caps the response at three rows.
+      properties:
+        chunk_id: { type: string, format: uuid }
+        ordinal:  { type: integer, minimum: 0 }
+        text:     { type: string }
+      required: [chunk_id, ordinal, text]
+
+    MarketplacePreview:
+      type: object
+      properties:
+        chunks:
+          type: array
+          maxItems: 3
+          items: { $ref: '#/components/schemas/PreviewChunk' }
+      required: [chunks]
+
+    PublishRequest:
+      type: object
+      description: |
+        Body for `POST /knowledge_bases/{id}/publish`. The license must be
+        one of the seven SPDX ids in the allow-list (ADR-0006); requests
+        carrying any other value return 422.
+      properties:
+        license_spdx_id:
+          type: string
+          description: SPDX id from the 7-item allow-list (e.g. `CC-BY-4.0`).
+      required: [license_spdx_id]
+
+    ReImportRequest:
+      type: object
+      description: |
+        Body for `POST /knowledge_bases/{id}/re-import`. The explicit
+        `confirm` flag guards against accidental destructive overwrites
+        of locally-edited Imported KB content (ADR-0001 fork semantics).
+      properties:
+        confirm:
+          type: boolean
+          description: Must be `true` to acknowledge the destructive re-fork.
+      required: [confirm]
+
+    ImportRequest:
+      type: object
+      description: |
+        Body for `POST /marketplace/import/{public_kb_id}`. The Importer
+        chooses which Workspace inside their Org will own the new KB row;
+        Free Plan Orgs have visibility forced to `public` per ADR-0004.
+      properties:
+        workspace_id:
+          type: string
+          format: uuid
+      required: [workspace_id]
+
+    ImportResult:
+      type: object
+      properties:
+        kb_id:                     { type: string, format: uuid }
+        imported_from_revision_at: { type: string, format: date-time }
+      required: [kb_id, imported_from_revision_at]
+
+    ReportRequest:
+      type: object
+      description: |
+        Submit a moderation Report against a Public KB. Per-User rate
+        limited; abuse returns 429.
+      properties:
+        kb_id:  { type: string, format: uuid }
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+      required: [kb_id, reason]
+
+    MarketplaceReport:
+      type: object
+      properties:
+        report_id:        { type: string, format: uuid }
+        reported_kb_id:   { type: string, format: uuid }
+        reporter_user_id: { type: string, format: uuid, nullable: true }
+        reason:           { type: string }
+        status:           { type: string, enum: [open, reviewing, resolved, dismissed] }
+        created_at:       { type: string, format: date-time }
+      required: [report_id, reported_kb_id, reason, status, created_at]
+
+    DMCANotice:
+      type: object
+      description: |
+        DMCA takedown notice intake. Receipt queues the notice for the
+        14-day counter-notice window before the target KB is unpublished
+        (ADR-0006).
+      properties:
+        target_kb_id: { type: string, format: uuid }
+        notice:       { type: string, minLength: 1, description: "Full text of the DMCA notice as submitted." }
+      required: [target_kb_id, notice]
+
+    DMCANoticeReceipt:
+      type: object
+      properties:
+        notice_id:          { type: string, format: uuid }
+        target_kb_id:       { type: string, format: uuid }
+        counter_notice_due: { type: string, format: date-time, description: "14 days from receipt." }
+        status:             { type: string, enum: [queued, counter_noticed, executed, withdrawn] }
+      required: [notice_id, target_kb_id, counter_notice_due, status]
 
 paths:
   /orgs:
@@ -540,3 +694,513 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/User' }
+
+  /marketplace:
+    get:
+      summary: List Public KBs on the Marketplace
+      description: |
+        Paginated cross-tenant listing of `visibility='public'` KBs.
+        Backed by the `marketplace_list_public_kbs()` SECURITY DEFINER
+        function (ADR-0005). Authenticated Users only; anonymous browsing
+        is explicitly deferred.
+      operationId: listMarketplace
+      tags: [Marketplace]
+      parameters:
+        - name: q
+          in: query
+          description: Free-text search across `name` and `description`.
+          schema: { type: string }
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [newest, most_imported, recently_updated, alphabetic]
+            default: recently_updated
+        - name: license
+          in: query
+          description: Repeatable filter on SPDX id; ORed together.
+          schema:
+            type: array
+            items: { type: string }
+          style: form
+          explode: true
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0, minimum: 0 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MarketplaceListing' }
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /marketplace/{org_slug}/{kb_slug}:
+    get:
+      summary: Get a Public KB by org_slug and kb_slug
+      description: |
+        Returns the public-facing KB detail row. The 410 Gone response is
+        used (not 404) when the `(org_id, kb_slug)` pair is present in
+        `kb_slug_holds` with `held_until > now()` — i.e. the KB was
+        unpublished within the 90-day slug-hold window (ADR-0007).
+      operationId: getMarketplaceKb
+      tags: [Marketplace]
+      parameters:
+        - name: org_slug
+          in: path
+          required: true
+          schema: { type: string }
+        - name: kb_slug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeBase' }
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Unknown org_slug or kb_slug.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '410':
+          description: |
+            Gone — the slug pair is in `kb_slug_holds`. Distinguishes
+            "previously published, now unpublished" from "never existed".
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /marketplace/{org_slug}/{kb_slug}/preview:
+    get:
+      summary: Preview a Public KB (≤3 sample Chunks)
+      description: |
+        Returns up to three sample Chunks from the target Public KB. The
+        only sanctioned cross-tenant read of Chunk rows in the system;
+        backed by the `marketplace_preview_kb()` SECURITY DEFINER function
+        which raises `insufficient_privilege` if `visibility != 'public'`
+        (ADR-0007).
+      operationId: previewMarketplaceKb
+      tags: [Marketplace]
+      parameters:
+        - name: org_slug
+          in: path
+          required: true
+          schema: { type: string }
+        - name: kb_slug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MarketplacePreview' }
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Target KB is not `visibility='public'`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Unknown org_slug or kb_slug.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '410':
+          description: Slug is in `kb_slug_holds`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /marketplace/import/{public_kb_id}:
+    post:
+      summary: Import a Public KB as a content-grade fork
+      description: |
+        Creates a new Imported KB row in the chosen Workspace. Content is
+        copied via the `KB → PublishedKBProjection` projector (ADR-0002);
+        original file blobs are not crossed. `source_public_kb_id` and
+        `imported_from_revision_at` are set on the new row (ADR-0001).
+        Free Plan Orgs have `visibility` forced to `public` (ADR-0004).
+      operationId: importMarketplaceKb
+      tags: [Marketplace]
+      parameters:
+        - name: public_kb_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ImportRequest' }
+      responses:
+        '201':
+          description: Imported
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImportResult' }
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Caller is not a member of the destination workspace, or target KB is not public.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Unknown `public_kb_id` or `workspace_id`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422':
+          description: Plan-rule violation (e.g. Free Plan attempting to set `visibility='private'`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /knowledge_bases/{id}/publish:
+    post:
+      summary: Publish a KB to the Marketplace
+      description: |
+        Flips `visibility` to `public` and sets `published_at`,
+        `published_by_user_id`, and `license_spdx_id`. The license must be
+        one of the seven SPDX ids in the allow-list (ADR-0006); other
+        values return 422. Slug re-use during the 90-day hold window
+        returns 409.
+      operationId: publishKnowledgeBase
+      tags: [Marketplace]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PublishRequest' }
+      responses:
+        '200':
+          description: Published
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeBase' }
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Plan or permission violation (e.g. Free Plan Org trying to set `visibility='private'`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: KB not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409':
+          description: Slug is held in `kb_slug_holds` for this Org.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422':
+          description: License not in the SPDX allow-list, or KB has no documents.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /knowledge_bases/{id}/unpublish:
+    post:
+      summary: Unpublish a KB from the Marketplace
+      description: |
+        Flips `visibility` back to `private`. The `(org_id, kb_slug)` pair
+        is registered in `kb_slug_holds` with `held_until = now() + 90d`;
+        the Marketplace URL begins returning 410 (ADR-0007). Already-
+        Imported forks are unaffected.
+      operationId: unpublishKnowledgeBase
+      tags: [Marketplace]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Unpublished
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeBase' }
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Caller lacks `kb:publish`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: KB not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /knowledge_bases/{id}/re-import:
+    post:
+      summary: Re-import the source revision into an Imported KB
+      description: |
+        Re-runs the projection apply against the current state of the
+        source Public KB, bumping `imported_from_revision_at`. Destructive
+        for any local edits; the `confirm: true` flag is required to
+        proceed (ADR-0001). Only callable when `source_public_kb_id IS
+        NOT NULL`.
+      operationId: reImportKnowledgeBase
+      tags: [Marketplace]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReImportRequest' }
+      responses:
+        '200':
+          description: Re-imported
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeBase' }
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Caller lacks `kb:write`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: KB not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409':
+          description: KB is not an import (`source_public_kb_id IS NULL`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '410':
+          description: Source Public KB was unpublished.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422':
+          description: "`confirm` flag missing or not `true`."
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /marketplace/reports:
+    post:
+      summary: Submit a Marketplace moderation report
+      description: |
+        Logged-in Users only. Per-User rate-limited; bursts return 429.
+      operationId: submitMarketplaceReport
+      tags: [Marketplace]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReportRequest' }
+      responses:
+        '201':
+          description: Report queued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MarketplaceReport' }
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Reported KB not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '429':
+          description: Per-User rate limit exceeded.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /admin/marketplace/reports:
+    get:
+      summary: List Marketplace reports (admin)
+      description: Admin-only review queue.
+      operationId: listMarketplaceReportsAdmin
+      tags: [Marketplace Admin]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, reviewing, resolved, dismissed]
+            default: open
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0, minimum: 0 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/MarketplaceReport' }
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Caller is not an admin.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /admin/marketplace/reports/{id}/approve:
+    post:
+      summary: Approve a Marketplace report (admin)
+      description: |
+        Marks the report `resolved`, unpublishes the target KB (entering
+        the 90-day slug-hold), and increments
+        `organizations.takedown_strikes` (ADR-0006).
+      operationId: approveMarketplaceReportAdmin
+      tags: [Marketplace Admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Resolved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MarketplaceReport' }
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Caller is not an admin.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Report not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /admin/marketplace/reports/{id}/dismiss:
+    post:
+      summary: Dismiss a Marketplace report (admin)
+      description: Marks the report `dismissed` with no further action.
+      operationId: dismissMarketplaceReportAdmin
+      tags: [Marketplace Admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Dismissed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MarketplaceReport' }
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Caller is not an admin.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Report not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /admin/marketplace/dmca:
+    post:
+      summary: File a DMCA takedown notice (admin)
+      description: |
+        Admin-only intake for DMCA notices. Queues the notice for the
+        14-day counter-notice window before the target KB is unpublished
+        (ADR-0006).
+      operationId: fileMarketplaceDMCANoticeAdmin
+      tags: [Marketplace Admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DMCANotice' }
+      responses:
+        '201':
+          description: Queued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DMCANoticeReceipt' }
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Caller is not an admin.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Target KB not found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
