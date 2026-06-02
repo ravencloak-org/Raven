@@ -37,6 +37,24 @@ export interface ProviderModelOption {
   label: string
 }
 
+// TestProviderRequest mirrors backend `model.TestProviderRequest`. Either
+// `provider_id` (probe stored encrypted key) OR `provider + api_key`
+// (probe inline credentials) is required; when both are supplied the
+// backend ignores the inline fields. `base_url` is optional in both
+// shapes.
+export interface TestProviderRequest {
+  provider_id?: string
+  provider?: ProviderType
+  base_url?: string | null
+  api_key?: string
+}
+
+export interface TestConnectionResult {
+  ok: boolean
+  provider: string
+  detail?: string
+}
+
 export const PROVIDER_MODELS: Record<ProviderType, ProviderModelOption[]> = {
   openai: [
     { value: 'gpt-4o', label: 'GPT-4o' },
@@ -108,6 +126,21 @@ export async function deleteLlmProvider(
 ): Promise<void> {
   await authFetch<void>(`/orgs/${orgId}/llm-providers/${providerId}`, {
     method: 'DELETE',
+  })
+}
+
+// testLlmProviderConnection probes the vendor via
+// POST /api/v1/orgs/:org_id/llm-providers/test. Pass `{provider_id}` to
+// re-test an existing row using its stored (encrypted) key — no secret
+// crosses the wire. Pass `{provider, api_key, base_url?}` for the inline
+// shape used by the Create dialog.
+export async function testLlmProviderConnection(
+  orgId: string,
+  payload: TestProviderRequest,
+): Promise<TestConnectionResult> {
+  return authFetch<TestConnectionResult>(`/orgs/${orgId}/llm-providers/test`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
   })
 }
 
