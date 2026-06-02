@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "7c50cbe9575a",
+  "session_id": "69464040-203b-459e-a602-6864c7e2ba04",
+  "strategy": "manual-commit",
+  "created_at": "2026-06-02T16:02:39.619415Z",
+  "branch": "chore/fix-test-lint-backlog",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CONTEXT.md",
+    "docs/adr/0006-single-org-wide-llm-provider-default.md",
+    "docs/adr/0009-single-org-wide-llm-provider-default.md",
+    "docs/superpowers/specs/2026-06-02-llm-provider-management-design.md"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 285,
+    "cache_creation_tokens": 583482,
+    "cache_read_tokens": 19287355,
+    "output_tokens": 95269,
+    "api_call_count": 114
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-06-02T16:02:39.496304Z",
+    "agent_lines": 0,
+    "human_added": 250,
+    "human_modified": 307,
+    "human_removed": 0,
+    "total_committed": 557,
+    "agent_percentage": 0
+  }
+}
