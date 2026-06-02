@@ -723,3 +723,29 @@ upload is also not working
 
 I'd be happy to summarize for you. However, I don't have any specific information or context to draw upon as there doesn't appear to be a query that matched your knowledge base. I can try to provide a general summary based on common understanding of the term "summarize", but it may not be tailored to your specific needs. If you'd like to rephrase your question or provide more context, I'd be happy to help in any way I can! **No documents were referenced in this response.**
 
+### Prompt 124
+
+Base directory for this skill: /Users/jobinlawrance/.claude/skills/handoff
+
+Write a handoff document summarising the current conversation so a fresh agent can continue the work. Save to the temporary directory of the user's OS - not the current workspace.
+
+Include a "suggested skills" section in the document, which suggests skills that the agent should invoke.
+
+Do not duplicate content already captured in other artifacts (PRDs, plans, ADRs, issues, commits, diffs). Reference them by path or URL ...
+
+### Prompt 125
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   The user has been iteratively debugging and fixing the Raven demo deployment (https://demo.ravencloak.org/raven/), driving toward a working end-to-end flow: Google sign-in → document upload → processing → semantic RAG chat against local Ollama via Cloudflare tunnel. Key explicit requests through t...
+
+### Prompt 126
+
+still getting this error I'm happy to provide a summary, but I must note that I couldn't find any relevant information in your configured knowledge base. However, I can try to provide a general answer based on my knowledge. To summarize something typically means to condense it into a shorter form while still capturing the main points and essential details. It's often used to simplify complex information, make it easier to understand, or convey the essence of a larger concept. If you'd like more ...
+
+### Prompt 127
+
+Request failed: 502
+

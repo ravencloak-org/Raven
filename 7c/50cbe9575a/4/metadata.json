@@ -3,33 +3,29 @@
   "checkpoint_id": "7c50cbe9575a",
   "session_id": "337cea8f-5a6b-4199-bc68-1de07b76ec01",
   "strategy": "manual-commit",
-  "created_at": "2026-06-02T13:47:14.446471Z",
+  "created_at": "2026-06-02T15:21:26.736881Z",
   "branch": "feat/llm-test-connection-and-install-hints",
-  "checkpoints_count": 6,
+  "checkpoints_count": 3,
   "files_touched": [
-    "ai-worker/raven_worker/services/rag.py",
-    "cmd/worker/main.go",
-    "internal/jobs/document_process.go",
-    "internal/jobs/extract_text.go",
-    "migrations/00046_embeddings_resize_to_768.sql"
+    "internal/jobs/document_process.go"
   ],
   "agent": "Claude Code",
-  "checkpoint_transcript_start": 6338,
-  "transcript_lines_at_start": 6338,
+  "checkpoint_transcript_start": 6878,
+  "transcript_lines_at_start": 6878,
   "token_usage": {
-    "input_tokens": 217,
-    "cache_creation_tokens": 1861125,
-    "cache_read_tokens": 110919052,
-    "output_tokens": 64580,
-    "api_call_count": 127
+    "input_tokens": 90,
+    "cache_creation_tokens": 184262,
+    "cache_read_tokens": 22003949,
+    "output_tokens": 38021,
+    "api_call_count": 56
   },
   "initial_attribution": {
-    "calculated_at": "2026-06-02T13:47:13.533015Z",
-    "agent_lines": 178,
-    "human_added": 111,
-    "human_modified": 1,
+    "calculated_at": "2026-06-02T15:21:25.886357Z",
+    "agent_lines": 0,
+    "human_added": 15,
+    "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 290,
-    "agent_percentage": 61.37931034482759
+    "total_committed": 15,
+    "agent_percentage": 0
   }
 }
