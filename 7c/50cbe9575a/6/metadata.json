@@ -3,9 +3,9 @@
   "checkpoint_id": "7c50cbe9575a",
   "session_id": "d8595691-8e54-4f3b-9d3c-e4e6c0e88193",
   "strategy": "manual-commit",
-  "created_at": "2026-06-02T15:21:28.640733Z",
-  "branch": "feat/llm-test-connection-and-install-hints",
-  "checkpoints_count": 7,
+  "created_at": "2026-06-02T15:37:25.073112Z",
+  "branch": "feat/marketplace-openapi-stubs",
+  "checkpoints_count": 3,
   "files_touched": [
     "CONTEXT.md",
     "docs/adr/0001-marketplace-fork-on-import.md",
@@ -13,23 +13,26 @@
     "docs/adr/0003-always-fresh-publish-lifecycle.md",
     "docs/adr/0004-free-tier-public-only-rule.md",
     "docs/adr/0005-org-as-marketplace-publisher.md",
-    "docs/adr/0006-licence-and-moderation.md"
+    "docs/adr/0006-licence-and-moderation.md",
+    "docs/adr/0008-marketplace-discovery-and-operations.md"
   ],
   "agent": "Claude Code",
+  "checkpoint_transcript_start": 414,
+  "transcript_lines_at_start": 414,
   "token_usage": {
-    "input_tokens": 163,
-    "cache_creation_tokens": 312860,
-    "cache_read_tokens": 6378864,
-    "output_tokens": 81743,
-    "api_call_count": 59
+    "input_tokens": 23,
+    "cache_creation_tokens": 16751,
+    "cache_read_tokens": 1508915,
+    "output_tokens": 14024,
+    "api_call_count": 8
   },
   "initial_attribution": {
-    "calculated_at": "2026-06-02T15:21:28.578463Z",
+    "calculated_at": "2026-06-02T15:37:24.987733Z",
     "agent_lines": 0,
-    "human_added": 0,
-    "human_modified": 15,
-    "human_removed": 303,
-    "total_committed": 15,
+    "human_added": 333,
+    "human_modified": 369,
+    "human_removed": 0,
+    "total_committed": 702,
     "agent_percentage": 0
   }
 }

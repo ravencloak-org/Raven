@@ -171,3 +171,34 @@ yes lets go, speed up.
 ---
 
 A in parallel, b here
+
+---
+
+go with recomended
+
+---
+
+what next? create gh milestone, wiki, docs, api-doc, issues, project, etc
+
+---
+
+<task-notification>
+<task-id>a3436a6a7a835c550</task-id>
+<tool-use-id>toolu_01Ukpcm2txkuDmcESTaL3TYV</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Write ADR-0007 + marketplace MVP plan" completed</summary>
+<result>Both files written.
+
+**Files**
+
+- `/Users/jobinlawrance/Project/raven/docs/adr/0007-marketplace-lifecycle-behaviours.md` — ADR-0007 capturing Q7a–7e (no try-before-fork + preview function, destructive Re-import preserving KB id, unpublish + 90-day slug hold + 410 Gone, edits piggyback on ADR-0003, org_slug column + 30-day rename redirect).
+- `/Users/jobinlawrance/Project/raven/docs/plans/marketplace-mvp.md` — MVP plan with goal, 7 sequential migrations (00047–00053), backend packages under `internal/marketplace/`, the `KB → PublishedKBProjection` projector and settings allow-list CI test from ADR-0002, full endpoint table, Vue routes, ops (DMCA inbox + runbooks), deferred items mapped to each ADR, and 3 milestones M1–M3.
+
+**Reconciliations noted**
+
+- ADR-0004 introduces `kb_status='read_only_private'`, but `kb_status` is an enum (migration 00007 declares it as a typed enum) — handled in plan as migration `00049` with an `ALTER TYPE ... ADD VALUE` and explicit "Postgres can't drop enum values; rollback is application-level" note.
+- `knowledge_bases.slug` is currently unique per workspace (migration 00007), but Marketplace URLs use `(org_slug, kb_slug)`. Plan adds a partial unique index on `(org_id, slug) WHERE visibility='public'` to make the Marketplace URL routable without breaking the workspace-scoped uniqueness used elsewhere.
+- ADR-0006 introduces `kb_status` interplay only via the `license_spdx_id` partial CHECK; reconciled by enforcing it as `CHECK (visibility = 'private' OR license_spdx_id IS NOT NULL)` rather than NOT NULL globally, so existing private rows in the live schema do not need backfill.</result>
+<usage><total_tokens>79123</total_tokens><tool_uses>16</tool_uses><duration_ms>397973</duration_ms></usage>
+</task-notification>

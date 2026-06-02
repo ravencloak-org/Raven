@@ -102,3 +102,25 @@ yes lets go, speed up.
 
 A in parallel, b here
 
+### Prompt 19
+
+go with recomended
+
+### Prompt 20
+
+what next? create gh milestone, wiki, docs, api-doc, issues, project, etc
+
+### Prompt 21
+
+<task-notification>
+<task-id>a3436a6a7a835c550</task-id>
+<tool-use-id>toolu_01Ukpcm2txkuDmcESTaL3TYV</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Write ADR-0007 + marketplace MVP plan" completed</summary>
+<result>Both files written.
+
+**Files**
+
+- `/Users/jobinlawrance/Project/raven/docs/adr/0007-marketplace-lifecycle-behaviours.md` ...
+

@@ -2,8 +2,8 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "branch": "feat/llm-test-connection-and-install-hints",
-  "checkpoints_count": 20,
+  "branch": "feat/marketplace-openapi-stubs",
+  "checkpoints_count": 16,
   "files_touched": [
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
     ".claude/worktrees/feat-billing-annual-refund/.env.ci",
@@ -30,6 +30,7 @@
     "docs/adr/0004-free-tier-public-only-rule.md",
     "docs/adr/0005-org-as-marketplace-publisher.md",
     "docs/adr/0006-licence-and-moderation.md",
+    "docs/adr/0008-marketplace-discovery-and-operations.md",
     "docs/superpowers/plans/2026-05-23-bytebase-tiered-plan-a.md",
     "docs/superpowers/specs/2026-05-23-bytebase-tiered-design.md",
     "frontend/src/components/AppSidebar.vue",
@@ -291,10 +292,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 1107,
-    "cache_creation_tokens": 3974253,
-    "cache_read_tokens": 140216079,
-    "output_tokens": 462211,
-    "api_call_count": 756
+    "input_tokens": 967,
+    "cache_creation_tokens": 3678144,
+    "cache_read_tokens": 135346130,
+    "output_tokens": 394492,
+    "api_call_count": 705
   }
 }
