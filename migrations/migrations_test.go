@@ -92,6 +92,7 @@ var allExpectedTypes = []string{
 	"user_status",
 	"workspace_role",
 	"kb_status",
+	"kb_visibility",
 	"processing_status",
 	"source_type",
 	"crawl_frequency",
@@ -325,6 +326,141 @@ func TestMigrationsUpAndDown(t *testing.T) {
 		}
 		if !strings.Contains(indexDef, "vector_cosine_ops") {
 			t.Errorf("expected HNSW index to use vector_cosine_ops, got: %s", indexDef)
+		}
+	})
+
+	t.Run("kb_marketplace_columns_and_trigger", func(t *testing.T) {
+		// Migration 00047 (issue #723): visibility / publish / lineage /
+		// freshness / license / discovery columns on knowledge_bases,
+		// plus the trg_kb_last_modified_on_documents/sources/chunks trigger
+		// that bumps last_modified_at when child content mutates.
+		//
+		// This sub-test:
+		//   1. Verifies every new column exists with the right default.
+		//   2. Verifies the four partial / GIN indexes are present.
+		//   3. Inserts a KB and asserts visibility defaults to 'private' and
+		//      counters default to 0.
+		//   4. Inserts a document under the KB and asserts last_modified_at
+		//      advances — proving the trigger fires across tables.
+
+		expectedColumns := map[string]string{
+			"visibility":                "kb_visibility",
+			"published_at":              "timestamp with time zone",
+			"published_by_user_id":      "uuid",
+			"source_public_kb_id":       "uuid",
+			"imported_from_revision_at": "timestamp with time zone",
+			"last_modified_at":          "timestamp with time zone",
+			"license_spdx_id":           "text",
+			"import_count":              "integer",
+			"preview_count":             "integer",
+			"search_tsv":                "tsvector",
+		}
+		for col, wantType := range expectedColumns {
+			var dataType string
+			err := db.QueryRowContext(ctx,
+				`SELECT data_type FROM information_schema.columns
+				 WHERE table_schema = 'public' AND table_name = 'knowledge_bases'
+				   AND column_name = $1`, col).Scan(&dataType)
+			if err != nil {
+				t.Errorf("missing column knowledge_bases.%s: %v", col, err)
+				continue
+			}
+			// The enum column reports its custom type as USER-DEFINED in
+			// information_schema; cross-check against pg_type for the real name.
+			if dataType == "USER-DEFINED" {
+				var typeName string
+				if err := db.QueryRowContext(ctx,
+					`SELECT udt_name FROM information_schema.columns
+					 WHERE table_schema = 'public' AND table_name = 'knowledge_bases'
+					   AND column_name = $1`, col).Scan(&typeName); err != nil {
+					t.Errorf("failed to read udt_name for %s: %v", col, err)
+					continue
+				}
+				if typeName != wantType {
+					t.Errorf("column %s: want type %s, got %s", col, wantType, typeName)
+				}
+				continue
+			}
+			if dataType != wantType {
+				t.Errorf("column %s: want type %s, got %s", col, wantType, dataType)
+			}
+		}
+
+		expectedIndexes := []string{
+			"idx_kb_visibility_public",
+			"idx_kb_source_public_kb_id",
+			"idx_kb_last_modified_at_public",
+			"idx_kb_search_tsv_public",
+		}
+		for _, idx := range expectedIndexes {
+			var exists bool
+			if err := db.QueryRowContext(ctx,
+				`SELECT EXISTS (SELECT 1 FROM pg_indexes
+				 WHERE tablename = 'knowledge_bases' AND indexname = $1)`, idx).
+				Scan(&exists); err != nil {
+				t.Errorf("failed to check index %s: %v", idx, err)
+			}
+			if !exists {
+				t.Errorf("expected index %s on knowledge_bases", idx)
+			}
+		}
+
+		// Bootstrap a workspace + KB so we can prove the trigger fires.
+		var orgID, wsID, kbID string
+		if err := db.QueryRowContext(ctx,
+			`INSERT INTO organizations (id, name, slug)
+			 VALUES (uuid_generate_v4(), 'KB Trigger Org', 'kb-trigger-org')
+			 RETURNING id`).Scan(&orgID); err != nil {
+			t.Fatalf("insert organization: %v", err)
+		}
+		if err := db.QueryRowContext(ctx,
+			`INSERT INTO workspaces (id, org_id, name, slug)
+			 VALUES (uuid_generate_v4(), $1, 'KB Trigger WS', 'kb-trigger-ws')
+			 RETURNING id`, orgID).Scan(&wsID); err != nil {
+			t.Fatalf("insert workspace: %v", err)
+		}
+		if err := db.QueryRowContext(ctx,
+			`INSERT INTO knowledge_bases (org_id, workspace_id, name, slug)
+			 VALUES ($1, $2, 'KB Trigger', 'kb-trigger')
+			 RETURNING id`, orgID, wsID).Scan(&kbID); err != nil {
+			t.Fatalf("insert knowledge_base: %v", err)
+		}
+
+		var visibility string
+		var importCount, previewCount int
+		var beforeLastModified time.Time
+		if err := db.QueryRowContext(ctx,
+			`SELECT visibility, import_count, preview_count, last_modified_at
+			 FROM knowledge_bases WHERE id = $1`, kbID).
+			Scan(&visibility, &importCount, &previewCount, &beforeLastModified); err != nil {
+			t.Fatalf("read marketplace defaults: %v", err)
+		}
+		if visibility != "private" {
+			t.Errorf("default visibility: want private, got %q", visibility)
+		}
+		if importCount != 0 || previewCount != 0 {
+			t.Errorf("default counters: want 0/0, got %d/%d", importCount, previewCount)
+		}
+
+		// Small sleep so the post-trigger timestamp can demonstrably exceed the
+		// pre-insert value.
+		time.Sleep(50 * time.Millisecond)
+
+		if _, err := db.ExecContext(ctx,
+			`INSERT INTO documents (org_id, knowledge_base_id, file_name)
+			 VALUES ($1, $2, 'trigger-doc.txt')`, orgID, kbID); err != nil {
+			t.Fatalf("insert document: %v", err)
+		}
+
+		var afterLastModified time.Time
+		if err := db.QueryRowContext(ctx,
+			`SELECT last_modified_at FROM knowledge_bases WHERE id = $1`, kbID).
+			Scan(&afterLastModified); err != nil {
+			t.Fatalf("read last_modified_at: %v", err)
+		}
+		if !afterLastModified.After(beforeLastModified) {
+			t.Errorf("expected trg_kb_last_modified_on_documents to bump last_modified_at; before=%v after=%v",
+				beforeLastModified, afterLastModified)
 		}
 	})
 
