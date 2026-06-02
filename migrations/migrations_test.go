@@ -194,7 +194,7 @@ func TestMigrationsUpAndDown(t *testing.T) {
 	}()
 
 	// Wait for DB to be fully ready.
-	for i := 0; i < 30; i++ {
+	for range 30 {
 		if err := db.PingContext(ctx); err == nil {
 			break
 		}
