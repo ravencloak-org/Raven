@@ -1,19 +1,17 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useAuthStore } from "../../stores/auth"
 import { useLlmProvidersStore } from '../../stores/llm-providers'
-import { useMobile } from '../../composables/useMediaQuery'
 import {
   PROVIDER_MODELS,
   testLlmProviderConnection,
+  type CreateLlmProviderRequest,
   type LlmProvider,
   type ProviderType,
-  type CreateLlmProviderRequest,
   type UpdateLlmProviderRequest,
 } from '../../api/llm-providers'
 
 const store = useLlmProvidersStore()
-const { isMobile } = useMobile()
 const authStore = useAuthStore()
 const orgId = computed(() => authStore.orgId ?? sessionStorage.getItem("raven_org_id") ?? "")
 
@@ -33,6 +31,44 @@ const providerToDelete = ref<string | null>(null)
 const providerToDeleteName = ref('')
 const deleting = ref(false)
 
+// In-memory connection-test status keyed by provider id. The Create dialog
+// (and the Edit dialog) writes here when a "Test connection" call comes back;
+// the list page reads it to warn before switching default to a provider whose
+// last test failed. Not persisted — session-only.
+const testStatus = ref<Record<string, 'pass' | 'fail'>>({})
+
+// Tracks which provider's "Make default" button is mid-flight so we can
+// disable it and avoid duplicate clicks during the optimistic update.
+const settingDefaultId = ref<string | null>(null)
+
+// Non-blocking error toast for default-switch failures. Auto-dismissed
+// after 4s; user can also click to close. Re-uses the existing Tailwind
+// palette — no toast library to keep the page footprint small.
+const defaultError = ref<string | null>(null)
+let defaultErrorTimer: ReturnType<typeof setTimeout> | null = null
+
+function showDefaultError(msg: string) {
+  defaultError.value = msg
+  if (defaultErrorTimer) clearTimeout(defaultErrorTimer)
+  defaultErrorTimer = setTimeout(() => {
+    defaultError.value = null
+    defaultErrorTimer = null
+  }, 4000)
+}
+
+async function handleMakeDefault(providerId: string) {
+  if (settingDefaultId.value) return
+  settingDefaultId.value = providerId
+  try {
+    await store.setDefault(orgId.value, providerId)
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Failed to set default provider'
+    showDefaultError(`Could not switch default: ${msg}`)
+  } finally {
+    settingDefaultId.value = null
+  }
+}
+
 
 const providerTypes: { value: ProviderType; label: string }[] = [
   { value: 'openai', label: 'OpenAI' },
@@ -40,6 +76,15 @@ const providerTypes: { value: ProviderType; label: string }[] = [
   { value: 'ollama', label: 'Ollama' },
   { value: 'custom', label: 'Custom' },
 ]
+
+// Pretty-print provider type for the card body. Keep in lockstep with
+// providerTypes above — single source of truth for label text.
+const providerTypeLabel: Record<ProviderType, string> = {
+  openai: 'OpenAI',
+  anthropic: 'Anthropic',
+  ollama: 'Ollama',
+  custom: 'Custom',
+}
 
 // Per-provider onboarding guidance shown in the Add-Provider dialog.
 // `keyHref` deep-links to the vendor's API-key console so the user can
@@ -77,9 +122,14 @@ function modelsForType(type: ProviderType) {
   return PROVIDER_MODELS[type] ?? []
 }
 
+function providerModel(provider: LlmProvider): string {
+  const m = provider.config?.model
+  return typeof m === 'string' ? m : ''
+}
+
 function onProviderTypeChange() {
   void modelsForType(form.value.provider)
-  
+
   form.value.base_url = form.value.provider === 'custom' || form.value.provider === 'ollama' ? '' : null
 }
 
@@ -108,6 +158,105 @@ async function handleCreate() {
 }
 
 const currentProviderHelp = computed(() => providerHelp[form.value.provider])
+
+// ---------------------------------------------------------------------------
+// Inline editing (#744)
+//
+// Two patches can fire from the card itself without opening the Edit dialog:
+//   - `display_name` via click-to-edit input (Enter / blur saves, Esc cancels).
+//   - `config.model` via inline <select> (change saves immediately).
+// Both go through `store.editProvider` which wraps `updateLlmProvider` and
+// sends a PARTIAL body. PR #749 guarantees `api_key` is preserved on the
+// server when omitted, so neither inline flow ever ships a key over the wire.
+//
+// Optimistic UX: store mutates the cached provider on success; on failure we
+// roll back the local mutation and surface a transient toast via the same
+// `showDefaultError` channel (the toast slot is generic enough to re-use).
+// ---------------------------------------------------------------------------
+const editingNameId = ref<string | null>(null)
+const editingNameDraft = ref('')
+const savedTickId = ref<string | null>(null)
+let savedTickTimer: ReturnType<typeof setTimeout> | null = null
+const nameInputRef = ref<HTMLInputElement | null>(null)
+
+function flashSavedTick(providerId: string) {
+  savedTickId.value = providerId
+  if (savedTickTimer) clearTimeout(savedTickTimer)
+  savedTickTimer = setTimeout(() => {
+    savedTickId.value = null
+    savedTickTimer = null
+  }, 1500)
+}
+
+async function startEditName(provider: LlmProvider) {
+  editingNameId.value = provider.id
+  editingNameDraft.value = provider.display_name
+  await nextTick()
+  nameInputRef.value?.focus()
+  nameInputRef.value?.select()
+}
+
+function cancelEditName() {
+  editingNameId.value = null
+  editingNameDraft.value = ''
+}
+
+async function commitEditName(provider: LlmProvider) {
+  const target = editingNameDraft.value.trim()
+  // No-op if unchanged or empty — just close the inline editor.
+  if (!target || target === provider.display_name) {
+    cancelEditName()
+    return
+  }
+  const previousName = provider.display_name
+  // Optimistic local mutation: paint the new name immediately.
+  const idx = store.providers.findIndex((p) => p.id === provider.id)
+  if (idx !== -1) store.providers[idx] = { ...store.providers[idx], display_name: target }
+  editingNameId.value = null
+  editingNameDraft.value = ''
+  try {
+    await store.editProvider(orgId.value, provider.id, { display_name: target })
+    flashSavedTick(provider.id)
+  } catch (e: unknown) {
+    // Roll back the optimistic name.
+    const rollbackIdx = store.providers.findIndex((p) => p.id === provider.id)
+    if (rollbackIdx !== -1) {
+      store.providers[rollbackIdx] = { ...store.providers[rollbackIdx], display_name: previousName }
+    }
+    const msg = e instanceof Error ? e.message : 'Failed to save name'
+    showDefaultError(`Could not save name: ${msg}`)
+  }
+}
+
+async function commitModelChange(provider: LlmProvider, nextModel: string) {
+  const previousConfig = provider.config ?? {}
+  const previousModel = providerModel(provider)
+  if (nextModel === previousModel) return
+  // Optimistic local mutation.
+  const idx = store.providers.findIndex((p) => p.id === provider.id)
+  if (idx !== -1) {
+    store.providers[idx] = {
+      ...store.providers[idx],
+      config: { ...(previousConfig as Record<string, unknown>), model: nextModel },
+    }
+  }
+  try {
+    await store.editProvider(orgId.value, provider.id, {
+      config: { ...(previousConfig as Record<string, unknown>), model: nextModel },
+    })
+    flashSavedTick(provider.id)
+  } catch (e: unknown) {
+    const rollbackIdx = store.providers.findIndex((p) => p.id === provider.id)
+    if (rollbackIdx !== -1) {
+      store.providers[rollbackIdx] = {
+        ...store.providers[rollbackIdx],
+        config: previousConfig as Record<string, unknown>,
+      }
+    }
+    const msg = e instanceof Error ? e.message : 'Failed to save model'
+    showDefaultError(`Could not save model: ${msg}`)
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Edit-credentials dialog (#742)
@@ -310,7 +459,7 @@ onMounted(() => store.fetchProviders(orgId.value))
 </script>
 
 <template>
-  <div class="mx-auto max-w-4xl p-6">
+  <div class="mx-auto max-w-4xl p-4 sm:p-6">
     <div class="mb-6 flex items-center justify-between">
       <h1 class="text-2xl font-bold text-gray-900">LLM Providers</h1>
       <button class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700" @click="showCreateDialog = true">
@@ -325,72 +474,164 @@ onMounted(() => store.fetchProviders(orgId.value))
       <button class="mt-2 text-sm text-indigo-600 hover:underline" @click="showCreateDialog = true">Add your first provider</button>
     </div>
 
-    <!-- Desktop: full provider cards -->
-    <div v-else-if="!isMobile" class="space-y-4">
-      <div v-for="provider in store.providers" :key="provider.id" class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-        <div class="flex items-start justify-between">
-          <div>
-            <div class="flex items-center gap-2">
-              <h3 class="font-semibold text-gray-900">{{ provider.display_name }}</h3>
-              <span :class="['rounded-full px-2 py-0.5 text-xs font-medium', provider.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600']">{{ provider.status }}</span>
-            </div>
-            <p class="mt-1 text-sm text-gray-500">
-              {{ provider.provider.toUpperCase() }} &middot; {{ provider.provider }}
-              <span v-if="provider.base_url"> &middot; {{ provider.base_url }}</span>
-            </p>
-            <p class="mt-1 text-xs text-gray-400">
-              API key {{ !!provider.api_key_hint ? 'configured' : 'not set' }}
-            </p>
-          </div>
-          <div class="flex gap-2">
-            <button class="rounded border border-gray-300 px-3 py-1 text-xs text-gray-700 hover:bg-gray-50" @click="openEditDialog(provider)">
-              Edit credentials
-            </button>
-            <button class="rounded border border-red-300 px-3 py-1 text-xs text-red-700 hover:bg-red-50" @click="confirmDelete(provider.id, provider.display_name)">
-              Delete
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Mobile: compact card list -->
-    <div v-else class="space-y-3">
-      <div
+    <!--
+      Unified responsive provider card (#744). One markup tree drives both
+      desktop and mobile layouts via Tailwind breakpoints — no `isMobile`
+      branching. Card body collapses gracefully on narrow viewports; the
+      action row wraps. Default-pill + Make-default button data-testids
+      from #748 are preserved so e2e tests don't break.
+    -->
+    <div v-else class="space-y-4" data-testid="provider-list">
+      <article
         v-for="provider in store.providers"
         :key="provider.id"
-        class="bg-slate-800 rounded-xl p-3.5"
+        class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+        data-testid="provider-card"
       >
-        <!-- Header: name + status badge -->
-        <div class="flex items-start justify-between gap-2">
-          <span class="text-white font-semibold text-[15px] truncate">{{ provider.display_name }}</span>
+        <!-- Header row: icon + (editable name | status | default pill) -->
+        <div class="flex items-start gap-3">
+          <!-- Provider-type icon (chip glyph for visual consistency with the M13 menu). -->
           <span
-            class="shrink-0 inline-block rounded-full px-2 py-0.5 text-xs font-medium"
+            aria-hidden="true"
+            class="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-indigo-50 text-indigo-600"
           >
-            {{ provider.status }}
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+              <rect x="9" y="9" width="6" height="6" />
+              <path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3" />
+            </svg>
           </span>
+
+          <div class="min-w-0 flex-1">
+            <!-- Editable display_name + status badge + default pill -->
+            <div class="flex flex-wrap items-center gap-2">
+              <input
+                v-if="editingNameId === provider.id"
+                ref="nameInputRef"
+                v-model="editingNameDraft"
+                type="text"
+                data-testid="display-name-input"
+                class="min-w-0 flex-1 rounded border border-indigo-300 px-2 py-1 text-base font-semibold text-gray-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                @keydown.enter.prevent="commitEditName(provider)"
+                @keydown.esc.prevent="cancelEditName"
+                @blur="commitEditName(provider)"
+              />
+              <button
+                v-else
+                type="button"
+                data-testid="display-name-label"
+                class="truncate rounded px-1 py-0.5 text-left text-base font-semibold text-gray-900 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                :title="`Click to rename — ${provider.display_name}`"
+                @click="startEditName(provider)"
+              >
+                {{ provider.display_name }}
+              </button>
+              <span
+                :class="[
+                  'shrink-0 rounded-full px-2 py-0.5 text-xs font-medium',
+                  provider.status === 'active'
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-gray-100 text-gray-600',
+                ]"
+              >
+                {{ provider.status }}
+              </span>
+              <span
+                v-if="provider.is_default"
+                data-testid="default-pill"
+                class="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 transition duration-200 ease-out"
+              >
+                Default
+              </span>
+              <span
+                v-if="savedTickId === provider.id"
+                data-testid="saved-tick"
+                class="shrink-0 text-xs font-medium text-green-600"
+                role="status"
+                aria-live="polite"
+              >
+                Saved ✓
+              </span>
+            </div>
+
+            <!-- Type + base_url meta -->
+            <p class="mt-1 text-sm text-gray-500">
+              {{ providerTypeLabel[provider.provider] }}
+              <span v-if="provider.base_url" class="break-all"> &middot; {{ provider.base_url }}</span>
+            </p>
+
+            <!-- Inline model selector + api-key hint -->
+            <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+              <label class="flex items-center gap-2 text-xs text-gray-600">
+                <span class="shrink-0">Model</span>
+                <select
+                  data-testid="model-select"
+                  class="rounded border-gray-300 px-2 py-1 text-xs shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  :value="providerModel(provider)"
+                  @change="commitModelChange(provider, ($event.target as HTMLSelectElement).value)"
+                >
+                  <option v-if="!providerModel(provider)" value="">Select model…</option>
+                  <option
+                    v-for="m in modelsForType(provider.provider)"
+                    :key="m.value"
+                    :value="m.value"
+                  >
+                    {{ m.label }}
+                  </option>
+                </select>
+              </label>
+              <span class="text-xs text-gray-400">
+                API key {{ provider.api_key_hint ? 'configured' : 'not set' }}
+              </span>
+            </div>
+
+            <p
+              v-if="!provider.is_default && testStatus[provider.id] === 'fail'"
+              class="mt-2 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-800"
+            >
+              Last connection test failed — switching default may break chat.
+            </p>
+          </div>
         </div>
 
-        <p class="text-slate-400 text-xs mt-1">
-          {{ provider.provider.toUpperCase() }}
-        </p>
-
-        <!-- Action row -->
-        <div class="border-t border-slate-700 mt-2.5 pt-2.5 flex items-center justify-end gap-2">
+        <!-- Action row: wraps under content on narrow viewports. -->
+        <div class="mt-3 flex flex-wrap justify-end gap-2 border-t border-gray-100 pt-3">
           <button
-            class="border border-slate-500 text-slate-200 text-xs px-3 py-1 rounded-lg"
+            v-if="!provider.is_default"
+            data-testid="make-default-btn"
+            :disabled="settingDefaultId === provider.id"
+            class="rounded border border-amber-300 px-3 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-50"
+            @click="handleMakeDefault(provider.id)"
+          >
+            {{ settingDefaultId === provider.id ? 'Setting...' : 'Make default' }}
+          </button>
+          <button
+            data-testid="edit-credentials-btn"
+            class="rounded border border-gray-300 px-3 py-1 text-xs text-gray-700 hover:bg-gray-50"
             @click="openEditDialog(provider)"
           >
             Edit credentials
           </button>
           <button
-            class="border border-red-500 text-red-400 text-xs px-3 py-1 rounded-lg"
+            data-testid="delete-btn"
+            class="rounded border border-red-300 px-3 py-1 text-xs text-red-700 hover:bg-red-50"
             @click="confirmDelete(provider.id, provider.display_name)"
           >
             Delete
           </button>
         </div>
-      </div>
+      </article>
+    </div>
+
+    <!-- Default-switch error toast (non-blocking, auto-dismisses) -->
+    <div
+      v-if="defaultError"
+      data-testid="default-error-toast"
+      class="fixed bottom-4 right-4 z-50 max-w-sm rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-lg"
+      role="alert"
+      @click="defaultError = null"
+    >
+      {{ defaultError }}
     </div>
 
     <!-- Create Dialog -->
