@@ -3,11 +3,12 @@
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
   "branch": "feat/llm-test-connection-and-install-hints",
-  "checkpoints_count": 13,
+  "checkpoints_count": 20,
   "files_touched": [
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
     ".claude/worktrees/feat-billing-annual-refund/.env.ci",
     ".claude/worktrees/feat-enterprise-onboarding/.env.ci",
+    "CONTEXT.md",
     "cmd/api/main.go",
     "deploy/ansible/group_vars/all.yml",
     "deploy/ansible/inventory/hosts.yml",
@@ -23,6 +24,12 @@
     "deploy/terraform/demo/outputs.tf",
     "deploy/terraform/demo/security_group.tf",
     "deploy/terraform/demo/vpc.tf",
+    "docs/adr/0001-marketplace-fork-on-import.md",
+    "docs/adr/0002-content-grade-publish-boundary.md",
+    "docs/adr/0003-always-fresh-publish-lifecycle.md",
+    "docs/adr/0004-free-tier-public-only-rule.md",
+    "docs/adr/0005-org-as-marketplace-publisher.md",
+    "docs/adr/0006-licence-and-moderation.md",
     "docs/superpowers/plans/2026-05-23-bytebase-tiered-plan-a.md",
     "docs/superpowers/specs/2026-05-23-bytebase-tiered-design.md",
     "frontend/src/components/AppSidebar.vue",
@@ -274,13 +281,20 @@
       "context": "/7c/50cbe9575a/5/context.md",
       "content_hash": "/7c/50cbe9575a/5/content_hash.txt",
       "prompt": "/7c/50cbe9575a/5/prompt.txt"
+    },
+    {
+      "metadata": "/7c/50cbe9575a/6/metadata.json",
+      "transcript": "/7c/50cbe9575a/6/full.jsonl",
+      "context": "/7c/50cbe9575a/6/context.md",
+      "content_hash": "/7c/50cbe9575a/6/content_hash.txt",
+      "prompt": "/7c/50cbe9575a/6/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 944,
-    "cache_creation_tokens": 3661393,
-    "cache_read_tokens": 133837215,
-    "output_tokens": 380468,
-    "api_call_count": 697
+    "input_tokens": 1107,
+    "cache_creation_tokens": 3974253,
+    "cache_read_tokens": 140216079,
+    "output_tokens": 462211,
+    "api_call_count": 756
   }
 }
