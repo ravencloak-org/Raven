@@ -124,3 +124,35 @@ what next? create gh milestone, wiki, docs, api-doc, issues, project, etc
 
 - `/Users/jobinlawrance/Project/raven/docs/adr/0007-marketplace-lifecycle-behaviours.md` ...
 
+### Prompt 22
+
+<task-notification>
+<task-id>aaeae0dac8687ff16</task-id>
+<tool-use-id>toolu_01DuhpCx3A3RDzUBAKza93i4</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "GH milestone + labels + project + issues" completed</summary>
+<result>All 15 issues attached to project, milestone shows 15 open, label exists. Final report.
+
+---
+
+## Marketplace MVP — G...
+
+### Prompt 23
+
+<task-notification>
+<task-id>a500ffd38fc172051</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "OpenAPI marketplace endpoint stubs" completed</summary>
+<result>GitHub refuses auto-merge on draft PRs. Per the task it must stay a **draft** PR but CLAUDE.md says queue auto-merge per rep...
+
+### Prompt 24
+
+go
+
+### Prompt 25
+
+what's happening?
+

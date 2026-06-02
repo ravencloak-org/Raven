@@ -3,10 +3,11 @@
   "checkpoint_id": "7c50cbe9575a",
   "session_id": "d8595691-8e54-4f3b-9d3c-e4e6c0e88193",
   "strategy": "manual-commit",
-  "created_at": "2026-06-02T15:37:25.073112Z",
-  "branch": "feat/marketplace-openapi-stubs",
-  "checkpoints_count": 3,
+  "created_at": "2026-06-02T16:02:41.795826Z",
+  "branch": "chore/fix-test-lint-backlog",
+  "checkpoints_count": 2,
   "files_touched": [
+    ".claude/worktrees/agent-a30f41e3e0609aff8/.env.ci",
     "CONTEXT.md",
     "docs/adr/0001-marketplace-fork-on-import.md",
     "docs/adr/0002-content-grade-publish-boundary.md",
@@ -14,25 +15,26 @@
     "docs/adr/0004-free-tier-public-only-rule.md",
     "docs/adr/0005-org-as-marketplace-publisher.md",
     "docs/adr/0006-licence-and-moderation.md",
-    "docs/adr/0008-marketplace-discovery-and-operations.md"
+    "docs/adr/0008-marketplace-discovery-and-operations.md",
+    "docs/plans/marketplace-mvp.md"
   ],
   "agent": "Claude Code",
-  "checkpoint_transcript_start": 414,
-  "transcript_lines_at_start": 414,
+  "checkpoint_transcript_start": 484,
+  "transcript_lines_at_start": 484,
   "token_usage": {
-    "input_tokens": 23,
-    "cache_creation_tokens": 16751,
-    "cache_read_tokens": 1508915,
-    "output_tokens": 14024,
-    "api_call_count": 8
+    "input_tokens": 30,
+    "cache_creation_tokens": 17190,
+    "cache_read_tokens": 2083908,
+    "output_tokens": 12531,
+    "api_call_count": 10
   },
   "initial_attribution": {
-    "calculated_at": "2026-06-02T15:37:24.987733Z",
+    "calculated_at": "2026-06-02T16:02:41.707091Z",
     "agent_lines": 0,
-    "human_added": 333,
-    "human_modified": 369,
-    "human_removed": 0,
-    "total_committed": 702,
+    "human_added": 0,
+    "human_modified": 557,
+    "human_removed": 37,
+    "total_committed": 557,
     "agent_percentage": 0
   }
 }

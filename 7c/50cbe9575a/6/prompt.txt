@@ -202,3 +202,91 @@ what next? create gh milestone, wiki, docs, api-doc, issues, project, etc
 - ADR-0006 introduces `kb_status` interplay only via the `license_spdx_id` partial CHECK; reconciled by enforcing it as `CHECK (visibility = 'private' OR license_spdx_id IS NOT NULL)` rather than NOT NULL globally, so existing private rows in the live schema do not need backfill.</result>
 <usage><total_tokens>79123</total_tokens><tool_uses>16</tool_uses><duration_ms>397973</duration_ms></usage>
 </task-notification>
+
+---
+
+<task-notification>
+<task-id>aaeae0dac8687ff16</task-id>
+<tool-use-id>toolu_01DuhpCx3A3RDzUBAKza93i4</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "GH milestone + labels + project + issues" completed</summary>
+<result>All 15 issues attached to project, milestone shows 15 open, label exists. Final report.
+
+---
+
+## Marketplace MVP — GitHub setup complete
+
+### Milestone
+- **#17 Marketplace MVP** — https://github.com/ravencloak-org/Raven/milestone/17 (15 open, 0 closed). Description references the plan + ADRs and flags DMCA inbox + admin runbook as launch-close blockers.
+
+### Project v2
+- **#3 Marketplace MVP** (org-level, matching the M11 precedent) — https://github.com/orgs/ravencloak-org/projects/3. All 15 issues attached.
+
+### Labels
+- **Created**: `area/marketplace` (color `5319E7`)
+- **Reused**: `backend`, `frontend`, `enhancement`, `ready-for-agent`, `security`, `docs`, `observability`, `javascript`, `P0-blocker`
+
+### Issues — `#NNN | Phase | Title`
+
+| # | Phase | Title |
+|---|---|---|
+| #723 | M1 | feat(db): add Marketplace columns to `knowledge_bases` (migration 00047) |
+| #724 | M1 | feat(org): promote `organizations.slug` to first-class column with 30-day soft-redirect (migration 00048) |
+| #725 | M1 | feat(db): add `read_only_private` to `kb_status` enum + status-aware read/write paths (migration 00049) |
+| #726 | M1 | feat(marketplace): publish endpoint with SPDX license allow-list and projection boundary |
+| #727 | M1 | feat(marketplace): unpublish endpoint, 90-day slug hold + sweeper, downgrade-freeze, Free Plan public-only override |
+| #728 | M2 | feat(db): `marketplace_list_public_kbs()` + `marketplace_preview_kb()` SECURITY DEFINER functions (migration 00052) |
+| #729 | M2 | feat(marketplace): import endpoint — content-grade fork with Free Plan public-only override |
+| #730 | M2 | feat(marketplace): re-import endpoint — destructive overwrite preserving KB id and runtime artefacts |
+| #731 | M2 | feat(marketplace): listing, detail, and preview endpoints with sort/license-filter/search + 410-Gone |
+| #732 | M2 | feat(frontend): Marketplace browse/detail/preview/import views under `/marketplace/*` |
+| #733 | M3 | feat(db): `marketplace_reports`, `marketplace_takedowns`, `dmca_pending` status, strike counter (migration 00053) |
+| #734 | M3 | feat(marketplace): Report button + admin reactive review queue (`/admin/marketplace/reports`) |
+| #735 | M3 | feat(marketplace): admin takedown endpoint, audit-log view, derivative-owner notifier |
+| #736 | M3 | chore(legal): DMCA inbox + two-stage counter-notice workflow (launch blocker) |
+| #737 | M3 | chore(ops): takedown runbook, repeat-infringer workflow, OpenObserve Marketplace dashboards |
+
+### Reconciliation notes
+- Milestone name follows the user's spec `Marketplace MVP` (no `MN:` prefix); the repo's prior `MN: Title` convention was overridden by explicit instruction.
+- Project chosen org-level because the most recent active project (`M11 — Raven Local (Desktop)`, #2) is also org-level.
+- No existing `Marketplace MVP` milestone or project found — created fresh, no extension.
+- M9-style issues carry no labels at all; I applied existing label taxonomy anyway since `ready-for-agent` is the documented dispatch signal in CLAUDE.md.
+- M1 schema slice for license + strikes (migration `00050_kb_license_and_strikes.sql`) was folded into #726 (publish) rather than a standalone issue — the CHECK constraint and `takedown_strikes` column have no value without the publish handler that consumes them, so they ship as one tracer bullet.</result>
+<usage><total_tokens>76989</total_tokens><tool_uses>17</tool_uses><duration_ms>425350</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a500ffd38fc172051</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "OpenAPI marketplace endpoint stubs" completed</summary>
+<result>GitHub refuses auto-merge on draft PRs. Per the task it must stay a **draft** PR but CLAUDE.md says queue auto-merge per repo policy. The repo policy applies to mergeable PRs; the task explicitly asks for a draft. Auto-merge isn't allowed on drafts — that's a GitHub constraint, not something I can fix. I'll leave the draft state intact as the task instructions explicitly requested.
+
+Report:
+
+**Done.**
+
+- **Spec file modified:** `/Users/jobinlawrance/Project/raven/contracts/openapi.yaml` (+664 lines, single-file change)
+- **Branch:** `feat/marketplace-openapi-stubs` (cut from `origin/main`, not from the existing feature branch)
+- **PR:** https://github.com/ravencloak-org/Raven/pull/738 (draft)
+- **Endpoints added:** 12 paths / 12 operations across two new tags (`Marketplace`, `Marketplace Admin`). Schemas added: 12 (`MarketplaceListItem`, `MarketplaceListing`, `MarketplacePreview`, `PreviewChunk`, `PublishRequest`, `ReImportRequest`, `ImportRequest`, `ImportResult`, `ReportRequest`, `MarketplaceReport`, `DMCANotice`, `DMCANoticeReceipt`). Reused existing `KnowledgeBase` + `ErrorResponse`.
+- **Linter result:** the repo lints via `npx @stoplight/spectral-cli@6` in `.github/workflows/docs.yml`. The sandbox denied `npx` and the locally-installed `redocly` binary; CI will be authoritative. As a substitute I ran a YAML parse + custom structural validator (operationId / summary / tag / `$ref` integrity): 26 ops, all unique operationIds, all schema refs resolve, only pre-existing `WorkspaceMember` unused.
+- **Surprises:**
+  1. Repo uses `ErrorResponse`, not `Error` (task spec said reuse `Error` — adjusted to the existing name).
+  2. Plan's table lists `/admin/marketplace/takedowns` POST; task spec lists `/admin/marketplace/dmca` + report `/approve` + `/dismiss`. I followed the task spec.
+  3. Plan returns 422 for Free-Plan `visibility=private`; task spec says 403. Used 403 per task and flagged the inconsistency in the PR body.
+  4. Auto-merge queue failed: GitHub rejects `gh pr merge --auto` on draft PRs. PR left as draft per explicit task requirement; another agent or the user can mark it ready when desired.</result>
+<usage><total_tokens>97400</total_tokens><tool_uses>43</tool_uses><duration_ms>519868</duration_ms></usage>
+</task-notification>
+
+---
+
+go
+
+---
+
+what's happening?
