@@ -20,16 +20,36 @@ func NewKBRepository(pool *pgxpool.Pool) *KBRepository {
 	return &KBRepository{pool: pool}
 }
 
-// kbColumns lists every column returned by KB reads. The M9 semantic cache
-// (#256) added cache_enabled and cache_similarity_threshold.
+// kbColumns lists every column returned by KB reads.
+//
+// History:
+//   - M9 semantic cache (#256) added cache_enabled, cache_similarity_threshold.
+//   - Marketplace MVP (#723, migration 00047) added the visibility / publish /
+//     lineage / freshness / license / discovery block.
+//
+// search_tsv is intentionally omitted: callers never need the raw tsvector,
+// and Marketplace search reads it server-side via dedicated SQL functions
+// (added in migration 00052).
 const kbColumns = `id, org_id, workspace_id, name, slug,
 	COALESCE(description, '') AS description, settings, status,
 	cache_enabled, cache_similarity_threshold,
+	visibility, published_at, published_by_user_id,
+	source_public_kb_id, imported_from_revision_at, last_modified_at,
+	license_spdx_id, import_count, preview_count,
 	created_at, updated_at`
 
 func scanKB(row pgx.Row) (*model.KnowledgeBase, error) {
 	var kb model.KnowledgeBase
-	err := row.Scan(
+	if err := scanKBInto(row, &kb); err != nil {
+		return nil, err
+	}
+	return &kb, nil
+}
+
+// scanKBInto is shared by single-row scans and the iterator loop in
+// ListByWorkspace so the column order stays defined in one place.
+func scanKBInto(row pgx.Row, kb *model.KnowledgeBase) error {
+	return row.Scan(
 		&kb.ID,
 		&kb.OrgID,
 		&kb.WorkspaceID,
@@ -40,13 +60,18 @@ func scanKB(row pgx.Row) (*model.KnowledgeBase, error) {
 		&kb.Status,
 		&kb.CacheEnabled,
 		&kb.CacheSimilarityThreshold,
+		&kb.Visibility,
+		&kb.PublishedAt,
+		&kb.PublishedByUserID,
+		&kb.SourcePublicKBID,
+		&kb.ImportedFromRevisionAt,
+		&kb.LastModifiedAt,
+		&kb.LicenseSPDXID,
+		&kb.ImportCount,
+		&kb.PreviewCount,
 		&kb.CreatedAt,
 		&kb.UpdatedAt,
 	)
-	if err != nil {
-		return nil, err
-	}
-	return &kb, nil
 }
 
 // Create inserts a new knowledge base within a workspace transaction.
@@ -96,10 +121,7 @@ func (r *KBRepository) ListByWorkspace(ctx context.Context, tx pgx.Tx, orgID, ws
 	var kbs []model.KnowledgeBase
 	for rows.Next() {
 		var kb model.KnowledgeBase
-		if err := rows.Scan(&kb.ID, &kb.OrgID, &kb.WorkspaceID, &kb.Name, &kb.Slug,
-			&kb.Description, &kb.Settings, &kb.Status,
-			&kb.CacheEnabled, &kb.CacheSimilarityThreshold,
-			&kb.CreatedAt, &kb.UpdatedAt); err != nil {
+		if err := scanKBInto(rows, &kb); err != nil {
 			return nil, fmt.Errorf("KBRepository.ListByWorkspace scan: %w", err)
 		}
 		kbs = append(kbs, kb)
