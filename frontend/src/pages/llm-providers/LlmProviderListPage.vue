@@ -26,6 +26,44 @@ const providerToDelete = ref<string | null>(null)
 const providerToDeleteName = ref('')
 const deleting = ref(false)
 
+// In-memory connection-test status keyed by provider id. The Create dialog
+// (and a future Edit flow) writes here when a "Test connection" call comes
+// back; the list page reads it to warn before switching default to a
+// provider whose last test failed. Not persisted — session-only.
+const testStatus = ref<Record<string, 'pass' | 'fail'>>({})
+
+// Tracks which provider's "Make default" button is mid-flight so we can
+// disable it and avoid duplicate clicks during the optimistic update.
+const settingDefaultId = ref<string | null>(null)
+
+// Non-blocking error toast for default-switch failures. Auto-dismissed
+// after 4s; user can also click to close. Re-uses the existing Tailwind
+// palette — no toast library to keep the page footprint small.
+const defaultError = ref<string | null>(null)
+let defaultErrorTimer: ReturnType<typeof setTimeout> | null = null
+
+function showDefaultError(msg: string) {
+  defaultError.value = msg
+  if (defaultErrorTimer) clearTimeout(defaultErrorTimer)
+  defaultErrorTimer = setTimeout(() => {
+    defaultError.value = null
+    defaultErrorTimer = null
+  }, 4000)
+}
+
+async function handleMakeDefault(providerId: string) {
+  if (settingDefaultId.value) return
+  settingDefaultId.value = providerId
+  try {
+    await store.setDefault(orgId.value, providerId)
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Failed to set default provider'
+    showDefaultError(`Could not switch default: ${msg}`)
+  } finally {
+    settingDefaultId.value = null
+  }
+}
+
 
 const providerTypes: { value: ProviderType; label: string }[] = [
   { value: 'openai', label: 'OpenAI' },
@@ -141,6 +179,13 @@ onMounted(() => store.fetchProviders(orgId.value))
             <div class="flex items-center gap-2">
               <h3 class="font-semibold text-gray-900">{{ provider.display_name }}</h3>
               <span :class="['rounded-full px-2 py-0.5 text-xs font-medium', provider.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600']">{{ provider.status }}</span>
+              <span
+                v-if="provider.is_default"
+                data-testid="default-pill"
+                class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 transition duration-200 ease-out"
+              >
+                Default
+              </span>
             </div>
             <p class="mt-1 text-sm text-gray-500">
               {{ provider.provider.toUpperCase() }} &middot; {{ provider.provider }}
@@ -149,8 +194,23 @@ onMounted(() => store.fetchProviders(orgId.value))
             <p class="mt-1 text-xs text-gray-400">
               API key {{ !!provider.api_key_hint ? 'configured' : 'not set' }}
             </p>
+            <p
+              v-if="!provider.is_default && testStatus[provider.id] === 'fail'"
+              class="mt-2 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-800"
+            >
+              Last connection test failed — switching default may break chat.
+            </p>
           </div>
           <div class="flex gap-2">
+            <button
+              v-if="!provider.is_default"
+              data-testid="make-default-btn"
+              :disabled="settingDefaultId === provider.id"
+              class="rounded border border-amber-300 px-3 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-50"
+              @click="handleMakeDefault(provider.id)"
+            >
+              {{ settingDefaultId === provider.id ? 'Setting...' : 'Make default' }}
+            </button>
             <button class="rounded border border-red-300 px-3 py-1 text-xs text-red-700 hover:bg-red-50" @click="confirmDelete(provider.id, provider.display_name)">
               Delete
             </button>
@@ -166,22 +226,45 @@ onMounted(() => store.fetchProviders(orgId.value))
         :key="provider.id"
         class="bg-slate-800 rounded-xl p-3.5"
       >
-        <!-- Header: name + status badge -->
+        <!-- Header: name + status badge + default pill -->
         <div class="flex items-start justify-between gap-2">
           <span class="text-white font-semibold text-[15px] truncate">{{ provider.display_name }}</span>
-          <span
-            class="shrink-0 inline-block rounded-full px-2 py-0.5 text-xs font-medium"
-          >
-            {{ provider.status }}
-          </span>
+          <div class="flex shrink-0 items-center gap-1.5">
+            <span class="inline-block rounded-full px-2 py-0.5 text-xs font-medium">
+              {{ provider.status }}
+            </span>
+            <span
+              v-if="provider.is_default"
+              data-testid="default-pill-mobile"
+              class="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 transition duration-200 ease-out"
+            >
+              Default
+            </span>
+          </div>
         </div>
 
         <p class="text-slate-400 text-xs mt-1">
           {{ provider.provider.toUpperCase() }}
         </p>
 
+        <p
+          v-if="!provider.is_default && testStatus[provider.id] === 'fail'"
+          class="mt-2 rounded border border-amber-400/40 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-300"
+        >
+          Last connection test failed — switching default may break chat.
+        </p>
+
         <!-- Action row -->
         <div class="border-t border-slate-700 mt-2.5 pt-2.5 flex items-center justify-end gap-2">
+          <button
+            v-if="!provider.is_default"
+            data-testid="make-default-btn-mobile"
+            :disabled="settingDefaultId === provider.id"
+            class="border border-amber-400 text-amber-300 text-xs px-3 py-1 rounded-lg disabled:opacity-50"
+            @click="handleMakeDefault(provider.id)"
+          >
+            {{ settingDefaultId === provider.id ? 'Setting...' : 'Make default' }}
+          </button>
           <button
             class="border border-red-500 text-red-400 text-xs px-3 py-1 rounded-lg"
             @click="confirmDelete(provider.id, provider.display_name)"
@@ -190,6 +273,17 @@ onMounted(() => store.fetchProviders(orgId.value))
           </button>
         </div>
       </div>
+    </div>
+
+    <!-- Default-switch error toast (non-blocking, auto-dismisses) -->
+    <div
+      v-if="defaultError"
+      data-testid="default-error-toast"
+      class="fixed bottom-4 right-4 z-50 max-w-sm rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-lg"
+      role="alert"
+      @click="defaultError = null"
+    >
+      {{ defaultError }}
     </div>
 
     <!-- Create Dialog -->
