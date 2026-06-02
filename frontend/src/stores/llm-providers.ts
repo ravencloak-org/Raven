@@ -8,6 +8,7 @@ import {
   createLlmProvider,
   updateLlmProvider,
   deleteLlmProvider,
+  setDefaultProvider,
 } from '../api/llm-providers'
 
 export const useLlmProvidersStore = defineStore('llmProviders', () => {
@@ -52,6 +53,44 @@ export const useLlmProvidersStore = defineStore('llmProviders', () => {
     providers.value = providers.value.filter((p) => p.id !== providerId)
   }
 
+  /**
+   * Optimistically promotes `providerId` to be the org's default provider.
+   * Locally flips `is_default` on the target to `true` and on every other
+   * row to `false` BEFORE the network call so the UI updates instantly.
+   * On API failure the previous default snapshot is restored and the
+   * error is rethrown so callers can show a toast.
+   */
+  async function setDefault(orgId: string, providerId: string) {
+    const target = providers.value.find((p) => p.id === providerId)
+    if (!target) {
+      throw new Error(`Provider ${providerId} not found`)
+    }
+    if (target.is_default) {
+      return target
+    }
+    // Snapshot previous is_default state so we can roll back on failure.
+    const previous = providers.value.map((p) => ({ id: p.id, is_default: p.is_default }))
+    // Optimistic flip: exactly one row is the default at any time.
+    providers.value = providers.value.map((p) => ({
+      ...p,
+      is_default: p.id === providerId,
+    }))
+    try {
+      const updated = await setDefaultProvider(orgId, providerId)
+      const idx = providers.value.findIndex((p) => p.id === providerId)
+      if (idx !== -1) providers.value[idx] = updated
+      return updated
+    } catch (e) {
+      // Roll back optimistic state.
+      providers.value = providers.value.map((p) => {
+        const prev = previous.find((q) => q.id === p.id)
+        return prev ? { ...p, is_default: prev.is_default } : p
+      })
+      error.value = (e as Error).message
+      throw e
+    }
+  }
+
   return {
     providers,
     loading,
@@ -63,5 +102,6 @@ export const useLlmProvidersStore = defineStore('llmProviders', () => {
     addProvider,
     editProvider,
     removeProvider,
+    setDefault,
   }
 })
