@@ -20,6 +20,7 @@ type LLMProviderServicer interface {
 	Update(ctx context.Context, orgID, configID string, req model.UpdateLLMProviderRequest) (*model.LLMProviderResponse, error)
 	Delete(ctx context.Context, orgID, configID string) error
 	SetDefault(ctx context.Context, orgID, configID string) error
+	TestConnection(ctx context.Context, orgID string, req model.TestProviderRequest) (*model.TestConnectionResult, error)
 }
 
 // LLMProviderHandler handles HTTP requests for LLM provider config management.
@@ -185,6 +186,54 @@ func (h *LLMProviderHandler) Delete(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// Test handles POST /api/v1/orgs/:org_id/llm-providers/test.
+//
+// Two body shapes are accepted:
+//
+//  1. Inline credentials — {provider, base_url?, api_key} probes the vendor with
+//     the supplied key without persisting anything.
+//  2. Stored credentials — {provider_id} loads the row in the caller's org,
+//     decrypts the stored key, and probes the vendor with it. Lets the
+//     Edit-credentials dialog re-test without holding the secret in memory.
+//
+// @Summary     Test LLM provider credentials
+// @Description Probe the vendor with either inline credentials or a stored provider_id
+// @Tags        llm-providers
+// @Accept      json
+// @Produce     json
+// @Security    BearerAuth
+// @Param       org_id  path string true "Organisation ID"
+// @Param       request body model.TestProviderRequest true "Test connection payload"
+// @Success     200 {object} model.TestConnectionResult
+// @Failure     400 {object} apierror.AppError
+// @Failure     401 {object} apierror.AppError
+// @Failure     403 {object} apierror.AppError
+// @Failure     404 {object} apierror.AppError
+// @Failure     422 {object} apierror.AppError
+// @Router      /orgs/{org_id}/llm-providers/test [post]
+func (h *LLMProviderHandler) Test(c *gin.Context) {
+	orgID := c.Param("org_id")
+
+	var req model.TestProviderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		_ = c.Error(&apierror.AppError{
+			Code:    http.StatusUnprocessableEntity,
+			Message: "Unprocessable Entity",
+			Detail:  err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	resp, err := h.svc.TestConnection(c.Request.Context(), orgID, req)
+	if err != nil {
+		_ = c.Error(err)
+		c.Abort()
+		return
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 // SetDefault handles PUT /api/v1/orgs/:org_id/llm-providers/:provider_id/default.
