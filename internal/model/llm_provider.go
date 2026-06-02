@@ -84,6 +84,33 @@ type UpdateLLMProviderRequest struct {
 	Status      *ProviderStatus `json:"status,omitempty"`
 }
 
+// TestProviderRequest is the payload for POST .../llm-providers/test.
+//
+// Two shapes are accepted:
+//
+//  1. Inline credentials — used before a provider row exists (e.g. the Create
+//     dialog's "Test connection" button): {provider, base_url?, api_key}.
+//  2. Stored credentials — used after a provider row exists (e.g. the Edit
+//     dialog's "Test connection" re-gate without re-entering the secret):
+//     {provider_id}. The handler loads the row, decrypts the stored key, and
+//     probes the vendor with it.
+//
+// At least one of {provider+api_key, provider_id} must be present. When
+// provider_id is set, the inline fields are ignored.
+type TestProviderRequest struct {
+	ProviderID *string      `json:"provider_id,omitempty" binding:"omitempty,uuid"`
+	Provider   *LLMProvider `json:"provider,omitempty"`
+	BaseURL    *string      `json:"base_url,omitempty"`
+	APIKey     *string      `json:"api_key,omitempty"`
+}
+
+// TestConnectionResult is the response shape for POST .../llm-providers/test.
+type TestConnectionResult struct {
+	OK       bool   `json:"ok"`
+	Provider string `json:"provider"`
+	Detail   string `json:"detail,omitempty"`
+}
+
 // LLMProviderResponse is the API response DTO — never contains encrypted key data.
 type LLMProviderResponse struct {
 	ID          string         `json:"id"`
