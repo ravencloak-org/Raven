@@ -24,6 +24,19 @@
         role="menu"
         class="absolute right-0 top-10 z-50 w-48 rounded-md border border-gray-200 bg-white py-1 shadow-lg"
       >
+        <RouterLink
+          to="/llm-providers"
+          role="menuitem"
+          class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+          @click="menuOpen = false"
+        >
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <rect x="6" y="6" width="12" height="12" rx="2" ry="2" stroke-linecap="round" stroke-linejoin="round" />
+            <rect x="9" y="9" width="6" height="6" rx="1" ry="1" stroke-linecap="round" stroke-linejoin="round" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" />
+          </svg>
+          AI Providers
+        </RouterLink>
         <button
           class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
           @click="handleLogout"
@@ -42,6 +55,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 const authStore = useAuthStore()
