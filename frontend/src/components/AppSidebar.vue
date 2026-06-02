@@ -156,6 +156,34 @@
           <span v-if="mobile" class="text-sm font-medium">Calls</span>
         </RouterLink>
 
+        <!-- AI Providers -->
+        <RouterLink
+          to="/llm-providers"
+          :class="[
+            'flex items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white',
+            mobile
+              ? 'h-10 w-full gap-3 px-3'
+              : 'h-10 w-10 justify-center',
+          ]"
+          active-class="bg-slate-800 text-white"
+          title="AI Providers"
+          @click="mobile && $emit('close')"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5 shrink-0"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <rect x="6" y="6" width="12" height="12" rx="2" ry="2" stroke-linecap="round" stroke-linejoin="round" />
+            <rect x="9" y="9" width="6" height="6" rx="1" ry="1" stroke-linecap="round" stroke-linejoin="round" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" />
+          </svg>
+          <span v-if="mobile" class="text-sm font-medium">AI Providers</span>
+        </RouterLink>
+
         <!-- Billing section label (mobile only) -->
         <span v-if="mobile && orgPrefix" class="mt-4 px-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
           Account
