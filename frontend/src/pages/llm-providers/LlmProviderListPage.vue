@@ -24,6 +24,10 @@ const form = ref<CreateLlmProviderRequest>({
   base_url: null,
   api_key: '',
 })
+// The model lives in CreateLlmProviderRequest.config rather than as a
+// top-level field — keep it as a separate component-local ref and merge
+// at submit time so the v-model on the dropdown actually round-trips.
+const selectedModel = ref<string | undefined>(undefined)
 const creating = ref(false)
 
 const showDeleteDialog = ref(false)
@@ -92,8 +96,17 @@ const providerTypeLabel: Record<ProviderType, string> = {
 // placeholder so they know what shape the key should have; `helpText`
 // is a one-liner above the API-key field. Keyed off ProviderType.
 // `requiresKey=false` hides API-key inputs entirely (Edit dialog skips
-// Rotate-key for these; today only Ollama).
-const providerHelp: Record<ProviderType, { keyHref?: string; keyPrefix?: string; helpText: string; requiresKey: boolean }> = {
+// Rotate-key for these; today only Ollama). `defaultBaseUrl` auto-fills
+// the Base URL input when the provider type flips; `baseUrlHelp` is a
+// one-liner shown below the input.
+const providerHelp: Record<ProviderType, {
+  keyHref?: string
+  keyPrefix?: string
+  helpText: string
+  requiresKey: boolean
+  defaultBaseUrl?: string
+  baseUrlHelp?: string
+}> = {
   openai: {
     keyHref: 'https://platform.openai.com/api-keys',
     keyPrefix: 'sk-...',
@@ -107,9 +120,10 @@ const providerHelp: Record<ProviderType, { keyHref?: string; keyPrefix?: string;
     requiresKey: true,
   },
   ollama: {
-    keyPrefix: 'ollama',
-    helpText: 'Ollama runs locally — no API key required, but the field can\'t be empty. Use any placeholder (e.g. "ollama") and set the Base URL to your daemon.',
+    helpText: 'Ollama runs locally and needs no API key. Point Base URL at your Ollama daemon — http://localhost:11434 by default. The hosted demo can\'t reach a private LAN address, so this works for self-hosted / Tauri-desktop Raven, or expose your Ollama via a public tunnel.',
     requiresKey: false,
+    defaultBaseUrl: 'http://localhost:11434',
+    baseUrlHelp: 'Address of the Ollama daemon (default port 11434). Must be reachable from wherever the Raven server runs.',
   },
   custom: {
     keyPrefix: 'your provider\'s key',
@@ -128,9 +142,27 @@ function providerModel(provider: LlmProvider): string {
 }
 
 function onProviderTypeChange() {
-  void modelsForType(form.value.provider)
-
-  form.value.base_url = form.value.provider === 'custom' || form.value.provider === 'ollama' ? '' : null
+  const help = providerHelp[form.value.provider]
+  // Apply provider-specific Base URL default (Ollama → localhost:11434);
+  // null for cloud providers that don't need it; empty string for custom
+  // so the input is shown but unset.
+  if (help.defaultBaseUrl !== undefined) {
+    form.value.base_url = help.defaultBaseUrl
+  } else if (form.value.provider === 'custom') {
+    form.value.base_url = ''
+  } else {
+    form.value.base_url = null
+  }
+  // Reset the per-provider model selection to the first model in the
+  // list, so the previously-selected (and possibly unrelated) model
+  // doesn't leak when switching providers.
+  const models = modelsForType(form.value.provider)
+  selectedModel.value = models[0]?.value
+  // Ollama doesn't require an API key — clear any stale value the user
+  // typed before switching providers.
+  if (!help.requiresKey) {
+    form.value.api_key = ''
+  }
 }
 
 const createError = ref('')
@@ -144,12 +176,23 @@ async function handleCreate() {
     // is the default, so a fresh org has zero chance of a working chat
     // unless we set this on their behalf.
     const isFirst = store.providers.length === 0
+    const help = providerHelp[form.value.provider]
+    // The Go model declares api_key as binding:"required,min=1", so
+    // keyless providers (Ollama) need a stub value to satisfy validation.
+    // Backend ignores the value for these providers — it's purely a
+    // schema artefact, not an actual credential. Note this in the comment
+    // so a future cleanup doesn't get rid of it without also relaxing
+    // the binding.
+    const api_key = help.requiresKey ? form.value.api_key : 'not-required'
     await store.addProvider(orgId.value, {
       ...form.value,
+      api_key,
+      ...(selectedModel.value ? { config: { ...(form.value.config ?? {}), model: selectedModel.value } } : {}),
       ...(isFirst ? { is_default: true } : {}),
     })
     showCreateDialog.value = false
     form.value = { provider: 'openai', display_name: '', base_url: null, api_key: '' }
+    selectedModel.value = undefined
   } catch (e: unknown) {
     createError.value = e instanceof Error ? e.message : 'Failed to create provider'
   } finally {
@@ -714,7 +757,7 @@ onMounted(() => store.fetchProviders(orgId.value))
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">Model</label>
-            <select  class="mt-1 block w-full rounded border-gray-300 shadow-sm">
+            <select v-model="selectedModel" class="mt-1 block w-full rounded border-gray-300 shadow-sm">
               <option v-for="m in modelsForType(form.provider)" :key="m.value" :value="m.value">{{ m.label }}</option>
             </select>
           </div>
@@ -758,7 +801,7 @@ onMounted(() => store.fetchProviders(orgId.value))
               </p>
             </div>
           </div>
-          <div>
+          <div v-if="currentProviderHelp.requiresKey">
             <label class="block text-sm font-medium text-gray-700">API Key</label>
             <p class="mt-1 text-xs text-gray-500">
               {{ currentProviderHelp.helpText }}
@@ -780,14 +823,17 @@ onMounted(() => store.fetchProviders(orgId.value))
               class="mt-2 block w-full rounded border-gray-300 shadow-sm"
               :placeholder="currentProviderHelp.keyPrefix ?? 'sk-...'"
             />
-            <p v-if="store.providers.length === 0" class="mt-1 text-xs text-gray-400">
-              This will be set as your default provider since it's the first one.
-            </p>
           </div>
+          <p v-else class="text-xs text-gray-500">
+            {{ currentProviderHelp.helpText }}
+          </p>
+          <p v-if="store.providers.length === 0" class="text-xs text-gray-400">
+            This will be set as your default provider since it's the first one.
+          </p>
           <p v-if="createError" class="text-red-500 text-sm">{{ createError }}</p>
           <div class="flex justify-end gap-2 pt-2">
             <button type="button" class="rounded px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" @click="showCreateDialog = false">Cancel</button>
-            <button type="submit" :disabled="creating || !form.display_name || !form.api_key" class="rounded bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-50">
+            <button type="submit" :disabled="creating || !form.display_name || (currentProviderHelp.requiresKey && !form.api_key)" class="rounded bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-50">
               {{ creating ? 'Creating...' : 'Create' }}
             </button>
           </div>
