@@ -22,18 +22,22 @@ dependencies = [
     "beautifulsoup4>=4.12.0",
     "langchain-text-splitters>=0.3.0",
     "openai>=1.0.0",
-    "cohere>=5.0.0",
-    # Cohere 6.1.0 (latest) pins pydantic-core<2.44.0; without this constraint
-    # pip resolves to pydantic 2.13.x which needs pydantic-core 2.46.x, blowing
-    # up requirements-dev.txt with ResolutionImpossible. Stay on 2.12.x until
-    # cohere updates. Re-evaluate when cohere >= 6.2 ships.
+    # Cohere 7.x is a major SDK rewrite. Holding to <7 until ai-worker code is
+    # audited against the v7 migration guide. Tracked in Dependabot #704.
+    "cohere>=5.0.0,<7",
+    # Cohere 6.x pins pydantic-core<2.44.0; without these constraints pip
+    # resolves pydantic 2.13.x which needs pydantic-core 2.46.x, breaking the
+    # resolve. Tied to the cohere<7 hold above.
     "pydantic<2.13",
     "pydantic-core<2.44",
     "asyncpg>=0.30.0",
     "tenacity>=9.0.0",
     "cryptography>=42.0.0",
     "anthropic>=0.40.0",
-    "redis>=5.0.0",
+    # redis-py 8.0 changes async client and connection-pool semantics; holding
+    # to <8 until the worker's redis usage (cache + Asynq broker reads) is
+    # audited against the v8 migration notes.
+    "redis>=5.0.0,<8",
     "livekit>=1.0.0",
     # livekit-agents 1.3.x has Requires-Python <3.14, which conflicts with the
     # Python 3.14 base image (Dockerfile). The 1.5.x line lifted that to <3.15.

@@ -14,8 +14,6 @@ smoke pass described in
 
 from __future__ import annotations
 
-import importlib
-
 import fakeredis
 import pytest
 
@@ -26,8 +24,15 @@ from raven_worker.llm_fuse import FuseTripped
 
 @pytest.fixture
 def reset_fuse_singleton(monkeypatch: pytest.MonkeyPatch):
-    """Reload the rag module so the lazy fuse re-initialises per-test."""
-    importlib.reload(rag_module)
+    """Null out the lazy fuse singletons so each test sees a clean construct path.
+
+    Previously this fixture also called ``importlib.reload(rag_module)``, but
+    that permanently swapped the module identity — any later test that had
+    imported ``services.rag`` at module load time saw stale references and the
+    AsyncMock patches in test_rag_service.py ended up wired to the old module.
+    The monkeypatched ``setattr`` lines below already reset the singletons that
+    the fuse construction reads, so the reload was redundant and harmful.
+    """
     monkeypatch.setattr(rag_module, "_llm_fuse_sync_client", None)
     monkeypatch.setattr(rag_module, "_llm_fuse_singleton", None)
     yield rag_module
