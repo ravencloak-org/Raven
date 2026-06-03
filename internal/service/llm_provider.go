@@ -188,18 +188,28 @@ func (s *LLMProviderService) Delete(ctx context.Context, orgID, configID string)
 	return nil
 }
 
-// SetDefault marks a provider config as the default for an org.
-func (s *LLMProviderService) SetDefault(ctx context.Context, orgID, configID string) error {
+// SetDefault marks a provider config as the default for an org and returns the
+// updated row so the caller can refresh state without a follow-up GET.
+func (s *LLMProviderService) SetDefault(ctx context.Context, orgID, configID string) (*model.LLMProviderResponse, error) {
+	var cfg *model.LLMProviderConfig
 	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
-		return s.repo.SetDefault(ctx, tx, orgID, configID)
+		if setErr := s.repo.SetDefault(ctx, tx, orgID, configID); setErr != nil {
+			return setErr
+		}
+		fetched, getErr := s.repo.GetByID(ctx, tx, orgID, configID)
+		if getErr != nil {
+			return getErr
+		}
+		cfg = fetched
+		return nil
 	})
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			return apierror.NewNotFound("LLM provider config not found")
+		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "no rows") {
+			return nil, apierror.NewNotFound("LLM provider config not found")
 		}
-		return apierror.NewInternal("failed to set default provider: " + err.Error())
+		return nil, apierror.NewInternal("failed to set default provider: " + err.Error())
 	}
-	return nil
+	return cfg.ToResponse(), nil
 }
 
 // TestConnection probes a vendor either with inline credentials or with the
