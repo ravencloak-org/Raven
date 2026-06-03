@@ -53,6 +53,10 @@ type UploadService struct {
 	queueCli     DocumentProcessEnqueuer
 	maxSizeBytes int64
 	allowedTypes map[string]bool
+	// kbGuard enforces KBStatusGate freeze semantics on the ingest path
+	// (ADR-0004 / issue #725). Optional: nil means unit tests that focus
+	// on file-type / size validation don't need a real KB fixture.
+	kbGuard *KBStatusGuard
 }
 
 // NewUploadService creates a new UploadService.
@@ -82,6 +86,14 @@ func NewUploadService(
 	}
 }
 
+// WithKBStatusGuard wires the lifecycle freeze gate so uploads against a
+// read_only_private / dmca_pending KB return 409 / 423 instead of writing
+// a row the user can't subsequently act on. Chainable at construction.
+func (s *UploadService) WithKBStatusGuard(g *KBStatusGuard) *UploadService {
+	s.kbGuard = g
+	return s
+}
+
 // UploadParams holds the parameters for a document upload.
 type UploadParams struct {
 	OrgID           string
@@ -95,6 +107,12 @@ type UploadParams struct {
 
 // Upload validates, deduplicates, stores, and records a new document upload.
 func (s *UploadService) Upload(ctx context.Context, params UploadParams) (*model.Document, error) {
+	// Lifecycle gate (issue #725). Run before any expensive work so a
+	// frozen KB rejects the request before we read the file into memory.
+	if err := s.kbGuard.Require(ctx, params.OrgID, params.KnowledgeBaseID, KBActionIngest); err != nil {
+		return nil, err
+	}
+
 	// Validate file type. Normalise away MIME parameters (charset etc.) so
 	// "text/plain; charset=utf-8" matches the bare "text/plain" entry in
 	// the allow-list. The user-facing error retains the original header

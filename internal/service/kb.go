@@ -17,11 +17,22 @@ type KBService struct {
 	repo  *repository.KBRepository
 	pool  *pgxpool.Pool
 	quota QuotaCheckerI
+	// kbGuard enforces KBStatusGate freeze semantics on the settings-
+	// update path (ADR-0004 / issue #725). Optional — nil-safe.
+	kbGuard *KBStatusGuard
 }
 
 // NewKBService creates a new KBService.
 func NewKBService(repo *repository.KBRepository, pool *pgxpool.Pool, quota QuotaCheckerI) *KBService {
 	return &KBService{repo: repo, pool: pool, quota: quota}
+}
+
+// WithKBStatusGuard wires the lifecycle freeze gate. Update returns 409 /
+// 423 when the KB is read_only_private / dmca_pending instead of silently
+// applying the patch.
+func (s *KBService) WithKBStatusGuard(g *KBStatusGuard) *KBService {
+	s.kbGuard = g
+	return s
 }
 
 // Create validates and creates a new knowledge base within a workspace.
@@ -86,6 +97,12 @@ func (s *KBService) ListByWorkspace(ctx context.Context, orgID, wsID string) ([]
 func (s *KBService) Update(ctx context.Context, orgID, kbID string, req model.UpdateKBRequest) (*model.KnowledgeBase, error) {
 	var kb *model.KnowledgeBase
 	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+		// Lifecycle gate (issue #725): settings updates count as ingest
+		// — a frozen KB must not silently accept config changes that
+		// would affect what it serves on the read path.
+		if gateErr := s.kbGuard.RequireInTx(ctx, tx, orgID, kbID, KBActionIngest); gateErr != nil {
+			return gateErr
+		}
 		var err error
 		kb, err = s.repo.Update(
 			ctx, tx, orgID, kbID,
@@ -95,6 +112,9 @@ func (s *KBService) Update(ctx context.Context, orgID, kbID string, req model.Up
 		return err
 	})
 	if err != nil {
+		if isAppErr(err) {
+			return nil, err
+		}
 		if strings.Contains(err.Error(), "no rows") {
 			return nil, apierror.NewNotFound("knowledge base not found")
 		}

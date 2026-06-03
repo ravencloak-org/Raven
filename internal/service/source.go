@@ -19,11 +19,22 @@ import (
 type SourceService struct {
 	repo *repository.SourceRepository
 	pool *pgxpool.Pool
+	// kbGuard enforces KBStatusGate freeze semantics on the ingest path
+	// (ADR-0004 / issue #725). Optional — nil-safe.
+	kbGuard *KBStatusGuard
 }
 
 // NewSourceService creates a new SourceService.
 func NewSourceService(repo *repository.SourceRepository, pool *pgxpool.Pool) *SourceService {
 	return &SourceService{repo: repo, pool: pool}
+}
+
+// WithKBStatusGuard wires the lifecycle freeze gate so Source CRUD against
+// a read_only_private / dmca_pending KB returns 409 / 423 instead of
+// mutating a frozen corpus. Chainable.
+func (s *SourceService) WithKBStatusGuard(g *KBStatusGuard) *SourceService {
+	s.kbGuard = g
+	return s
 }
 
 // validSourceTypes is the set of allowed source_type values.
@@ -82,6 +93,12 @@ func (s *SourceService) Create(ctx context.Context, orgID, kbID string, req mode
 	}
 	if req.CrawlFrequency != "" && !validCrawlFrequencies[req.CrawlFrequency] {
 		return nil, apierror.NewBadRequest("invalid crawl_frequency: " + string(req.CrawlFrequency))
+	}
+
+	// Lifecycle gate (issue #725). Reject before the row hits the table
+	// so a frozen KB can't accumulate orphan sources.
+	if err := s.kbGuard.Require(ctx, orgID, kbID, KBActionIngest); err != nil {
+		return nil, err
 	}
 
 	var src *model.Source
@@ -160,11 +177,24 @@ func (s *SourceService) Update(ctx context.Context, orgID, sourceID string, req 
 
 	var src *model.Source
 	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+		// Resolve the owning KB and gate before mutating. Doing both in
+		// the same transaction means a freeze that flips after we read
+		// the existing source still wins atomically.
+		existing, getErr := s.repo.GetByID(ctx, tx, orgID, sourceID)
+		if getErr != nil {
+			return getErr
+		}
+		if gateErr := s.kbGuard.RequireInTx(ctx, tx, orgID, existing.KnowledgeBaseID, KBActionIngest); gateErr != nil {
+			return gateErr
+		}
 		var err error
 		src, err = s.repo.Update(ctx, tx, orgID, sourceID, req)
 		return err
 	})
 	if err != nil {
+		if isAppErr(err) {
+			return nil, err
+		}
 		if strings.Contains(err.Error(), "no rows") {
 			return nil, apierror.NewNotFound("source not found")
 		}
@@ -176,10 +206,20 @@ func (s *SourceService) Update(ctx context.Context, orgID, sourceID string, req 
 // Delete permanently removes a source.
 func (s *SourceService) Delete(ctx context.Context, orgID, sourceID string) error {
 	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+		existing, getErr := s.repo.GetByID(ctx, tx, orgID, sourceID)
+		if getErr != nil {
+			return getErr
+		}
+		if gateErr := s.kbGuard.RequireInTx(ctx, tx, orgID, existing.KnowledgeBaseID, KBActionIngest); gateErr != nil {
+			return gateErr
+		}
 		return s.repo.Delete(ctx, tx, orgID, sourceID)
 	})
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
+		if isAppErr(err) {
+			return err
+		}
+		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "no rows") {
 			return apierror.NewNotFound("source not found")
 		}
 		return apierror.NewInternal("failed to delete source: " + err.Error())

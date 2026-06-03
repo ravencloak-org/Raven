@@ -85,6 +85,11 @@ type ChatService struct {
 	// literal. Without it, an org that has only Ollama (or only OpenAI)
 	// configured would 500 on every chat the SPA didn't pin a provider on.
 	llmRepo *repository.LLMProviderRepository
+	// kbGuard enforces KBStatusGate freeze semantics on the chat path.
+	// Read_only_private allows chat (the corpus is queryable), but
+	// dmca_pending and archived KBs reject it (issue #725, ADR-0006).
+	// Optional — nil-safe.
+	kbGuard *KBStatusGuard
 }
 
 // NewChatService creates a new ChatService.
@@ -109,6 +114,14 @@ func (s *ChatService) WithConversationMemory(m ConversationMemory) *ChatService 
 // fallback. Chainable.
 func (s *ChatService) WithLLMProviderRepo(r *repository.LLMProviderRepository) *ChatService {
 	s.llmRepo = r
+	return s
+}
+
+// WithKBStatusGuard wires the lifecycle freeze gate so StreamCompletion
+// rejects chat against a dmca_pending / archived KB before any AI worker
+// round-trip. Chainable.
+func (s *ChatService) WithKBStatusGuard(g *KBStatusGuard) *ChatService {
+	s.kbGuard = g
 	return s
 }
 
@@ -138,6 +151,13 @@ func (s *ChatService) resolveDefaultProvider(ctx context.Context, orgID string) 
 // the user message, streams the gRPC response, and persists the assistant
 // reply when complete.
 func (s *ChatService) StreamCompletion(ctx context.Context, orgID, kbID string, req *model.ChatCompletionRequest) (<-chan SSEEvent, error) {
+	// Lifecycle gate (issue #725). Run before we spin up a session or
+	// touch the AI worker — a dmca_pending KB must reject the request
+	// before any user-visible side effects.
+	if err := s.kbGuard.Require(ctx, orgID, kbID, KBActionChat); err != nil {
+		return nil, err
+	}
+
 	var session *model.ChatSession
 	var userMsg *model.ChatMessage
 	var convCtx *model.ConversationContext

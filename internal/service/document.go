@@ -40,6 +40,9 @@ type DocumentService struct {
 	repo             *repository.DocumentRepository
 	pool             *pgxpool.Pool
 	cacheInvalidator CacheInvalidator // optional; see #256
+	// kbGuard enforces KBStatusGate freeze semantics on write paths
+	// (ADR-0004 / issue #725). Optional — nil-safe.
+	kbGuard *KBStatusGuard
 }
 
 // NewDocumentService creates a new DocumentService.
@@ -52,6 +55,14 @@ func NewDocumentService(repo *repository.DocumentRepository, pool *pgxpool.Pool)
 // that main.go can chain the call fluently.
 func (s *DocumentService) WithCacheInvalidator(inv CacheInvalidator) *DocumentService {
 	s.cacheInvalidator = inv
+	return s
+}
+
+// WithKBStatusGuard wires the lifecycle freeze gate so document mutations
+// against a frozen KB return 409 / 423 instead of corrupting a corpus the
+// user has been told is read-only. Chainable.
+func (s *DocumentService) WithKBStatusGuard(g *KBStatusGuard) *DocumentService {
+	s.kbGuard = g
 	return s
 }
 
@@ -129,11 +140,23 @@ func (s *DocumentService) List(ctx context.Context, orgID, kbID string, page, pa
 func (s *DocumentService) Update(ctx context.Context, orgID, docID string, req model.UpdateDocumentRequest) (*model.Document, error) {
 	var doc *model.Document
 	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+		// Resolve the owning KB inside the same transaction so a freeze
+		// flipping concurrently still wins (issue #725).
+		existing, getErr := s.repo.GetByID(ctx, tx, orgID, docID)
+		if getErr != nil {
+			return getErr
+		}
+		if gateErr := s.kbGuard.RequireInTx(ctx, tx, orgID, existing.KnowledgeBaseID, KBActionIngest); gateErr != nil {
+			return gateErr
+		}
 		var err error
 		doc, err = s.repo.Update(ctx, tx, orgID, docID, req.Title, req.Metadata)
 		return err
 	})
 	if err != nil {
+		if isAppErr(err) {
+			return nil, err
+		}
 		if strings.Contains(err.Error(), "no rows") {
 			return nil, apierror.NewNotFound("document not found")
 		}
@@ -152,22 +175,30 @@ func (s *DocumentService) Delete(ctx context.Context, orgID, docID string) error
 	var kbID string
 	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
 		// Look up the owning KB before the row disappears so invalidation
-		// can target it. A failure here is non-fatal for the delete itself,
-		// but we log it so stale cache entries are visible to ops rather
-		// than silently orphaned.
-		if doc, lookupErr := s.repo.GetByID(ctx, tx, orgID, docID); lookupErr != nil {
+		// can target it AND so the lifecycle gate (issue #725) can refuse
+		// the delete on a frozen KB.
+		doc, lookupErr := s.repo.GetByID(ctx, tx, orgID, docID)
+		if lookupErr != nil {
+			// Fall through to the existing delete path; the repo will
+			// surface the canonical "not found" error there.
 			slog.Default().Warn(
 				"document_delete_kb_lookup_failed",
 				slog.String("org_id", orgID),
 				slog.String("doc_id", docID),
 				slog.Any("error", lookupErr),
 			)
-		} else if doc != nil {
-			kbID = doc.KnowledgeBaseID
+			return s.repo.Delete(ctx, tx, orgID, docID)
+		}
+		kbID = doc.KnowledgeBaseID
+		if gateErr := s.kbGuard.RequireInTx(ctx, tx, orgID, kbID, KBActionIngest); gateErr != nil {
+			return gateErr
 		}
 		return s.repo.Delete(ctx, tx, orgID, docID)
 	})
 	if err != nil {
+		if isAppErr(err) {
+			return err
+		}
 		if strings.Contains(err.Error(), "not found") {
 			return apierror.NewNotFound("document not found")
 		}
