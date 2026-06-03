@@ -3,9 +3,13 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -32,6 +36,12 @@ type TestConnectionResult struct {
 // for openai/anthropic/custom (cheap, no token cost), the /api/tags
 // endpoint for ollama (the canonical "is this daemon alive" probe).
 // Network/IO errors bubble up as TestConnectionResult{OK:false, Detail}.
+//
+// Custom and Ollama base URLs are user-supplied, so we validate them
+// against an SSRF policy (scheme allowlist, no embedded credentials,
+// no loopback / private / link-local / metadata addresses) before
+// dialing — otherwise the admin-only test endpoint becomes an
+// authenticated SSRF primitive against internal infrastructure.
 func TestConnection(ctx context.Context, req model.CreateLLMProviderRequest) (TestConnectionResult, error) {
 	client := &http.Client{Timeout: 10 * time.Second}
 	// String-compared switch so this also catches 'ollama' which the
@@ -44,6 +54,9 @@ func TestConnection(ctx context.Context, req model.CreateLLMProviderRequest) (Te
 		return probeAnthropic(ctx, client, req.APIKey)
 	case "ollama":
 		base := strings.TrimRight(deref(req.BaseURL, "http://localhost:11434"), "/")
+		if err := validateExternalURL(ctx, base); err != nil {
+			return TestConnectionResult{OK: false, Detail: fmt.Sprintf("Base URL rejected: %v", err)}, nil
+		}
 		return probeOllama(ctx, client, base)
 	case string(model.LLMProviderCustom):
 		// OpenAI-compatible by convention; reuse the OpenAI probe but
@@ -52,9 +65,75 @@ func TestConnection(ctx context.Context, req model.CreateLLMProviderRequest) (Te
 		if base == "" {
 			return TestConnectionResult{OK: false, Detail: "Base URL is required for custom providers"}, nil
 		}
+		if err := validateExternalURL(ctx, base); err != nil {
+			return TestConnectionResult{OK: false, Detail: fmt.Sprintf("Base URL rejected: %v", err)}, nil
+		}
 		return probeOpenAI(ctx, client, req.APIKey, base)
 	}
 	return TestConnectionResult{OK: false, Detail: fmt.Sprintf("unsupported provider: %s", req.Provider)}, nil
+}
+
+// validateExternalURL parses base and rejects values that would let an
+// admin-supplied URL probe internal infrastructure. The rules:
+//
+//   - scheme MUST be http or https,
+//   - userinfo (credentials embedded in URL) is rejected,
+//   - host MUST be present,
+//   - any resolved IP that is loopback, private, link-local,
+//     unspecified, or cloud-metadata (169.254.169.254) is rejected.
+//
+// Set RAVEN_LLM_ALLOW_LOOPBACK=1 to bypass the loopback ban — useful for
+// dev when probing a local Ollama / vLLM. RAVEN_LLM_ALLOW_PRIVATE=1
+// similarly relaxes the RFC1918 ban for self-hosted Raven on a LAN.
+func validateExternalURL(ctx context.Context, raw string) error {
+	if raw == "" {
+		return errors.New("URL is empty")
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("invalid URL: %w", err)
+	}
+	scheme := strings.ToLower(u.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return fmt.Errorf("scheme %q not allowed (use http or https)", u.Scheme)
+	}
+	if u.User != nil {
+		return errors.New("embedded credentials not allowed")
+	}
+	host := u.Hostname()
+	if host == "" {
+		return errors.New("host is empty")
+	}
+	allowLoopback := os.Getenv("RAVEN_LLM_ALLOW_LOOPBACK") == "1"
+	allowPrivate := os.Getenv("RAVEN_LLM_ALLOW_PRIVATE") == "1"
+	// Resolve so a hostname that points at a private IP also gets rejected.
+	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	if err != nil {
+		return fmt.Errorf("host lookup failed: %w", err)
+	}
+	if len(addrs) == 0 {
+		return errors.New("host did not resolve")
+	}
+	for _, ipa := range addrs {
+		ip := ipa.IP
+		if ip.IsUnspecified() {
+			return fmt.Errorf("address %s is unspecified", ip)
+		}
+		// Cloud-metadata endpoint — never allowed.
+		if ip.Equal(net.ParseIP("169.254.169.254")) {
+			return fmt.Errorf("address %s is cloud metadata", ip)
+		}
+		if ip.IsLoopback() && !allowLoopback {
+			return fmt.Errorf("address %s is loopback (set RAVEN_LLM_ALLOW_LOOPBACK=1 to allow)", ip)
+		}
+		if ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+			return fmt.Errorf("address %s is link-local", ip)
+		}
+		if ip.IsPrivate() && !allowPrivate {
+			return fmt.Errorf("address %s is private (set RAVEN_LLM_ALLOW_PRIVATE=1 to allow)", ip)
+		}
+	}
+	return nil
 }
 
 func probeOpenAI(ctx context.Context, c *http.Client, apiKey, baseURL string) (TestConnectionResult, error) {
@@ -110,8 +189,8 @@ func probeOllama(ctx context.Context, c *http.Client, baseURL string) (TestConne
 
 func interpretListModelsResponse(resp *http.Response) (TestConnectionResult, error) {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-	switch {
-	case resp.StatusCode == http.StatusOK:
+	switch resp.StatusCode {
+	case http.StatusOK:
 		// Best effort to count returned models; provider shapes vary but
 		// all include some array under data/models.
 		var parsed struct {
@@ -124,7 +203,7 @@ func interpretListModelsResponse(resp *http.Response) (TestConnectionResult, err
 			return TestConnectionResult{OK: true, Detail: fmt.Sprintf("Connected — %d model(s) available", n)}, nil
 		}
 		return TestConnectionResult{OK: true, Detail: "Connected"}, nil
-	case resp.StatusCode == http.StatusUnauthorized, resp.StatusCode == http.StatusForbidden:
+	case http.StatusUnauthorized, http.StatusForbidden:
 		return TestConnectionResult{OK: false, Detail: fmt.Sprintf("Auth rejected (HTTP %d). Double-check the API key.", resp.StatusCode)}, nil
 	default:
 		return TestConnectionResult{

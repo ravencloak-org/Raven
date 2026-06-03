@@ -127,7 +127,7 @@ const providerHelp: Record<ProviderType, {
   },
   custom: {
     keyPrefix: 'your provider\'s key',
-    helpText: 'For any OpenAI-compatible provider (Together, Groq, Fireworks, vLLM, etc.). Set Base URL to the provider\'s /v1 endpoint.',
+    helpText: 'For any OpenAI-compatible provider (Together, Groq, Fireworks, vLLM, etc.). Set Base URL to the provider root (Raven appends /v1/models, /v1/chat/completions, etc).',
     requiresKey: true,
   },
 }
@@ -841,9 +841,15 @@ onMounted(() => store.fetchProviders(orgId.value))
     </div>
 
     <!-- Create Dialog -->
-    <div v-if="showCreateDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div
+      v-if="showCreateDialog"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="add-llm-provider-title"
+    >
       <div class="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
-        <h2 class="mb-4 text-lg font-semibold">Add LLM Provider</h2>
+        <h2 id="add-llm-provider-title" class="mb-4 text-lg font-semibold">Add LLM Provider</h2>
         <form class="space-y-4" @submit.prevent="handleCreate">
           <div>
             <label class="block text-sm font-medium text-gray-700">Provider Type</label>

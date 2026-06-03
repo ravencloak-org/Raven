@@ -211,6 +211,10 @@ _CHAT_MODEL_PREFIXES = {
         "deepseek",
         "codellama",
     ),
+    # Cohere chat models follow "command-*"; "chat-" reserved for any
+    # future chat-named variants. Embedding models are "embed-*" so
+    # they never trip these prefixes.
+    "cohere": ("command-", "chat-"),
 }
 
 

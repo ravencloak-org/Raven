@@ -3,8 +3,8 @@ package jobs
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/ledongthuc/pdf"
 )
@@ -87,44 +87,10 @@ func normaliseMediaType(mt string) string {
 }
 
 // isProbablyUTF8 returns true when the byte sequence is valid UTF-8.
-// Used as a guard before inserting into a `text` column.
+// Used as a guard before inserting into a `text` column. unicode/utf8.Valid
+// is the canonical stdlib check and correctly rejects overlong encodings,
+// UTF-16 surrogate code points, and code points beyond U+10FFFF — none of
+// which the hand-rolled byte-shape check above caught.
 func isProbablyUTF8(b []byte) bool {
-	// Decoding the body via a UTF-8 reader is the canonical check; if the
-	// reader ends cleanly the input is valid.
-	_, err := io.Copy(io.Discard, bytes.NewReader(b))
-	if err != nil {
-		return false
-	}
-	return validUTF8(b)
-}
-
-// validUTF8 is a small wrapper kept out of test-only mode so the call
-// site stays branch-free. (unicode/utf8 is in the stdlib; the wrapper
-// is only here for the comment on what we're guarding against.)
-func validUTF8(b []byte) bool {
-	for i := 0; i < len(b); {
-		c := b[i]
-		switch {
-		case c < 0x80:
-			i++
-		case c&0xE0 == 0xC0:
-			if i+1 >= len(b) || b[i+1]&0xC0 != 0x80 {
-				return false
-			}
-			i += 2
-		case c&0xF0 == 0xE0:
-			if i+2 >= len(b) || b[i+1]&0xC0 != 0x80 || b[i+2]&0xC0 != 0x80 {
-				return false
-			}
-			i += 3
-		case c&0xF8 == 0xF0:
-			if i+3 >= len(b) || b[i+1]&0xC0 != 0x80 || b[i+2]&0xC0 != 0x80 || b[i+3]&0xC0 != 0x80 {
-				return false
-			}
-			i += 4
-		default:
-			return false
-		}
-	}
-	return true
+	return utf8.Valid(b)
 }

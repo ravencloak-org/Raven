@@ -5,12 +5,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"log/slog"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"go.opentelemetry.io/otel"
@@ -48,13 +49,17 @@ func main() {
 	docRepo := repository.NewDocumentRepository(pool)
 	chunkRepo := repository.NewChunkRepository(pool)
 	airbyteRepo := repository.NewAirbyteRepository(pool)
-	storageClient, err := storage.NewS3Client(context.Background(), storage.S3Config{
+	// Bound startup S3 probing with a timeout so a blackholed storage
+	// endpoint can't hang worker boot indefinitely.
+	storageCtx, cancelStorage := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelStorage()
+	storageClient, err := storage.NewS3Client(storageCtx, storage.S3Config{
 		Endpoint:        cfg.S3.Endpoint,
 		Region:          cfg.S3.Region,
 		Bucket:          cfg.S3.Bucket,
 		AccessKeyID:     cfg.S3.AccessKeyID,
 		SecretAccessKey: cfg.S3.SecretAccessKey,
-		UsePathStyle:    true,
+		UsePathStyle:    cfg.S3.UsePathStyle,
 	})
 	if err != nil {
 		log.Fatalf("failed to initialise S3 storage: %v", err)
@@ -135,7 +140,7 @@ func main() {
 			err := db.WithOrgID(ctx, pool, orgID, func(tx pgx.Tx) error {
 				cfg, err := llmRepo.GetDefault(ctx, tx, orgID)
 				if err != nil {
-					if strings.Contains(err.Error(), "no rows") {
+					if errors.Is(err, pgx.ErrNoRows) {
 						return nil
 					}
 					return err

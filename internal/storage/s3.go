@@ -84,7 +84,7 @@ func NewS3Client(ctx context.Context, cfg S3Config) (*S3Client, error) {
 
 	client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
 		o.BaseEndpoint = aws.String(cfg.Endpoint)
-		o.UsePathStyle = cfg.UsePathStyle || true
+		o.UsePathStyle = cfg.UsePathStyle
 	})
 
 	c := &S3Client{c: client, bucket: cfg.Bucket}

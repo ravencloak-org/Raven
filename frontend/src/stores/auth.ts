@@ -54,17 +54,27 @@ export const useAuthStore = defineStore('auth', () => {
     // exists but the in-memory orgId is missing — that's the canonical source
     // for the current user's org_id, set by the backend on every login.
     if (sessionExists.value && !orgId.value) {
+      // Bound /me with a 5s abort so a stalled API can't block init().
+      // init() runs before the first paint, so any wait here delays
+      // the entire app boot and brings back the blank-page behaviour
+      // this function is already trying to protect against.
+      const controller = new AbortController()
+      const timeoutId = window.setTimeout(() => controller.abort(), 5000)
       try {
         const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/me`, {
           credentials: 'include',
+          signal: controller.signal,
         })
         if (res.ok) {
           const me = (await res.json()) as { org_id?: string }
           if (me.org_id) setOrgId(me.org_id)
         }
       } catch {
-        // Swallow — if /me is unreachable the router will send the user to
-        // /onboarding which can re-derive the org from the auth callback.
+        // Swallow (including AbortError) — if /me is unreachable the
+        // router will send the user to /onboarding which can re-derive
+        // the org from the auth callback.
+      } finally {
+        window.clearTimeout(timeoutId)
       }
     }
   }

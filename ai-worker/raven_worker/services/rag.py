@@ -15,13 +15,18 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import ipaddress
 import json
+import os
+import socket
 import time
 from collections.abc import AsyncIterator
+from urllib.parse import urlparse
 
 import anthropic
 import asyncpg
 import grpc
+import httpx
 import redis as syncredis
 import redis.asyncio as aioredis
 import structlog
@@ -32,7 +37,7 @@ from raven_worker.crypto import decrypt_api_key
 from raven_worker.generated import ai_worker_pb2
 from raven_worker.llm_fuse import FuseTripped, LLMSpendFuse
 from raven_worker.memory import MEMORY_TOOL, MemoryStore
-from raven_worker.providers.registry import get_provider_for_request
+from raven_worker.providers.registry import _looks_like_chat_model, get_provider_for_request
 from raven_worker.retrieval.bm25_search import bm25_search
 from raven_worker.retrieval.cache_repo import DEFAULT_SIMILARITY_THRESHOLD, CacheRepository
 from raven_worker.retrieval.reranker import cohere_rerank
@@ -96,6 +101,66 @@ _MEMORY_SYSTEM_PROMPT_SUFFIX = (
     "\n\nIMPORTANT: Before answering, use the memory tool to check /memories "
     "for relevant context from previous conversations with this user."
 )
+
+
+def _validate_ollama_base_url(raw: str) -> None:
+    """Reject Ollama base URLs that would let a tenant-controlled value
+    probe internal infrastructure when interpolated into a worker-side
+    httpx request.
+
+    Rules: scheme must be http or https; no embedded credentials; host
+    must resolve; resolved IPs must not be loopback, link-local,
+    unspecified, multicast, or RFC1918/RFC4193 private — except when
+    ``RAVEN_LLM_ALLOW_LOOPBACK=1`` (dev) or
+    ``RAVEN_LLM_ALLOW_PRIVATE=1`` (self-hosted-on-LAN) is set.
+    Cloud-metadata addresses (169.254.169.254, fd00:ec2::254) are
+    always rejected.
+    """
+    if not raw:
+        raise ValueError("Ollama base URL is empty")
+    parsed = urlparse(raw)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"Ollama base URL scheme {parsed.scheme!r} not allowed")
+    if parsed.username or parsed.password:
+        raise ValueError("Ollama base URL must not include embedded credentials")
+    host = parsed.hostname
+    if not host:
+        raise ValueError("Ollama base URL has no host")
+    allow_loopback = os.getenv("RAVEN_LLM_ALLOW_LOOPBACK") == "1"
+    allow_private = os.getenv("RAVEN_LLM_ALLOW_PRIVATE") == "1"
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except OSError as exc:
+        raise ValueError(f"Ollama base URL host lookup failed: {exc}") from exc
+    seen: set[str] = set()
+    for fam, _type, _proto, _canon, sockaddr in infos:
+        if fam not in (socket.AF_INET, socket.AF_INET6):
+            continue
+        addr = sockaddr[0]
+        if addr in seen:
+            continue
+        seen.add(addr)
+        ip = ipaddress.ip_address(addr)
+        if ip.is_unspecified:
+            raise ValueError(f"Ollama base URL resolves to unspecified address {ip}")
+        if ip.is_multicast:
+            raise ValueError(f"Ollama base URL resolves to multicast address {ip}")
+        # Cloud-metadata endpoints — never allowed.
+        if ip == ipaddress.ip_address("169.254.169.254") or str(ip) in {
+            "fd00:ec2::254",
+        }:
+            raise ValueError(f"Ollama base URL resolves to cloud metadata {ip}")
+        if ip.is_link_local:
+            raise ValueError(f"Ollama base URL resolves to link-local {ip}")
+        if ip.is_loopback and not allow_loopback:
+            raise ValueError(
+                f"Ollama base URL resolves to loopback {ip}"
+                " (set RAVEN_LLM_ALLOW_LOOPBACK=1 to allow)"
+            )
+        if ip.is_private and not allow_private:
+            raise ValueError(
+                f"Ollama base URL resolves to private {ip} (set RAVEN_LLM_ALLOW_PRIVATE=1 to allow)"
+            )
 
 
 def _cache_key(kb_id: str, query: str) -> str:
@@ -442,7 +507,12 @@ class RAGServicer:
                 yield chunk
 
             # --- Store in cache after successful pipeline completion ---
-            if cache_key and collected_text:
+            # Skip both caches when the final chunk had no sources: that
+            # branch is the ungrounded-fallback path (retrieval found
+            # nothing) and persisting its answer would poison the cache,
+            # serving the ungrounded reply even after the KB becomes
+            # searchable.
+            if cache_key and collected_text and final_sources:
                 if semantic_hit_embedding is not None:
                     # Isolate the semantic-cache write: any exception here
                     # must not kill the already-streamed response. The store
@@ -520,16 +590,12 @@ class RAGServicer:
 
         async def _run_vector_search() -> list:
             async with pool.acquire() as conn:
-                await conn.execute(
-                    "SELECT set_config('app.current_org_id', $1, false)", org_id
-                )
+                await conn.execute("SELECT set_config('app.current_org_id', $1, false)", org_id)
                 return await vector_search(conn, query_embedding, org_id, kb_ids)
 
         async def _run_bm25_search() -> list:
             async with pool.acquire() as conn:
-                await conn.execute(
-                    "SELECT set_config('app.current_org_id', $1, false)", org_id
-                )
+                await conn.execute("SELECT set_config('app.current_org_id', $1, false)", org_id)
                 return await bm25_search(conn, query_text, org_id, kb_ids)
 
         vector_results, bm25_results = await asyncio.gather(
@@ -769,10 +835,11 @@ class RAGServicer:
         lives in providers/registry.py and is mirrored here for safety —
         an embedding model id would crash Ollama's /api/chat endpoint.
         """
-        import httpx
-        from raven_worker.providers.registry import _looks_like_chat_model
-
         base_url = await self._get_ollama_base_url(org_id)
+        # Validate the stored URL before dialing — org admins control this
+        # column, so without a scheme/host check it doubles as
+        # authenticated SSRF against private/link-local/metadata targets.
+        _validate_ollama_base_url(base_url)
 
         # If the model is empty or smells like an embedding model id, fall
         # back to a known chat model. This mirrors the embedding-side
@@ -790,31 +857,32 @@ class RAGServicer:
         # stale connection pool. 10 min ceiling — local Ollama on M1 Pro
         # streaming a long answer can run 30-90s; CF tunnels can stall
         # briefly during region failover.
-        async with httpx.AsyncClient(timeout=600.0) as client:
-            async with client.stream(
+        async with (
+            httpx.AsyncClient(timeout=600.0) as client,
+            client.stream(
                 "POST",
                 f"{base_url.rstrip('/')}/api/chat",
                 json=payload,
                 headers={"Content-Type": "application/json"},
-            ) as response:
-                if response.status_code != 200:
-                    body = await response.aread()
-                    raise ValueError(
-                        f"Ollama /api/chat returned {response.status_code}: {body.decode('utf-8', errors='replace')[:300]}"
-                    )
-                async for line in response.aiter_lines():
-                    if not line:
-                        continue
-                    try:
-                        evt = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-                    if evt.get("done"):
-                        break
-                    msg = evt.get("message") or {}
-                    content = msg.get("content")
-                    if content:
-                        yield ai_worker_pb2.RAGChunk(text=content, is_final=False, sources=[])
+            ) as response,
+        ):
+            if response.status_code != 200:
+                body = await response.aread()
+                snippet = body.decode("utf-8", errors="replace")[:300]
+                raise ValueError(f"Ollama /api/chat returned {response.status_code}: {snippet}")
+            async for line in response.aiter_lines():
+                if not line:
+                    continue
+                try:
+                    evt = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if evt.get("done"):
+                    break
+                msg = evt.get("message") or {}
+                content = msg.get("content")
+                if content:
+                    yield ai_worker_pb2.RAGChunk(text=content, is_final=False, sources=[])
 
     async def _get_ollama_base_url(self, org_id: str) -> str:
         """Look up the org's Ollama provider Base URL, defaulting to
@@ -822,9 +890,7 @@ class RAGServicer:
         for the base_url column (Ollama needs no api_key)."""
         pool = await self._get_pool()
         async with pool.acquire() as conn:
-            await conn.execute(
-                "SELECT set_config('app.current_org_id', $1, false)", org_id
-            )
+            await conn.execute("SELECT set_config('app.current_org_id', $1, false)", org_id)
             row = await conn.fetchrow(
                 """
                 SELECT base_url
