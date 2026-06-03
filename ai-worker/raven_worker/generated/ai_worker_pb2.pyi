@@ -35,7 +35,7 @@ class ParseResponse(_message.Message):
     def __init__(self, document_id: _Optional[str] = ..., chunk_count: _Optional[int] = ..., status: _Optional[str] = ..., error_message: _Optional[str] = ...) -> None: ...
 
 class RAGRequest(_message.Message):
-    __slots__ = ("query", "org_id", "kb_ids", "session_id", "filters", "model", "provider")
+    __slots__ = ("query", "org_id", "kb_ids", "session_id", "filters", "model", "provider", "embed_provider")
     class FiltersEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -50,6 +50,7 @@ class RAGRequest(_message.Message):
     FILTERS_FIELD_NUMBER: _ClassVar[int]
     MODEL_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    EMBED_PROVIDER_FIELD_NUMBER: _ClassVar[int]
     query: str
     org_id: str
     kb_ids: _containers.RepeatedScalarFieldContainer[str]
@@ -57,7 +58,8 @@ class RAGRequest(_message.Message):
     filters: _containers.ScalarMap[str, str]
     model: str
     provider: str
-    def __init__(self, query: _Optional[str] = ..., org_id: _Optional[str] = ..., kb_ids: _Optional[_Iterable[str]] = ..., session_id: _Optional[str] = ..., filters: _Optional[_Mapping[str, str]] = ..., model: _Optional[str] = ..., provider: _Optional[str] = ...) -> None: ...
+    embed_provider: str
+    def __init__(self, query: _Optional[str] = ..., org_id: _Optional[str] = ..., kb_ids: _Optional[_Iterable[str]] = ..., session_id: _Optional[str] = ..., filters: _Optional[_Mapping[str, str]] = ..., model: _Optional[str] = ..., provider: _Optional[str] = ..., embed_provider: _Optional[str] = ...) -> None: ...
 
 class RAGChunk(_message.Message):
     __slots__ = ("text", "is_final", "sources")
@@ -67,7 +69,7 @@ class RAGChunk(_message.Message):
     text: str
     is_final: bool
     sources: _containers.RepeatedCompositeFieldContainer[Source]
-    def __init__(self, text: _Optional[str] = ..., is_final: bool = ..., sources: _Optional[_Iterable[_Union[Source, _Mapping]]] = ...) -> None: ...
+    def __init__(self, text: _Optional[str] = ..., is_final: _Optional[bool] = ..., sources: _Optional[_Iterable[_Union[Source, _Mapping]]] = ...) -> None: ...
 
 class Source(_message.Message):
     __slots__ = ("document_id", "document_name", "chunk_text", "score")

@@ -136,6 +136,20 @@ func main() {
 		// already does this lookup in chat.go.
 		llmRepo := repository.NewLLMProviderRepository(pool)
 		resolveProvider := func(ctx context.Context, orgID string) string {
+			// Pick the org's embedding-capable provider. Walks the
+			// default first (kept for the common case where the
+			// default IS embedding-capable), then the
+			// Ollama→OpenAI→Cohere priority list. Falls back to the
+			// default's slug only when the resolver finds nothing —
+			// preserves prior behaviour for unconfigured orgs so
+			// document ingestion keeps degrading gracefully instead
+			// of failing the whole worker job.
+			if p, err := service.ResolveEmbeddingProvider(ctx, pool, llmRepo, orgID); err == nil {
+				return p
+			} else {
+				logger.Warn("resolve embedding provider failed",
+					"org_id", orgID, "error", err)
+			}
 			var providerType string
 			err := db.WithOrgID(ctx, pool, orgID, func(tx pgx.Tx) error {
 				cfg, err := llmRepo.GetDefault(ctx, tx, orgID)
