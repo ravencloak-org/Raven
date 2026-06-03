@@ -569,13 +569,13 @@ func TestMigrationsUpAndDown(t *testing.T) {
 			t.Fatalf("insert workspace: %v", err)
 		}
 		if _, err := db.ExecContext(ctx,
-			`INSERT INTO knowledge_bases (org_id, workspace_id, name, slug, visibility)
-			 VALUES ($1, $2, 'A', 'duplicate-slug', 'public')`, orgID2, wsID2); err != nil {
+			`INSERT INTO knowledge_bases (org_id, workspace_id, name, slug, visibility, license_spdx_id)
+			 VALUES ($1, $2, 'A', 'duplicate-slug', 'public', 'MIT')`, orgID2, wsID2); err != nil {
 			t.Fatalf("insert first public kb: %v", err)
 		}
 		if _, err := db.ExecContext(ctx,
-			`INSERT INTO knowledge_bases (org_id, workspace_id, name, slug, visibility)
-			 VALUES ($1, $2, 'B', 'duplicate-slug', 'public')`, orgID2, wsID2); err == nil {
+			`INSERT INTO knowledge_bases (org_id, workspace_id, name, slug, visibility, license_spdx_id)
+			 VALUES ($1, $2, 'B', 'duplicate-slug', 'public', 'MIT')`, orgID2, wsID2); err == nil {
 			t.Error("expected partial UNIQUE to reject second public KB with same (org_id, slug)")
 		}
 		// Two private KBs with the same (org_id, slug) — allowed by the
@@ -926,6 +926,78 @@ func TestMigrationsUpAndDown(t *testing.T) {
 					}
 				}
 			})
+		}
+	})
+
+	t.Run("kb_license_check_and_takedown_strikes", func(t *testing.T) {
+		// Migration 00050 (issue #726): partial CHECK on knowledge_bases
+		// enforcing license_spdx_id NOT NULL when visibility='public',
+		// plus organizations.takedown_strikes BIGINT NOT NULL DEFAULT 0.
+		//
+		// Asserted invariants:
+		//   1. takedown_strikes exists with the right type and default 0.
+		//   2. The CHECK constraint rejects an attempt to publish a KB
+		//      with NULL license_spdx_id.
+		//   3. Publishing with an SPDX id present succeeds.
+		//   4. Private KBs continue to permit NULL license_spdx_id —
+		//      the constraint must not regress existing rows.
+
+		// takedown_strikes column shape.
+		var dataType string
+		var defaultExpr *string
+		if err := db.QueryRowContext(ctx,
+			`SELECT data_type, column_default
+			 FROM information_schema.columns
+			 WHERE table_schema = 'public' AND table_name = 'organizations'
+			   AND column_name = 'takedown_strikes'`).
+			Scan(&dataType, &defaultExpr); err != nil {
+			t.Fatalf("read takedown_strikes column: %v", err)
+		}
+		if dataType != "bigint" {
+			t.Errorf("takedown_strikes data_type: want bigint, got %s", dataType)
+		}
+		if defaultExpr == nil || *defaultExpr != "0" {
+			got := "<nil>"
+			if defaultExpr != nil {
+				got = *defaultExpr
+			}
+			t.Errorf("takedown_strikes default: want 0, got %s", got)
+		}
+
+		// Bootstrap an org + workspace for the CHECK behaviour assertions.
+		var orgID3, wsID3 string
+		if err := db.QueryRowContext(ctx,
+			`INSERT INTO organizations (id, name, slug)
+			 VALUES (uuid_generate_v4(), 'License Test Org', 'license-test-org')
+			 RETURNING id`).Scan(&orgID3); err != nil {
+			t.Fatalf("insert organization: %v", err)
+		}
+		if err := db.QueryRowContext(ctx,
+			`INSERT INTO workspaces (id, org_id, name, slug)
+			 VALUES (uuid_generate_v4(), $1, 'License WS', 'license-ws')
+			 RETURNING id`, orgID3).Scan(&wsID3); err != nil {
+			t.Fatalf("insert workspace: %v", err)
+		}
+
+		// Private KB with NULL license must still be allowed.
+		if _, err := db.ExecContext(ctx,
+			`INSERT INTO knowledge_bases (org_id, workspace_id, name, slug)
+			 VALUES ($1, $2, 'Private OK', 'private-ok')`, orgID3, wsID3); err != nil {
+			t.Errorf("private KB with NULL license must be allowed: %v", err)
+		}
+
+		// Public KB with NULL license must be rejected by the CHECK.
+		if _, err := db.ExecContext(ctx,
+			`INSERT INTO knowledge_bases (org_id, workspace_id, name, slug, visibility)
+			 VALUES ($1, $2, 'Bad Public', 'bad-public', 'public')`, orgID3, wsID3); err == nil {
+			t.Error("expected CHECK to reject public KB with NULL license_spdx_id")
+		}
+
+		// Public KB with a license must succeed.
+		if _, err := db.ExecContext(ctx,
+			`INSERT INTO knowledge_bases (org_id, workspace_id, name, slug, visibility, license_spdx_id)
+			 VALUES ($1, $2, 'Good Public', 'good-public', 'public', 'MIT')`, orgID3, wsID3); err != nil {
+			t.Errorf("public KB with license must succeed: %v", err)
 		}
 	})
 

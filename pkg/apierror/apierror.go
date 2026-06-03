@@ -71,6 +71,19 @@ func NewConflict(detail string) *AppError {
 	}
 }
 
+// NewUnprocessableEntity creates a 422 Unprocessable Entity error. Use this
+// for payloads whose shape parsed cleanly but whose semantic content was
+// rejected by a domain rule — e.g. an SPDX license that is not in the
+// Marketplace publish allow-list (ADR-0006). 400 is reserved for malformed
+// requests; 422 says "I understood you, the answer is still no".
+func NewUnprocessableEntity(detail string) *AppError {
+	return &AppError{
+		Code:    http.StatusUnprocessableEntity,
+		Message: "Unprocessable Entity",
+		Detail:  detail,
+	}
+}
+
 // NewTooManyRequests creates a 429 Too Many Requests error.
 func NewTooManyRequests(detail string) *AppError {
 	return &AppError{

@@ -7,9 +7,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ravencloak-org/Raven/internal/handler"
+	"github.com/ravencloak-org/Raven/internal/marketplace"
 	"github.com/ravencloak-org/Raven/internal/middleware"
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
@@ -187,6 +189,222 @@ func TestUpdateKB_AcceptsCacheKnobs(t *testing.T) {
 	}
 	if received.CacheSimilarityThreshold == nil || *received.CacheSimilarityThreshold != threshold {
 		t.Errorf("cache_similarity_threshold not propagated: %+v", received.CacheSimilarityThreshold)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Publish endpoint tests (issue #726).
+// ---------------------------------------------------------------------------
+
+// mockPublisher implements handler.KBPublisher for unit tests covering the
+// /publish route. The publishFn lets each test inject the exact result
+// or *apierror.AppError it wants the handler to render.
+type mockPublisher struct {
+	publishFn func(ctx context.Context, orgID, kbID, userID, licenseSPDXID string) (*marketplace.PublishResult, error)
+	// lastCall records the most recent invocation so assertions can verify
+	// the handler propagated path params and the user id from the auth
+	// context.
+	lastCall struct {
+		orgID, kbID, userID, license string
+	}
+}
+
+func (m *mockPublisher) PublishKB(ctx context.Context, orgID, kbID, userID, licenseSPDXID string) (*marketplace.PublishResult, error) {
+	m.lastCall.orgID = orgID
+	m.lastCall.kbID = kbID
+	m.lastCall.userID = userID
+	m.lastCall.license = licenseSPDXID
+	if m.publishFn == nil {
+		return nil, apierror.NewInternal("mock publishFn not set")
+	}
+	return m.publishFn(ctx, orgID, kbID, userID, licenseSPDXID)
+}
+
+// newKBRouterWithPublisher wires the same harness as newKBRouter and
+// additionally registers the publish route with a stub publisher and
+// optional userID override. Pass userID="" to simulate the unauthenticated
+// case (the handler must still surface 401 — the auth middleware would
+// normally have short-circuited, but the defence-in-depth check belongs
+// to the handler).
+func newKBRouterWithPublisher(svc handler.KBServicer, pub handler.KBPublisher, userID string) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(apierror.ErrorHandler())
+	r.Use(func(c *gin.Context) {
+		if userID != "" {
+			c.Set(string(middleware.ContextKeyUserID), userID)
+		}
+		c.Set(string(middleware.ContextKeyOrgRole), "org_admin")
+		c.Set(string(middleware.ContextKeyOrgID), "org-abc")
+		c.Set(string(middleware.ContextKeyWorkspaceRole), "admin")
+		c.Next()
+	})
+	h := handler.NewKBHandler(svc).WithPublisher(pub)
+	const base = "/api/v1/orgs/:org_id/workspaces/:ws_id/knowledge-bases"
+	r.POST(base+"/:kb_id/publish", h.Publish)
+	return r
+}
+
+func TestPublishKB_Success(t *testing.T) {
+	publishedAt := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	pub := &mockPublisher{
+		publishFn: func(_ context.Context, _, _, _, license string) (*marketplace.PublishResult, error) {
+			return &marketplace.PublishResult{
+				Visibility:     model.KBVisibilityPublic,
+				PublishedAt:    publishedAt,
+				MarketplaceURL: marketplace.URL("acme", "support-docs"),
+			}, nil
+		},
+	}
+	r := newKBRouterWithPublisher(&mockKBService{}, pub, "user-1")
+
+	body, _ := json.Marshal(map[string]string{"license_spdx_id": "MIT"})
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost,
+		"/api/v1/orgs/org-abc/workspaces/ws-1/knowledge-bases/kb-1/publish",
+		bytes.NewBuffer(body),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if pub.lastCall.orgID != "org-abc" || pub.lastCall.kbID != "kb-1" {
+		t.Errorf("path params not propagated: %+v", pub.lastCall)
+	}
+	if pub.lastCall.userID != "user-1" {
+		t.Errorf("expected user id from context, got %q", pub.lastCall.userID)
+	}
+	if pub.lastCall.license != "MIT" {
+		t.Errorf("license not propagated: %q", pub.lastCall.license)
+	}
+
+	var resp marketplace.PublishResult
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.Visibility != model.KBVisibilityPublic {
+		t.Errorf("visibility: got %q want public", resp.Visibility)
+	}
+	if resp.MarketplaceURL != "https://raven.ravencloak.org/marketplace/acme/support-docs" {
+		t.Errorf("marketplace_url drift: %q", resp.MarketplaceURL)
+	}
+}
+
+// TestPublishKB_MissingUserID_Returns401 exercises the defence-in-depth
+// check inside the handler: a request that somehow reached us without the
+// auth middleware setting a user id must be refused with 401 rather than
+// writing a NULL into published_by_user_id.
+func TestPublishKB_MissingUserID_Returns401(t *testing.T) {
+	pub := &mockPublisher{}
+	r := newKBRouterWithPublisher(&mockKBService{}, pub, "")
+
+	body, _ := json.Marshal(map[string]string{"license_spdx_id": "MIT"})
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost,
+		"/api/v1/orgs/org-abc/workspaces/ws-1/knowledge-bases/kb-1/publish",
+		bytes.NewBuffer(body),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d: %s", w.Code, w.Body.String())
+	}
+	if pub.lastCall.userID != "" {
+		t.Error("publisher must not be called when user context is missing")
+	}
+}
+
+// TestPublishKB_KBFrozen_Returns409 covers the path where the publish
+// service returns the canonical kb_frozen 409 — surfaced when the KB sits
+// in read_only_private (Free Plan freeze, ADR-0004). The handler must
+// pass it through with the correct status code.
+func TestPublishKB_KBFrozen_Returns409(t *testing.T) {
+	pub := &mockPublisher{
+		publishFn: func(_ context.Context, _, _, _, _ string) (*marketplace.PublishResult, error) {
+			return nil, apierror.NewKBFrozen("frozen on Free Plan")
+		},
+	}
+	r := newKBRouterWithPublisher(&mockKBService{}, pub, "user-1")
+	body, _ := json.Marshal(map[string]string{"license_spdx_id": "MIT"})
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost,
+		"/api/v1/orgs/org-abc/workspaces/ws-1/knowledge-bases/kb-1/publish",
+		bytes.NewBuffer(body),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusConflict {
+		t.Errorf("expected 409, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestPublishKB_NotFound_Returns404(t *testing.T) {
+	pub := &mockPublisher{
+		publishFn: func(_ context.Context, _, _, _, _ string) (*marketplace.PublishResult, error) {
+			return nil, apierror.NewNotFound("knowledge base not found")
+		},
+	}
+	r := newKBRouterWithPublisher(&mockKBService{}, pub, "user-1")
+	body, _ := json.Marshal(map[string]string{"license_spdx_id": "MIT"})
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost,
+		"/api/v1/orgs/org-abc/workspaces/ws-1/knowledge-bases/missing/publish",
+		bytes.NewBuffer(body),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", w.Code)
+	}
+}
+
+// TestPublishKB_BadLicense_Returns422 confirms the handler renders the
+// allow-list rejection from the service as 422 (not 400). The license is
+// shape-valid but semantically rejected — exactly what 422 is for.
+func TestPublishKB_BadLicense_Returns422(t *testing.T) {
+	pub := &mockPublisher{
+		publishFn: func(_ context.Context, _, _, _, _ string) (*marketplace.PublishResult, error) {
+			return nil, apierror.NewUnprocessableEntity("license_spdx_id \"BSD-3-Clause\" is not in the allow-list")
+		},
+	}
+	r := newKBRouterWithPublisher(&mockKBService{}, pub, "user-1")
+	body, _ := json.Marshal(map[string]string{"license_spdx_id": "BSD-3-Clause"})
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost,
+		"/api/v1/orgs/org-abc/workspaces/ws-1/knowledge-bases/kb-1/publish",
+		bytes.NewBuffer(body),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", w.Code)
+	}
+}
+
+// TestPublishKB_EmptyLicensePayload_Returns422 covers the request-binding
+// level: the JSON parses cleanly but license_spdx_id is missing /
+// empty-string, which the `binding:"required"` tag rejects with 422
+// before the service is ever consulted.
+func TestPublishKB_EmptyLicensePayload_Returns422(t *testing.T) {
+	pub := &mockPublisher{
+		publishFn: func(_ context.Context, _, _, _, _ string) (*marketplace.PublishResult, error) {
+			t.Fatal("service must not be called when payload is invalid")
+			return nil, nil
+		},
+	}
+	r := newKBRouterWithPublisher(&mockKBService{}, pub, "user-1")
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost,
+		"/api/v1/orgs/org-abc/workspaces/ws-1/knowledge-bases/kb-1/publish",
+		bytes.NewBufferString(`{}`),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", w.Code)
 	}
 }
 

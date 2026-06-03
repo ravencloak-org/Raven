@@ -51,6 +51,7 @@ import (
 	"github.com/ravencloak-org/Raven/internal/resilience"
 	"github.com/ravencloak-org/Raven/internal/hyperswitch"
 	"github.com/ravencloak-org/Raven/internal/mail"
+	"github.com/ravencloak-org/Raven/internal/marketplace"
 	"github.com/ravencloak-org/Raven/internal/middleware"
 	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/internal/posthog"
@@ -518,7 +519,18 @@ func main() {
 	orgHandler := handler.NewOrgHandler(orgSvc, userRepo)
 	wsHandler := handler.NewWorkspaceHandler(wsSvc)
 	userHandler := handler.NewUserHandler(userSvc)
-	kbHandler := handler.NewKBHandler(kbSvc)
+	// Marketplace publish service (issue #726): owns the canonical
+	// publish boundary — license allow-list, status-gate freeze, atomic
+	// flip of visibility + publish metadata. Shares kbStatusGuard so the
+	// freeze policy used here matches every other write surface. The
+	// gate is wired via a closure so internal/marketplace does not pull
+	// in internal/service (which would create an import cycle through
+	// internal/repository → internal/marketplace).
+	publishGate := func(ctx context.Context, tx pgx.Tx, orgID, kbID string) error {
+		return kbStatusGuard.RequireInTx(ctx, tx, orgID, kbID, service.KBActionPublish)
+	}
+	publishSvc := marketplace.NewPublishService(pool, publishGate)
+	kbHandler := handler.NewKBHandler(kbSvc).WithPublisher(publishSvc)
 	sourceHandler := handler.NewSourceHandler(sourceSvc)
 	docHandler := handler.NewDocumentHandler(docSvc)
 	searchHandler := handler.NewSearchHandler(searchSvc)
@@ -702,6 +714,11 @@ func main() {
 				kb.GET("/:kb_id", kbHandler.Get)
 				kb.PUT("/:kb_id", resolveWSRole, middleware.RequireWorkspaceRole("member"), kbHandler.Update)
 				kb.DELETE("/:kb_id", resolveWSRole, middleware.RequireWorkspaceRole("admin"), kbHandler.Archive)
+				// Marketplace publish (issue #726, ADR-0002). Admin role is
+				// Raven's equivalent of the kb:publish permission — same
+				// gate as Archive since publishing is an irreversible-ish
+				// content-grade action.
+				kb.POST("/:kb_id/publish", resolveWSRole, middleware.RequireWorkspaceRole("admin"), kbHandler.Publish)
 
 				// Full-text search (nested under knowledge base)
 				kb.GET("/:kb_id/search", searchHandler.Search)
