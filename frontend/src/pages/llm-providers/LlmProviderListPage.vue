@@ -437,6 +437,69 @@ async function handleEditSave() {
   }
 }
 
+// Tunnel suggestions shown in the Ollama branch so a user on the
+// hosted demo (whose Vultr box can't reach `localhost`) has a one-liner
+// to expose their local daemon publicly. Cloudflare's `trycloudflare`
+// mode is the recommended first option — no account, no install of
+// anything Raven-side, free, auto-TLS. ngrok is the fallback for users
+// who already have it set up.
+const ollamaTunnels: { label: string; command: string; note?: string }[] = [
+  {
+    label: 'Cloudflare Tunnel (recommended)',
+    command: 'cloudflared tunnel --url http://localhost:11434',
+    note: 'Prints an https://<random>.trycloudflare.com URL. No account needed. Paste it into Base URL above.',
+  },
+  {
+    label: 'ngrok',
+    command: 'ngrok http 11434',
+    note: 'Free account required for stable URLs. Use the https Forwarding address.',
+  },
+]
+
+const copied = ref<string | null>(null)
+async function copyTunnel(command: string) {
+  try {
+    await navigator.clipboard.writeText(command)
+    copied.value = command
+    setTimeout(() => (copied.value === command ? (copied.value = null) : null), 1500)
+  } catch {
+    // Clipboard access can fail under restrictive permissions / older
+    // browsers — surface the command in the UI and let the user copy
+    // it manually instead of throwing.
+    copied.value = null
+  }
+}
+
+// True only when a loopback Base URL is paired with a non-loopback
+// browser origin — i.e., the user typed `http://localhost:...` while
+// hitting Raven on a real public host (demo.ravencloak.org, etc.).
+// On Raven-running-locally (desktop / self-host) the loopback address
+// works as-is and the tunnel hint would be noise.
+const isLoopbackBaseURL = computed(() => {
+  const raw = (form.value.base_url ?? '').trim().toLowerCase()
+  if (!raw) return false
+  return (
+    raw.startsWith('http://localhost') ||
+    raw.startsWith('https://localhost') ||
+    raw.startsWith('http://127.') ||
+    raw.startsWith('https://127.') ||
+    raw.startsWith('http://[::1]') ||
+    raw.startsWith('https://[::1]') ||
+    raw.startsWith('http://0.0.0.0') ||
+    raw.startsWith('https://0.0.0.0')
+  )
+})
+
+const ravenHost = computed(() => window.location.hostname)
+const ravenIsRemote = computed(() => {
+  const host = ravenHost.value
+  return host !== 'localhost' && host !== '127.0.0.1' && host !== '[::1]' && host !== '0.0.0.0'
+})
+
+const showTunnelHint = computed(
+  () => form.value.provider === 'ollama' && isLoopbackBaseURL.value && ravenIsRemote.value,
+)
+
 function confirmDelete(id: string, name: string) {
   providerToDelete.value = id
   providerToDeleteName.value = name
@@ -657,7 +720,43 @@ onMounted(() => store.fetchProviders(orgId.value))
           </div>
           <div v-if="form.provider === 'custom' || form.provider === 'ollama'">
             <label class="block text-sm font-medium text-gray-700">Base URL</label>
-            <input v-model="form.base_url" type="url" class="mt-1 block w-full rounded border-gray-300 shadow-sm" placeholder="https://api.example.com/v1" />
+            <input
+              v-model="form.base_url"
+              type="url"
+              class="mt-1 block w-full rounded border-gray-300 shadow-sm"
+              :placeholder="currentProviderHelp.defaultBaseUrl ?? 'https://api.example.com/v1'"
+            />
+            <p v-if="currentProviderHelp.baseUrlHelp" class="mt-1 text-xs text-gray-500">
+              {{ currentProviderHelp.baseUrlHelp }}
+            </p>
+            <!-- Tunnel hints: only when the user has typed a loopback
+                 Base URL while sitting on a remote Raven (e.g. the
+                 hosted demo). For self-hosted / Tauri Raven the
+                 loopback address works as-is and the hint is noise. -->
+            <div v-if="showTunnelHint" class="mt-3 rounded-md border border-gray-200 bg-gray-50 p-3">
+              <p class="text-xs font-medium text-gray-700">
+                {{ ravenHost }} can't reach <code class="font-mono">{{ form.base_url }}</code> on your machine. Expose Ollama temporarily:
+              </p>
+              <ul class="mt-2 space-y-2">
+                <li v-for="t in ollamaTunnels" :key="t.label" class="text-xs">
+                  <div class="font-medium text-gray-600">{{ t.label }}</div>
+                  <div class="mt-0.5 flex items-center gap-1.5">
+                    <code class="flex-1 truncate rounded bg-gray-900 px-2 py-1 text-[11px] text-gray-100">{{ t.command }}</code>
+                    <button
+                      type="button"
+                      class="shrink-0 rounded border border-gray-300 bg-white px-2 py-1 text-[11px] text-gray-700 hover:bg-gray-100"
+                      @click="copyTunnel(t.command)"
+                    >
+                      {{ copied === t.command ? 'Copied' : 'Copy' }}
+                    </button>
+                  </div>
+                  <p v-if="t.note" class="mt-0.5 text-gray-500">{{ t.note }}</p>
+                </li>
+              </ul>
+              <p class="mt-2 text-[11px] text-amber-700">
+                <strong>Heads up:</strong> a public tunnel exposes your local Ollama to anyone with the URL. Close the tunnel when you're done, or restrict by IP / auth.
+              </p>
+            </div>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">API Key</label>
