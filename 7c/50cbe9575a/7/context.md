@@ -115,3 +115,141 @@ go for recommendation for all, and create gh milestone, issues, wiki and everyth
 
 go for it
 
+### Prompt 23
+
+<task-notification>
+<task-id>aea5f222530c14274</task-id>
+<tool-use-id>toolu_01CvtLWFVZJhFDemtnisbMhb</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Implement D — menu entries in AppHeader + AppSidebar" completed</summary>
+<result>Auto-merge queued successfully.
+
+https://github.com/ravencloak-org/Raven/pull/747
+Adds "AI Providers" na...
+
+### Prompt 24
+
+<task-notification>
+<task-id>a38702f216d7ead92</task-id>
+<tool-use-id>toolu_01Qi18143VhsRs655QYbCFCN</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Implement B — default pill + make-default action" completed</summary>
+<result>https://github.com/ravencloak-org/Raven/pull/748
+Adds an amber "Default" pill + "Make default" button (with ...
+
+### Prompt 25
+
+<task-notification>
+<task-id>ac44eb8a8315065b3</task-id>
+<tool-use-id>toolu_01NokWAEbKMSNNwfFeWkFAcc</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Implement A — backend update audit + test-by-provider_id" completed</summary>
+<result>Auto-squash-merge is queued.
+
+https://github.com/ravencloak-org/Raven/pull/749
+Backend M13 #739: PUT...
+
+### Prompt 26
+
+<task-notification>
+<task-id>a27f886a439140ab4</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Implement C — edit credentials dialog" completed</summary>
+<result>https://github.com/ravencloak-org/Raven/pull/750
+Edit-credentials dialog with rotate-key disclosure and Test-Connection...
+
+### Prompt 27
+
+<task-notification>
+<task-id>adb99e89b085eec6c</task-id>
+<tool-use-id>toolu_017tz55uNP5jrmtytkLrKH52</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Implement E — card redesign + inline edits" completed</summary>
+<result>Auto-merge is queued (SQUASH method). State is BLOCKED only because it stacks on the still-open #750 — it will m...
+
+### Prompt 28
+
+<task-notification>
+<task-id>a1b56c4c3ce852919</task-id>
+<tool-use-id>toolu_01AVH58GVmLVsHPfV9zTQCqq</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Implement F — Playwright E2E coverage" completed</summary>
+<result>Auto-merge queued.
+
+https://github.com/ravencloak-org/Raven/pull/753
+Added eight mocked Playwright scenarios in `fronte...
+
+### Prompt 29
+
+<task-notification>
+<task-id>a5ae7cfb316e2d555</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Resolve PR #750 — rebase or close as duplicate" completed</summary>
+<result>## Result
+
+- **Action:** **CLOSED** PR #750
+- **URL:** https://github.com/ravencloak-org/Raven/pull/750
+- **Wh...
+
+### Prompt 30
+
+lets start
+
+### Prompt 31
+
+all 3 in parallel
+
+### Prompt 32
+
+<task-notification>
+<task-id>aa4be66a4e6a271d2</task-id>
+<tool-use-id>toolu_01NkXJsiY2hKBVnL5NnqVnYm</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Re-enqueue two stuck embed docs on demo" completed</summary>
+<result>The handoff explicitly says "Vultr, IPv4 redacted in this doc; user has it." The demo box IP is **not** in the handoff ...
+
+### Prompt 33
+
+<task-notification>
+<task-id>ad4a16bc2e764d870</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Land M13 spec + ADR-0009 docs PR" completed</summary>
+<result>https://github.com/ravencloak-org/Raven/pull/754
+Landed the M13 design spec and ADR-0009 on branch `docs/m13-llm-provider-spec...
+
+### Prompt 34
+
+<task-notification>
+<task-id>a026b3a6ba7afb1ec</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Verify M13 on demo via Playwright" completed</summary>
+<result>Report time.
+
+## Report
+
+### DEPLOY: succeeded (with workaround)
+
+**Demo IP:** `64.176.97.248` (sourced from `.github/workflo...
+
+### Prompt 35
+
+go for it
+
+### Prompt 36
+
+continue
+
