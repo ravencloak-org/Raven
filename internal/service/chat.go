@@ -80,6 +80,11 @@ type ChatService struct {
 	// convMem is optional: when non-nil and the caller has an authenticated
 	// user, the service pulls cross-channel history and records the turn.
 	convMem ConversationMemory
+	// llmRepo is optional: when non-nil, StreamCompletion resolves the org's
+	// default provider before falling back to the hardcoded "anthropic"
+	// literal. Without it, an org that has only Ollama (or only OpenAI)
+	// configured would 500 on every chat the SPA didn't pin a provider on.
+	llmRepo *repository.LLMProviderRepository
 }
 
 // NewChatService creates a new ChatService.
@@ -97,6 +102,35 @@ func NewChatServiceWithDeps(chatRepo ChatRepository, grpcClient AIWorkerClient, 
 func (s *ChatService) WithConversationMemory(m ConversationMemory) *ChatService {
 	s.convMem = m
 	return s
+}
+
+// WithLLMProviderRepo attaches the provider-config repo so StreamCompletion
+// can pick the org's configured default instead of the "anthropic" literal
+// fallback. Chainable.
+func (s *ChatService) WithLLMProviderRepo(r *repository.LLMProviderRepository) *ChatService {
+	s.llmRepo = r
+	return s
+}
+
+// resolveDefaultProvider returns the provider type configured as the org's
+// default (e.g. "ollama", "openai"), or "" when none is configured or the
+// repo isn't wired. Callers fall back to a hardcoded literal in that case.
+// Errors are swallowed because chat shouldn't crash on a repo blip — the
+// fallback path still produces a sensible 500-with-message downstream.
+func (s *ChatService) resolveDefaultProvider(ctx context.Context, orgID string) string {
+	if s.llmRepo == nil {
+		return ""
+	}
+	var providerType string
+	_ = db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+		cfg, err := s.llmRepo.GetDefault(ctx, tx, orgID)
+		if err != nil || cfg == nil {
+			return nil
+		}
+		providerType = string(cfg.Provider)
+		return nil
+	})
+	return providerType
 }
 
 // StreamCompletion calls QueryRAG and returns a channel of SSE events.
@@ -180,7 +214,15 @@ func (s *ChatService) StreamCompletion(ctx context.Context, orgID, kbID string, 
 	// break completion.
 	convSessionID, historyTurnsInjected, isReturningUser := s.primeConversationMemory(ctx, orgID, kbID, req, filters)
 
+	// Provider resolution: caller-pinned → org's configured default → literal
+	// fallback. The "anthropic" literal is only reached when (a) the SPA
+	// doesn't pin a provider AND (b) the org has nothing configured AND (c)
+	// the env-level ANTHROPIC_API_KEY exists — in that case Python uses the
+	// env key. Anything else 500s with "no active provider config".
 	provider := req.Provider
+	if provider == "" {
+		provider = s.resolveDefaultProvider(ctx, orgID)
+	}
 	if provider == "" {
 		provider = "anthropic"
 	}
