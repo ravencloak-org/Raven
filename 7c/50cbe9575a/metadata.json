@@ -2,8 +2,8 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "branch": "main",
-  "checkpoints_count": 16,
+  "branch": "chore/bulk-dependabot-python-20260603",
+  "checkpoints_count": 17,
   "files_touched": [
     ".claude/worktrees/agent-a2991ebd5e54d4cb7/.env.ci",
     ".claude/worktrees/agent-a38702f216d7ead92/.env.ci",
@@ -15,6 +15,7 @@
     ".claude/worktrees/feat-enterprise-onboarding/.env.ci",
     ".playwright-mcp/console-2026-06-02T16-03-39-864Z.log",
     "CONTEXT.md",
+    "ai-worker/raven_worker/config.py",
     "cmd/api/main.go",
     "deploy/ansible/group_vars/all.yml",
     "deploy/ansible/inventory/hosts.yml",
@@ -43,6 +44,7 @@
     "docs/superpowers/plans/2026-05-23-bytebase-tiered-plan-a.md",
     "docs/superpowers/specs/2026-05-23-bytebase-tiered-design.md",
     "docs/superpowers/specs/2026-06-02-llm-provider-management-design.md",
+    "frontend/nginx.conf",
     "frontend/src/components/AppSidebar.vue",
     "frontend/src/components/MobileTabBar.vue",
     "frontend/src/components/TurnstileWidget.vue",
@@ -50,12 +52,12 @@
     "frontend/src/pages/LoginPage.vue",
     "frontend/src/plugins/supertokens.ts",
     "frontend/src/router/index.ts",
-    "internal/jobs/document_process.go",
     "internal/model/billing.go",
     "internal/repository/billing.go",
     "internal/repository/search_test.go",
     "internal/service/billing.go",
     "internal/service/billing_test.go",
+    "internal/service/chat.go",
     "internal/turnstile/middleware.go",
     "internal/turnstile/middleware_test.go",
     "migrations/migrations_test.go",
@@ -551,10 +553,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 1175,
-    "cache_creation_tokens": 4959429,
-    "cache_read_tokens": 164272927,
-    "output_tokens": 470890,
-    "api_call_count": 809
+    "input_tokens": 1207,
+    "cache_creation_tokens": 5403695,
+    "cache_read_tokens": 156127608,
+    "output_tokens": 485199,
+    "api_call_count": 836
   }
 }

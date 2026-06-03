@@ -3,29 +3,32 @@
   "checkpoint_id": "7c50cbe9575a",
   "session_id": "337cea8f-5a6b-4199-bc68-1de07b76ec01",
   "strategy": "manual-commit",
-  "created_at": "2026-06-02T15:21:26.736881Z",
-  "branch": "feat/llm-test-connection-and-install-hints",
-  "checkpoints_count": 3,
+  "created_at": "2026-06-03T03:51:28.709685Z",
+  "branch": "chore/bulk-dependabot-python-20260603",
+  "checkpoints_count": 4,
   "files_touched": [
-    "internal/jobs/document_process.go"
+    "ai-worker/raven_worker/config.py",
+    "cmd/api/main.go",
+    "frontend/nginx.conf",
+    "internal/service/chat.go"
   ],
   "agent": "Claude Code",
-  "checkpoint_transcript_start": 6878,
-  "transcript_lines_at_start": 6878,
+  "checkpoint_transcript_start": 7144,
+  "transcript_lines_at_start": 7144,
   "token_usage": {
-    "input_tokens": 90,
-    "cache_creation_tokens": 184262,
-    "cache_read_tokens": 22003949,
-    "output_tokens": 38021,
-    "api_call_count": 56
+    "input_tokens": 122,
+    "cache_creation_tokens": 628528,
+    "cache_read_tokens": 13858630,
+    "output_tokens": 52330,
+    "api_call_count": 83
   },
   "initial_attribution": {
-    "calculated_at": "2026-06-02T15:21:25.886357Z",
-    "agent_lines": 0,
-    "human_added": 15,
+    "calculated_at": "2026-06-03T03:51:27.869411Z",
+    "agent_lines": 29,
+    "human_added": 6299,
     "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 15,
-    "agent_percentage": 0
+    "total_committed": 6328,
+    "agent_percentage": 0.4582806573957017
   }
 }
