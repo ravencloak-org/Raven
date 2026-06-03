@@ -22,6 +22,7 @@ import (
 	rpcClient "github.com/ravencloak-org/Raven/internal/grpc"
 	pb "github.com/ravencloak-org/Raven/internal/grpc/pb"
 	"github.com/ravencloak-org/Raven/internal/jobs"
+	"github.com/ravencloak-org/Raven/internal/model"
 	"github.com/ravencloak-org/Raven/internal/posthog"
 	"github.com/ravencloak-org/Raven/internal/queue"
 	"github.com/ravencloak-org/Raven/internal/repository"
@@ -135,18 +136,39 @@ func main() {
 		// GetEmbedding rejects empty `provider` with NotFound; chat
 		// already does this lookup in chat.go.
 		llmRepo := repository.NewLLMProviderRepository(pool)
+		// Anthropic does not publish a public embeddings API, so we must
+		// never route an embed call to it even when it's the org's default
+		// chat provider. Walk the active provider list and pick the first
+		// embedding-capable one — falling back to the broader-default
+		// resolution only when no provider in the list supports embeddings.
+		embeddingCapable := map[string]bool{
+			"openai": true,
+			"cohere": true,
+			"ollama": true,
+		}
 		resolveProvider := func(ctx context.Context, orgID string) string {
 			var providerType string
 			err := db.WithOrgID(ctx, pool, orgID, func(tx pgx.Tx) error {
+				// Prefer the explicit default if it's embedding-capable.
 				cfg, err := llmRepo.GetDefault(ctx, tx, orgID)
-				if err != nil {
-					if errors.Is(err, pgx.ErrNoRows) {
-						return nil
-					}
+				if err == nil && cfg != nil && embeddingCapable[string(cfg.Provider)] {
+					providerType = string(cfg.Provider)
+					return nil
+				}
+				if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 					return err
 				}
-				if cfg != nil {
-					providerType = string(cfg.Provider)
+				// Default is Anthropic, missing, or non-embedding — scan
+				// the active provider list for an embedding-capable one.
+				configs, listErr := llmRepo.List(ctx, tx, orgID)
+				if listErr != nil {
+					return listErr
+				}
+				for _, c := range configs {
+					if c.Status == model.ProviderStatusActive && embeddingCapable[string(c.Provider)] {
+						providerType = string(c.Provider)
+						return nil
+					}
 				}
 				return nil
 			})
