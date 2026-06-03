@@ -677,3 +677,16 @@ Report:
 **Verdict**: ✅ Both indexed (already, by prior run). No action taken. The runbook is stale in two places: the hotfix container is gone, and `/tmp/enqueue` is no longer needed. Recommend updating the runbook to use the compose worker and to drive enqueue via the `/api/v1/documents/:id/reprocess` admin endpoint (or a new `worker enqueue` subcommand) for the next stuck-doc incident.</result>
 <usage><total_tokens>51819</total_tokens><tool_uses>11</tool_uses><duration_ms>118747</duration_ms></usage>
 </task-notification>
+
+---
+
+give endpoint
+
+---
+
+im talking about llm provider setup
+
+---
+
+it it not in the main menu? Sign in with Google
+Unable to start sign-in

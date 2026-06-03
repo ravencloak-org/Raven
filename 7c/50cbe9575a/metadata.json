@@ -2,8 +2,8 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "branch": "chore/bulk-dependabot-python-20260603",
-  "checkpoints_count": 17,
+  "branch": "chore/dependabot-python-majors-20260603",
+  "checkpoints_count": 18,
   "files_touched": [
     ".claude/worktrees/agent-a2991ebd5e54d4cb7/.env.ci",
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
@@ -32,7 +32,6 @@
     "docs/adr/0004-free-tier-public-only-rule.md",
     "docs/adr/0005-org-as-marketplace-publisher.md",
     "docs/adr/0006-licence-and-moderation.md",
-    "docs/adr/0006-single-org-wide-llm-provider-default.md",
     "docs/adr/0008-marketplace-discovery-and-operations.md",
     "docs/adr/0009-single-org-wide-llm-provider-default.md",
     "docs/plans/marketplace-mvp.md",
@@ -308,10 +307,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 1065,
-    "cache_creation_tokens": 4715300,
-    "cache_read_tokens": 139601915,
-    "output_tokens": 444570,
-    "api_call_count": 778
+    "input_tokens": 1084,
+    "cache_creation_tokens": 4742580,
+    "cache_read_tokens": 143543130,
+    "output_tokens": 451735,
+    "api_call_count": 788
   }
 }

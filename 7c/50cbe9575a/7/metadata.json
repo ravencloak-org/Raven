@@ -3,32 +3,30 @@
   "checkpoint_id": "7c50cbe9575a",
   "session_id": "69464040-203b-459e-a602-6864c7e2ba04",
   "strategy": "manual-commit",
-  "created_at": "2026-06-03T03:51:29.385127Z",
-  "branch": "chore/bulk-dependabot-python-20260603",
-  "checkpoints_count": 0,
+  "created_at": "2026-06-03T04:10:20.28898Z",
+  "branch": "chore/dependabot-python-majors-20260603",
+  "checkpoints_count": 1,
   "files_touched": [
-    "CONTEXT.md",
-    "docs/adr/0006-single-org-wide-llm-provider-default.md",
     "docs/adr/0009-single-org-wide-llm-provider-default.md",
     "docs/superpowers/specs/2026-06-02-llm-provider-management-design.md"
   ],
   "agent": "Claude Code",
-  "checkpoint_transcript_start": 1014,
-  "transcript_lines_at_start": 1014,
+  "checkpoint_transcript_start": 1059,
+  "transcript_lines_at_start": 1059,
   "token_usage": {
-    "input_tokens": 14,
-    "cache_creation_tokens": 7967,
-    "cache_read_tokens": 3092697,
-    "output_tokens": 6919,
-    "api_call_count": 9
+    "input_tokens": 33,
+    "cache_creation_tokens": 35247,
+    "cache_read_tokens": 7033912,
+    "output_tokens": 14084,
+    "api_call_count": 19
   },
   "initial_attribution": {
-    "calculated_at": "2026-06-03T03:51:29.242766Z",
+    "calculated_at": "2026-06-03T04:10:20.116981Z",
     "agent_lines": 0,
-    "human_added": 2754,
-    "human_modified": 307,
+    "human_added": 142,
+    "human_modified": 195,
     "human_removed": 0,
-    "total_committed": 3061,
+    "total_committed": 337,
     "agent_percentage": 0
   }
 }

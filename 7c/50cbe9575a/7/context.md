@@ -263,3 +263,16 @@ continue
 <summary>Agent "Re-enqueue stuck docs on demo with IP" completed</summary>
 <result>Both docs were already successfully processed yesterday (2026-06-02 13:42 UTC) — about 2.5 hours before the new chunker...
 
+### Prompt 38
+
+give endpoint
+
+### Prompt 39
+
+im talking about llm provider setup
+
+### Prompt 40
+
+it it not in the main menu? Sign in with Google
+Unable to start sign-in
+
