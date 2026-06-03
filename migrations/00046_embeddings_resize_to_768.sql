@@ -33,7 +33,9 @@ DROP INDEX CONCURRENTLY IF EXISTS idx_embeddings_hnsw;
 -- is ever back-ported to a populated cluster, replace this block with
 -- an additive column + backfill (see ban-drop-column note from the
 -- migration linter).
+-- squawk-ignore-next-statement ban-drop-column
 ALTER TABLE embeddings DROP COLUMN embedding;
+-- squawk-ignore-next-statement adding-required-field
 ALTER TABLE embeddings ADD COLUMN embedding vector(768) NOT NULL;
 
 -- Recreate the HNSW cosine index at the new dimension. The m/ef_construction
@@ -47,7 +49,13 @@ WITH (m = 16, ef_construction = 64);
 SET lock_timeout = '5s';
 SET statement_timeout = '10min';
 DROP INDEX CONCURRENTLY IF EXISTS idx_embeddings_hnsw;
+-- The table is empty at the time this migration ships; the drop+add is
+-- the simplest path to reverse a pgvector dimension change. Same caveat
+-- as in the Up block: replace with additive-column + backfill if ever
+-- run against a populated cluster.
+-- squawk-ignore-next-statement ban-drop-column
 ALTER TABLE embeddings DROP COLUMN embedding;
+-- squawk-ignore-next-statement adding-required-field
 ALTER TABLE embeddings ADD COLUMN embedding vector(1536) NOT NULL;
 CREATE INDEX CONCURRENTLY idx_embeddings_hnsw ON embeddings
 USING hnsw (embedding vector_cosine_ops)

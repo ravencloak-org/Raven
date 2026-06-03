@@ -555,22 +555,25 @@ function installLabelForOS(): string {
   return 'Install'
 }
 
-// Test-connection state machine. testStatus drives the icon/colour
-// shown on the Test button and the Create button's disabled state:
+// Create-dialog test-connection state machine. createTestStatus drives
+// the icon/colour shown on the Test button and the Create button's
+// disabled state:
 //   - 'idle'  : nothing tested yet (Create is disabled if the user
 //               hasn't confirmed the creds work).
 //   - 'testing'
 //   - 'pass'  : last probe succeeded → Create unlocked.
 //   - 'fail'  : last probe failed → Create stays disabled, error
-//               surfaced in testDetail.
+//               surfaced in createTestDetail.
 // Any edit to the form fields rolls the state back to 'idle' so the
 // user re-tests after changing the key / endpoint.
+// NB: distinct from the page-level `testStatus` map (keyed by provider
+// id, used for the post-create "last test failed" warning on each card).
 type TestStatus = 'idle' | 'testing' | 'pass' | 'fail'
-const testStatus = ref<TestStatus>('idle')
-const testDetail = ref<string>('')
+const createTestStatus = ref<TestStatus>('idle')
+const createTestDetail = ref<string>('')
 async function runTestConnection() {
-  testStatus.value = 'testing'
-  testDetail.value = ''
+  createTestStatus.value = 'testing'
+  createTestDetail.value = ''
   try {
     const help = providerHelp[form.value.provider]
     const api_key = help.requiresKey ? form.value.api_key : 'not-required'
@@ -578,11 +581,11 @@ async function runTestConnection() {
       ...form.value,
       api_key,
     })
-    testStatus.value = result.ok ? 'pass' : 'fail'
-    testDetail.value = result.detail
+    createTestStatus.value = result.ok ? 'pass' : 'fail'
+    createTestDetail.value = result.detail
   } catch (e: unknown) {
-    testStatus.value = 'fail'
-    testDetail.value = e instanceof Error ? e.message : 'Test failed'
+    createTestStatus.value = 'fail'
+    createTestDetail.value = e instanceof Error ? e.message : 'Test failed'
   }
 }
 
@@ -592,9 +595,9 @@ async function runTestConnection() {
 watch(
   () => [form.value.provider, form.value.api_key, form.value.base_url],
   () => {
-    if (testStatus.value !== 'idle') {
-      testStatus.value = 'idle'
-      testDetail.value = ''
+    if (createTestStatus.value !== 'idle') {
+      createTestStatus.value = 'idle'
+      createTestDetail.value = ''
     }
   },
 )
@@ -969,43 +972,43 @@ onMounted(() => store.fetchProviders(orgId.value))
                the probe returns 'pass' so a bad key / unreachable
                endpoint can't slip into the DB. -->
           <div class="rounded-md border p-3 text-xs" :class="{
-            'border-gray-200 bg-gray-50': testStatus === 'idle',
-            'border-blue-200 bg-blue-50': testStatus === 'testing',
-            'border-green-200 bg-green-50': testStatus === 'pass',
-            'border-red-200 bg-red-50': testStatus === 'fail',
+            'border-gray-200 bg-gray-50': createTestStatus === 'idle',
+            'border-blue-200 bg-blue-50': createTestStatus === 'testing',
+            'border-green-200 bg-green-50': createTestStatus === 'pass',
+            'border-red-200 bg-red-50': createTestStatus === 'fail',
           }">
             <div class="flex items-center justify-between gap-2">
               <span class="font-medium" :class="{
-                'text-gray-700': testStatus === 'idle',
-                'text-blue-700': testStatus === 'testing',
-                'text-green-700': testStatus === 'pass',
-                'text-red-700': testStatus === 'fail',
+                'text-gray-700': createTestStatus === 'idle',
+                'text-blue-700': createTestStatus === 'testing',
+                'text-green-700': createTestStatus === 'pass',
+                'text-red-700': createTestStatus === 'fail',
               }">
-                <template v-if="testStatus === 'idle'">Test the connection before saving</template>
-                <template v-else-if="testStatus === 'testing'">Testing…</template>
-                <template v-else-if="testStatus === 'pass'">✓ Connection looks good</template>
+                <template v-if="createTestStatus === 'idle'">Test the connection before saving</template>
+                <template v-else-if="createTestStatus === 'testing'">Testing…</template>
+                <template v-else-if="createTestStatus === 'pass'">✓ Connection looks good</template>
                 <template v-else>✕ Connection failed</template>
               </span>
               <button
                 type="button"
                 class="rounded border border-gray-300 bg-white px-3 py-1 text-xs text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-                :disabled="testStatus === 'testing' || !form.display_name || (currentProviderHelp.requiresKey && !form.api_key)"
+                :disabled="createTestStatus === 'testing' || !form.display_name || (currentProviderHelp.requiresKey && !form.api_key)"
                 @click="runTestConnection"
               >
-                {{ testStatus === 'pass' ? 'Re-test' : testStatus === 'testing' ? 'Testing…' : 'Test connection' }}
+                {{ createTestStatus === 'pass' ? 'Re-test' : createTestStatus === 'testing' ? 'Testing…' : 'Test connection' }}
               </button>
             </div>
-            <p v-if="testDetail" class="mt-1 text-xs" :class="{
-              'text-green-700': testStatus === 'pass',
-              'text-red-700': testStatus === 'fail',
-              'text-gray-600': testStatus !== 'pass' && testStatus !== 'fail',
+            <p v-if="createTestDetail" class="mt-1 text-xs" :class="{
+              'text-green-700': createTestStatus === 'pass',
+              'text-red-700': createTestStatus === 'fail',
+              'text-gray-600': createTestStatus !== 'pass' && createTestStatus !== 'fail',
             }">
-              {{ testDetail }}
+              {{ createTestDetail }}
             </p>
           </div>
           <div class="flex justify-end gap-2 pt-2">
             <button type="button" class="rounded px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" @click="showCreateDialog = false">Cancel</button>
-            <button type="submit" :disabled="creating || testStatus !== 'pass' || !form.display_name || (currentProviderHelp.requiresKey && !form.api_key)" class="rounded bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-50">
+            <button type="submit" :disabled="creating || createTestStatus !== 'pass' || !form.display_name || (currentProviderHelp.requiresKey && !form.api_key)" class="rounded bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-50">
               {{ creating ? 'Creating...' : 'Create' }}
             </button>
           </div>

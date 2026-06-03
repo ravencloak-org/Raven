@@ -153,23 +153,4 @@ export async function setDefaultProvider(
   })
 }
 
-export interface TestConnectionResult {
-  ok: boolean
-  detail: string
-}
-
-// Probe the supplied provider creds + endpoint WITHOUT persisting.
-// Backend hits a lightweight read endpoint per provider (list models /
-// /api/tags) and returns { ok, detail }. The Add-Provider dialog uses
-// this as a green-light gate before letting Create through.
-export async function testLlmProviderConnection(
-  orgId: string,
-  data: CreateLlmProviderRequest,
-): Promise<TestConnectionResult> {
-  return authFetch<TestConnectionResult>(`/orgs/${orgId}/llm-providers/test`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  })
-}
-
 export { authFetch as _authFetch }
