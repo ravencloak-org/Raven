@@ -599,6 +599,181 @@ func TestMigrationsUpAndDown(t *testing.T) {
 		}
 	})
 
+	t.Run("marketplace_moderation_schema", func(t *testing.T) {
+		// Migration 00053 (issue #733): marketplace_reports +
+		// marketplace_takedowns, two RLS-gated tables plus three indexes.
+		//
+		// This sub-test asserts:
+		//   1. Both tables exist.
+		//   2. Both have RLS enabled.
+		//   3. The three indexes (status, kb, target_kb) are present.
+		//   4. The CHECK constraints reject illegal status / source values
+		//      and out-of-range reason lengths.
+		//   5. ON DELETE CASCADE on reported_kb_id / target_kb_id fires
+		//      when the parent KB is deleted.
+
+		for _, table := range []string{"marketplace_reports", "marketplace_takedowns"} {
+			var exists bool
+			if err := db.QueryRowContext(ctx,
+				`SELECT EXISTS (
+				    SELECT 1 FROM information_schema.tables
+				    WHERE table_schema = 'public' AND table_name = $1
+				 )`, table).Scan(&exists); err != nil {
+				t.Errorf("check table %s: %v", table, err)
+			}
+			if !exists {
+				t.Errorf("expected table %s to exist", table)
+			}
+
+			var rlsEnabled bool
+			if err := db.QueryRowContext(ctx,
+				`SELECT relrowsecurity FROM pg_class WHERE relname = $1`,
+				table).Scan(&rlsEnabled); err != nil {
+				t.Errorf("check RLS for %s: %v", table, err)
+			}
+			if !rlsEnabled {
+				t.Errorf("expected RLS to be enabled on %s", table)
+			}
+		}
+
+		expectedIndexes := map[string]string{
+			"idx_marketplace_reports_status":      "marketplace_reports",
+			"idx_marketplace_reports_kb":          "marketplace_reports",
+			"idx_marketplace_takedowns_target_kb": "marketplace_takedowns",
+		}
+		for idx, table := range expectedIndexes {
+			var exists bool
+			if err := db.QueryRowContext(ctx,
+				`SELECT EXISTS (SELECT 1 FROM pg_indexes
+				 WHERE tablename = $1 AND indexname = $2)`, table, idx).
+				Scan(&exists); err != nil {
+				t.Errorf("check index %s on %s: %v", idx, table, err)
+			}
+			if !exists {
+				t.Errorf("expected index %s on %s", idx, table)
+			}
+		}
+
+		// Expected RLS policies. The reporter_self_read policy on
+		// marketplace_reports gates the reporter view; admin_bypass on
+		// both tables gates the raven_admin review queue.
+		expectedPolicies := map[string][]string{
+			"marketplace_reports":   {"reporter_self_read", "admin_bypass"},
+			"marketplace_takedowns": {"admin_bypass"},
+		}
+		for table, policies := range expectedPolicies {
+			for _, name := range policies {
+				var exists bool
+				if err := db.QueryRowContext(ctx,
+					`SELECT EXISTS (
+					    SELECT 1 FROM pg_policies
+					    WHERE schemaname = 'public'
+					      AND tablename = $1
+					      AND policyname = $2
+					 )`, table, name).Scan(&exists); err != nil {
+					t.Errorf("check policy %s on %s: %v", name, table, err)
+				}
+				if !exists {
+					t.Errorf("expected policy %s on %s", name, table)
+				}
+			}
+		}
+
+		// Bootstrap an org, workspace, user, and KB so we can exercise
+		// the CHECK constraints and cascade behaviour.
+		var orgID, wsID, userID, kbID string
+		if err := db.QueryRowContext(ctx,
+			`INSERT INTO organizations (id, name, slug)
+			 VALUES (uuid_generate_v4(), 'Mod Org', 'mod-mig-org')
+			 RETURNING id`).Scan(&orgID); err != nil {
+			t.Fatalf("insert organization: %v", err)
+		}
+		if err := db.QueryRowContext(ctx,
+			`INSERT INTO workspaces (id, org_id, name, slug)
+			 VALUES (uuid_generate_v4(), $1, 'Mod WS', 'mod-mig-ws')
+			 RETURNING id`, orgID).Scan(&wsID); err != nil {
+			t.Fatalf("insert workspace: %v", err)
+		}
+		if err := db.QueryRowContext(ctx,
+			`INSERT INTO users (id, org_id, email, status)
+			 VALUES (uuid_generate_v4(), $1, 'mod-mig@example.com', 'active')
+			 RETURNING id`, orgID).Scan(&userID); err != nil {
+			t.Fatalf("insert user: %v", err)
+		}
+		if err := db.QueryRowContext(ctx,
+			`INSERT INTO knowledge_bases (id, org_id, workspace_id, name, slug)
+			 VALUES (uuid_generate_v4(), $1, $2, 'Mod KB', 'mod-mig-kb')
+			 RETURNING id`, orgID, wsID).Scan(&kbID); err != nil {
+			t.Fatalf("insert knowledge_base: %v", err)
+		}
+
+		// CHECK constraint: status must be in the four-value set.
+		if _, err := db.ExecContext(ctx,
+			`INSERT INTO marketplace_reports (reported_kb_id, reporter_user_id, reason, status)
+			 VALUES ($1, $2, 'bad', 'INVALID_STATE')`,
+			kbID, userID,
+		); err == nil {
+			t.Error("expected CHECK to reject invalid report status")
+		}
+
+		// CHECK constraint: reason must be 1..4000 chars.
+		if _, err := db.ExecContext(ctx,
+			`INSERT INTO marketplace_reports (reported_kb_id, reporter_user_id, reason)
+			 VALUES ($1, $2, '')`,
+			kbID, userID,
+		); err == nil {
+			t.Error("expected CHECK to reject empty reason")
+		}
+
+		// CHECK constraint: takedown source must be in the three-value set.
+		if _, err := db.ExecContext(ctx,
+			`INSERT INTO marketplace_takedowns (target_kb_id, source)
+			 VALUES ($1, 'badsource')`, kbID,
+		); err == nil {
+			t.Error("expected CHECK to reject invalid takedown source")
+		}
+
+		// Insert valid rows so we can test ON DELETE CASCADE.
+		if _, err := db.ExecContext(ctx,
+			`INSERT INTO marketplace_reports (reported_kb_id, reporter_user_id, reason)
+			 VALUES ($1, $2, 'cascade target')`, kbID, userID,
+		); err != nil {
+			t.Fatalf("insert valid report: %v", err)
+		}
+		if _, err := db.ExecContext(ctx,
+			`INSERT INTO marketplace_takedowns (target_kb_id, source, notes)
+			 VALUES ($1, 'admin', 'cascade target')`, kbID,
+		); err != nil {
+			t.Fatalf("insert valid takedown: %v", err)
+		}
+
+		if _, err := db.ExecContext(ctx,
+			`DELETE FROM knowledge_bases WHERE id = $1`, kbID,
+		); err != nil {
+			t.Fatalf("delete kb to trigger cascade: %v", err)
+		}
+
+		var reportCount, takedownCount int
+		if err := db.QueryRowContext(ctx,
+			`SELECT COUNT(*) FROM marketplace_reports WHERE reported_kb_id = $1`,
+			kbID,
+		).Scan(&reportCount); err != nil {
+			t.Fatalf("count reports after cascade: %v", err)
+		}
+		if reportCount != 0 {
+			t.Errorf("reports after KB cascade: want 0, got %d", reportCount)
+		}
+		if err := db.QueryRowContext(ctx,
+			`SELECT COUNT(*) FROM marketplace_takedowns WHERE target_kb_id = $1`,
+			kbID,
+		).Scan(&takedownCount); err != nil {
+			t.Fatalf("count takedowns after cascade: %v", err)
+		}
+		if takedownCount != 0 {
+			t.Errorf("takedowns after KB cascade: want 0, got %d", takedownCount)
+		}
+	})
+
 	t.Run("marketplace_functions_signature", func(t *testing.T) {
 		// Migration 00052 (issue #728): the two SECURITY DEFINER read
 		// functions that bridge the Marketplace cross-tenant boundary.
