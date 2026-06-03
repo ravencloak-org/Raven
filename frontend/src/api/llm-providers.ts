@@ -144,6 +144,20 @@ export async function testLlmProviderConnection(
   })
 }
 
+// fetchDefaultProviderHealth probes the org's currently-configured default
+// LLM provider end-to-end via GET .../llm-providers/default/health. The
+// backend returns ok=false with a `detail` string for any reachability
+// failure (dead Cloudflare tunnel, revoked key, missing default) instead
+// of an HTTP error, so the polling cron can render a banner uniformly
+// without distinguishing 5xx from "configured but broken".
+export async function fetchDefaultProviderHealth(
+  orgId: string,
+): Promise<TestConnectionResult> {
+  return authFetch<TestConnectionResult>(
+    `/orgs/${orgId}/llm-providers/default/health`,
+  )
+}
+
 export async function setDefaultProvider(
   orgId: string,
   providerId: string,

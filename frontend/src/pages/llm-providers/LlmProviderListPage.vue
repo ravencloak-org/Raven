@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useAuthStore } from "../../stores/auth"
+import { useLlmProviderHealthStore } from '../../stores/llm-provider-health'
 import { useLlmProvidersStore } from '../../stores/llm-providers'
 import {
   PROVIDER_MODELS,
@@ -13,6 +14,19 @@ import {
 
 const store = useLlmProvidersStore()
 const authStore = useAuthStore()
+const healthStore = useLlmProviderHealthStore()
+
+// Health failure mirrored locally so the banner reflects whatever the
+// background cron last observed. We don't trigger our own probe here —
+// the polling store running in DefaultLayout is the single source of
+// truth and reaches into this page via shared pinia state.
+const defaultProvider = computed(() =>
+  store.providers.find((p) => p.is_default) ?? null,
+)
+const showHealthBanner = computed(
+  () => defaultProvider.value !== null && !healthStore.isHealthy(),
+)
+const healthBannerDetail = computed(() => healthStore.failureReason())
 const orgId = computed(() => authStore.orgId ?? sessionStorage.getItem("raven_org_id") ?? "")
 
 
@@ -467,6 +481,30 @@ onMounted(() => store.fetchProviders(orgId.value))
       </button>
     </div>
 
+    <!--
+      Connection-error banner driven by the background health cron. Shows
+      whenever the cron's last probe of the default provider returned
+      ok=false. Sits above the cards so it reads as page-level, not
+      per-card. The toast in DefaultLayout hides itself when this page
+      is open to avoid duplication.
+    -->
+    <div
+      v-if="showHealthBanner"
+      role="alert"
+      data-testid="llm-health-banner"
+      class="mb-4 rounded-lg border border-red-200 bg-red-50 p-4"
+    >
+      <div class="flex items-start gap-3">
+        <svg class="h-5 w-5 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.84-2.75L13.74 4a2 2 0 00-3.48 0L3.16 16.25A2 2 0 005 19z" />
+        </svg>
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-semibold text-red-900">Connection error</p>
+          <p class="mt-1 break-words text-sm text-red-700">{{ healthBannerDetail }}</p>
+        </div>
+      </div>
+    </div>
+
     <div v-if="store.loading" class="py-12 text-center text-gray-500">Loading providers...</div>
 
     <div v-else-if="store.providers.length === 0" class="rounded-lg border-2 border-dashed border-gray-300 py-12 text-center">
@@ -542,6 +580,14 @@ onMounted(() => store.fetchProviders(orgId.value))
                 class="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 transition duration-200 ease-out"
               >
                 Default
+              </span>
+              <span
+                v-if="provider.is_default && !healthStore.isHealthy()"
+                data-testid="default-connection-error"
+                class="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700"
+                :title="healthStore.failureReason()"
+              >
+                Connection error
               </span>
               <span
                 v-if="savedTickId === provider.id"

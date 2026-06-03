@@ -25,6 +25,7 @@ type mockLLMProviderService struct {
 	deleteFn     func(ctx context.Context, orgID, configID string) error
 	setDefaultFn func(ctx context.Context, orgID, configID string) error
 	testFn       func(ctx context.Context, orgID string, req model.TestProviderRequest) (*model.TestConnectionResult, error)
+	testDefFn    func(ctx context.Context, orgID string) (*model.TestConnectionResult, error)
 }
 
 func (m *mockLLMProviderService) Create(ctx context.Context, orgID, userID string, req model.CreateLLMProviderRequest) (*model.LLMProviderResponse, error) {
@@ -47,6 +48,12 @@ func (m *mockLLMProviderService) SetDefault(ctx context.Context, orgID, configID
 }
 func (m *mockLLMProviderService) TestConnection(ctx context.Context, orgID string, req model.TestProviderRequest) (*model.TestConnectionResult, error) {
 	return m.testFn(ctx, orgID, req)
+}
+func (m *mockLLMProviderService) TestDefaultConnection(ctx context.Context, orgID string) (*model.TestConnectionResult, error) {
+	if m.testDefFn == nil {
+		return &model.TestConnectionResult{OK: true, Provider: "anthropic"}, nil
+	}
+	return m.testDefFn(ctx, orgID)
 }
 
 func newLLMProviderRouter(svc handler.LLMProviderServicer) *gin.Engine {

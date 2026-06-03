@@ -267,6 +267,73 @@ func (s *LLMProviderService) TestConnection(ctx context.Context, orgID string, r
 	}, nil
 }
 
+// TestDefaultConnection probes the org's currently-configured default LLM
+// provider end-to-end. Used by the frontend health-check cron to surface a
+// persistent banner when the chat path would fail (typical demo failure
+// modes: dead Cloudflare tunnel to a self-hosted Ollama, expired API key).
+//
+// Unlike TestConnection this method accepts keyless providers (Ollama) by
+// passing an empty api_key to the probe — for those the probe checks
+// reachability of the base URL only. When no default is configured the
+// result is OK=false with a "no default provider" detail so the caller can
+// distinguish "everything fine" from "operator never set anything up".
+func (s *LLMProviderService) TestDefaultConnection(ctx context.Context, orgID string) (*model.TestConnectionResult, error) {
+	var cfg *model.LLMProviderConfig
+	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+		var getErr error
+		cfg, getErr = s.repo.GetDefault(ctx, tx, orgID)
+		return getErr
+	})
+	if err != nil {
+		if strings.Contains(err.Error(), "no rows") {
+			return &model.TestConnectionResult{
+				OK:     false,
+				Detail: "no default LLM provider configured",
+			}, nil
+		}
+		return nil, apierror.NewInternal("failed to fetch default LLM provider: " + err.Error())
+	}
+	if cfg == nil {
+		return &model.TestConnectionResult{
+			OK:     false,
+			Detail: "no default LLM provider configured",
+		}, nil
+	}
+
+	// Decrypt the stored key if present. Keyless providers (Ollama) have
+	// nil ciphertext and IV; in that case we pass an empty api_key to the
+	// probe and rely on base-URL reachability alone.
+	apiKey := ""
+	if cfg.APIKeyEncrypted != nil && cfg.APIKeyIV != nil {
+		plaintext, dErr := crypto.Decrypt(cfg.APIKeyEncrypted, cfg.APIKeyIV, s.aesKey)
+		if dErr != nil {
+			return nil, apierror.NewInternal("failed to decrypt API key: " + dErr.Error())
+		}
+		apiKey = string(plaintext)
+	}
+
+	if s.probe == nil {
+		return nil, apierror.NewInternal("provider probe not configured")
+	}
+	ok, detail, probeErr := s.probe(ctx, cfg.Provider, cfg.BaseURL, apiKey)
+	if probeErr != nil {
+		// A probe-level error (DNS failure, connection refused, TLS) is a
+		// reachability problem — surface it as OK=false rather than a 500
+		// so the cron caller renders the toast instead of treating it as
+		// an internal API error.
+		return &model.TestConnectionResult{
+			OK:       false,
+			Provider: string(cfg.Provider),
+			Detail:   probeErr.Error(),
+		}, nil
+	}
+	return &model.TestConnectionResult{
+		OK:       ok,
+		Provider: string(cfg.Provider),
+		Detail:   detail,
+	}, nil
+}
+
 // defaultLLMProbe issues a lightweight authenticated GET against the vendor's
 // public models endpoint to verify the API key. It treats 2xx as success and
 // any other response (including 401/403) as a failed probe. Network and parse
@@ -332,8 +399,25 @@ func probeEndpointFor(provider model.LLMProvider, baseURL *string) (string, func
 	case model.LLMProviderGoogle:
 		// Google AI Studio uses the API key as a query param; skip remote probe.
 		return "", nil
-	case model.LLMProviderAzureOpenAI, model.LLMProviderOllama, model.LLMProviderCustom:
-		// Self-hosted / customer-deployed; no canonical probe endpoint.
+	case model.LLMProviderOllama:
+		// Ollama's REST API exposes /api/tags for the list of pulled models.
+		// No auth header (Ollama itself is keyless); the base URL is required
+		// because there is no canonical public host.
+		if baseURL == nil || *baseURL == "" {
+			return "", nil
+		}
+		noAuth := func(_ string) map[string]string { return nil }
+		return withBase("", "/api/tags"), noAuth
+	case model.LLMProviderCustom:
+		// Customer-deployed OpenAI-compatible: probe via /v1/models with
+		// bearer auth, same shape as upstream OpenAI.
+		if baseURL == nil || *baseURL == "" {
+			return "", nil
+		}
+		return withBase("", "/v1/models"), bearer
+	case model.LLMProviderAzureOpenAI:
+		// Azure's resource-scoped endpoints don't expose a flat /models route;
+		// skip remote probe and rely on the apiKey-present heuristic.
 		return "", nil
 	default:
 		return "", nil

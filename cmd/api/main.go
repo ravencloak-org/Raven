@@ -761,6 +761,10 @@ func main() {
 			llm.POST("", middleware.RequireOrgRole("org_admin"), llmHandler.Create)
 			llm.GET("", llmHandler.List)
 			llm.POST("/test", middleware.RequireOrgRole("org_admin"), llmHandler.Test)
+			// Default-provider health probe used by the SPA's polling cron.
+			// Open to any authenticated org member (not just admins) since
+			// the toast lives across every authenticated page.
+			llm.GET("/default/health", llmHandler.DefaultHealth)
 			llm.GET("/:provider_id", llmHandler.Get)
 			llm.PUT("/:provider_id", middleware.RequireOrgRole("org_admin"), llmHandler.Update)
 			llm.DELETE("/:provider_id", middleware.RequireOrgRole("org_admin"), llmHandler.Delete)
