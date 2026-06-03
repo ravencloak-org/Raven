@@ -645,3 +645,35 @@ go for it
 ---
 
 continue
+
+---
+
+<task-notification>
+<task-id>ae5487bd40547c53b</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Re-enqueue stuck docs on demo with IP" completed</summary>
+<result>Both docs were already successfully processed yesterday (2026-06-02 13:42 UTC) — about 2.5 hours before the new chunker-fix worker image was deployed (16:09 UTC). The hotfix container was retired afterward, and the compose `ec2-worker-1` is now the up-to-date deployment carrying the token-cap chunker symbols.
+
+Report:
+
+**Findings**
+
+- `raven-worker-hotfix` container no longer exists. The compose worker `ec2-worker-1` (image `bf186494fae2`, built 2026-06-02 16:09 UTC) IS the current production worker — the "transitional state" warning is stale.
+- `/tmp/enqueue` helper: **NOT present** in `ec2-worker-1` (only `/app/api`, `/app/worker`, `/usr/local/bin/dotenvx`). It was a hotfix-container artifact.
+- Chunker symbols in `ec2-worker-1` `/app/worker`: **present** — both `capSectionSize` and `splitByParagraphsWithCap` confirmed via `strings`.
+- Both target docs were **already re-enqueued and processed on 2026-06-02 13:42 UTC** (before the new worker was built/deployed at 16:09, so by the still-running hotfix container).
+
+**Doc status (RLS bypassed via `SET app.current_org_id`)**
+
+| Doc | File | status | chunks | embeddings | error |
+|---|---|---|---|---|---|
+| `b661d58b…` | EduCapture-Architecture.pdf | ready | 10 | 10 | — |
+| `ec654c8a…` | Epoqgird.md | ready | 14 | 14 | — |
+
+**Worker logs**: clean. Only output since 16:09 was `MISSING_ENV_FILE` (dotenvx warning, benign — env is injected from compose), the stub-email-sender warning, and `Starting processing`. No `Name or service not known`, no `the input length exceeds the context length`.
+
+**Verdict**: ✅ Both indexed (already, by prior run). No action taken. The runbook is stale in two places: the hotfix container is gone, and `/tmp/enqueue` is no longer needed. Recommend updating the runbook to use the compose worker and to drive enqueue via the `/api/v1/documents/:id/reprocess` admin endpoint (or a new `worker enqueue` subcommand) for the next stuck-doc incident.</result>
+<usage><total_tokens>51819</total_tokens><tool_uses>11</tool_uses><duration_ms>118747</duration_ms></usage>
+</task-notification>
