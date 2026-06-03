@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/ravencloak-org/Raven/internal/marketplace"
 	"github.com/ravencloak-org/Raven/internal/model"
 )
 
@@ -103,6 +104,25 @@ func (r *OrgRepository) GetBySlug(ctx context.Context, slug string) (*model.Orga
 		return nil, fmt.Errorf("OrgRepository.GetBySlug: %w", err)
 	}
 	return org, nil
+}
+
+// RenameSlug atomically swaps an organisation's slug and registers the
+// previous value as a 30-day soft-redirect in `org_slug_holds`. The whole
+// operation runs in a single transaction (see marketplace.RenameOrgSlug):
+// a crash between the swap and the hold-insert can never produce a dead
+// redirect. Returns marketplace.ErrInvalidSlug, marketplace.ErrSlugTaken,
+// or marketplace.ErrSlugNotFound on the documented failure modes.
+func (r *OrgRepository) RenameSlug(ctx context.Context, orgID, newSlug string) error {
+	return marketplace.RenameOrgSlug(ctx, r.pool, orgID, newSlug)
+}
+
+// ResolveSlug maps a public Marketplace URL slug to its current org, going
+// via the `org_slug_holds` soft-redirect table on a live-slug miss. The
+// returned ResolvedOrg.IsRedirect tells the URL handler whether to serve
+// a 200 (live) or a 301 to ResolvedOrg.CanonicalSlug (redirect). Returns
+// marketplace.ErrSlugNotFound on a full miss.
+func (r *OrgRepository) ResolveSlug(ctx context.Context, slug string) (marketplace.ResolvedOrg, error) {
+	return marketplace.ResolveOrgSlug(ctx, r.pool, slug)
 }
 
 // SoftDelete sets the organisation status to 'deactivated'.
