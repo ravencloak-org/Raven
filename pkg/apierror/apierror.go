@@ -13,10 +13,18 @@ import (
 )
 
 // AppError represents a structured API error response.
+//
+// ErrorCode is an optional machine-readable identifier (snake_case) clients
+// can branch on without parsing the human-facing Detail string. It is only
+// populated by helpers that want to expose a stable contract — e.g.
+// NewKBFrozen / NewKBDMCAPending for KB lifecycle freezes (issue #725) —
+// and stays absent from the JSON when empty so existing payloads are
+// unaffected.
 type AppError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-	Detail  string `json:"detail,omitempty"`
+	Code      int    `json:"code"`
+	Message   string `json:"message"`
+	Detail    string `json:"detail,omitempty"`
+	ErrorCode string `json:"error,omitempty"`
 }
 
 // Error implements the error interface.
@@ -78,6 +86,31 @@ func NewInternal(detail string) *AppError {
 		Code:    http.StatusInternalServerError,
 		Message: "Internal Server Error",
 		Detail:  detail,
+	}
+}
+
+// NewKBFrozen creates a 409 Conflict for a write that targeted a KB which
+// the lifecycle policy (model.KBStatusGate) currently has frozen against
+// ingestion / mutation. The "kb_frozen" code is the stable identifier the
+// SPA + widgets branch on (ADR-0004 §Consequences).
+func NewKBFrozen(detail string) *AppError {
+	return &AppError{
+		Code:      http.StatusConflict,
+		Message:   "Conflict",
+		Detail:    detail,
+		ErrorCode: "kb_frozen",
+	}
+}
+
+// NewKBDMCALocked creates a 423 Locked for an interaction that targeted a
+// KB sitting in the DMCA counter-notice window. Distinct status code from
+// kb_frozen so clients can branch on legal-hold UX (ADR-0006 / ADR-0008).
+func NewKBDMCALocked(detail string) *AppError {
+	return &AppError{
+		Code:      http.StatusLocked,
+		Message:   "Locked",
+		Detail:    detail,
+		ErrorCode: "kb_dmca_locked",
 	}
 }
 

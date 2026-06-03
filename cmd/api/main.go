@@ -384,12 +384,21 @@ func main() {
 	quotaChecker := service.NewQuotaChecker(billingRepo, subCache, pool)
 
 	// --- Wire services ---
+	// The KB lifecycle guard (issue #725) is a small policy object the
+	// write / chat paths consult before mutating or streaming. Sharing
+	// one instance across services keeps the freeze semantics centralised
+	// — adding a new lifecycle state means updating KBStatusGate, not
+	// every service constructor.
+	kbStatusGuard := service.NewKBStatusGuard(kbRepo, pool)
+
 	wsSvc := service.NewWorkspaceService(wsRepo, pool, quotaChecker)
 	orgSvc := service.NewOrgService(orgRepo, wsSvc)
 	userSvc := service.NewUserService(userRepo)
-	kbSvc := service.NewKBService(kbRepo, pool, quotaChecker)
-	sourceSvc := service.NewSourceService(sourceRepo, pool)
-	docSvc := service.NewDocumentService(docRepo, pool).WithCacheInvalidator(semCacheRepo)
+	kbSvc := service.NewKBService(kbRepo, pool, quotaChecker).WithKBStatusGuard(kbStatusGuard)
+	sourceSvc := service.NewSourceService(sourceRepo, pool).WithKBStatusGuard(kbStatusGuard)
+	docSvc := service.NewDocumentService(docRepo, pool).
+		WithCacheInvalidator(semCacheRepo).
+		WithKBStatusGuard(kbStatusGuard)
 	searchSvc := service.NewSearchService(searchRepo, pool, cfg.Retrieval)
 	hybridRetrievalSvc := service.NewHybridRetrievalService(
 		searchRepo, chEmbeddingRepo, pool,
@@ -401,7 +410,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to initialise LLM provider service: %v", err)
 	}
-	uploadSvc := service.NewUploadService(docRepo, pool, storageClient, queueClient, cfg.Upload.MaxSizeBytes, cfg.Upload.AllowedTypes)
+	uploadSvc := service.NewUploadService(docRepo, pool, storageClient, queueClient, cfg.Upload.MaxSizeBytes, cfg.Upload.AllowedTypes).
+		WithKBStatusGuard(kbStatusGuard)
 	processingSvc := service.NewProcessingEventService(processingEventRepo, docRepo, pool)
 	apiKeySvc := service.NewAPIKeyService(apiKeyRepo, pool)
 	routingSvc := service.NewRoutingService(routingRepo, kbRepo, pool)
@@ -425,7 +435,8 @@ func main() {
 	conversationSvc := service.NewConversationService(conversationRepo, posthogClient)
 	chatSvc := service.NewChatService(chatRepo, grpcClient, pool).
 		WithConversationMemory(conversationSvc).
-		WithLLMProviderRepo(llmRepo)
+		WithLLMProviderRepo(llmRepo).
+		WithKBStatusGuard(kbStatusGuard)
 	voiceRepo := repository.NewVoiceRepository(pool)
 	// Instantiate shared LiveKit client for WebRTC room management and token generation.
 	lkClient := lk.NewClient(lk.Config{

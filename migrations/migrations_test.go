@@ -329,6 +329,35 @@ func TestMigrationsUpAndDown(t *testing.T) {
 		}
 	})
 
+	t.Run("kb_status_marketplace_states", func(t *testing.T) {
+		// Migration 00049 (issue #725): adds 'read_only_private' and
+		// 'dmca_pending' to the kb_status enum so the lifecycle column
+		// can express the two Marketplace-specific frozen states. The
+		// migration is additive only — Postgres cannot drop enum values,
+		// so the rollback half can only normalise data and leaves the
+		// widened type in place. See the migration file header.
+		expectedValues := []string{
+			"active",
+			"archived",
+			"read_only_private",
+			"dmca_pending",
+		}
+		for _, v := range expectedValues {
+			var exists bool
+			if err := db.QueryRowContext(ctx, `
+				SELECT EXISTS (
+					SELECT 1 FROM pg_enum e
+					JOIN pg_type t ON t.oid = e.enumtypid
+					WHERE t.typname = 'kb_status' AND e.enumlabel = $1
+				)`, v).Scan(&exists); err != nil {
+				t.Errorf("failed to check kb_status enum value %s: %v", v, err)
+			}
+			if !exists {
+				t.Errorf("expected kb_status enum to contain value %q", v)
+			}
+		}
+	})
+
 	t.Run("kb_marketplace_columns_and_trigger", func(t *testing.T) {
 		// Migration 00047 (issue #723): visibility / publish / lineage /
 		// freshness / license / discovery columns on knowledge_bases,

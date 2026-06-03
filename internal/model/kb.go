@@ -2,13 +2,27 @@ package model
 
 import "time"
 
-// KBStatus represents the lifecycle state of a knowledge base.
+// KBStatus represents the lifecycle state of a knowledge base. The values
+// here are the canonical strings stored in the kb_status Postgres enum.
+//
+// Status-aware behaviour MUST go through KBStatusGate (kb_status.go); call
+// sites should never branch on the literal string directly. Adding a new
+// status means extending KBStatusGate and its capability table — by design.
 type KBStatus string
 
-// KBStatusActive and KBStatusArchived are the valid lifecycle states for a KnowledgeBase.
+// Lifecycle states of a KnowledgeBase. The kb_status enum is widened in
+// later migrations as the Marketplace lifecycle grows:
+//
+//   - active            — default; reads, writes, ingestion, chat all allowed.
+//   - archived          — soft-deleted; hidden from every surface (migration 00001).
+//   - read_only_private — Free Plan downgrade freeze (migration 00049, ADR-0004).
+//   - dmca_pending      — legal hold during DMCA counter-notice window
+//     (migration 00049, ADR-0006 / ADR-0008).
 const (
-	KBStatusActive   KBStatus = "active"
-	KBStatusArchived KBStatus = "archived"
+	KBStatusActive          KBStatus = "active"
+	KBStatusArchived        KBStatus = "archived"
+	KBStatusReadOnlyPrivate KBStatus = "read_only_private"
+	KBStatusDMCAPending     KBStatus = "dmca_pending"
 )
 
 // KBVisibility represents the Marketplace publish state of a KB. Private
