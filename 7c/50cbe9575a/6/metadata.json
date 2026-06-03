@@ -3,11 +3,11 @@
   "checkpoint_id": "7c50cbe9575a",
   "session_id": "d8595691-8e54-4f3b-9d3c-e4e6c0e88193",
   "strategy": "manual-commit",
-  "created_at": "2026-06-02T16:02:41.795826Z",
-  "branch": "chore/fix-test-lint-backlog",
-  "checkpoints_count": 2,
+  "created_at": "2026-06-03T03:31:12.98617Z",
+  "branch": "main",
+  "checkpoints_count": 3,
   "files_touched": [
-    ".claude/worktrees/agent-a30f41e3e0609aff8/.env.ci",
+    ".claude/worktrees/agent-a2991ebd5e54d4cb7/.env.ci",
     "CONTEXT.md",
     "docs/adr/0001-marketplace-fork-on-import.md",
     "docs/adr/0002-content-grade-publish-boundary.md",
@@ -16,25 +16,27 @@
     "docs/adr/0005-org-as-marketplace-publisher.md",
     "docs/adr/0006-licence-and-moderation.md",
     "docs/adr/0008-marketplace-discovery-and-operations.md",
-    "docs/plans/marketplace-mvp.md"
+    "docs/plans/marketplace-mvp.md",
+    "internal/repository/search_test.go",
+    "migrations/migrations_test.go"
   ],
   "agent": "Claude Code",
-  "checkpoint_transcript_start": 484,
-  "transcript_lines_at_start": 484,
+  "checkpoint_transcript_start": 566,
+  "transcript_lines_at_start": 566,
   "token_usage": {
-    "input_tokens": 30,
-    "cache_creation_tokens": 17190,
-    "cache_read_tokens": 2083908,
-    "output_tokens": 12531,
-    "api_call_count": 10
+    "input_tokens": 75,
+    "cache_creation_tokens": 601674,
+    "cache_read_tokens": 10817322,
+    "output_tokens": 42874,
+    "api_call_count": 45
   },
   "initial_attribution": {
-    "calculated_at": "2026-06-02T16:02:41.707091Z",
+    "calculated_at": "2026-06-03T03:31:12.878609Z",
     "agent_lines": 0,
-    "human_added": 0,
-    "human_modified": 557,
-    "human_removed": 37,
-    "total_committed": 557,
+    "human_added": 1475,
+    "human_modified": 594,
+    "human_removed": 0,
+    "total_committed": 2069,
     "agent_percentage": 0
   }
 }

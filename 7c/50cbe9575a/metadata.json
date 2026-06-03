@@ -3,9 +3,9 @@
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 15,
+  "checkpoints_count": 16,
   "files_touched": [
-    ".claude/worktrees/agent-a30f41e3e0609aff8/.env.ci",
+    ".claude/worktrees/agent-a2991ebd5e54d4cb7/.env.ci",
     ".claude/worktrees/agent-a38702f216d7ead92/.env.ci",
     ".claude/worktrees/agent-ac44eb8a8315065b3/.env.ci",
     ".claude/worktrees/agent-ad4a16bc2e764d870/.env.ci",
@@ -53,10 +53,12 @@
     "internal/jobs/document_process.go",
     "internal/model/billing.go",
     "internal/repository/billing.go",
+    "internal/repository/search_test.go",
     "internal/service/billing.go",
     "internal/service/billing_test.go",
     "internal/turnstile/middleware.go",
     "internal/turnstile/middleware_test.go",
+    "migrations/migrations_test.go",
     "node-compile-cache/v25.9.0-arm64-392347a2-501/02774df2",
     "node-compile-cache/v25.9.0-arm64-392347a2-501/0355ce7f",
     "node-compile-cache/v25.9.0-arm64-392347a2-501/0578f825",
@@ -549,10 +551,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 1130,
-    "cache_creation_tokens": 4374945,
-    "cache_read_tokens": 155539513,
-    "output_tokens": 440547,
-    "api_call_count": 774
+    "input_tokens": 1175,
+    "cache_creation_tokens": 4959429,
+    "cache_read_tokens": 164272927,
+    "output_tokens": 470890,
+    "api_call_count": 809
   }
 }

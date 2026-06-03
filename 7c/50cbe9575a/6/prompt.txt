@@ -290,3 +290,61 @@ go
 ---
 
 what's happening?
+
+---
+
+start working on them
+
+---
+
+create a single PR for all the dependabot PRs and close those and raise and merge this one
+
+---
+
+A
+
+---
+
+<task-notification>
+<task-id>a2991ebd5e54d4cb7</task-id>
+<tool-use-id>toolu_01MNsn48fcZkRfGxNNYfqn2K</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Bundle 32 Dependabot PRs into one" completed</summary>
+<result>Exactly the 10 dropped Python PRs remain open, as intended. The 22 bundled PRs are all closed.
+
+## Final Report
+
+**Bundle PR:** [#752](https://github.com/ravencloak-org/Raven/pull/752) — `chore(deps): bulk Dependabot bump (22 PRs)`
+**Auto-merge queued:** yes (SQUASH; status: BLOCKED awaiting CI)
+
+**Bundled (22 PRs):**
+- GitHub Actions (7): #699, #711, #714, #717, #718, #720, #721
+- Go OTel (10): #694, #695, #698, #700, #702, #705, #706, #709, #713, #716
+- Frontend npm (5): #692, #696, #703, #708, #712
+
+**Dropped — left open (10 PRs, all Python):** #691, #693, #697, #701, #704, #707, #710, #715, #719, #722.
+Reason: the sandbox blocks `uv pip compile` / `uv pip` / `uv export` (only `uv lock` is allowed), so the hash-pinned `ai-worker/requirements.txt` and `requirements-dev.txt` files cannot be regenerated. Without those files updated, the Docker build would still install the old pinned versions, and shipping a partial Python bump (only `pyproject.toml`) would leave the lockfile inconsistent. Best handled in a follow-up PR with full `uv pip compile` access — especially for the three majors:
+- **#704 cohere 6→7** also unlocks dropping the `pydantic&lt;2.13` / `pydantic-core&lt;2.44` constraints in `pyproject.toml`.
+- **#710 protobuf 6→7** likely needs `make proto` regen against ai-worker's generated gRPC stubs.
+- **#722 wrapt 1→2** is a clean lib bump.
+
+**Verification results:**
+- Go: `go build ./...` clean; `go test -short ./...` green except pre-existing docker-needs-setup failure in `internal/db`; `golangci-lint run --new-from-rev=origin/main` 0 issues.
+- Frontend: `npm install` clean; `npm run lint` 0 errors (3 pre-existing warnings); `npm run build` (vue-tsc + vite) green; `npm run test:unit` 138/138.
+- GitHub Actions: 8 workflow files edited; all SHA pins refreshed.
+
+**Files touched (12):** `.github/workflows/{claude,codeql,docker,release,scorecard,semgrep,sql-review,sql-review-selftest}.yml`, `go.mod`, `go.sum`, `frontend/package.json`, `frontend/package-lock.json`.
+
+**Surprises:**
+1. Context-mode MCP tools were broken at session start (NODE_MODULE_VERSION mismatch), so all gathering had to go through Bash with bounded output.
+2. The harness silently denies `uv pip compile`, `uv pip`, `uv export` — but allows `uv lock` and `uv lock --upgrade`. That asymmetry forced the Python drop. (`uv lock --upgrade` does refresh `uv.lock` but Dependabot tracks `requirements*.txt`, so a lockfile-only bump would leave a stale Docker build.)
+3. `actions/checkout` was already pinned to v6 SHAs across most workflows in `main`; only #699's two `actions/checkout@v4` references in `sql-review.yml` / `sql-review-selftest.yml` needed the bump.
+4. Several Dependabot PRs (#714, #716, #717, #718, #720, #721) auto-closed themselves after #752 was opened — GitHub recognized the dependency had moved past their target. The remaining 16 were closed explicitly with a `Superseded by #752` comment.</result>
+<usage><total_tokens>147599</total_tokens><tool_uses>147</tool_uses><duration_ms>903584</duration_ms></usage>
+<worktree><worktreePath>/Users/jobinlawrance/Project/raven/.claude/worktrees/agent-a2991ebd5e54d4cb7</worktreePath><worktreeBranch>worktree-agent-a2991ebd5e54d4cb7</worktreeBranch></worktree>
+</task-notification>
+
+---
+
+a
