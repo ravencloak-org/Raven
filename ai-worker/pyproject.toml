@@ -24,7 +24,7 @@ dependencies = [
     "openai>=1.0.0",
     # Cohere 7.x is a major SDK rewrite. Holding to <7 until ai-worker code is
     # audited against the v7 migration guide. Tracked in Dependabot #704.
-    "cohere>=5.0.0,<7",
+    "cohere>=5.0.0,<8",
     # Cohere 6.x pins pydantic-core<2.44.0; without these constraints pip
     # resolves pydantic 2.13.x which needs pydantic-core 2.46.x, breaking the
     # resolve. Tied to the cohere<7 hold above.

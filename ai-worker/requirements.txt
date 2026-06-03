@@ -486,9 +486,9 @@ click==8.4.1 \
     # via
     #   livekit-agents
     #   uvicorn
-cohere==6.1.0 \
-    --hash=sha256:6a52bb459b71b5e79735412ee1a8e87028c5b3afba050c39815fe03c083249b3 \
-    --hash=sha256:ad286b3af2583c75ba93624e6f680603d3578a3d73704f997430260b87537ac7
+cohere==7.0.3 \
+    --hash=sha256:c880a45c4cd670d5e7c9297de122005f21e2d9624fda9314cb3e4e0406bc9ec5 \
+    --hash=sha256:f74c6be98ee5d0d1310c3892171def2f184d5a9b7ab81d906407ffc7a5e62adc
     # via raven-worker (pyproject.toml)
 colorama==0.4.6 \
     --hash=sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44 \
