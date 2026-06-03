@@ -5,7 +5,7 @@ import warnings
 
 from . import ai_worker_pb2 as ai__worker__pb2
 
-GRPC_GENERATED_VERSION = '1.78.0'
+GRPC_GENERATED_VERSION = '1.81.0'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
@@ -25,7 +25,7 @@ if _version_not_supported:
     )
 
 
-class AIWorkerStub(object):
+class AIWorkerStub:
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -51,7 +51,7 @@ class AIWorkerStub(object):
                 _registered_method=True)
 
 
-class AIWorkerServicer(object):
+class AIWorkerServicer:
     """Missing associated documentation comment in .proto file."""
 
     def ParseAndEmbed(self, request, context):
@@ -98,7 +98,7 @@ def add_AIWorkerServicer_to_server(servicer, server):
 
 
  # This class is part of an EXPERIMENTAL API.
-class AIWorker(object):
+class AIWorker:
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod

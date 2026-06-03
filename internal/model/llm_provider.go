@@ -30,6 +30,43 @@ var ValidLLMProviders = map[LLMProvider]bool{
 	LLMProviderCustom:      true,
 }
 
+// embeddingCapableProviders is the set of providers that expose a usable
+// embedding API. The ai-worker's provider registry (see
+// ai-worker/raven_worker/providers/registry.py and anthropic_provider.py)
+// is the canonical source of truth — Anthropic ships an embedding stub
+// that always raises NotImplementedError, and the registry currently only
+// instantiates real embedding providers for the four entries below. Custom
+// is intentionally omitted because the ai-worker registry has no embedding
+// handler for it today; if that changes, flip the entry to true here and
+// register the matching provider class in registry.py.
+var embeddingCapableProviders = map[LLMProvider]bool{
+	LLMProviderOpenAI: true,
+	LLMProviderCohere: true,
+	LLMProviderOllama: true,
+}
+
+// SupportsEmbeddings reports whether the given provider can serve the
+// embedding sub-call of RAG / document ingestion. Used by the embedding
+// provider resolver so an org whose default LLM provider is Anthropic
+// (chat-only) can still run RAG by routing the embed sub-call to a
+// sibling provider that does support embeddings.
+func SupportsEmbeddings(p LLMProvider) bool {
+	return embeddingCapableProviders[p]
+}
+
+// EmbeddingProviderPriority is the resolver's tie-break order when the org's
+// default LLM provider cannot serve embeddings. Ollama wins because it's
+// the local / edge-friendly default (matches the chat path's literal
+// fallback). OpenAI and Cohere follow as the supported cloud embedders.
+//
+// Keep the order in sync with the resolver doc-comment in
+// service.ResolveEmbeddingProvider — both reference this same priority list.
+var EmbeddingProviderPriority = []LLMProvider{
+	LLMProviderOllama,
+	LLMProviderOpenAI,
+	LLMProviderCohere,
+}
+
 // ProviderStatus represents the lifecycle state of an LLM provider config.
 type ProviderStatus string
 

@@ -271,14 +271,38 @@ func (s *ChatService) StreamCompletion(ctx context.Context, orgID, kbID string, 
 	if provider == "" {
 		provider = "anthropic"
 	}
+
+	// Embedding-provider resolution (issue: chat 500s when org's only LLM
+	// provider is Anthropic). The chat-completion side stays on `provider`
+	// (Anthropic / OpenAI / Ollama — the user's choice). The embedding
+	// sub-call inside RAG, however, fails for chat-only providers like
+	// Anthropic — it has no public embeddings API. When the chat provider
+	// can't embed, we route the embed sub-call to a sibling provider that
+	// can (Ollama → OpenAI → Cohere), via a new `embed_provider` proto
+	// field. ai-worker honours `embed_provider` when set and falls back to
+	// `provider` otherwise, so older Go callers stay forwards-compatible.
+	//
+	// Lookup is best-effort: on failure we leave embed_provider empty and
+	// let Python surface the original "Anthropic has no embeddings API"
+	// error, which is the same diagnostic the operator would see today.
+	// Failing loudly here would also block orgs whose default IS
+	// embedding-capable (the common case), which is worse than the bug.
+	var embedProvider string
+	if !model.SupportsEmbeddings(model.LLMProvider(provider)) && s.llmRepo != nil {
+		if ep, err := ResolveEmbeddingProvider(ctx, s.pool, s.llmRepo, orgID); err == nil {
+			embedProvider = ep
+		}
+	}
+
 	ragReq := &pb.RAGRequest{
-		Query:     req.Query,
-		OrgId:     orgID,
-		KbIds:     []string{kbID},
-		SessionId: session.ID,
-		Filters:   filters,
-		Model:     req.Model,
-		Provider:  provider,
+		Query:          req.Query,
+		OrgId:          orgID,
+		KbIds:          []string{kbID},
+		SessionId:      session.ID,
+		Filters:        filters,
+		Model:          req.Model,
+		Provider:       provider,
+		EmbedProvider:  embedProvider,
 	}
 
 	stream, err := s.grpcClient.Worker().QueryRAG(ctx, ragReq)

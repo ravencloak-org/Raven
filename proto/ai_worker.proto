@@ -34,6 +34,14 @@ message RAGRequest {
   map<string, string> filters = 5;
   string model            = 6;
   string provider         = 7;
+  // embed_provider is the provider slug used for the EMBEDDING step of RAG.
+  // When set, it overrides `provider` for the query-embedding sub-call;
+  // chat completion still uses `provider`. Empty means "use `provider` for
+  // both" (existing behaviour). Added so an org whose default LLM provider
+  // is Anthropic — which has no public embedding API — can still run RAG
+  // by routing the embed sub-call to a sibling provider that does support
+  // embeddings (Ollama / OpenAI / Cohere).
+  string embed_provider   = 8;
 }
 
 message RAGChunk {

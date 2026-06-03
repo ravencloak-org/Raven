@@ -352,6 +352,13 @@ class RAGServicer:
         kb_ids = list(request.kb_ids)
         query_text = request.query
         provider_name = request.provider
+        # Separate embedding provider. When the chat provider can't serve
+        # embeddings (Anthropic — no public embed API), the Go layer resolves
+        # a sibling embedding-capable provider (Ollama / OpenAI / Cohere) and
+        # passes its slug here. Empty means "use provider_name for embeddings
+        # too" (the pre-bug default; preserves backwards-compatibility with
+        # older Go callers that don't set the new field).
+        embed_provider_name = request.embed_provider or provider_name
         model = request.model
         filters: dict[str, str] = dict(request.filters)
 
@@ -361,6 +368,7 @@ class RAGServicer:
             session_id=request.session_id,
             model=model,
             provider=provider_name,
+            embed_provider=embed_provider_name,
             query_length=len(query_text),
         )
         log.info("query_rag_request")
@@ -410,7 +418,7 @@ class RAGServicer:
                     log.debug("semantic_cache_disabled", kb_id=kb_ids[0])
                 else:
                     embedding = await self._embed_query_for_cache(
-                        query_text, org_id, provider_name, model, log
+                        query_text, org_id, embed_provider_name, model, log
                     )
                     if embedding:
                         semantic_hit_embedding = embedding
@@ -491,6 +499,7 @@ class RAGServicer:
                 request.session_id,
                 log,
                 precomputed_embedding=semantic_hit_embedding,
+                embed_provider_name=embed_provider_name,
             ):
                 if not chunk.is_final:
                     collected_text.append(chunk.text)
@@ -562,21 +571,30 @@ class RAGServicer:
         session_id: str,
         log: structlog.BoundLogger,
         precomputed_embedding: list[float] | None = None,
+        embed_provider_name: str | None = None,
     ) -> AsyncIterator[ai_worker_pb2.RAGChunk]:
         """Execute the full RAG pipeline and yield streaming chunks.
 
         ``precomputed_embedding`` reuses an embedding already produced by the
         semantic-cache lookup on the hot path, avoiding a second embedding
         round-trip on a cache miss.
+
+        ``embed_provider_name`` overrides ``provider_name`` for the query
+        embedding sub-call only — chat completion still routes through
+        ``provider_name``. Used when the chat provider (e.g. Anthropic) has
+        no usable embedding API. Defaults to ``provider_name`` so unaware
+        callers keep the pre-bug behaviour.
         """
+        embed_provider = embed_provider_name or provider_name
+
         # 1. Embed the query (or reuse the one produced for the cache lookup)
         if precomputed_embedding is not None:
             query_embedding = precomputed_embedding
             log.debug("query_embedded_reused", dims=len(query_embedding))
         else:
-            embedding_provider = await get_provider_for_request(org_id, provider_name, model)
+            embedding_provider = await get_provider_for_request(org_id, embed_provider, model)
             query_embedding = await embedding_provider.embed(query_text)
-            log.debug("query_embedded", dims=len(query_embedding))
+            log.debug("query_embedded", dims=len(query_embedding), embed_provider=embed_provider)
 
         # 2. Hybrid search (vector + BM25) in parallel.
         #
