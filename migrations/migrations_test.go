@@ -774,6 +774,161 @@ func TestMigrationsUpAndDown(t *testing.T) {
 		}
 	})
 
+	t.Run("marketplace_functions_signature", func(t *testing.T) {
+		// Migration 00052 (issue #728): the two SECURITY DEFINER read
+		// functions that bridge the Marketplace cross-tenant boundary.
+		// Behaviour is exercised by the integration tests in
+		// internal/marketplace/queries_test.go; this sub-test pins the
+		// SQL-side contract — function existence, security mode, owner,
+		// and the precise return-column shape declared in ADR-0005 +
+		// ADR-0008 — so a future refactor cannot silently drop a column
+		// or downgrade the security perimeter.
+
+		type sigCheck struct {
+			fnName       string
+			args         string
+			wantSecDef   bool
+			wantOwner    string
+			wantCols     []string
+			wantColTypes []string
+		}
+
+		cases := []sigCheck{
+			{
+				fnName:     "marketplace_list_public_kbs",
+				args:       "text, text, text[], integer, integer",
+				wantSecDef: true,
+				wantOwner:  "raven_admin",
+				wantCols: []string{
+					"kb_id", "org_slug", "org_display_name",
+					"kb_slug", "kb_name", "description",
+					"license_spdx_id", "last_modified_at", "import_count",
+					"source_public_kb_id", "source_org_slug", "source_org_display_name",
+				},
+				wantColTypes: []string{
+					"uuid", "text", "text",
+					"text", "text", "text",
+					"text", "timestamp with time zone", "integer",
+					"uuid", "text", "text",
+				},
+			},
+			{
+				fnName:     "marketplace_preview_kb",
+				args:       "uuid",
+				wantSecDef: true,
+				wantOwner:  "raven_admin",
+				wantCols:   []string{"chunk_id", "ordinal", "text"},
+				wantColTypes: []string{
+					"uuid", "integer", "text",
+				},
+			},
+		}
+
+		for _, tc := range cases {
+			tc := tc
+			t.Run(tc.fnName, func(t *testing.T) {
+				// 1. Function exists at the expected (name, arg-types) signature.
+				var oid uint32
+				err := db.QueryRowContext(ctx,
+					`SELECT p.oid
+					 FROM pg_proc p
+					 JOIN pg_namespace n ON n.oid = p.pronamespace
+					 WHERE n.nspname = 'public'
+					   AND p.proname = $1
+					   AND pg_get_function_arguments(p.oid) = $2`,
+					tc.fnName, tc.args).Scan(&oid)
+				if err != nil {
+					t.Fatalf("function %s(%s) not found: %v", tc.fnName, tc.args, err)
+				}
+
+				// 2. SECURITY DEFINER bit set (prosecdef in pg_proc).
+				var secDef bool
+				if err := db.QueryRowContext(ctx,
+					`SELECT prosecdef FROM pg_proc WHERE oid = $1`, oid).Scan(&secDef); err != nil {
+					t.Fatalf("read prosecdef: %v", err)
+				}
+				if secDef != tc.wantSecDef {
+					t.Errorf("%s: SECURITY DEFINER = %v, want %v", tc.fnName, secDef, tc.wantSecDef)
+				}
+
+				// 3. Owner is raven_admin — the role with admin_bypass
+				// on every tenant table; required for the function body
+				// to read across Orgs (migration 00015).
+				var owner string
+				if err := db.QueryRowContext(ctx,
+					`SELECT r.rolname
+					 FROM pg_proc p JOIN pg_roles r ON r.oid = p.proowner
+					 WHERE p.oid = $1`, oid).Scan(&owner); err != nil {
+					t.Fatalf("read owner: %v", err)
+				}
+				if owner != tc.wantOwner {
+					t.Errorf("%s: owner = %s, want %s", tc.fnName, owner, tc.wantOwner)
+				}
+
+				// 4. raven_app holds EXECUTE — the application role
+				// must be able to invoke the function from API code.
+				var canExec bool
+				if err := db.QueryRowContext(ctx,
+					`SELECT has_function_privilege('raven_app', $1::oid, 'EXECUTE')`, oid).
+					Scan(&canExec); err != nil {
+					t.Fatalf("read raven_app EXECUTE: %v", err)
+				}
+				if !canExec {
+					t.Errorf("%s: raven_app should hold EXECUTE", tc.fnName)
+				}
+
+				// 5. PUBLIC must NOT hold EXECUTE — defence in depth
+				// against accidental grants to extension roles.
+				var publicCanExec bool
+				if err := db.QueryRowContext(ctx,
+					`SELECT has_function_privilege('public', $1::oid, 'EXECUTE')`, oid).
+					Scan(&publicCanExec); err != nil {
+					t.Fatalf("read PUBLIC EXECUTE: %v", err)
+				}
+				if publicCanExec {
+					t.Errorf("%s: PUBLIC should NOT hold EXECUTE", tc.fnName)
+				}
+
+				// 6. Return column shape matches the ADR-pinned contract.
+				// pg_get_function_result returns the TABLE(...) clause
+				// verbatim, so we parse it into (name, type) pairs and
+				// compare against the wanted shape.
+				var resultDecl string
+				if err := db.QueryRowContext(ctx,
+					`SELECT pg_get_function_result($1)`, oid).Scan(&resultDecl); err != nil {
+					t.Fatalf("read function result: %v", err)
+				}
+				// Strip the TABLE(...) wrapper.
+				resultDecl = strings.TrimSpace(resultDecl)
+				if !strings.HasPrefix(resultDecl, "TABLE(") || !strings.HasSuffix(resultDecl, ")") {
+					t.Fatalf("%s: unexpected result decl shape: %s", tc.fnName, resultDecl)
+				}
+				inner := resultDecl[len("TABLE(") : len(resultDecl)-1]
+				cols := strings.Split(inner, ",")
+				if len(cols) != len(tc.wantCols) {
+					t.Errorf("%s: got %d return columns, want %d (raw: %s)",
+						tc.fnName, len(cols), len(tc.wantCols), resultDecl)
+					return
+				}
+				for i, c := range cols {
+					parts := strings.SplitN(strings.TrimSpace(c), " ", 2)
+					if len(parts) != 2 {
+						t.Errorf("%s: malformed column decl %q", tc.fnName, c)
+						continue
+					}
+					gotName, gotType := parts[0], parts[1]
+					if gotName != tc.wantCols[i] {
+						t.Errorf("%s: column %d name = %q, want %q", tc.fnName, i, gotName, tc.wantCols[i])
+					}
+					if gotType != tc.wantColTypes[i] {
+						t.Errorf("%s: column %d (%s) type = %q, want %q",
+							tc.fnName, i, gotName, gotType, tc.wantColTypes[i])
+					}
+				}
+			})
+		}
+	})
+
 	// --- Run all migrations DOWN ---
 	t.Run("clean_rollback", func(t *testing.T) {
 		if err := goose.DownTo(db, migDir, 0); err != nil {
