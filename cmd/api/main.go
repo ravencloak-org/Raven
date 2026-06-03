@@ -368,13 +368,19 @@ func main() {
 	// S3 / MinIO / R2 in prod). Replaces the hand-rolled SeaweedFS HTTP
 	// client which stored multipart envelope bytes alongside file content
 	// — see internal/storage/s3.go for the rationale + storage path layout.
-	storageClient, err := storage.NewS3Client(context.Background(), storage.S3Config{
+	// Bound startup S3 probing with a timeout: NewS3Client does network
+	// I/O (LoadDefaultConfig + ensureBucket), so calling it with
+	// context.Background() can hang boot indefinitely when the storage
+	// endpoint is blackholed or half-open.
+	storageCtx, cancelStorage := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelStorage()
+	storageClient, err := storage.NewS3Client(storageCtx, storage.S3Config{
 		Endpoint:        cfg.S3.Endpoint,
 		Region:          cfg.S3.Region,
 		Bucket:          cfg.S3.Bucket,
 		AccessKeyID:     cfg.S3.AccessKeyID,
 		SecretAccessKey: cfg.S3.SecretAccessKey,
-		UsePathStyle:    true,
+		UsePathStyle:    cfg.S3.UsePathStyle,
 	})
 	if err != nil {
 		log.Fatalf("failed to initialise S3 storage: %v", err)
@@ -787,6 +793,10 @@ func main() {
 		llm := api.Group("/orgs/:org_id/llm-providers")
 		{
 			llm.POST("", middleware.RequireOrgRole("org_admin"), llmHandler.Create)
+			// Probe-before-create; same body as POST "" but doesn't persist.
+			// Kept admin-only since it carries the API key, even though no
+			// row is written — limits how loud bad keys can get in the logs.
+			llm.POST("/test", middleware.RequireOrgRole("org_admin"), llmHandler.TestConnection)
 			llm.GET("", llmHandler.List)
 			llm.POST("/test", middleware.RequireOrgRole("org_admin"), llmHandler.Test)
 			llm.GET("/:provider_id", llmHandler.Get)

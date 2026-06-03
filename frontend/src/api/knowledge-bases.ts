@@ -154,11 +154,20 @@ export async function getDocuments(
     | Record<string, unknown>[]
     | { items?: Record<string, unknown>[]; documents?: Record<string, unknown>[] }
   >(`${kbBasePath(orgId, wsId)}/${kbId}/documents`)
+  // Guard each wrapper field with Array.isArray before assigning. The
+  // backend never sends a non-array under .documents/.items today, but a
+  // future shape change (paginated wrapper object, accidental coercion
+  // to null, etc.) would otherwise crash items.map() — fail closed with
+  // [] instead.
   let items: Record<string, unknown>[]
   if (Array.isArray(data)) {
     items = data
+  } else if (Array.isArray(data.documents)) {
+    items = data.documents
+  } else if (Array.isArray(data.items)) {
+    items = data.items
   } else {
-    items = data.documents ?? data.items ?? []
+    items = []
   }
   return items.map(normalizeDoc)
 }

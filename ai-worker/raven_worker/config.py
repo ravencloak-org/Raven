@@ -40,7 +40,13 @@ class Settings(BaseSettings):
     # match the Go defaults so both code paths produce identical fusion
     # ordering out of the box.
     retrieval_rrf_k: int = 60
-    retrieval_default_top_n: int = 10
+    # Default top_n was 10 to match the Go API's retrieval.default_limit,
+    # but on the public demo the chat handler runs against llama3.1:8b
+    # over a user-supplied Cloudflare tunnel: 10 PDF-extracted chunks
+    # build a ~60KB prompt and first-token slides past the chat handler's
+    # 90s deadline + nginx proxy_read_timeout. 4 keeps grounded answers
+    # accurate while letting M1-class hardware finish under ~10s.
+    retrieval_default_top_n: int = 4
     # Demo daily LLM spend ceiling in USD. The LLMSpendFuse refuses to
     # charge once the running total for the current UTC day exceeds this
     # value, returning a "demo limit reached" error to the caller.

@@ -251,6 +251,11 @@ type S3Config struct {
 	Bucket          string `mapstructure:"bucket"`            // e.g. raven-docs
 	AccessKeyID     string `mapstructure:"access_key_id"`     // empty for anonymous
 	SecretAccessKey string `mapstructure:"secret_access_key"` // empty for anonymous
+	// UsePathStyle forces path-style addressing (https://endpoint/bucket/key).
+	// True is required for SeaweedFS and MinIO; AWS S3 and most other
+	// virtual-hosted backends should leave this false. Default below keeps
+	// the SeaweedFS-first default so existing deployments don't break.
+	UsePathStyle bool `mapstructure:"use_path_style"`
 }
 
 // UploadConfig holds file upload settings.
@@ -420,6 +425,9 @@ func Load() (*Config, error) {
 	v.SetDefault("s3.bucket", "raven-docs")
 	v.SetDefault("s3.access_key_id", "")
 	v.SetDefault("s3.secret_access_key", "")
+	// SeaweedFS / MinIO require path-style addressing; AWS S3 / R2 / etc.
+	// should override via RAVEN_S3_USE_PATH_STYLE=false.
+	v.SetDefault("s3.use_path_style", true)
 	v.SetDefault("posthog.api_key", "")
 	v.SetDefault("posthog.host", "https://us.i.posthog.com")
 	v.SetDefault("ses.region", "ap-south-1")
@@ -599,6 +607,12 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("emailsummary.summarizer_base_url", "RAVEN_AI_WORKER_HTTP_URL")
 	_ = v.BindEnv("posthog.api_key", "RAVEN_POSTHOG_API_KEY")
 	_ = v.BindEnv("posthog.host", "RAVEN_POSTHOG_HOST")
+	_ = v.BindEnv("s3.endpoint", "RAVEN_S3_ENDPOINT")
+	_ = v.BindEnv("s3.region", "RAVEN_S3_REGION")
+	_ = v.BindEnv("s3.bucket", "RAVEN_S3_BUCKET")
+	_ = v.BindEnv("s3.access_key_id", "RAVEN_S3_ACCESS_KEY_ID")
+	_ = v.BindEnv("s3.secret_access_key", "RAVEN_S3_SECRET_ACCESS_KEY")
+	_ = v.BindEnv("s3.use_path_style", "RAVEN_S3_USE_PATH_STYLE")
 	_ = v.BindEnv("retrieval.default_limit", "RAVEN_RETRIEVAL_DEFAULT_LIMIT")
 	_ = v.BindEnv("retrieval.max_limit", "RAVEN_RETRIEVAL_MAX_LIMIT")
 	_ = v.BindEnv("retrieval.rrf_k", "RAVEN_RETRIEVAL_RRF_K")

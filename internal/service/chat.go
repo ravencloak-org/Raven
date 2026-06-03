@@ -127,23 +127,36 @@ func (s *ChatService) WithKBStatusGuard(g *KBStatusGuard) *ChatService {
 
 // resolveDefaultProvider returns the provider type configured as the org's
 // default (e.g. "ollama", "openai"), or "" when none is configured or the
-// repo isn't wired. Callers fall back to a hardcoded literal in that case.
-// Errors are swallowed because chat shouldn't crash on a repo blip — the
-// fallback path still produces a sensible 500-with-message downstream.
-func (s *ChatService) resolveDefaultProvider(ctx context.Context, orgID string) string {
+// repo isn't wired. The error return surfaces real infra/repo failures so
+// the caller can 500 explicitly instead of silently masking them with the
+// literal-default fallback (CodeRabbit PR #689). A no-rows / no-default
+// hit returns ("", nil) — the legitimate "org hasn't set a default" case
+// that the caller still falls through to the literal.
+func (s *ChatService) resolveDefaultProvider(ctx context.Context, orgID string) (string, error) {
 	if s.llmRepo == nil {
-		return ""
+		return "", nil
 	}
 	var providerType string
-	_ = db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
 		cfg, err := s.llmRepo.GetDefault(ctx, tx, orgID)
-		if err != nil || cfg == nil {
+		if err != nil {
+			// no-rows is the common "no default configured" path —
+			// don't surface it as an error.
+			if strings.Contains(err.Error(), "no rows") {
+				return nil
+			}
+			return err
+		}
+		if cfg == nil {
 			return nil
 		}
 		providerType = string(cfg.Provider)
 		return nil
 	})
-	return providerType
+	if err != nil {
+		return "", err
+	}
+	return providerType, nil
 }
 
 // StreamCompletion calls QueryRAG and returns a channel of SSE events.
@@ -240,8 +253,20 @@ func (s *ChatService) StreamCompletion(ctx context.Context, orgID, kbID string, 
 	// the env-level ANTHROPIC_API_KEY exists — in that case Python uses the
 	// env key. Anything else 500s with "no active provider config".
 	provider := req.Provider
-	if provider == "" {
-		provider = s.resolveDefaultProvider(ctx, orgID)
+	if provider == "" && s.llmRepo != nil {
+		// Surface real lookup failures instead of silently falling through
+		// to "anthropic" — masking infra/repo errors here misroutes prompts
+		// and trips downstream RAG 500s with confusing provider context.
+		// resolveDefaultProvider returns ("", nil) for the legitimate
+		// "org hasn't set a default" case, which we still let fall through
+		// to the literal default below.
+		def, err := s.resolveDefaultProvider(ctx, orgID)
+		if err != nil {
+			return nil, apierror.NewInternal("failed to resolve default LLM provider: " + err.Error())
+		}
+		if def != "" {
+			provider = def
+		}
 	}
 	if provider == "" {
 		provider = "anthropic"

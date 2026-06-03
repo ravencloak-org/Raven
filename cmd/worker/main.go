@@ -5,19 +5,27 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"go.opentelemetry.io/otel"
 
 	"github.com/ravencloak-org/Raven/internal/config"
 	"github.com/ravencloak-org/Raven/internal/db"
 	"github.com/ravencloak-org/Raven/internal/email"
+	rpcClient "github.com/ravencloak-org/Raven/internal/grpc"
+	pb "github.com/ravencloak-org/Raven/internal/grpc/pb"
 	"github.com/ravencloak-org/Raven/internal/jobs"
 	"github.com/ravencloak-org/Raven/internal/posthog"
 	"github.com/ravencloak-org/Raven/internal/queue"
 	"github.com/ravencloak-org/Raven/internal/repository"
+	"github.com/ravencloak-org/Raven/internal/resilience"
 	"github.com/ravencloak-org/Raven/internal/service"
 	"github.com/ravencloak-org/Raven/internal/storage"
 )
@@ -41,13 +49,17 @@ func main() {
 	docRepo := repository.NewDocumentRepository(pool)
 	chunkRepo := repository.NewChunkRepository(pool)
 	airbyteRepo := repository.NewAirbyteRepository(pool)
-	storageClient, err := storage.NewS3Client(context.Background(), storage.S3Config{
+	// Bound startup S3 probing with a timeout so a blackholed storage
+	// endpoint can't hang worker boot indefinitely.
+	storageCtx, cancelStorage := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelStorage()
+	storageClient, err := storage.NewS3Client(storageCtx, storage.S3Config{
 		Endpoint:        cfg.S3.Endpoint,
 		Region:          cfg.S3.Region,
 		Bucket:          cfg.S3.Bucket,
 		AccessKeyID:     cfg.S3.AccessKeyID,
 		SecretAccessKey: cfg.S3.SecretAccessKey,
-		UsePathStyle:    true,
+		UsePathStyle:    cfg.S3.UsePathStyle,
 	})
 	if err != nil {
 		log.Fatalf("failed to initialise S3 storage: %v", err)
@@ -83,9 +95,91 @@ func main() {
 	// `document.processed` and `sync.completed` events on the success path.
 	webhookSvc := service.NewWebhookService(webhookRepo, pool, queueClient)
 
+	// gRPC client to the Python AI worker — drives the per-chunk embedding
+	// call inside document-process. Mirrors the API-side wiring in
+	// cmd/api/main.go so behaviour (timeout, breaker thresholds, telemetry)
+	// is identical across both processes. Failure to construct the policy
+	// or dial the worker leaves embed=nil and the handler silently
+	// degrades to BM25-only retrieval.
+	var embedFn jobs.EmbedFunc
+	aiPolicy, policyErr := resilience.NewPolicy("ai-worker",
+		resilience.WithTimeout(cfg.Server.AIWorkerTimeout),
+		resilience.WithBreakerThreshold(cfg.Server.AIWorkerBreakerThreshold),
+		resilience.WithBreakerCooldown(cfg.Server.AIWorkerBreakerCooldown),
+		resilience.WithBreakerHalfOpenMax(cfg.Server.AIWorkerBreakerHalfOpenMax),
+	)
+	if policyErr != nil {
+		logger.Warn("ai-worker resilience policy invalid; document chunks will be indexed without embeddings",
+			"error", policyErr)
+	}
+	aiBreaker := resilience.NewBreaker(aiPolicy,
+		resilience.WithIsSuccessful(resilience.IsGRPCCallerError),
+		resilience.WithObservability(
+			otel.Meter("github.com/ravencloak-org/Raven/internal/resilience"),
+			otel.Tracer("github.com/ravencloak-org/Raven/internal/resilience"),
+		),
+	)
+	grpcClient, grpcErr := rpcClient.NewClient(cfg.GRPC.WorkerAddr, aiPolicy, aiBreaker)
+	if grpcErr != nil {
+		logger.Warn("ai-worker gRPC client unavailable; document chunks will be indexed without embeddings",
+			"address", cfg.GRPC.WorkerAddr, "error", grpcErr)
+	} else if policyErr != nil {
+		// policy missing — skip embed path
+		_ = grpcClient.Close()
+		grpcClient = nil
+	} else {
+		defer func() { _ = grpcClient.Close() }()
+		worker := grpcClient.Worker()
+		// LLM-provider repo lookup so the embedder can resolve the org's
+		// default provider when the caller doesn't pin one. Python's
+		// GetEmbedding rejects empty `provider` with NotFound; chat
+		// already does this lookup in chat.go.
+		llmRepo := repository.NewLLMProviderRepository(pool)
+		resolveProvider := func(ctx context.Context, orgID string) string {
+			var providerType string
+			err := db.WithOrgID(ctx, pool, orgID, func(tx pgx.Tx) error {
+				cfg, err := llmRepo.GetDefault(ctx, tx, orgID)
+				if err != nil {
+					if errors.Is(err, pgx.ErrNoRows) {
+						return nil
+					}
+					return err
+				}
+				if cfg != nil {
+					providerType = string(cfg.Provider)
+				}
+				return nil
+			})
+			if err != nil {
+				logger.Warn("resolve org default provider failed",
+					"org_id", orgID, "error", err)
+			}
+			return providerType
+		}
+		embedFn = func(ctx context.Context, orgID, text, provider string) ([]float32, int, string, error) {
+			if provider == "" {
+				provider = resolveProvider(ctx, orgID)
+			}
+			if provider == "" {
+				// Last-ditch default. Matches the chat path's literal
+				// fallback so behaviour stays consistent across both.
+				provider = "ollama"
+			}
+			resp, err := worker.GetEmbedding(ctx, &pb.EmbeddingRequest{
+				Text:     text,
+				OrgId:    orgID,
+				Provider: provider,
+			})
+			if err != nil {
+				return nil, 0, "", err
+			}
+			return resp.GetEmbedding(), int(resp.GetDimensions()), "", nil
+		}
+	}
+
 	// Register document processing handler (overrides the stub in queue.Server).
 	srv.Mux().HandleFunc(queue.TypeDocumentProcess,
-		jobs.NewDocumentProcessHandler(pool, docRepo, chunkRepo, storageClient, logger, webhookSvc))
+		jobs.NewDocumentProcessHandler(pool, docRepo, chunkRepo, storageClient, embedFn, logger, webhookSvc))
 
 	// Register the Airbyte sync handler so connector runs fire `sync.completed`.
 	airbyteSyncHandler := jobs.NewAirbyteSyncHandler(pool, airbyteRepo, logger, webhookSvc)

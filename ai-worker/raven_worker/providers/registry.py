@@ -123,6 +123,20 @@ async def get_provider_for_request(
     return provider
 
 
+# Embedding-model defaults per provider. The `model` argument the registry
+# receives is the *chat* model selected for completion (qwen2.5:7b, gpt-4o,
+# claude-3-5-sonnet, etc.) — wrong shape for an embedding call. Each
+# embedding API needs its own dedicated model. When the caller doesn't pin
+# one explicitly, fall back here so callers don't have to know each
+# vendor's embedding-model id.
+_DEFAULT_EMBEDDING_MODELS = {
+    "openai": "text-embedding-3-small",
+    "cohere": "embed-english-v3.0",
+    "anthropic": "anthropic-embed-placeholder",  # Anthropic has no native embedding API yet
+    "ollama": "nomic-embed-text",
+}
+
+
 def _build_provider(
     provider_name: str,
     api_key: str,
@@ -134,7 +148,9 @@ def _build_provider(
     Args:
         provider_name: Lowercase provider slug.
         api_key: Decrypted BYOK API key.
-        model: Embedding model name.
+        model: Embedding model name. Empty / chat-model values are replaced
+            with the provider-appropriate embedding default — see
+            ``_DEFAULT_EMBEDDING_MODELS``.
         base_url: Optional custom base URL (used for OpenAI-compatible proxies).
 
     Returns:
@@ -143,6 +159,16 @@ def _build_provider(
     Raises:
         ValueError: If ``provider_name`` is not recognised.
     """
+    # The model the caller hands us is the chat model picked by the user
+    # for completion (e.g. qwen2.5:7b, gpt-4o). Embedding APIs need a
+    # separate model — Ollama rejects an empty string with HTTP 400
+    # `{"error":"model is required"}`, OpenAI/Cohere quietly succeed on
+    # text-embedding-3-small/embed-english-v3.0 but produce wrong-dim
+    # vectors. Substitute the embedding default here unless the caller
+    # has explicitly pinned a known embedding model.
+    if not model or _looks_like_chat_model(provider_name, model):
+        model = _DEFAULT_EMBEDDING_MODELS.get(provider_name, model)
+
     if provider_name == "openai":
         from raven_worker.providers.openai_provider import OpenAIEmbeddingProvider
 
@@ -165,6 +191,42 @@ def _build_provider(
         return OllamaEmbeddingProvider(model=model, base_url=base_url)
 
     raise ValueError(f"Unsupported provider: '{provider_name}'")
+
+
+# Per-provider known chat-model prefixes — anything matching these is
+# almost certainly a chat model, not an embedding model. Used to catch
+# the "caller forwarded the chat model into the embedding code path"
+# bug class without false-positiving on legitimate embedding model
+# names like 'text-embedding-3-small' or 'nomic-embed-text'.
+_CHAT_MODEL_PREFIXES = {
+    "openai": ("gpt-", "o1-", "o3-", "chatgpt-"),
+    "anthropic": ("claude-",),
+    "ollama": (
+        "llama",
+        "qwen",
+        "mistral",
+        "mixtral",
+        "phi",
+        "gemma",
+        "deepseek",
+        "codellama",
+    ),
+    # Cohere chat models follow "command-*"; "chat-" reserved for any
+    # future chat-named variants. Embedding models are "embed-*" so
+    # they never trip these prefixes.
+    "cohere": ("command-", "chat-"),
+}
+
+
+def _looks_like_chat_model(provider_name: str, model: str) -> bool:
+    """True when `model` matches a known chat-model naming pattern.
+
+    The signal isn't perfect, but the false-positive cost is low (we just
+    override with the embedding default — same behaviour as model="") and
+    the false-negative cost would be a noisy 400 from the embedding API.
+    """
+    prefixes = _CHAT_MODEL_PREFIXES.get(provider_name, ())
+    return any(model.startswith(p) for p in prefixes)
 
 
 def clear_cache() -> None:

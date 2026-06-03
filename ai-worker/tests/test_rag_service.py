@@ -225,7 +225,13 @@ def _make_db_row(
 
 @pytest.mark.asyncio
 async def test_rag_servicer_no_chunks(grpc_context) -> None:
-    """RAGServicer should yield a 'no relevant info' chunk when search returns nothing."""
+    """RAGServicer should fall back to ungrounded LLM when retrieval finds nothing.
+
+    Pre-PR-#689 this path emitted a literal "No relevant information found."
+    chunk. Post-PR-#689 the no-chunks branch instead calls the LLM with the
+    bare query so the user still gets a useful (ungrounded) answer with an
+    empty sources array. See rag.py: no_chunks_found_falling_back_to_ungrounded_llm.
+    """
     mock_conn = AsyncMock()
     mock_conn.execute = AsyncMock()
     # vector search returns [], bm25 returns []
@@ -236,19 +242,40 @@ async def test_rag_servicer_no_chunks(grpc_context) -> None:
     mock_provider = AsyncMock()
     mock_provider.embed = AsyncMock(return_value=[0.1, 0.2, 0.3])
 
+    # Stub the LLM streaming so we don't need a real key / network call.
+    async def _fake_openai_stream():
+        for token in ["Ungrounded", " answer"]:
+            event = MagicMock()
+            event.choices = [MagicMock()]
+            event.choices[0].delta.content = token
+            yield event
+
+    mock_openai_client = MagicMock()
+    mock_openai_client.chat.completions.create = AsyncMock(return_value=_fake_openai_stream())
+
     servicer = RAGServicer(pool=mock_pool)
 
-    with patch(
+    _patch_provider = patch(
         "raven_worker.services.rag.get_provider_for_request",
         AsyncMock(return_value=mock_provider),
-    ):
+    )
+    _patch_key = patch(
+        "raven_worker.services.rag.RAGServicer._get_llm_api_key",
+        AsyncMock(return_value="sk-test"),
+    )
+    _patch_openai = patch(
+        "raven_worker.services.rag.AsyncOpenAI",
+        return_value=mock_openai_client,
+    )
+    with _patch_provider, _patch_key, _patch_openai:
         chunks = []
         async for chunk in servicer.query(_make_rag_request(), grpc_context):
             chunks.append(chunk)
 
-    assert len(chunks) == 1
-    assert chunks[0].is_final is True
-    assert "No relevant information found" in chunks[0].text
+    # Should have token chunks + a final empty-sources chunk.
+    assert len(chunks) >= 1
+    assert chunks[-1].is_final is True
+    assert list(chunks[-1].sources) == []
     grpc_context.abort.assert_not_awaited()
 
 
