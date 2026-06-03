@@ -11,7 +11,10 @@ dependencies = [
     "grpcio>=1.69.0",
     "grpcio-reflection>=1.69.0",
     "grpcio-health-checking>=1.69.0",
-    "protobuf>=6.33.5",
+    # Held at 6.x because grpcio-reflection (1.81.0) requires protobuf<7. Once
+    # grpcio-reflection ships a protobuf-7-compatible release, lift to >=7.
+    # Tracks Dependabot #710.
+    "protobuf>=6.33.5,<7",
     "pydantic-settings>=2.7.0",
     "structlog>=24.4.0",
     "opentelemetry-api>=1.29.0",
@@ -22,14 +25,7 @@ dependencies = [
     "beautifulsoup4>=4.12.0",
     "langchain-text-splitters>=0.3.0",
     "openai>=1.0.0",
-    # Cohere 7.x is a major SDK rewrite. Holding to <7 until ai-worker code is
-    # audited against the v7 migration guide. Tracked in Dependabot #704.
-    "cohere>=5.0.0,<7",
-    # Cohere 6.x pins pydantic-core<2.44.0; without these constraints pip
-    # resolves pydantic 2.13.x which needs pydantic-core 2.46.x, breaking the
-    # resolve. Tied to the cohere<7 hold above.
-    "pydantic<2.13",
-    "pydantic-core<2.44",
+    "cohere>=7.0.0",
     "asyncpg>=0.30.0",
     "tenacity>=9.0.0",
     "cryptography>=42.0.0",
@@ -46,6 +42,10 @@ dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
 ]
+# wrapt held at 1.x because both opentelemetry-instrumentation-grpc and
+# livekit-agents (1.5.x line) still declare wrapt<2. Tracks Dependabot #722;
+# unblock when OT-instrumentation-grpc lifts its constraint and livekit-agents
+# 1.6 ships (currently 1.6.0rc2 is pre-release-only).
 
 [project.optional-dependencies]
 dev = [
