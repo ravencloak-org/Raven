@@ -9,6 +9,15 @@ An Org has **exactly one default LLM Provider** at a time, represented by the bo
 
 We do **not** split the default by purpose (no separate "chat default" and "embed default"). We do **not** allow per-User overrides of the Org default.
 
+## Enforcement of the singleton invariant
+
+The "exactly one default per Org" rule is upheld by **two coordinated mechanisms** — DB-level and application-level — because either alone leaves a race window:
+
+1. **Partial unique index on the provider table.** A filtered/partial unique index on `llm_provider_configs (org_id) WHERE is_default = true` makes it impossible to commit two rows with `is_default = true` for the same `org_id`. This is the floor: even a buggy or malicious writer cannot create two defaults.
+2. **Transactional `set_default_provider` operation.** Switching the default is a single transaction that (a) `UPDATE … SET is_default = false WHERE org_id = $1 AND is_default = true` and (b) `UPDATE … SET is_default = true WHERE org_id = $1 AND id = $2`, in that order, in one BEGIN/COMMIT. Callers MUST use this operation; ad-hoc UPDATEs that set `is_default = true` without first clearing the existing default will be rejected by the partial unique index, which is desirable (fail fast) but a poor user-facing error — so the transactional helper is the only sanctioned path.
+
+Together these guarantee that at every committed point in time, an Org has **zero or one** row with `is_default = true`. The "zero" case is the bootstrap state for a fresh Org (no providers yet) — addressed by auto-defaulting the first created provider (see Trade-offs accepted below).
+
 ## Why
 
 - The schema and call path already assume a single default. `llm_provider_configs.is_default boolean` is the canonical source; `useLlmProvidersStore.setDefaultLlmProvider` and the `PUT /llm-providers/:id/default` route both treat it as singular. Recent fixes (`fix(chat): resolve org's default LLM provider instead of hardcoding 'anthropic'`, commit `9c4e0d58`) closed the last gap where call paths bypassed it.

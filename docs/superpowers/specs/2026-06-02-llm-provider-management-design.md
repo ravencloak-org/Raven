@@ -49,7 +49,7 @@ Today the `/llm-providers` route lets a user **Create** and **Delete** providers
 Two changes:
 
 1. **`PUT /api/v1/orgs/:org_id/llm-providers/:provider_id`** already exists per `llm_provider_test.go:196`. Audit the handler to confirm it accepts a partial body (only mutates fields present) and never overwrites `api_key` when omitted. Add a regression test that omits `api_key` and asserts the stored ciphertext is unchanged.
-2. **`POST /api/v1/orgs/:org_id/llm-providers/test`** extends to accept `{provider_id}` *instead of* credentials. When `provider_id` is set, the handler loads the row, decrypts the stored key, and probes with it. This is what the Edit dialog uses when the user hasn't clicked "Rotate API key".
+2. **`POST /api/v1/orgs/:org_id/llm-providers/test`** extends to accept `{provider_id}` *instead of* credentials. When `provider_id` is set, the handler MUST: (a) verify the caller is a member of `:org_id` (existing session middleware), (b) load the provider row through an org-scoped query (RLS-enforced via `db.WithOrgID`, or an explicit `WHERE org_id = :org_id AND id = :provider_id`), (c) return 404 if not found and 403 if the membership check fails, (d) **only then** decrypt the stored key and run the probe. Without this order, the endpoint becomes a cross-tenant probing/decryption oracle if an IDOR slips into the handler. This is what the Edit dialog uses when the user hasn't clicked "Rotate API key".
 
 ### Frontend (Vue 3, `frontend/src/pages/llm-providers/LlmProviderListPage.vue`)
 
@@ -68,7 +68,7 @@ The page is rewritten around three pieces:
 
 3. **Make-default action**:
    - Optimistic store mutation: flip `is_default` locally, call `setDefaultLlmProvider`, on failure roll back + toast.
-   - The previously-default card's pill disappears with a 200ms fade; the newly-default card's pill fades in.
+   - The previously-default card's pill disappears with a 200ms fade; the new default card's pill fades in.
    - A non-blocking warning banner appears inside the card if the user clicks Make-default on a provider whose last in-session test was `fail` (we only know in-session state until Q6 schema work lands).
 
 ### Menu wiring
@@ -78,7 +78,7 @@ The page is rewritten around three pieces:
 
 ## Data flow
 
-```
+```text
                                 ┌───────────────────────┐
                                 │   /llm-providers      │
                                 │   LlmProviderListPage │
@@ -116,34 +116,40 @@ CONTEXT.md gains:
 Six issues, each independently grabbable and behind-a-flag-free.
 
 ### A — Backend: provider Update audit + Test-with-stored-key
+
 - Audit `PUT /llm-providers/:id` to confirm it preserves `api_key` when omitted; add regression test.
 - Extend `POST /llm-providers/test` to accept `{provider_id}`; when set, decrypt stored key and probe.
 - Unit tests + handler test.
 
 ### B — Frontend: Default badge + Make-default action
+
 - "Default" amber pill component on `LlmProviderListPage` cards.
 - "Make default" button on non-default cards.
 - Optimistic store mutation; rollback toast on failure.
 - Warning inline-banner if target's in-session test was `fail`.
 
 ### C — Frontend: Edit credentials dialog (hybrid inline + modal)
+
 - Reuse Create-dialog markup as the Edit dialog, pre-filled from card.
 - "Rotate API key" disclosure (hidden input until clicked).
 - Re-run Test Connection when `base_url` or rotate input changed; gate Save.
 - Omit `api_key` from PUT body when not rotated.
 
 ### D — Frontend: Menu entries
+
 - Add "AI Providers" link to `AppHeader.vue` user-profile dropdown (above Sign out).
 - Add "AI Providers" link to `AppSidebar.vue` desktop nav.
 - Icons match existing inline-SVG style.
 
 ### E — Frontend: Card redesign + inline edits
+
 - Refactor desktop + mobile card variants into one responsive component.
 - Inline-editable `display_name` (click-to-edit, autosave on blur).
 - Inline-selectable `model` (`<select>` from `PROVIDER_MODELS[type]`, autosave on change).
 - Show provider type icon, `base_url`, key hint, status, default pill.
 
 ### F — E2E Playwright coverage
+
 - Switch default between two providers; assert pill moves; assert chat call resolves to the new default.
 - Rename inline; reload; assert persisted.
 - Change model inline; reload; assert persisted.
