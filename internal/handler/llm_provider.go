@@ -22,6 +22,7 @@ type LLMProviderServicer interface {
 	Delete(ctx context.Context, orgID, configID string) error
 	SetDefault(ctx context.Context, orgID, configID string) (*model.LLMProviderResponse, error)
 	TestConnection(ctx context.Context, orgID string, req model.TestProviderRequest) (*model.TestConnectionResult, error)
+	TestDefaultConnection(ctx context.Context, orgID string) (*model.TestConnectionResult, error)
 }
 
 // LLMProviderHandler handles HTTP requests for LLM provider config management.
@@ -266,6 +267,35 @@ func (h *LLMProviderHandler) Test(c *gin.Context) {
 	}
 
 	resp, err := h.svc.TestConnection(c.Request.Context(), orgID, req)
+	if err != nil {
+		_ = c.Error(err)
+		c.Abort()
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+// DefaultHealth handles GET /api/v1/orgs/:org_id/llm-providers/default/health.
+//
+// Resolves the org's currently-configured default LLM provider and probes
+// it end-to-end. Returns the same shape as the test endpoint. Used by the
+// frontend cron to surface a persistent banner when the chat path would
+// fail; the cron polls this on a 60s cadence from every authenticated
+// page so operators see the warning before users do.
+//
+// @Summary     Health-check the default LLM provider
+// @Description Probe the org's default provider; returns ok=false with a detail string instead of an HTTP error so the caller can render a banner uniformly.
+// @Tags        llm-providers
+// @Produce     json
+// @Security    BearerAuth
+// @Param       org_id path string true "Organisation ID"
+// @Success     200 {object} model.TestConnectionResult
+// @Failure     401 {object} apierror.AppError
+// @Failure     403 {object} apierror.AppError
+// @Router      /orgs/{org_id}/llm-providers/default/health [get]
+func (h *LLMProviderHandler) DefaultHealth(c *gin.Context) {
+	orgID := c.Param("org_id")
+	resp, err := h.svc.TestDefaultConnection(c.Request.Context(), orgID)
 	if err != nil {
 		_ = c.Error(err)
 		c.Abort()
