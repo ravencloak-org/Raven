@@ -23,7 +23,7 @@ type mockLLMProviderService struct {
 	listFn       func(ctx context.Context, orgID string) ([]model.LLMProviderResponse, error)
 	updateFn     func(ctx context.Context, orgID, configID string, req model.UpdateLLMProviderRequest) (*model.LLMProviderResponse, error)
 	deleteFn     func(ctx context.Context, orgID, configID string) error
-	setDefaultFn func(ctx context.Context, orgID, configID string) error
+	setDefaultFn func(ctx context.Context, orgID, configID string) (*model.LLMProviderResponse, error)
 	testFn       func(ctx context.Context, orgID string, req model.TestProviderRequest) (*model.TestConnectionResult, error)
 }
 
@@ -42,7 +42,7 @@ func (m *mockLLMProviderService) Update(ctx context.Context, orgID, configID str
 func (m *mockLLMProviderService) Delete(ctx context.Context, orgID, configID string) error {
 	return m.deleteFn(ctx, orgID, configID)
 }
-func (m *mockLLMProviderService) SetDefault(ctx context.Context, orgID, configID string) error {
+func (m *mockLLMProviderService) SetDefault(ctx context.Context, orgID, configID string) (*model.LLMProviderResponse, error) {
 	return m.setDefaultFn(ctx, orgID, configID)
 }
 func (m *mockLLMProviderService) TestConnection(ctx context.Context, orgID string, req model.TestProviderRequest) (*model.TestConnectionResult, error) {
@@ -223,15 +223,34 @@ func TestDeleteLLMProvider_Success(t *testing.T) {
 
 func TestSetDefaultLLMProvider_Success(t *testing.T) {
 	svc := &mockLLMProviderService{
-		setDefaultFn: func(_ context.Context, _, _ string) error { return nil },
+		setDefaultFn: func(_ context.Context, orgID, configID string) (*model.LLMProviderResponse, error) {
+			return &model.LLMProviderResponse{
+				ID:          configID,
+				OrgID:       orgID,
+				Provider:    model.LLMProviderOpenAI,
+				DisplayName: "Default Test",
+				IsDefault:   true,
+				Status:      model.ProviderStatusActive,
+			}, nil
+		},
 	}
 	r := newLLMProviderRouter(svc)
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodPut, "/api/v1/orgs/org-abc/llm-providers/prov-1/default", nil)
 	r.ServeHTTP(w, req)
 
-	if w.Code != http.StatusNoContent {
-		t.Errorf("expected 204, got %d", w.Code)
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var got model.LLMProviderResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatalf("failed to decode response: %v: %s", err, w.Body.String())
+	}
+	if !got.IsDefault {
+		t.Errorf("expected IsDefault=true, got false: %s", w.Body.String())
+	}
+	if got.ID != "prov-1" {
+		t.Errorf("expected ID=prov-1, got %q", got.ID)
 	}
 }
 

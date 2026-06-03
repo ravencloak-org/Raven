@@ -20,7 +20,7 @@ type LLMProviderServicer interface {
 	List(ctx context.Context, orgID string) ([]model.LLMProviderResponse, error)
 	Update(ctx context.Context, orgID, configID string, req model.UpdateLLMProviderRequest) (*model.LLMProviderResponse, error)
 	Delete(ctx context.Context, orgID, configID string) error
-	SetDefault(ctx context.Context, orgID, configID string) error
+	SetDefault(ctx context.Context, orgID, configID string) (*model.LLMProviderResponse, error)
 	TestConnection(ctx context.Context, orgID string, req model.TestProviderRequest) (*model.TestConnectionResult, error)
 }
 
@@ -277,12 +277,13 @@ func (h *LLMProviderHandler) Test(c *gin.Context) {
 // SetDefault handles PUT /api/v1/orgs/:org_id/llm-providers/:provider_id/default.
 //
 // @Summary     Set default LLM provider
-// @Description Mark a provider config as the default for the organisation
+// @Description Mark a provider config as the default for the organisation and return the updated row
 // @Tags        llm-providers
+// @Produce     json
 // @Security    BearerAuth
 // @Param       org_id      path string true "Organisation ID"
 // @Param       provider_id path string true "Provider config ID"
-// @Success     204
+// @Success     200 {object} model.LLMProviderResponse
 // @Failure     401 {object} apierror.AppError
 // @Failure     403 {object} apierror.AppError
 // @Failure     404 {object} apierror.AppError
@@ -290,10 +291,11 @@ func (h *LLMProviderHandler) Test(c *gin.Context) {
 func (h *LLMProviderHandler) SetDefault(c *gin.Context) {
 	orgID := c.Param("org_id")
 	providerID := c.Param("provider_id")
-	if err := h.svc.SetDefault(c.Request.Context(), orgID, providerID); err != nil {
+	resp, err := h.svc.SetDefault(c.Request.Context(), orgID, providerID)
+	if err != nil {
 		_ = c.Error(err)
 		c.Abort()
 		return
 	}
-	c.Status(http.StatusNoContent)
+	c.JSON(http.StatusOK, resp)
 }
