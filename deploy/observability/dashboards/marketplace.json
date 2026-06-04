@@ -1,0 +1,55 @@
+{
+  "title": "Raven Marketplace MVP",
+  "description": "Abuse-triage view for the Marketplace: reports, takedowns, repeat-infringer pressure, DMCA queue, and time-to-resolution. Backing tables: marketplace_reports, marketplace_takedowns, dmca_notices, organizations. Schema sources of truth: migrations/00050_kb_license_and_strikes.sql (takedown_strikes), migrations/00053_marketplace_moderation.sql (reports + takedowns), and #736's dmca_notices migration. Queries run against the OpenObserve SQL endpoint over the Postgres replica configured in deploy/observability/.",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Reports Submitted (per day)",
+      "type": "line",
+      "query": "SELECT date_trunc('day', created_at) AS day, count(*) AS reports FROM marketplace_reports WHERE created_at > now() - INTERVAL '30 days' GROUP BY 1 ORDER BY 1",
+      "description": "Daily volume of marketplace_reports inserts. Spikes indicate a brigading wave or a publisher dispute; sustained baseline informs SLA staffing."
+    },
+    {
+      "id": 2,
+      "title": "Reports by Status",
+      "type": "pie",
+      "query": "SELECT status, count(*) AS reports FROM marketplace_reports GROUP BY status",
+      "description": "Distribution across the open/reviewing/resolved/dismissed state machine (see internal/marketplace/moderation.go::ReportStatus). A growing 'open' slice means the queue is falling behind the 48h triage SLA."
+    },
+    {
+      "id": 3,
+      "title": "Takedowns by Source",
+      "type": "bar",
+      "query": "SELECT date_trunc('day', created_at) AS day, source, count(*) AS takedowns FROM marketplace_takedowns WHERE created_at > now() - INTERVAL '30 days' GROUP BY 1, 2 ORDER BY 1",
+      "description": "Stacked bars over time for the three TakedownSource values (publisher/admin/dmca) defined in internal/marketplace/moderation.go. 'admin' counts are the ones that increment takedown_strikes per ADR-0006."
+    },
+    {
+      "id": 4,
+      "title": "Top-Strike Orgs",
+      "type": "table",
+      "query": "SELECT id, display_name, slug, takedown_strikes FROM organizations WHERE takedown_strikes > 0 ORDER BY takedown_strikes DESC, display_name ASC LIMIT 10",
+      "description": "Repeat-infringer leaderboard. Anything at 3+ strikes is a candidate for suspension per docs/runbooks/marketplace-repeat-infringer.md. Column shape per migrations/00050_kb_license_and_strikes.sql (takedown_strikes BIGINT) and migrations/00003_organizations.sql.",
+      "thresholds": [
+        { "value": 3, "color": "red", "label": "Suspension threshold (ADR-0006)" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Time-to-Resolution",
+      "type": "histogram",
+      "query": "SELECT width_bucket(extract(epoch FROM (resolved_at - created_at)) / 3600.0, 0, 168, 24) AS bucket_hours, count(*) AS reports FROM marketplace_reports WHERE status IN ('resolved','dismissed') AND resolved_at IS NOT NULL AND created_at > now() - INTERVAL '30 days' GROUP BY 1 ORDER BY 1",
+      "description": "Distribution of (resolved_at - created_at) over a 0..168 hour (7 day) window for terminal reports. The 7d-resolution SLA is the right tail boundary; tail mass beyond bucket 24 is an SLA breach.",
+      "thresholds": [
+        { "value": 48, "color": "yellow", "label": "Initial-response SLA (hours)" },
+        { "value": 168, "color": "red", "label": "Resolution SLA (hours)" }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "DMCA Notices Pending",
+      "type": "table",
+      "query": "SELECT id, target_kb_id, claimant_email, status, counter_notice_window_ends FROM dmca_notices WHERE status = 'pending' AND counter_notice_window_ends > now() ORDER BY counter_notice_window_ends ASC",
+      "description": "Open DMCA notices still inside the 14-day counter-notice window per ADR-0008. Table schema lands with #736's dmca_notices migration; the runbook in docs/runbooks/marketplace-takedown.md drives the human review."
+    }
+  ]
+}

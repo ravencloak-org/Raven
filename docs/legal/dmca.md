@@ -1,94 +1,118 @@
-# Raven DMCA Policy
+# DMCA Policy
 
-Raven respects the intellectual property rights of others and expects Marketplace publishers and importers to do the same. This document is the operational reference for the DMCA workflow; the public-facing equivalent lives at [raven.ravencloak.org/legal/dmca](https://raven.ravencloak.org/legal/dmca).
+**Designated agent:** [dmca@ravencloak.org](mailto:dmca@ravencloak.org)
 
-## Designated Agent
+## Plain-language summary
 
-| Field           | Value                                                |
-|-----------------|------------------------------------------------------|
-| Email           | [dmca@ravencloak.org](mailto:dmca@ravencloak.org)    |
-| Hosting Org     | Raven (ravencloak-org)                               |
-| Statute         | 17 U.S.C. § 512(c)(3) — DMCA designated-agent inbox  |
+If you own the copyright to material that has been published on the
+Raven Marketplace without your permission, email
+**dmca@ravencloak.org** with a description of the work and where it
+appears on Raven. We will review the notice, take down the offending
+material within a reasonable time, and notify the publisher. The
+publisher has 14 days to file a counter-notice; if they do, you'll be
+notified and have the opportunity to seek a court order. Filing a
+false notice may make you liable for damages.
 
-`dmca@ravencloak.org` is provisioned as a Google Workspace alias that fans out to the platform-admin distribution list. The inbox MUST stay reachable before the public Marketplace ships — see ADR-0006 §Consequences.
+This page is the public-facing summary. The operational procedure for
+Raven admins lives in [`docs/runbooks/marketplace-takedown.md`](../runbooks/marketplace-takedown.md).
 
-## Submitting a DMCA Notice
+## Submitting a takedown notice (17 U.S.C. § 512(c)(3))
 
-A valid notice under 17 U.S.C. § 512(c)(3) MUST include:
+Send a written notice to **dmca@ravencloak.org** that includes **all
+six** of the following — incomplete notices cannot be acted on:
 
-1. A physical or electronic signature of the copyright owner or authorised agent.
-2. Identification of the copyrighted work.
-3. Identification of the allegedly infringing material with a URL or other sufficient location data.
-4. Contact information (mailing address, phone, email).
-5. A good-faith statement that the use is not authorised.
-6. A statement under penalty of perjury that the notifier is the copyright owner or authorised agent.
+1. A physical or electronic signature of the copyright owner (or an
+   agent authorised to act on their behalf).
+2. Identification of the copyrighted work claimed to have been
+   infringed (or, for multiple works at a single Raven URL, a
+   representative list).
+3. Identification of the material claimed to be infringing — provide
+   the Raven Marketplace URL (e.g. `https://raven.ravencloak.org/marketplace/kb/{kb_id}`)
+   and enough detail to let us locate it.
+4. Contact information: name, address, phone number, and email of the
+   notifying party.
+5. A statement that the notifying party has a good-faith belief that
+   use of the material is not authorised by the copyright owner, its
+   agent, or the law.
+6. A statement that the information in the notice is accurate and,
+   under penalty of perjury, that the notifying party is authorised
+   to act on behalf of the copyright owner.
 
-Notices that materially fail the statutory requirements are rejected without action; the recipient operator replies with a short rejection email pointing back at this page.
+Notices missing any of these elements will receive a single reply
+asking for the missing information; we cannot otherwise act.
 
-## Operational Workflow
+## What happens after we receive a valid notice
 
-```
-notice arrives at dmca@ravencloak.org
-        │
-        ▼
-admin records via /admin/marketplace/dmca           ─── (1) Submit
-        │
-        ▼ atomic
-INSERT dmca_notices (status='pending', window=14d)
-UPDATE knowledge_bases SET status='dmca_pending'
-        │
-        ▼ outside tx
-claimant receipt email (best-effort)
-        │
-        ▼ wait up to 14 days
-        │
-        ├── publisher counter-notices via dmca@      ─── (2) Counter
-        │       admin records via /admin/marketplace/
-        │           dmca/:id/counter-notice
-        │       status='counter_filed'; KB stays frozen
-        │
-        └── window expires with no counter-notice    ─── (3) Sweep
-                daily cron `scheduled:marketplace_dmca_sweep` (4am UTC)
-                per row:
-                  UPDATE dmca_notices SET status='resolved_take_down'
-                  UPDATE knowledge_bases SET visibility='private', status='active'
-                  INSERT marketplace_takedowns (source='dmca', notes=notice_id)
-                  DispatchOnTakedownCreated → derivative_notifier emails fork owners
-```
+1. **Triage:** within 48 hours, Trust & Safety acknowledges receipt
+   and opens an internal record (`dmca_notices` row + `/admin/marketplace/dmca` queue).
+2. **Takedown:** the targeted knowledge base transitions to
+   `kb_status='dmca_pending'` and is removed from the public catalog.
+3. **Publisher notification:** the publisher is emailed with a copy of
+   the notice and informed of the 14-day counter-notice window.
+4. **Counter-notice window (14 days):**
+   - If no counter-notice is received, the KB is permanently set to
+     `visibility='private'` and a `marketplace_takedowns` row is
+     written with `source='dmca'`. Per ADR-0006, this also increments
+     the publisher Org's `takedown_strikes` counter.
+   - If a counter-notice is received, see *Counter-notice process* below.
+5. **Notifying party update:** when the KB is taken down (or the
+   counter-notice window opens), we email the original notifier.
 
-The two-stage workflow lives in `internal/marketplace/dmca.go`; the sweeper lives in `internal/jobs/marketplace_dmca_sweeper.go`.
+## Counter-notice process
 
-### Counter-notice handling
+If you are a Raven publisher whose knowledge base has been removed in
+response to a DMCA notice and you believe the removal was in error
+(e.g. the material is yours, properly licensed, or fair use), you may
+file a counter-notice by emailing **dmca@ravencloak.org** within 14
+days of receiving our takedown email.
 
-The MVP records the publisher's counter-notice through the admin (the publisher emails `dmca@ravencloak.org` with their counter-notice text; the operator pastes it into the admin UI). There is no public counter-notice form in MVP.
+A valid counter-notice must include all of the following per
+17 U.S.C. § 512(g)(3):
 
-When a counter-notice is recorded, the KB stays in `dmca_pending`. The DMCA safe harbour (17 U.S.C. § 512(g)(2)(C)) requires the OSP to hold restoration for 10 to 14 business days to give the original claimant time to file suit. The final keep-up/take-down decision is a manual admin action in MVP.
+1. Your physical or electronic signature.
+2. Identification of the material that was removed and the location
+   from which it was removed (the original Raven Marketplace URL).
+3. A statement under penalty of perjury that you have a good-faith
+   belief the material was removed as a result of mistake or
+   misidentification.
+4. Your name, address, phone number, and a statement that you consent
+   to the jurisdiction of the federal district court for the judicial
+   district in which your address is located (or, if outside the
+   United States, the United States District Court for the District
+   of Delaware), and that you will accept service of process from the
+   notifying party or their agent.
 
-## Repeat-Infringer Policy
+On receipt of a valid counter-notice:
 
-Per 17 U.S.C. § 512(i) and ADR-0006, Raven tracks confirmed takedown strikes against the publishing Organisation via `organizations.takedown_strikes`. Three strikes triggers the Organisation-suspension runbook (separate operational document, out of scope for this file). DMCA-sourced takedowns also increment the strike counter; the counter is incremented by the admin approve path (#734) and the same mechanism applies to DMCA auto-resolutions.
+- We forward the counter-notice to the original notifying party.
+- We restore the knowledge base no sooner than 10 and no later than
+  14 business days from receipt of the counter-notice — **unless** the
+  notifying party informs us that they have filed an action seeking a
+  court order to restrain the publisher from infringing.
 
-> NOTE: The DMCA sweeper currently writes a `marketplace_takedowns` row with `source='dmca'` but does NOT increment `takedown_strikes` automatically. Whether DMCA auto-resolutions count toward strikes is a policy decision tracked separately; the implementation will follow once that decision lands.
+## Repeat-infringer policy
 
-## Misrepresentation Liability
+Per our [Marketplace Acceptable Use](https://raven.ravencloak.org/legal/acceptable-use)
+and [ADR-0006](../adr/0006-licence-and-moderation.md), an organization
+that accrues **three** confirmed takedown strikes (whether from admin
+review or DMCA notices) is reviewed for suspension. The operational
+detail of how this review is conducted is documented in
+[`docs/runbooks/marketplace-repeat-infringer.md`](../runbooks/marketplace-repeat-infringer.md).
 
-17 U.S.C. § 512(f) provides a damages remedy against parties who knowingly misrepresent that material is infringing (or that material was removed by mistake). Operators rejecting bad-faith notices should keep the rejection email on file.
+A "confirmed strike" means a `marketplace_takedowns` row was written
+with `source='admin'` or `source='dmca'` and the resulting KB
+transition was not reversed by a successful counter-notice or admin
+appeal.
 
-## Implementation References
+## False notices
 
-| Component              | Path                                                                |
-|------------------------|---------------------------------------------------------------------|
-| Migration              | `migrations/00055_marketplace_dmca.sql`                             |
-| Service                | `internal/marketplace/dmca.go`                                      |
-| Sweeper handler        | `internal/jobs/marketplace_dmca_sweeper.go`                         |
-| Sweeper cron           | `internal/jobs/scheduler.go` — `CronMarketplaceDMCASweep`           |
-| HTTP handler           | `internal/handler/admin_dmca.go`                                    |
-| Admin UI               | `frontend/src/pages/admin/AdminDMCAView.vue`                        |
-| Public-facing page     | `frontend/src/pages/legal/DMCAPage.vue` (`/legal/dmca`)             |
-| API client             | `frontend/src/api/marketplace-admin.ts`                             |
+Knowingly material misrepresentation in a DMCA notice or counter-notice
+is sanctionable under 17 U.S.C. § 512(f). Repeat false notices from the
+same notifying party will be ignored after written warning.
 
-## See Also
+## References
 
-- [ADR-0006 — Mandatory licence + reactive moderation](../adr/0006-licence-and-moderation.md)
-- [ADR-0008 — Marketplace discovery + operations](../adr/0008-marketplace-discovery-and-operations.md)
-- [Marketplace MVP plan §4 (admin endpoints), §6 (DMCA inbox)](../plans/marketplace-mvp.md)
+- Statute — [17 U.S.C. § 512](https://www.copyright.gov/title17/92chap5.html#512)
+- Internal procedure — [`docs/runbooks/marketplace-takedown.md`](../runbooks/marketplace-takedown.md)
+- Repeat-infringer suspension — [`docs/runbooks/marketplace-repeat-infringer.md`](../runbooks/marketplace-repeat-infringer.md)
+- ADR-0006 — [`docs/adr/0006-licence-and-moderation.md`](../adr/0006-licence-and-moderation.md)
