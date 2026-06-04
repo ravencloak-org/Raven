@@ -5,8 +5,10 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/stretchr/testify/require"
 
 	"github.com/ravencloak-org/Raven/internal/db"
+	"github.com/ravencloak-org/Raven/internal/testutil"
 )
 
 // TestWithOrgID_SignatureStable confirms the exported symbol is callable
@@ -34,4 +36,45 @@ func TestWithOrgID_NilPool_Panics(t *testing.T) {
 		t.Fatal("fn should not be called with nil pool")
 		return nil
 	})
+}
+
+// TestWithRLSVar_ParameterisedSetConfig is the safety net for the
+// withRLSVar refactor: both WithOrgID and WithUserID delegate to one helper
+// that passes the GUC name as $1 and the value as $2 to set_config. If
+// Postgres ever rejects a parameterised first arg to set_config, this test
+// flips red before callers do.
+func TestWithRLSVar_ParameterisedSetConfig(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	pool := testutil.NewTestDB(t)
+
+	const (
+		orgID  = "00000000-0000-0000-0000-0000000000aa"
+		userID = "00000000-0000-0000-0000-0000000000bb"
+	)
+
+	// WithOrgID must make current_setting('app.current_org_id') visible to fn.
+	require.NoError(t, db.WithOrgID(ctx, pool, orgID, func(tx pgx.Tx) error {
+		var got string
+		if err := tx.QueryRow(ctx,
+			`SELECT current_setting('app.current_org_id', true)`,
+		).Scan(&got); err != nil {
+			return err
+		}
+		require.Equal(t, orgID, got)
+		return nil
+	}))
+
+	// WithUserID must make current_setting('app.current_user_id') visible to fn.
+	require.NoError(t, db.WithUserID(ctx, pool, userID, func(tx pgx.Tx) error {
+		var got string
+		if err := tx.QueryRow(ctx,
+			`SELECT current_setting('app.current_user_id', true)`,
+		).Scan(&got); err != nil {
+			return err
+		}
+		require.Equal(t, userID, got)
+		return nil
+	}))
 }
