@@ -549,6 +549,16 @@ func main() {
 		pool, reportsRepo, takedownsRepo, marketplace.NewNoopPublisherNotifier(),
 	)
 	adminMarketplaceHandler := handler.NewAdminMarketplaceHandler(adminModerationSvc)
+
+	// Marketplace discovery handler (issue #731). Reads-only across
+	// tenants via the SECURITY DEFINER functions from #728; the slug
+	// resolver is the stub that #727 will supersede with a direct
+	// kb_slug_holds-aware lookup.
+	marketplaceQueries := marketplace.NewQueries(pool)
+	marketplaceResolver := func(ctx context.Context, orgSlug, kbSlug string) (marketplace.SlugStatus, error) {
+		return marketplace.MarketplaceSlugStatus(ctx, pool, orgSlug, kbSlug)
+	}
+	marketplaceHandler := handler.NewMarketplaceHandler(marketplaceQueries, marketplaceResolver)
 	sourceHandler := handler.NewSourceHandler(sourceSvc)
 	docHandler := handler.NewDocumentHandler(docSvc)
 	searchHandler := handler.NewSearchHandler(searchSvc)
@@ -1094,6 +1104,20 @@ func main() {
 			adminMarket.GET("/dmca", adminDMCAHandler.List)
 			adminMarket.POST("/dmca", adminDMCAHandler.Submit)
 			adminMarket.POST("/dmca/:id/counter-notice", adminDMCAHandler.SubmitCounterNotice)
+		}
+
+		// --- Marketplace discovery routes (issue #731) ---
+		// Authenticated-only — per CONTEXT.md the Marketplace is walled;
+		// the standard session middleware on `api` is the gate. No admin
+		// role required: cross-tenant reads are scoped by the SECURITY
+		// DEFINER functions in migration 00052. The 410-Gone path for an
+		// unpublished slug is enforced inside the handler via the shared
+		// marketplaceLookupOr410 helper so detail + preview can't drift.
+		marketplaceGrp := api.Group("/marketplace")
+		{
+			marketplaceGrp.GET("", marketplaceHandler.List)
+			marketplaceGrp.GET("/:org_slug/:kb_slug", marketplaceHandler.Detail)
+			marketplaceGrp.GET("/:org_slug/:kb_slug/preview", marketplaceHandler.Preview)
 		}
 	}
 
