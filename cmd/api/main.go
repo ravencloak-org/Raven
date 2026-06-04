@@ -524,7 +524,7 @@ func main() {
 	// --- Wire handlers ---
 	orgHandler := handler.NewOrgHandler(orgSvc, userRepo)
 	wsHandler := handler.NewWorkspaceHandler(wsSvc)
-	userHandler := handler.NewUserHandler(userSvc)
+	userHandler := handler.NewUserHandler(userSvc).WithAdminEmails(cfg.Admin.PlatformAdminEmails)
 	// Marketplace publish service (issue #726): owns the canonical
 	// publish boundary — license allow-list, status-gate freeze, atomic
 	// flip of visibility + publish metadata. Shares kbStatusGuard so the
@@ -537,6 +537,17 @@ func main() {
 	}
 	publishSvc := marketplace.NewPublishService(pool, publishGate)
 	kbHandler := handler.NewKBHandler(kbSvc).WithPublisher(publishSvc)
+
+	// Marketplace moderation (issue #734, ADR-0006 + ADR-0008):
+	// reports + takedowns + admin approve/dismiss. The publisher email
+	// is a no-op placeholder for now (logged-TODO) until the M9 SES
+	// pipeline is wired — productionising swaps in an Asynq enqueue.
+	reportsRepo := marketplace.NewReports(pool)
+	takedownsRepo := marketplace.NewTakedowns(pool)
+	adminModerationSvc := marketplace.NewAdminModeration(
+		pool, reportsRepo, takedownsRepo, marketplace.NewNoopPublisherNotifier(),
+	)
+	adminMarketplaceHandler := handler.NewAdminMarketplaceHandler(adminModerationSvc)
 	sourceHandler := handler.NewSourceHandler(sourceSvc)
 	docHandler := handler.NewDocumentHandler(docSvc)
 	searchHandler := handler.NewSearchHandler(searchSvc)
@@ -1015,6 +1026,20 @@ func main() {
 			r := c.Request.WithContext(ctx)
 			dsarHandler.Delete(c.Writer, r)
 		})
+
+		// --- Admin marketplace review queue (issue #734, ADR-0008) ---
+		// Session-authed, then gated by the RAVEN_ADMIN_EMAILS allow-list
+		// (the only admin tier in MVP — no granular admin roles). The
+		// gate runs after the session middleware that already mounted on
+		// `api`, so the caller's email is in context.
+		adminMarket := api.Group("/admin/marketplace",
+			middleware.RequirePlatformAdmin(cfg.Admin.PlatformAdminEmails),
+		)
+		{
+			adminMarket.GET("/reports", adminMarketplaceHandler.ListReports)
+			adminMarket.POST("/reports/:id/approve", adminMarketplaceHandler.Approve)
+			adminMarket.POST("/reports/:id/dismiss", adminMarketplaceHandler.Dismiss)
+		}
 	}
 
 	// Public chat routes — API key authentication (for embeddable chat widget).

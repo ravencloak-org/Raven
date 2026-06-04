@@ -41,6 +41,22 @@ type Config struct {
 	EmailSummary EmailSummaryConfig
 	Retrieval    RetrievalConfig
 	Asynq        AsynqConfig
+	Admin        AdminConfig
+}
+
+// AdminConfig holds the platform-admin allow-list used by the marketplace
+// review queue and other internal-only operator endpoints.
+//
+// ADR-0008 §line 35: "no admin-role granularity beyond raven_admin". The
+// allow-list lives in config (not the DB) so a forgotten test seed cannot
+// silently grant admin privilege and so revoking admin requires a config
+// push (auditable) rather than a DB tweak.
+type AdminConfig struct {
+	// PlatformAdminEmails is the comma-separated allow-list of session
+	// email addresses that may hit /api/v1/admin/marketplace/*. Empty
+	// disables the endpoints (every request gets 403). Set via
+	// RAVEN_ADMIN_EMAILS=alice@ravencloak.org,bob@ravencloak.org.
+	PlatformAdminEmails []string `mapstructure:"platform_admin_emails"`
 }
 
 // RetrievalConfig holds tunables for the hybrid search / RRF pipeline used by
@@ -663,6 +679,12 @@ func Load() (*Config, error) {
 
 	_ = v.BindEnv("billing.slack_webhook_url", "RAVEN_SLACK_BILLING_WEBHOOK_URL")
 	v.SetDefault("billing.slack_webhook_url", "")
+
+	// Platform-admin allow-list (#734). Empty default — the admin
+	// marketplace endpoints respond 403 for every caller until an
+	// operator opts in by setting this env var.
+	v.SetDefault("admin.platform_admin_emails", []string{})
+	_ = v.BindEnv("admin.platform_admin_emails", "RAVEN_ADMIN_EMAILS")
 
 	// Try to read config file but don't fail if not found
 	_ = v.ReadInConfig()

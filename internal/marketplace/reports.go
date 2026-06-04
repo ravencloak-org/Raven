@@ -210,6 +210,78 @@ func (r *Reports) Transition(ctx context.Context, id uuid.UUID, newStatus Report
 	return nil
 }
 
+// TransitionInTx is the in-transaction sibling of Transition. The admin
+// approve path (#734) needs to atomically (a) move a report through
+// open -> reviewing -> resolved, (b) write the takedown audit row, (c)
+// flip the target KB to private, and (d) bump the publisher Org's strike
+// counter. Doing those as four separate Transition + side-effect calls
+// would let a crash mid-way leave the system in an inconsistent state
+// (KB flipped but report still open, or strike incremented without a
+// takedown row). Callers pass their own transaction so all four happen
+// or none do.
+//
+// Same state-machine rules as Transition. Same error vocabulary.
+//
+// The caller is responsible for: opening the tx, switching role to
+// raven_admin if the row is admin-gated by RLS, and committing.
+func (r *Reports) TransitionInTx(ctx context.Context, tx pgx.Tx, id uuid.UUID, newStatus ReportStatus) error {
+	if !newStatus.IsValid() {
+		return ErrInvalidReportStatus
+	}
+
+	var current ReportStatus
+	if err := tx.QueryRow(ctx,
+		`SELECT status FROM marketplace_reports WHERE id = $1 FOR UPDATE`,
+		id,
+	).Scan(&current); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrReportNotFound
+		}
+		return fmt.Errorf("Reports.TransitionInTx: load current: %w", err)
+	}
+
+	if !current.IsValid() {
+		return fmt.Errorf("%w: stored value %q", ErrInvalidReportStatus, current)
+	}
+
+	if !CanTransition(current, newStatus) {
+		return fmt.Errorf("%w: from=%s to=%s", ErrIllegalTransition, current, newStatus)
+	}
+
+	if _, err := tx.Exec(ctx,
+		`UPDATE marketplace_reports SET status = $2 WHERE id = $1`,
+		id, newStatus,
+	); err != nil {
+		return fmt.Errorf("Reports.TransitionInTx: update: %w", err)
+	}
+	return nil
+}
+
+// GetByID fetches a single report by id under the caller's RLS context.
+// Used by the admin approve path to read the report's reason + target KB
+// before driving the state machine. Returns ErrReportNotFound when no
+// row is visible.
+func (r *Reports) GetByID(ctx context.Context, tx pgx.Tx, id uuid.UUID) (Report, error) {
+	var rep Report
+	var reporter uuid.NullUUID
+	if err := tx.QueryRow(ctx,
+		`SELECT id, reported_kb_id, reporter_user_id, reason, status, created_at
+		 FROM marketplace_reports
+		 WHERE id = $1`,
+		id,
+	).Scan(&rep.ID, &rep.ReportedKBID, &reporter, &rep.Reason, &rep.Status, &rep.CreatedAt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Report{}, ErrReportNotFound
+		}
+		return Report{}, fmt.Errorf("Reports.GetByID: %w", err)
+	}
+	if reporter.Valid {
+		uid := reporter.UUID
+		rep.ReporterUserID = &uid
+	}
+	return rep, nil
+}
+
 // CountOpenForUser returns the number of reports in the OPEN state for
 // the given user. Exposed as a helper for callers that want to surface a
 // "you have N open reports" UI hint before submission — Create runs the

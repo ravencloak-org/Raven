@@ -10,6 +10,10 @@ import { usePostHog } from '../plugins/posthog'
 export const useAuthStore = defineStore('auth', () => {
   const sessionExists = ref(false)
   const orgId = ref<string | null>(sessionStorage.getItem('raven_org_id'))
+  // Platform-admin flag — populated by /api/v1/me. Presentation-only;
+  // the backend enforces admin routes via middleware against
+  // RAVEN_ADMIN_EMAILS, so a tampered client cannot escalate.
+  const isPlatformAdmin = ref(false)
   const isAuthenticated = computed(() => sessionExists.value)
   const hasOrg = computed(() => !!orgId.value)
 
@@ -66,8 +70,9 @@ export const useAuthStore = defineStore('auth', () => {
           signal: controller.signal,
         })
         if (res.ok) {
-          const me = (await res.json()) as { org_id?: string }
+          const me = (await res.json()) as { org_id?: string; is_platform_admin?: boolean }
           if (me.org_id) setOrgId(me.org_id)
+          isPlatformAdmin.value = !!me.is_platform_admin
         }
       } catch {
         // Swallow (including AbortError) — if /me is unreachable the
@@ -167,6 +172,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     sessionExists,
     orgId,
+    isPlatformAdmin,
     isAuthenticated,
     hasOrg,
     init,
