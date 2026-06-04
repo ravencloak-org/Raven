@@ -20,12 +20,22 @@ type UserServicer interface {
 
 // UserHandler handles HTTP requests for user management.
 type UserHandler struct {
-	svc UserServicer
+	svc          UserServicer
+	adminEmails  []string
 }
 
 // NewUserHandler creates a new UserHandler.
 func NewUserHandler(svc UserServicer) *UserHandler {
 	return &UserHandler{svc: svc}
+}
+
+// WithAdminEmails attaches the platform-admin allow-list so GET /me can
+// expose `is_platform_admin: true` for the SPA. Returns the receiver
+// so the wire-up in main.go stays a single chain. Optional — when not
+// called, GetMe still works but never reports admin (safe default).
+func (h *UserHandler) WithAdminEmails(emails []string) *UserHandler {
+	h.adminEmails = emails
+	return h
 }
 
 // GetMe handles GET /api/v1/me.
@@ -52,7 +62,24 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 		c.Abort()
 		return
 	}
-	c.JSON(http.StatusOK, user)
+
+	// Echo platform-admin status so the SPA can decide whether to render
+	// the /admin/marketplace nav. The middleware enforcement on the
+	// admin endpoints is the authoritative gate; this flag is presentation
+	// only — a tampered client cannot escalate by setting it locally.
+	c.JSON(http.StatusOK, meResponse{
+		User:            user,
+		IsPlatformAdmin: middleware.IsPlatformAdmin(user.Email, h.adminEmails),
+	})
+}
+
+// meResponse is the wire shape for GET /api/v1/me. Embedding model.User
+// keeps the existing field set forward-compatible (any new column the
+// service exposes ships automatically) while adding the platform-admin
+// echo for the SPA's route guard.
+type meResponse struct {
+	*model.User
+	IsPlatformAdmin bool `json:"is_platform_admin"`
 }
 
 // UpdateMe handles PUT /api/v1/me.

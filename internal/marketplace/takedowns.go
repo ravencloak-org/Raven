@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -57,6 +58,41 @@ func (t *Takedowns) Create(ctx context.Context, kbID uuid.UUID, source TakedownS
 		kbID, source, notesArg,
 	).Scan(&td.ID, &td.TargetKBID, &td.Source, &storedNotes, &td.CreatedAt); err != nil {
 		return Takedown{}, fmt.Errorf("Takedowns.Create: insert: %w", err)
+	}
+	if storedNotes != nil {
+		td.Notes = *storedNotes
+	}
+	return td, nil
+}
+
+// CreateInTx is the in-transaction sibling of Create. The admin approve
+// path (#734) batches the takedown write together with the report
+// transition, the KB visibility flip, and the strike increment so the
+// four side-effects commit atomically. See Reports.TransitionInTx for
+// the rationale.
+//
+// The caller is responsible for: opening the tx, switching role to
+// raven_admin (the table's RLS policy is admin-only), and committing.
+func (t *Takedowns) CreateInTx(ctx context.Context, tx pgx.Tx, kbID uuid.UUID, source TakedownSource, notes string) (Takedown, error) {
+	if !source.IsValid() {
+		return Takedown{}, ErrInvalidTakedownSource
+	}
+
+	var notesArg any
+	if notes != "" {
+		notesArg = notes
+	}
+
+	var td Takedown
+	var storedNotes *string
+	if err := tx.QueryRow(ctx,
+		`INSERT INTO marketplace_takedowns
+		   (target_kb_id, source, notes)
+		 VALUES ($1, $2, $3)
+		 RETURNING id, target_kb_id, source, notes, created_at`,
+		kbID, source, notesArg,
+	).Scan(&td.ID, &td.TargetKBID, &td.Source, &storedNotes, &td.CreatedAt); err != nil {
+		return Takedown{}, fmt.Errorf("Takedowns.CreateInTx: %w", err)
 	}
 	if storedNotes != nil {
 		td.Notes = *storedNotes

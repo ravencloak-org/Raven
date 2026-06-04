@@ -151,6 +151,16 @@ const router = createRouter({
           component: () => import('../pages/billing/PlansPage.vue'),
           meta: { requiresAuth: true },
         },
+        {
+          // Admin marketplace review queue (issue #734, ADR-0008).
+          // Server enforces the gate via RAVEN_ADMIN_EMAILS; the SPA's
+          // `requiresPlatformAdmin` meta hides the route from non-admins
+          // so they don't see a 403 in the network panel for nothing.
+          path: 'admin/marketplace/reports',
+          name: 'admin-marketplace-reports',
+          component: () => import('../pages/admin/AdminReportsView.vue'),
+          meta: { requiresAuth: true, requiresPlatformAdmin: true },
+        },
       ],
     },
     {
@@ -217,6 +227,13 @@ router.beforeEach(async (to) => {
 
   if (auth.isAuthenticated && !auth.hasOrg && to.path !== '/onboarding') {
     return '/onboarding'
+  }
+
+  // Platform-admin gate (issue #734). Authoritative gate is the
+  // backend middleware (RAVEN_ADMIN_EMAILS) — this is presentation-only
+  // so the UI doesn't render an admin nav for a regular user.
+  if (to.meta.requiresPlatformAdmin === true && !auth.isPlatformAdmin) {
+    return '/dashboard'
   }
 })
 
