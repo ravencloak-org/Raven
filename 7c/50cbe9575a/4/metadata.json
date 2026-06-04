@@ -3,32 +3,38 @@
   "checkpoint_id": "7c50cbe9575a",
   "session_id": "337cea8f-5a6b-4199-bc68-1de07b76ec01",
   "strategy": "manual-commit",
-  "created_at": "2026-06-03T03:51:28.709685Z",
-  "branch": "chore/bulk-dependabot-python-20260603",
-  "checkpoints_count": 4,
+  "created_at": "2026-06-04T22:16:39.670578Z",
+  "branch": "fix/response-cache-resize-to-768",
+  "checkpoints_count": 10,
   "files_touched": [
-    "ai-worker/raven_worker/config.py",
     "cmd/api/main.go",
-    "frontend/nginx.conf",
-    "internal/service/chat.go"
+    "frontend/src/api/llm-providers.ts",
+    "frontend/src/components/LlmProviderHealthToast.vue",
+    "frontend/src/layouts/DefaultLayout.vue",
+    "frontend/src/pages/llm-providers/LlmProviderListPage.vue",
+    "frontend/src/stores/llm-provider-health.ts",
+    "internal/handler/llm_provider.go",
+    "internal/handler/llm_provider_test.go",
+    "internal/model/llm_provider.go",
+    "internal/service/llm_provider.go"
   ],
   "agent": "Claude Code",
-  "checkpoint_transcript_start": 7144,
-  "transcript_lines_at_start": 7144,
+  "checkpoint_transcript_start": 7513,
+  "transcript_lines_at_start": 7513,
   "token_usage": {
-    "input_tokens": 122,
-    "cache_creation_tokens": 628528,
-    "cache_read_tokens": 13858630,
-    "output_tokens": 52330,
-    "api_call_count": 83
+    "input_tokens": 355,
+    "cache_creation_tokens": 3218460,
+    "cache_read_tokens": 85744489,
+    "output_tokens": 136853,
+    "api_call_count": 248
   },
   "initial_attribution": {
-    "calculated_at": "2026-06-03T03:51:27.869411Z",
-    "agent_lines": 29,
-    "human_added": 6299,
-    "human_modified": 0,
+    "calculated_at": "2026-06-04T22:16:38.62886Z",
+    "agent_lines": 957,
+    "human_added": 10705,
+    "human_modified": 61,
     "human_removed": 0,
-    "total_committed": 6328,
-    "agent_percentage": 0.4582806573957017
+    "total_committed": 11723,
+    "agent_percentage": 8.163439392646934
   }
 }
