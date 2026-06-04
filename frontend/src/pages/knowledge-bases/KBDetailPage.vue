@@ -1,10 +1,22 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useKnowledgeBasesStore } from '../../stores/knowledge-bases'
 import CacheStatsCard from '../../components/cache/CacheStatsCard.vue'
 import RecentConversationsCard from '../../components/conversations/RecentConversationsCard.vue'
 import type { KnowledgeBase } from '../../api/knowledge-bases'
+import {
+  reImportKnowledgeBase,
+  MarketplaceApiError,
+} from '../../api/marketplace'
+
+// `source_public_kb_id` lives on the publish-lifecycle augmented KB row.
+// Until the OpenAPI codegen is wired up we read it loosely off the store's
+// `currentKB` (the backend always returns the field for Imported KBs).
+type AugmentedKB = KnowledgeBase & {
+  source_public_kb_id?: string | null
+  source_org_slug?: string | null
+}
 
 // When the cache card saves new settings it emits `updated` with the fresh
 // KB row; we refresh the store copy so the card re-renders with the new
@@ -265,6 +277,46 @@ function handleChatKeydown(event: KeyboardEvent) {
   }
 }
 
+// --- Re-import (#732) ---
+
+const reImportConfirmOpen = ref(false)
+const reImporting = ref(false)
+const reImportError = ref('')
+const reImportSourceGone = ref(false)
+
+const sourcePublicKbId = computed(
+  () => (store.currentKB as AugmentedKB | null)?.source_public_kb_id ?? null,
+)
+const canReImport = computed(() => !!sourcePublicKbId.value)
+
+function openReImportConfirm() {
+  reImportError.value = ''
+  reImportSourceGone.value = false
+  reImportConfirmOpen.value = true
+}
+
+async function confirmReImport() {
+  reImporting.value = true
+  reImportError.value = ''
+  try {
+    await reImportKnowledgeBase(orgId, wsId, kbId)
+    reImportConfirmOpen.value = false
+    await store.fetchKnowledgeBase(orgId, wsId, kbId)
+    await store.fetchDocuments(orgId, wsId, kbId)
+  } catch (err) {
+    if (err instanceof MarketplaceApiError && err.status === 410) {
+      reImportSourceGone.value = true
+    } else if (err instanceof MarketplaceApiError && err.status === 409) {
+      reImportError.value = 'This KB is not an import — there is no source to re-import from.'
+    } else {
+      reImportError.value =
+        err instanceof Error ? err.message : 'Re-import failed.'
+    }
+  } finally {
+    reImporting.value = false
+  }
+}
+
 // --- Status badge helpers ---
 
 function statusBadgeClass(status: string): string {
@@ -353,12 +405,66 @@ function statusBadgeClass(status: string): string {
             Edit
           </button>
           <button
+            v-if="canReImport"
+            class="rounded-md border border-indigo-600 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
+            data-test="kb-re-import-button"
+            @click="openReImportConfirm"
+          >
+            Re-import
+          </button>
+          <button
             v-if="store.currentKB.status === 'active'"
             class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
             @click="handleArchive"
           >
             Archive
           </button>
+        </div>
+      </div>
+
+      <!-- Re-import confirmation modal (#732 / ADR-0007) -->
+      <div
+        v-if="reImportConfirmOpen"
+        class="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4"
+        role="dialog"
+        aria-modal="true"
+        data-test="kb-re-import-dialog"
+        @click.self="reImportConfirmOpen = false"
+      >
+        <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+          <h2 class="text-lg font-semibold text-gray-900">Re-import this KB?</h2>
+          <p v-if="!reImportSourceGone" class="mt-2 text-sm text-gray-600">
+            This will replace the documents in this KB with the latest version from the source.
+            Your chats and widgets will keep working.
+          </p>
+          <p
+            v-else
+            class="mt-2 text-sm text-yellow-800"
+            data-test="kb-re-import-gone"
+          >
+            The source KB was unpublished, so re-import is no longer possible. Your existing
+            imported content is unchanged.
+          </p>
+          <p v-if="reImportError" class="mt-2 text-xs text-red-600">{{ reImportError }}</p>
+          <div class="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              @click="reImportConfirmOpen = false"
+            >
+              Close
+            </button>
+            <button
+              v-if="!reImportSourceGone"
+              type="button"
+              :disabled="reImporting"
+              class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+              data-test="kb-re-import-confirm"
+              @click="confirmReImport"
+            >
+              {{ reImporting ? 'Re-importing…' : 'Re-import' }}
+            </button>
+          </div>
         </div>
       </div>
 
