@@ -596,7 +596,7 @@ async function runTestConnection() {
       api_key,
     })
     createTestStatus.value = result.ok ? 'pass' : 'fail'
-    createTestDetail.value = result.detail
+    createTestDetail.value = result.detail ?? ''
   } catch (e: unknown) {
     createTestStatus.value = 'fail'
     createTestDetail.value = e instanceof Error ? e.message : 'Test failed'
