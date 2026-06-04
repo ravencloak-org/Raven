@@ -17,6 +17,7 @@ type Config struct {
 	GRPC         GRPCConfig
 	OTel         OTelConfig
 	SuperTokens  SuperTokensConfig
+	Webauthn     WebauthnConfig
 	GoogleOAuth  GoogleOAuthConfig
 	CORS         CORSConfig
 	RateLimit    RateLimitConfig
@@ -273,6 +274,21 @@ type SuperTokensConfig struct {
 	WebsiteDomain string `mapstructure:"website_domain"` // e.g. https://app.ravencloak.org
 }
 
+// WebauthnConfig holds the Relying Party identity surfaced to clients during
+// passkey registration and authentication ceremonies (M14 #775). The values
+// flow into SuperTokens' WebAuthn recipe at init time; mismatched values
+// across deploy targets will silently invalidate previously-registered
+// credentials, so keep them stable per environment.
+type WebauthnConfig struct {
+	// RPID is the eTLD+1 the browser scopes generated credentials to. MUST
+	// match the domain the frontend is served from. Use `localhost` for
+	// local dev; set the registered domain in prod (e.g. `ravencloak.org`).
+	RPID string `mapstructure:"rp_id"`
+	// RPName is the human-readable name shown in the browser's passkey
+	// prompt (e.g. "Raven").
+	RPName string `mapstructure:"rp_name"`
+}
+
 // GoogleOAuthConfig holds Google OAuth credentials for social login via SuperTokens.
 type GoogleOAuthConfig struct {
 	ClientID     string `mapstructure:"client_id"`
@@ -393,6 +409,8 @@ func Load() (*Config, error) {
 	v.SetDefault("supertokens.api_key", "")
 	v.SetDefault("supertokens.api_domain", "http://localhost:8081")
 	v.SetDefault("supertokens.website_domain", "http://localhost:5173")
+	v.SetDefault("webauthn.rp_id", "localhost")
+	v.SetDefault("webauthn.rp_name", "Raven")
 	v.SetDefault("googleoauth.client_id", "")
 	v.SetDefault("googleoauth.client_secret", "")
 	// CORS allowed origins can be overridden via the RAVEN_CORS_ALLOWED_ORIGINS
@@ -530,6 +548,8 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("supertokens.api_key", "RAVEN_SUPERTOKENS_API_KEY")
 	_ = v.BindEnv("supertokens.api_domain", "RAVEN_SUPERTOKENS_API_DOMAIN")
 	_ = v.BindEnv("supertokens.website_domain", "RAVEN_SUPERTOKENS_WEBSITE_DOMAIN")
+	_ = v.BindEnv("webauthn.rp_id", "RAVEN_WEBAUTHN_RP_ID")
+	_ = v.BindEnv("webauthn.rp_name", "RAVEN_WEBAUTHN_RP_NAME")
 	_ = v.BindEnv("googleoauth.client_id", "GOOGLE_CLIENT_ID")
 	_ = v.BindEnv("googleoauth.client_secret", "GOOGLE_CLIENT_SECRET")
 	_ = v.BindEnv("server.port", "RAVEN_SERVER_PORT")
