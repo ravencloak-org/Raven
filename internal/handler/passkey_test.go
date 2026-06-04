@@ -20,17 +20,30 @@ import (
 
 // --- fakes -----------------------------------------------------------------
 
-// fakePasskeySvc is a hand-written stub. Each test pre-loads the credentials
-// the SuperTokens core would have returned and (optionally) primes errors on
-// list / delete.
-type fakePasskeySvc struct {
+// fakePasskeyService is a hand-written stub of the full handler-facing
+// interface — core list/delete plus label list/update/delete. Tests
+// pre-load credentials and label rows, optionally prime errors, and
+// inspect the captured-call slices to assert on writes.
+type fakePasskeyService struct {
+	// Core side.
 	credentials []service.PasskeyCredential
 	listErr     error
 	deleteErr   error
 	deletedID   string
+
+	// Label side.
+	rows           map[string]service.PasskeyLabel
+	listLabelsErr  error
+	updateErr      error
+	deleteLabelErr error
+	updateCalls    []labelUpdateCall
+	deleteCalls    []labelDeleteCall
 }
 
-func (f *fakePasskeySvc) ListByUser(_ context.Context, _ string) ([]service.PasskeyCredential, error) {
+type labelUpdateCall struct{ userID, credentialID, label string }
+type labelDeleteCall struct{ userID, credentialID string }
+
+func (f *fakePasskeyService) ListByUser(_ context.Context, _ string) ([]service.PasskeyCredential, error) {
 	if f.listErr != nil {
 		return nil, f.listErr
 	}
@@ -39,7 +52,7 @@ func (f *fakePasskeySvc) ListByUser(_ context.Context, _ string) ([]service.Pass
 	return out, nil
 }
 
-func (f *fakePasskeySvc) DeleteCredential(_ context.Context, _, credentialID string) error {
+func (f *fakePasskeyService) DeleteCredential(_ context.Context, _, credentialID string) error {
 	if f.deleteErr != nil {
 		return f.deleteErr
 	}
@@ -47,39 +60,36 @@ func (f *fakePasskeySvc) DeleteCredential(_ context.Context, _, credentialID str
 	return nil
 }
 
-// fakeLabelStore captures every call so tests can assert on writes without
-// needing a live Postgres. ListRows is keyed by credential_id.
-type fakeLabelStore struct {
-	rows         map[string]passkeyLabelRow
-	upsertCalls  []labelUpsertCall
-	deleteCalls  []labelDeleteCall
-	listErr      error
-	upsertErr    error
-	deleteLabErr error
-}
-
-type labelUpsertCall struct{ userID, credentialID, label string }
-type labelDeleteCall struct{ userID, credentialID string }
-
-func (f *fakeLabelStore) ListLabelsForUser(_ context.Context, _ string) (map[string]passkeyLabelRow, error) {
-	if f.listErr != nil {
-		return nil, f.listErr
+func (f *fakePasskeyService) ListLabelsForUser(_ context.Context, _ string) (map[string]service.PasskeyLabel, error) {
+	if f.listLabelsErr != nil {
+		return nil, f.listLabelsErr
 	}
-	out := make(map[string]passkeyLabelRow, len(f.rows))
+	out := make(map[string]service.PasskeyLabel, len(f.rows))
 	for k, v := range f.rows {
 		out[k] = v
 	}
 	return out, nil
 }
 
-func (f *fakeLabelStore) UpsertLabel(_ context.Context, userID, credentialID, label string) error {
-	f.upsertCalls = append(f.upsertCalls, labelUpsertCall{userID, credentialID, label})
-	return f.upsertErr
+func (f *fakePasskeyService) UpdateLabel(_ context.Context, userID, credentialID, label string) error {
+	f.updateCalls = append(f.updateCalls, labelUpdateCall{userID, credentialID, label})
+	if f.updateErr != nil {
+		return f.updateErr
+	}
+	// Mirror real repository semantics: 0 rows ⇒ ErrPasskeyLabelNotFound.
+	// Tests that want the "happy path" pre-load f.rows with the credential.
+	row, ok := f.rows[credentialID]
+	if !ok {
+		return service.ErrPasskeyLabelNotFound
+	}
+	row.Label = label
+	f.rows[credentialID] = row
+	return nil
 }
 
-func (f *fakeLabelStore) DeleteLabel(_ context.Context, userID, credentialID string) error {
+func (f *fakePasskeyService) DeleteLabel(_ context.Context, userID, credentialID string) error {
 	f.deleteCalls = append(f.deleteCalls, labelDeleteCall{userID, credentialID})
-	return f.deleteLabErr
+	return f.deleteLabelErr
 }
 
 // newPasskeyCtx constructs a gin context with the session keys populated so
@@ -126,7 +136,7 @@ func TestPasskeyHandler_List(t *testing.T) {
 	tests := []struct {
 		name        string
 		creds       []service.PasskeyCredential
-		labels      map[string]passkeyLabelRow
+		labels      map[string]service.PasskeyLabel
 		wantStatus  int
 		wantBodyHas []string
 	}{
@@ -136,9 +146,9 @@ func TestPasskeyHandler_List(t *testing.T) {
 				{CredentialID: "cred-1", CreatedAt: createdAt, LastUsedAt: &lastUsed},
 				{CredentialID: "cred-2", CreatedAt: createdAt},
 			},
-			labels: map[string]passkeyLabelRow{
-				"cred-1": {Label: "MacBook Pro Touch ID", CreatedAt: labelCreated, LastUsedAt: &lastUsed},
-				"cred-2": {Label: "iPhone Face ID", CreatedAt: labelCreated},
+			labels: map[string]service.PasskeyLabel{
+				"cred-1": {CredentialID: "cred-1", Label: "MacBook Pro Touch ID", CreatedAt: labelCreated, LastUsedAt: &lastUsed},
+				"cred-2": {CredentialID: "cred-2", Label: "iPhone Face ID", CreatedAt: labelCreated},
 			},
 			wantStatus:  http.StatusOK,
 			wantBodyHas: []string{`"credential_id":"cred-1"`, `"label":"MacBook Pro Touch ID"`, `"label":"iPhone Face ID"`},
@@ -148,14 +158,14 @@ func TestPasskeyHandler_List(t *testing.T) {
 			creds: []service.PasskeyCredential{
 				{CredentialID: "cred-orphan", CreatedAt: createdAt},
 			},
-			labels:      map[string]passkeyLabelRow{}, // no label rows yet
+			labels:      map[string]service.PasskeyLabel{},
 			wantStatus:  http.StatusOK,
 			wantBodyHas: []string{`"credential_id":"cred-orphan"`, `"label":"Passkey"`},
 		},
 		{
 			name:        "empty everything returns empty array, not null",
 			creds:       []service.PasskeyCredential{},
-			labels:      map[string]passkeyLabelRow{},
+			labels:      map[string]service.PasskeyLabel{},
 			wantStatus:  http.StatusOK,
 			wantBodyHas: []string{`[]`},
 		},
@@ -163,9 +173,8 @@ func TestPasskeyHandler_List(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := &fakePasskeySvc{credentials: tt.creds}
-			store := &fakeLabelStore{rows: tt.labels}
-			h := NewPasskeyHandlerWithStore(svc, store)
+			svc := &fakePasskeyService{credentials: tt.creds, rows: tt.labels}
+			h := NewPasskeyHandler(svc)
 
 			c, rec := newPasskeyCtx(http.MethodGet, "/api/v1/me/passkeys", "", "")
 			h.List(c)
@@ -183,9 +192,8 @@ func TestPasskeyHandler_List(t *testing.T) {
 }
 
 func TestPasskeyHandler_List_CoreUnavailable(t *testing.T) {
-	svc := &fakePasskeySvc{listErr: errors.New("connection refused")}
-	store := &fakeLabelStore{rows: map[string]passkeyLabelRow{}}
-	h := NewPasskeyHandlerWithStore(svc, store)
+	svc := &fakePasskeyService{listErr: errors.New("connection refused")}
+	h := NewPasskeyHandler(svc)
 
 	c, rec := newPasskeyCtx(http.MethodGet, "/api/v1/me/passkeys", "", "")
 	// Wire the gin error chain so the handler's _ = c.Error(...) gets surfaced
@@ -205,39 +213,32 @@ func TestPasskeyHandler_List_CoreUnavailable(t *testing.T) {
 // --- Patch -----------------------------------------------------------------
 
 func TestPasskeyHandler_Patch(t *testing.T) {
+	// New ownership model: PATCH only succeeds when a label row already
+	// exists for (credential_id, user_id). The registration hook is
+	// responsible for inserting the initial row; the user-facing PATCH
+	// only renames it.
 	tests := []struct {
 		name           string
 		body           string
-		existingCreds  []service.PasskeyCredential
-		existingLabels map[string]passkeyLabelRow
+		existingLabels map[string]service.PasskeyLabel
 		wantStatus     int
-		wantUpsert     bool
+		wantUpdate     bool
 		wantLabel      string
 	}{
 		{
-			name:          "insert when no row exists",
-			body:          `{"label":"Yubikey 5C"}`,
-			existingCreds: []service.PasskeyCredential{{CredentialID: "cred-1"}},
-			wantStatus:    http.StatusNoContent,
-			wantUpsert:    true,
-			wantLabel:     "Yubikey 5C",
-		},
-		{
-			name:           "update when row already exists",
+			name:           "rename existing label",
 			body:           `{"label":"Renamed"}`,
-			existingCreds:  []service.PasskeyCredential{{CredentialID: "cred-1"}},
-			existingLabels: map[string]passkeyLabelRow{"cred-1": {Label: "Old"}},
+			existingLabels: map[string]service.PasskeyLabel{"cred-1": {CredentialID: "cred-1", Label: "Old"}},
 			wantStatus:     http.StatusNoContent,
-			wantUpsert:     true,
+			wantUpdate:     true,
 			wantLabel:      "Renamed",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := &fakePasskeySvc{credentials: tt.existingCreds}
-			store := &fakeLabelStore{rows: tt.existingLabels}
-			h := NewPasskeyHandlerWithStore(svc, store)
+			svc := &fakePasskeyService{rows: tt.existingLabels}
+			h := NewPasskeyHandler(svc)
 
 			c, rec := newPasskeyCtx(http.MethodPatch, "/api/v1/me/passkeys/cred-1", "cred-1", tt.body)
 			h.Patch(c)
@@ -245,50 +246,53 @@ func TestPasskeyHandler_Patch(t *testing.T) {
 			if got := gotStatus(c, rec); got != tt.wantStatus {
 				t.Fatalf("status = %d, want %d (body=%s, errs=%v)", got, tt.wantStatus, rec.Body.String(), c.Errors)
 			}
-			if tt.wantUpsert {
-				if len(store.upsertCalls) != 1 {
-					t.Fatalf("expected 1 upsert call, got %d", len(store.upsertCalls))
+			if tt.wantUpdate {
+				if len(svc.updateCalls) != 1 {
+					t.Fatalf("expected 1 update call, got %d", len(svc.updateCalls))
 				}
-				call := store.upsertCalls[0]
+				call := svc.updateCalls[0]
 				if call.label != tt.wantLabel {
-					t.Errorf("upsert label = %q, want %q", call.label, tt.wantLabel)
+					t.Errorf("update label = %q, want %q", call.label, tt.wantLabel)
 				}
 				if call.credentialID != "cred-1" {
-					t.Errorf("upsert credentialID = %q, want cred-1", call.credentialID)
+					t.Errorf("update credentialID = %q, want cred-1", call.credentialID)
 				}
 				if call.userID != "user-uuid-1" {
-					t.Errorf("upsert userID = %q, want user-uuid-1", call.userID)
+					t.Errorf("update userID = %q, want user-uuid-1", call.userID)
 				}
+			}
+			// PATCH must NOT call into the SuperTokens core — that is the
+			// whole point of the ownsCredential removal.
+			if svc.deletedID != "" {
+				t.Errorf("PATCH must not trigger any core write; got delete for %q", svc.deletedID)
 			}
 		})
 	}
 }
 
-func TestPasskeyHandler_Patch_OwnershipForbidden(t *testing.T) {
-	// The core returns a different user's credentials — patching cred-evil
-	// must 403 and never call the label store.
-	svc := &fakePasskeySvc{credentials: []service.PasskeyCredential{{CredentialID: "cred-mine"}}}
-	store := &fakeLabelStore{}
-	h := NewPasskeyHandlerWithStore(svc, store)
+func TestPasskeyHandler_Patch_UnknownCredentialReturns404(t *testing.T) {
+	// The label store is empty, so the atomic UPDATE matches 0 rows. The
+	// handler must surface that as 404 (and never call into the core).
+	svc := &fakePasskeyService{rows: map[string]service.PasskeyLabel{}}
+	h := NewPasskeyHandler(svc)
 
 	c, _ := newPasskeyCtx(http.MethodPatch, "/api/v1/me/passkeys/cred-evil", "cred-evil", `{"label":"hax"}`)
 	h.Patch(c)
 
 	if len(c.Errors) == 0 {
-		t.Fatalf("expected an error; got none")
+		t.Fatalf("expected a 404 error; got none")
 	}
-	if !strings.Contains(c.Errors.Last().Error(), "credential does not belong") {
+	if !strings.Contains(c.Errors.Last().Error(), "passkey not found") {
 		t.Errorf("unexpected error: %v", c.Errors.Last())
 	}
-	if len(store.upsertCalls) != 0 {
-		t.Errorf("ownership-failed patch must not write a label; got %d calls", len(store.upsertCalls))
+	if len(svc.updateCalls) != 1 {
+		t.Errorf("expected exactly one UpdateLabel attempt, got %d", len(svc.updateCalls))
 	}
 }
 
 func TestPasskeyHandler_Patch_BadBody(t *testing.T) {
-	svc := &fakePasskeySvc{credentials: []service.PasskeyCredential{{CredentialID: "cred-1"}}}
-	store := &fakeLabelStore{}
-	h := NewPasskeyHandlerWithStore(svc, store)
+	svc := &fakePasskeyService{rows: map[string]service.PasskeyLabel{"cred-1": {CredentialID: "cred-1"}}}
+	h := NewPasskeyHandler(svc)
 
 	c, _ := newPasskeyCtx(http.MethodPatch, "/api/v1/me/passkeys/cred-1", "cred-1", `{}`)
 	h.Patch(c)
@@ -296,14 +300,19 @@ func TestPasskeyHandler_Patch_BadBody(t *testing.T) {
 	if len(c.Errors) == 0 {
 		t.Fatalf("expected validation error; got none")
 	}
+	if len(svc.updateCalls) != 0 {
+		t.Errorf("bad body must not reach the service; got %d update calls", len(svc.updateCalls))
+	}
 }
 
 // --- Delete ---------------------------------------------------------------
 
 func TestPasskeyHandler_Delete(t *testing.T) {
-	svc := &fakePasskeySvc{credentials: []service.PasskeyCredential{{CredentialID: "cred-1"}}}
-	store := &fakeLabelStore{rows: map[string]passkeyLabelRow{"cred-1": {Label: "Mac"}}}
-	h := NewPasskeyHandlerWithStore(svc, store)
+	svc := &fakePasskeyService{
+		credentials: []service.PasskeyCredential{{CredentialID: "cred-1"}},
+		rows:        map[string]service.PasskeyLabel{"cred-1": {CredentialID: "cred-1", Label: "Mac"}},
+	}
+	h := NewPasskeyHandler(svc)
 
 	c, rec := newPasskeyCtx(http.MethodDelete, "/api/v1/me/passkeys/cred-1", "cred-1", "")
 	h.Delete(c)
@@ -314,34 +323,19 @@ func TestPasskeyHandler_Delete(t *testing.T) {
 	if svc.deletedID != "cred-1" {
 		t.Errorf("svc.Delete saw credentialID %q, want cred-1", svc.deletedID)
 	}
-	if len(store.deleteCalls) != 1 || store.deleteCalls[0].credentialID != "cred-1" {
-		t.Errorf("expected one label-store delete for cred-1; got %v", store.deleteCalls)
-	}
-}
-
-func TestPasskeyHandler_Delete_OwnershipForbidden(t *testing.T) {
-	svc := &fakePasskeySvc{credentials: []service.PasskeyCredential{{CredentialID: "someone-elses"}}}
-	store := &fakeLabelStore{}
-	h := NewPasskeyHandlerWithStore(svc, store)
-
-	c, _ := newPasskeyCtx(http.MethodDelete, "/api/v1/me/passkeys/cred-1", "cred-1", "")
-	h.Delete(c)
-
-	if len(c.Errors) == 0 {
-		t.Fatalf("expected 403 error; got none")
-	}
-	if svc.deletedID != "" {
-		t.Errorf("ownership-failed delete must not call core; got delete for %q", svc.deletedID)
+	if len(svc.deleteCalls) != 1 || svc.deleteCalls[0].credentialID != "cred-1" {
+		t.Errorf("expected one label-store delete for cred-1; got %v", svc.deleteCalls)
 	}
 }
 
 func TestPasskeyHandler_Delete_CoreReturnsNotFound(t *testing.T) {
-	svc := &fakePasskeySvc{
+	// Ownership is now enforced by the core's own 404. The handler must
+	// surface that as 404 and never touch the label row.
+	svc := &fakePasskeyService{
 		credentials: []service.PasskeyCredential{{CredentialID: "cred-1"}},
 		deleteErr:   service.ErrPasskeyNotFound,
 	}
-	store := &fakeLabelStore{}
-	h := NewPasskeyHandlerWithStore(svc, store)
+	h := NewPasskeyHandler(svc)
 
 	c, _ := newPasskeyCtx(http.MethodDelete, "/api/v1/me/passkeys/cred-1", "cred-1", "")
 	h.Delete(c)
@@ -351,6 +345,9 @@ func TestPasskeyHandler_Delete_CoreReturnsNotFound(t *testing.T) {
 	}
 	if !strings.Contains(c.Errors.Last().Error(), "passkey not found") {
 		t.Errorf("unexpected error: %v", c.Errors.Last())
+	}
+	if len(svc.deleteCalls) != 0 {
+		t.Errorf("core-not-found delete must not touch label store; got %d calls", len(svc.deleteCalls))
 	}
 }
 
@@ -386,7 +383,7 @@ func TestPasskeyService_ListByUser(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	svc := service.NewPasskeyService(srv.URL, "test-api-key", nil)
+	svc := service.NewPasskeyService(srv.URL, "test-api-key", nil, nil)
 	got, err := svc.ListByUser(context.Background(), "st-user-1")
 	if err != nil {
 		t.Fatalf("ListByUser err: %v", err)
@@ -412,7 +409,7 @@ func TestPasskeyService_DeleteCredential_NotFound(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	svc := service.NewPasskeyService(srv.URL, "", nil)
+	svc := service.NewPasskeyService(srv.URL, "", nil, nil)
 	err := svc.DeleteCredential(context.Background(), "st-user-1", "cred-missing")
 	if !errors.Is(err, service.ErrPasskeyNotFound) {
 		t.Fatalf("err = %v, want ErrPasskeyNotFound", err)
@@ -426,7 +423,7 @@ func TestPasskeyService_DeleteCredential_OK(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	svc := service.NewPasskeyService(srv.URL, "", nil)
+	svc := service.NewPasskeyService(srv.URL, "", nil, nil)
 	if err := svc.DeleteCredential(context.Background(), "st-user-1", "cred-1"); err != nil {
 		t.Fatalf("DeleteCredential err: %v", err)
 	}
@@ -438,7 +435,7 @@ func TestPasskeyService_ListByUser_CoreError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	svc := service.NewPasskeyService(srv.URL, "", nil)
+	svc := service.NewPasskeyService(srv.URL, "", nil, nil)
 	_, err := svc.ListByUser(context.Background(), "st-user-1")
 	if err == nil {
 		t.Fatalf("expected error from 500 response")

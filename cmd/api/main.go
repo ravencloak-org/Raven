@@ -603,12 +603,13 @@ func main() {
 	seedSvc := service.NewSeedService(orgSvc, wsSvc, kbSvc, docRepo, pool, tmdbClient, storageClient, queueClient)
 	seedHandler := handler.NewSeedHandler(seedSvc)
 
-	// Passkey management (issue #771, M14). Talks to the SuperTokens core
-	// over REST for the credential lifecycle and to the local
-	// user_passkey_labels table (migration 00054) for human-readable labels.
-	// See docs/superpowers/specs/2026-06-04-passkey-auth-design.md.
-	passkeySvc := service.NewPasskeyService(cfg.SuperTokens.ConnectionURI, cfg.SuperTokens.APIKey, nil)
-	passkeyHandler := handler.NewPasskeyHandler(passkeySvc, pool)
+	// Passkey management (issue #771, M14). One service bundles the
+	// SuperTokens core REST client and the local user_passkey_labels
+	// repository (migration 00054); the handler depends on a single
+	// interface. See docs/superpowers/specs/2026-06-04-passkey-auth-design.md.
+	passkeyLabelRepo := repository.NewPasskeyLabelRepository(pool)
+	passkeySvc := service.NewPasskeyService(cfg.SuperTokens.ConnectionURI, cfg.SuperTokens.APIKey, nil, passkeyLabelRepo)
+	passkeyHandler := handler.NewPasskeyHandler(passkeySvc)
 
 	// Marketplace moderation surfaces (issue #735, M3). The admin audit
 	// view reads marketplace_takedowns under the raven_admin RLS bypass;
