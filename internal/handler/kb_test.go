@@ -425,3 +425,167 @@ func TestUpdateKB_RejectsOutOfRangeThreshold(t *testing.T) {
 		t.Errorf("expected 422 for bad threshold, got %d", w.Code)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Unpublish endpoint tests (issue #727).
+// ---------------------------------------------------------------------------
+
+// mockUnpublisher implements handler.KBUnpublisher for unit tests
+// covering the /unpublish route. Symmetric with mockPublisher.
+type mockUnpublisher struct {
+	unpublishFn func(ctx context.Context, orgID, kbID string) (*marketplace.UnpublishResult, error)
+	lastCall    struct {
+		orgID, kbID string
+	}
+}
+
+func (m *mockUnpublisher) UnpublishKB(ctx context.Context, orgID, kbID string) (*marketplace.UnpublishResult, error) {
+	m.lastCall.orgID = orgID
+	m.lastCall.kbID = kbID
+	if m.unpublishFn == nil {
+		return nil, apierror.NewInternal("mock unpublishFn not set")
+	}
+	return m.unpublishFn(ctx, orgID, kbID)
+}
+
+// newKBRouterWithUnpublisher mirrors newKBRouterWithPublisher for the
+// /unpublish route. Pass userID="" to simulate the unauthenticated
+// path so the defence-in-depth 401 inside the handler is exercised.
+func newKBRouterWithUnpublisher(svc handler.KBServicer, unpub handler.KBUnpublisher, userID string) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(apierror.ErrorHandler())
+	r.Use(func(c *gin.Context) {
+		if userID != "" {
+			c.Set(string(middleware.ContextKeyUserID), userID)
+		}
+		c.Set(string(middleware.ContextKeyOrgRole), "org_admin")
+		c.Set(string(middleware.ContextKeyOrgID), "org-abc")
+		c.Set(string(middleware.ContextKeyWorkspaceRole), "admin")
+		c.Next()
+	})
+	h := handler.NewKBHandler(svc).WithUnpublisher(unpub)
+	const base = "/api/v1/orgs/:org_id/workspaces/:ws_id/knowledge-bases"
+	r.POST(base+"/:kb_id/unpublish", h.Unpublish)
+	return r
+}
+
+func TestUnpublishKB_Success(t *testing.T) {
+	heldUntil := time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)
+	unpub := &mockUnpublisher{
+		unpublishFn: func(_ context.Context, _, _ string) (*marketplace.UnpublishResult, error) {
+			return &marketplace.UnpublishResult{
+				Visibility:    model.KBVisibilityPrivate,
+				SlugHeldUntil: heldUntil,
+			}, nil
+		},
+	}
+	r := newKBRouterWithUnpublisher(&mockKBService{}, unpub, "user-1")
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost,
+		"/api/v1/orgs/org-abc/workspaces/ws-1/knowledge-bases/kb-1/unpublish",
+		http.NoBody,
+	)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if unpub.lastCall.orgID != "org-abc" || unpub.lastCall.kbID != "kb-1" {
+		t.Errorf("path params not propagated: %+v", unpub.lastCall)
+	}
+
+	var resp marketplace.UnpublishResult
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.Visibility != model.KBVisibilityPrivate {
+		t.Errorf("visibility: got %q want private", resp.Visibility)
+	}
+	if !resp.SlugHeldUntil.Equal(heldUntil) {
+		t.Errorf("slug_held_until drift: got %v want %v", resp.SlugHeldUntil, heldUntil)
+	}
+}
+
+func TestUnpublishKB_MissingUserID_Returns401(t *testing.T) {
+	unpub := &mockUnpublisher{}
+	r := newKBRouterWithUnpublisher(&mockKBService{}, unpub, "")
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost,
+		"/api/v1/orgs/org-abc/workspaces/ws-1/knowledge-bases/kb-1/unpublish",
+		http.NoBody,
+	)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d: %s", w.Code, w.Body.String())
+	}
+	if unpub.lastCall.kbID != "" {
+		t.Error("unpublisher must not be called when user context is missing")
+	}
+}
+
+func TestUnpublishKB_NotFound_Returns404(t *testing.T) {
+	unpub := &mockUnpublisher{
+		unpublishFn: func(_ context.Context, _, _ string) (*marketplace.UnpublishResult, error) {
+			return nil, apierror.NewNotFound("knowledge base not found")
+		},
+	}
+	r := newKBRouterWithUnpublisher(&mockKBService{}, unpub, "user-1")
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost,
+		"/api/v1/orgs/org-abc/workspaces/ws-1/knowledge-bases/missing/unpublish",
+		http.NoBody,
+	)
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", w.Code)
+	}
+}
+
+func TestUnpublishKB_KBFrozen_Returns409(t *testing.T) {
+	unpub := &mockUnpublisher{
+		unpublishFn: func(_ context.Context, _, _ string) (*marketplace.UnpublishResult, error) {
+			return nil, apierror.NewKBFrozen("frozen on Free Plan")
+		},
+	}
+	r := newKBRouterWithUnpublisher(&mockKBService{}, unpub, "user-1")
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost,
+		"/api/v1/orgs/org-abc/workspaces/ws-1/knowledge-bases/kb-1/unpublish",
+		http.NoBody,
+	)
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusConflict {
+		t.Errorf("expected 409, got %d", w.Code)
+	}
+}
+
+// TestUnpublishKB_ServiceNotWired_Returns500 confirms the
+// defence-in-depth check fires when KBHandler was constructed without
+// WithUnpublisher. Production main.go always wires it; the loud 500
+// surfaces a missing dependency rather than a confusing 404.
+func TestUnpublishKB_ServiceNotWired_Returns500(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(apierror.ErrorHandler())
+	r.Use(func(c *gin.Context) {
+		c.Set(string(middleware.ContextKeyUserID), "user-1")
+		c.Next()
+	})
+	h := handler.NewKBHandler(&mockKBService{}) // no WithUnpublisher
+	const base = "/api/v1/orgs/:org_id/workspaces/:ws_id/knowledge-bases"
+	r.POST(base+"/:kb_id/unpublish", h.Unpublish)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost,
+		"/api/v1/orgs/org-abc/workspaces/ws-1/knowledge-bases/kb-1/unpublish",
+		http.NoBody,
+	)
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500 when unpublisher is nil, got %d", w.Code)
+	}
+}

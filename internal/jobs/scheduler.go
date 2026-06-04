@@ -31,6 +31,12 @@ const (
 	// daily at 4 AM UTC. Offset from cleanup (2 AM) and trial-lifecycle
 	// (3 AM) so the daily-cluster doesn't all hit the DB pool at once.
 	CronMarketplaceDMCASweep = "0 4 * * *"
+
+	// CronMarketplaceSlugHoldSweep runs the Marketplace slug-hold sweep
+	// daily at 5 AM UTC — staggered an hour after the DMCA sweep so the
+	// two daily-marketplace crons don't contend for the same DB window
+	// (issue #727).
+	CronMarketplaceSlugHoldSweep = "0 5 * * *"
 )
 
 // SchedulerConfig holds the dependencies needed to set up the cron scheduler.
@@ -145,6 +151,17 @@ func NewScheduler(cfg SchedulerConfig) (*Scheduler, error) {
 		}
 	}
 
+	slugSweepTask, err := NewMarketplaceSlugHoldSweepTask(MarketplaceSlugHoldSweepPayload{})
+	if err != nil {
+		return nil, fmt.Errorf("create marketplace slug-hold sweep task: %w", err)
+	}
+	if _, err := scheduler.Register(CronMarketplaceSlugHoldSweep, slugSweepTask,
+		asynq.Queue("low"),
+		asynq.MaxRetry(2),
+	); err != nil {
+		return nil, fmt.Errorf("register marketplace slug-hold sweep cron: %w", err)
+	}
+
 	// Build a ServeMux with handlers for each scheduled task type.
 	mux := asynq.NewServeMux()
 
@@ -177,12 +194,16 @@ func NewScheduler(cfg SchedulerConfig) (*Scheduler, error) {
 		mux.Handle(TypeMarketplaceDMCASweep, dmcaHandler)
 	}
 
+	slugSweepHandler := NewMarketplaceSlugHoldSweepHandler(cfg.Pool, cfg.Logger)
+	mux.Handle(TypeMarketplaceSlugHoldSweep, slugSweepHandler)
+
 	logFields := []any{
 		"recrawl_cron", CronRecrawl,
 		"cleanup_cron", CronCleanup,
 		"usage_aggregation_cron", CronUsageAggregation,
 		"voice_usage_aggregation_cron", CronVoiceUsageAggregation,
 		"trial_lifecycle_cron", CronTrialLifecycle,
+		"marketplace_slug_hold_sweep_cron", CronMarketplaceSlugHoldSweep,
 	}
 	if cfg.DMCAService != nil {
 		logFields = append(logFields, "marketplace_dmca_sweep_cron", CronMarketplaceDMCASweep)

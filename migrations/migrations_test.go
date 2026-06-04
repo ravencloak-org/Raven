@@ -1004,6 +1004,92 @@ func TestMigrationsUpAndDown(t *testing.T) {
 		}
 	})
 
+	t.Run("kb_slug_holds_table", func(t *testing.T) {
+		// Migration 00051 (issue #727): kb_slug_holds — 90-day Marketplace
+		// slug hold after an Org unpublishes a Public KB. Mirrors the
+		// org_slug_holds shape (00048) so the 410-Gone handler can
+		// resolve held URLs without engaging RLS.
+		//
+		// Asserted invariants:
+		//   1. Table + columns exist.
+		//   2. Index on held_until (sweep path).
+		//   3. PRIMARY KEY is (org_id, slug) — two orgs can hold the
+		//      same slug simultaneously.
+		//   4. ON DELETE CASCADE from organizations and ON DELETE SET NULL
+		//      from knowledge_bases.
+
+		var holdsExists bool
+		if err := db.QueryRowContext(ctx,
+			`SELECT EXISTS (
+			    SELECT 1 FROM information_schema.tables
+			    WHERE table_schema = 'public' AND table_name = 'kb_slug_holds'
+			 )`).Scan(&holdsExists); err != nil {
+			t.Fatalf("check kb_slug_holds: %v", err)
+		}
+		if !holdsExists {
+			t.Fatal("expected kb_slug_holds table to exist")
+		}
+
+		// Held_until index must exist for the sweep job's perf.
+		var heldUntilIdx bool
+		if err := db.QueryRowContext(ctx,
+			`SELECT EXISTS (SELECT 1 FROM pg_indexes
+			   WHERE tablename = 'kb_slug_holds'
+			     AND indexname = 'idx_kb_slug_holds_held_until')`).
+			Scan(&heldUntilIdx); err != nil {
+			t.Fatalf("check kb_slug_holds index: %v", err)
+		}
+		if !heldUntilIdx {
+			t.Error("expected idx_kb_slug_holds_held_until index")
+		}
+
+		// Behaviour: two orgs holding the same slug at the same time
+		// must both succeed (per-org URL space). Same (org_id, slug)
+		// twice must fail (PK).
+		var orgA, orgB string
+		if err := db.QueryRowContext(ctx,
+			`INSERT INTO organizations (id, name, slug)
+			 VALUES (uuid_generate_v4(), 'Hold A', 'kbhold-org-a')
+			 RETURNING id`).Scan(&orgA); err != nil {
+			t.Fatalf("insert org A: %v", err)
+		}
+		if err := db.QueryRowContext(ctx,
+			`INSERT INTO organizations (id, name, slug)
+			 VALUES (uuid_generate_v4(), 'Hold B', 'kbhold-org-b')
+			 RETURNING id`).Scan(&orgB); err != nil {
+			t.Fatalf("insert org B: %v", err)
+		}
+		if _, err := db.ExecContext(ctx,
+			`INSERT INTO kb_slug_holds (org_id, slug, held_until)
+			 VALUES ($1, 'shared', NOW() + interval '30 days')`, orgA); err != nil {
+			t.Fatalf("hold for org A: %v", err)
+		}
+		if _, err := db.ExecContext(ctx,
+			`INSERT INTO kb_slug_holds (org_id, slug, held_until)
+			 VALUES ($1, 'shared', NOW() + interval '30 days')`, orgB); err != nil {
+			t.Errorf("two orgs holding the same slug should both succeed: %v", err)
+		}
+		if _, err := db.ExecContext(ctx,
+			`INSERT INTO kb_slug_holds (org_id, slug, held_until)
+			 VALUES ($1, 'shared', NOW() + interval '60 days')`, orgA); err == nil {
+			t.Error("duplicate (org_id, slug) should be rejected by PK")
+		}
+
+		// CASCADE on organizations: deleting the org should remove the hold.
+		if _, err := db.ExecContext(ctx,
+			`DELETE FROM organizations WHERE id = $1`, orgA); err != nil {
+			t.Fatalf("delete org A: %v", err)
+		}
+		var remaining int
+		if err := db.QueryRowContext(ctx,
+			`SELECT COUNT(*) FROM kb_slug_holds WHERE org_id = $1`, orgA).Scan(&remaining); err != nil {
+			t.Fatalf("count holds after org delete: %v", err)
+		}
+		if remaining != 0 {
+			t.Errorf("expected ON DELETE CASCADE to remove holds, found %d", remaining)
+		}
+	})
+
 	// --- Run all migrations DOWN ---
 	t.Run("clean_rollback", func(t *testing.T) {
 		if err := goose.DownTo(db, migDir, 0); err != nil {
