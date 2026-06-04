@@ -805,7 +805,6 @@ func main() {
 			// row is written — limits how loud bad keys can get in the logs.
 			llm.POST("/test", middleware.RequireOrgRole("org_admin"), llmHandler.TestConnection)
 			llm.GET("", llmHandler.List)
-			llm.POST("/test", middleware.RequireOrgRole("org_admin"), llmHandler.Test)
 			// Default-provider health probe used by the SPA's polling cron.
 			// Open to any authenticated org member (not just admins) since
 			// the toast lives across every authenticated page.
