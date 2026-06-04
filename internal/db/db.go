@@ -39,3 +39,25 @@ func WithOrgID(ctx context.Context, pool *pgxpool.Pool, orgID string, fn func(tx
 	}
 	return tx.Commit(ctx)
 }
+
+// WithUserID executes fn inside a transaction with app.current_user_id set for
+// RLS. The sibling of WithOrgID, used by user-scoped tables (e.g.
+// user_passkey_labels, migration 00054) whose tenant boundary is the user
+// rather than the organisation.
+//
+// userID is passed as a parameter to set_config to prevent SQL injection.
+func WithUserID(ctx context.Context, pool *pgxpool.Pool, userID string, fn func(tx pgx.Tx) error) error {
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	if _, err := tx.Exec(ctx, "SELECT set_config('app.current_user_id', $1, true)", userID); err != nil {
+		return fmt.Errorf("set user_id: %w", err)
+	}
+	if err := fn(tx); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
