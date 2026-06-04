@@ -69,7 +69,12 @@ func NewLLMProviderHandler(svc LLMProviderServicer) *LLMProviderHandler {
 // @Failure     422 {object} apierror.AppError
 // @Router      /orgs/{org_id}/llm-providers/test [post]
 func (h *LLMProviderHandler) TestConnection(c *gin.Context) {
-	var req model.CreateLLMProviderRequest
+	// The probe endpoint accepts a deliberately laxer body than Create —
+	// see model.TestInlineRequest. Asking the user to fill in display_name
+	// (and pass api_key:"required,min=1" for keyless Ollama) before they
+	// can probe an unreachable tunnel was the actual cause of the 422
+	// the demo kept hitting.
+	var req model.TestInlineRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		_ = c.Error(&apierror.AppError{
 			Code:    http.StatusUnprocessableEntity,
@@ -79,7 +84,7 @@ func (h *LLMProviderHandler) TestConnection(c *gin.Context) {
 		c.Abort()
 		return
 	}
-	result, err := service.TestConnection(c.Request.Context(), req)
+	result, err := service.TestConnection(c.Request.Context(), req.ToCreateRequest())
 	if err != nil {
 		_ = c.Error(apierror.NewInternal("provider probe failed: " + err.Error()))
 		c.Abort()

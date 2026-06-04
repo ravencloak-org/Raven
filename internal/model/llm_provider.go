@@ -112,6 +112,34 @@ type CreateLLMProviderRequest struct {
 	IsDefault   bool           `json:"is_default,omitempty"`
 }
 
+// TestInlineRequest is the body shape for POST .../llm-providers/test. It is
+// deliberately laxer than CreateLLMProviderRequest: the whole point of the
+// probe endpoint is "validate before commit" — gating it on Create-side
+// fields like display_name would force the user to fill in cosmetic copy
+// before they can find out whether their tunnel URL even resolves. Keep
+// only the fields the probe actually consumes; everything else (display
+// name, default flag, config) is ignored if sent.
+type TestInlineRequest struct {
+	Provider LLMProvider `json:"provider" binding:"required"`
+	APIKey   string      `json:"api_key"`
+	BaseURL  *string     `json:"base_url,omitempty"`
+}
+
+// ToCreateRequest adapts a TestInlineRequest into the CreateLLMProviderRequest
+// shape that service.TestConnection accepts, populating non-probe fields
+// with placeholder values so they don't fail downstream validation while
+// the probe itself runs. Useful while service.TestConnection still types
+// its arg as CreateLLMProviderRequest — once that's narrowed the adapter
+// can go.
+func (r TestInlineRequest) ToCreateRequest() CreateLLMProviderRequest {
+	return CreateLLMProviderRequest{
+		Provider:    r.Provider,
+		DisplayName: "probe", // placeholder; never persisted
+		APIKey:      r.APIKey,
+		BaseURL:     r.BaseURL,
+	}
+}
+
 // UpdateLLMProviderRequest is the payload for PUT .../llm-providers/:provider_id.
 type UpdateLLMProviderRequest struct {
 	DisplayName *string        `json:"display_name,omitempty" binding:"omitempty,min=1,max=255"`
