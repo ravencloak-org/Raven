@@ -1,6 +1,7 @@
 import SuperTokens from "supertokens-web-js"
 import Session from "supertokens-web-js/recipe/session"
 import ThirdParty from "supertokens-web-js/recipe/thirdparty"
+import Webauthn from "supertokens-web-js/recipe/webauthn"
 
 // Shared with components/TurnstileWidget.vue. The widget writes the
 // solved token here; the preAPIHook reads it back when SuperTokens
@@ -53,6 +54,12 @@ export function initSuperTokens() {
       ThirdParty.init({
         preAPIHook: async (context) => attachTurnstileTokenOnSignup(context),
       }),
+      // Webauthn (passkey) recipe — proxied through the Go API's
+      // existing SuperTokensMiddleware to the SuperTokens core. No
+      // recipe-specific options needed for the SDK side: the enrolment
+      // and sign-in flows are triggered explicitly from the
+      // passkey store and login page.
+      Webauthn.init(),
     ],
   })
 }
