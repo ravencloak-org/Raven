@@ -3,8 +3,9 @@ import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '../../stores/auth'
 import { useServerConfigStore } from '../../stores/server-config'
 import { useRouter } from 'vue-router'
+import PasskeysSection from './PasskeysSection.vue'
 
-type Tab = 'general' | 'models' | 'api-keys' | 'privacy'
+type Tab = 'general' | 'models' | 'api-keys' | 'authentication' | 'privacy'
 
 const apiUrl = import.meta.env.VITE_API_BASE_URL ?? ''
 const auth = useAuthStore()
@@ -160,7 +161,7 @@ onMounted(async () => {
     <div class="border-b border-neutral-200 dark:border-neutral-800 mb-6">
       <nav class="flex gap-1" aria-label="Settings tabs">
         <button
-          v-for="t in ['general', 'models', 'api-keys', 'privacy'] as Tab[]"
+          v-for="t in ['general', 'models', 'api-keys', 'authentication', 'privacy'] as Tab[]"
           v-show="t !== 'models' || showModelsTab"
           :key="t"
           class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
@@ -176,6 +177,7 @@ onMounted(async () => {
             t === 'general' ? 'General'
             : t === 'models' ? 'Models'
             : t === 'api-keys' ? 'API Keys'
+            : t === 'authentication' ? 'Authentication'
             : 'Privacy'
           }}
         </button>
@@ -271,6 +273,9 @@ onMounted(async () => {
         Manage providers
       </button>
     </section>
+
+    <!-- Authentication: passkeys (#773) -->
+    <PasskeysSection v-else-if="activeTab === 'authentication'" />
 
     <!-- Privacy -->
     <section v-else-if="activeTab === 'privacy'" data-test="panel-privacy">
