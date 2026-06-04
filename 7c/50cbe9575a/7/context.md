@@ -276,3 +276,244 @@ im talking about llm provider setup
 it it not in the main menu? Sign in with Google
 Unable to start sign-in
 
+### Prompt 41
+
+what's blocking the merging on github? seems Merging is blocked
+1 review requesting changes by reviewers with write access.
+
+### Prompt 42
+
+dismiss
+
+### Prompt 43
+
+Resolve conflicts https://github.com/ravencloak-org/Raven/pull/688
+
+### Prompt 44
+
+comments are still unresolved https://github.com/ravencloak-org/Raven/pull/689
+
+### Prompt 45
+
+<task-notification>
+<task-id>ab58b3d6d0838c353</task-id>
+<tool-use-id>toolu_014uu4TAjdUZWdytUBxQwUPj</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix CodeRabbit review on PR #689" completed</summary>
+<result>Done.
+
+## Report
+
+**Total findings reviewed:** 21 inline review comments across 4 CodeRabbit reviews.
+
+**Addressed:** 14 disti...
+
+### Prompt 46
+
+Fix https://github.com/ravencloak-org/Raven/pull/689
+
+### Prompt 47
+
+Resolve conflicts in https://github.com/ravencloak-org/Raven/pull/689 and https://github.com/ravencloak-org/Raven/pull/689#issuecomment-4603031961 is still pending
+
+### Prompt 48
+
+<task-notification>
+<task-id>aa6e38e53b62933e8</task-id>
+<tool-use-id>toolu_017oUCGCzQTgXQk7dtaEsVgt</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Rebase PR #689 against main" completed</summary>
+<result>PR is now MERGEABLE (auto-merge already queued from before; the BLOCKED state is just waiting on CI checks).
+
+**Strategy:** CHERRY-...
+
+### Prompt 49
+
+Could not switch default: Failed to execute 'json' on 'Response': Unexpected end of JSON input
+
+### Prompt 50
+
+<task-notification>
+<task-id>a4cbbddfb6702ba58</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix Bug 1 — SetDefault returns 200+JSON" completed</summary>
+<result>Auto-merge enqueued.
+
+---
+
+**PR URL:** https://github.com/ravencloak-org/Raven/pull/765
+
+**Summary:** Backend `SetDef...
+
+### Prompt 51
+
+<task-notification>
+<task-id>a553bb23c3cea7327</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix Bug 3 — auto-fallback embedding provider" completed</summary>
+<result>PR queued for auto-merge.
+
+---
+
+**PR**: https://github.com/ravencloak-org/Raven/pull/766
+**Branch**: `fix/llm-em...
+
+### Prompt 52
+
+Request URL
+https://demo.ravencloak.REDACTED
+Request Method
+PUT
+Status Code
+204 No Content
+Remote Address
+104.21.83.9:443
+Referrer Policy
+strict-origin-when-cross-origin Request URL
+https://demo.ravencloak.REDACTED
+Request Method
+PUT
+Status Code
+204 No Content (from service worker)...
+
+### Prompt 53
+
+yes
+
+### Prompt 54
+
+<task-notification>
+<task-id>abb2201ea113f4639</task-id>
+<tool-use-id>toolu_01Tr6mWiw4d3dGnoBGbBcYcn</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Deploy main to demo (full stack)" completed</summary>
+<result>Both "unhealthy" statuses are pre-existing healthcheck misconfigs (probing port 8080 which neither service exposes) — not ca...
+
+### Prompt 55
+
+c
+
+### Prompt 56
+
+<task-notification>
+<task-id>a22056268b351213e</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix #755 — set-based verify + demo goose backfill" completed</summary>
+<result>All done.
+
+---
+
+- **PR URL:** https://github.com/ravencloak-org/Raven/pull/769
+- **Verify-logic change:** `...
+
+### Prompt 57
+
+what's status? give endpoint to test
+
+### Prompt 58
+
+let's add the ability to login with passkey in user settings -> Authentication
+
+### Prompt 59
+
+Base directory for this skill: /Users/jobinlawrance/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/brainstorming
+
+# Brainstorming Ideas Into Designs
+
+Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
+
+Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design and get user approval.
+
+<HARD-GATE>
+Do NOT invoke any implementatio...
+
+### Prompt 60
+
+A
+
+### Prompt 61
+
+A
+
+### Prompt 62
+
+B
+
+### Prompt 63
+
+A
+
+### Prompt 64
+
+let's go in parallel
+
+### Prompt 65
+
+<task-notification>
+<task-id>aa8c94a758286b1d6</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Impl C — Settings Authentication tab" completed</summary>
+<result>Auto-merge enabled, queued for squash. (`CONFLICTING` is expected since this stacks on #772 which adds the same `api/pas...
+
+### Prompt 66
+
+check status
+
+### Prompt 67
+
+<task-notification>
+<task-id>a2cd805212f28e4aa</task-id>
+<tool-use-id>toolu_01LA4rL5Mqpdihk61sisi5SA</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Impl F — Playwright E2E for passkeys" completed</summary>
+<result>Auto-merge enabled.
+
+---
+
+**PR:** https://github.com/ravencloak-org/Raven/pull/782
+
+**Summary:** Adds 5 Playwright E2E s...
+
+### Prompt 68
+
+<task-notification>
+<task-id>a8c18ab87fece62fb</task-id>
+<tool-use-id>toolu_0187cThDcA3qeheJecDjnPW8</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Rebase PR #779 (Login button)" completed</summary>
+<result>`MERGEABLE` (no longer DIRTY/CONFLICTING). `BLOCKED` is due to pending CI checks, which is expected. Auto-merge is still enabled ...
+
+### Prompt 69
+
+https://github.REDACTED
+
+### Prompt 70
+
+yes in parallel
+
+### Prompt 71
+
+<task-notification>
+<task-id>a7019c5bdd03589b3</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Hotfix TS error in LlmProviderListPage.vue" completed</summary>
+<result>Done.
+
+**PR:** https://github.com/ravencloak-org/Raven/pull/783
+**Call sites fixed:** 1 (line 599 in `frontend/src/p...
+
