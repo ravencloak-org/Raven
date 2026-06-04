@@ -29,7 +29,7 @@
         />
 
         <button
-          class="w-full flex items-center justify-center gap-3 bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white font-medium py-3.5 px-4 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          class="w-full flex items-center justify-center gap-3 bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white font-medium py-3.5 px-4 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:focus:ring-neutral-600"
           :disabled="loading || (turnstileSiteKey !== '' && !turnstileToken)"
           @click="signInWithGoogle"
         >
@@ -42,7 +42,44 @@
           {{ loading ? 'Redirecting...' : 'Sign in with Google' }}
         </button>
 
+        <!-- Divider between Google and Passkey buttons -->
+        <div class="flex items-center my-4" role="separator" aria-label="or">
+          <div class="flex-1 h-px bg-neutral-200 dark:bg-neutral-800" />
+          <span class="px-3 text-xs uppercase tracking-wider text-neutral-400 dark:text-neutral-500">or</span>
+          <div class="flex-1 h-px bg-neutral-200 dark:bg-neutral-800" />
+        </div>
+
+        <button
+          data-testid="signin-passkey-btn"
+          class="w-full flex items-center justify-center gap-3 bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white font-medium py-3.5 px-4 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-neutral-400 dark:focus:ring-neutral-600"
+          :disabled="passkeyLoading || passkeyDisabled"
+          :title="passkeyDisabled ? 'Your browser doesn\'t support passkeys' : ''"
+          :aria-label="passkeyDisabled ? 'Sign in with Passkey (unsupported in this browser)' : 'Sign in with Passkey'"
+          @click="signInWithPasskey"
+        >
+          <!-- Key/chip icon -->
+          <svg
+            class="w-5 h-5 shrink-0"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="8" cy="12" r="4" />
+            <path d="M12 12h10" />
+            <path d="M18 12v3" />
+            <path d="M22 12v2" />
+          </svg>
+          {{ passkeyLoading ? 'Waiting for passkey...' : 'Sign in with Passkey' }}
+        </button>
+
         <p v-if="error" class="text-red-500 text-sm mt-4 text-center">{{ error }}</p>
+        <p v-if="passkeyError" data-testid="signin-passkey-error" class="text-red-500 text-sm mt-4 text-center">
+          {{ passkeyError }}
+        </p>
 
         <p class="text-neutral-400 text-xs mt-10 text-center">
           By continuing, you agree to our
@@ -55,16 +92,32 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import {
+  authenticateCredentialWithSignIn,
+  doesBrowserSupportWebAuthn,
+} from 'supertokens-web-js/recipe/webauthn'
 import TurnstileWidget from '../components/TurnstileWidget.vue'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
+const router = useRouter()
 const loading = ref(false)
 const error = ref('')
 
+const passkeyLoading = ref(false)
+const passkeyDisabled = ref(false)
+const passkeyError = ref('')
+
 const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY ?? ''
 const turnstileToken = ref('')
+
+const NOT_SUPPORTED_MSG =
+  "This browser doesn't support passkeys. Use Google sign-in instead."
+const INVALID_CREDENTIALS_MSG =
+  'Passkey not recognised. Try Google sign-in or set up a passkey from Settings → Authentication.'
+const GENERIC_ERROR_MSG = 'Unable to sign in with passkey. Please try again.'
 
 async function signInWithGoogle() {
   loading.value = true
@@ -77,4 +130,59 @@ async function signInWithGoogle() {
     loading.value = false
   }
 }
+
+async function signInWithPasskey() {
+  passkeyError.value = ''
+  if (passkeyDisabled.value) {
+    passkeyError.value = NOT_SUPPORTED_MSG
+    return
+  }
+  passkeyLoading.value = true
+  try {
+    const support = await doesBrowserSupportWebAuthn({ userContext: {} })
+    if (support.status !== 'OK' || !support.browserSupportsWebauthn) {
+      passkeyDisabled.value = true
+      passkeyError.value = NOT_SUPPORTED_MSG
+      return
+    }
+
+    const response = await authenticateCredentialWithSignIn({ userContext: {} })
+    if (response.status === 'OK') {
+      // Mirror the Google success handler: SuperTokens has set the session
+      // tokens; refresh the auth store so the router guard sees the new
+      // session, then send the user to the dashboard.
+      await auth.init()
+      await router.push('/')
+      return
+    }
+    if (response.status === 'INVALID_CREDENTIALS_ERROR') {
+      passkeyError.value = INVALID_CREDENTIALS_MSG
+      return
+    }
+    if (response.status === 'WEBAUTHN_NOT_SUPPORTED') {
+      passkeyDisabled.value = true
+      passkeyError.value = NOT_SUPPORTED_MSG
+      return
+    }
+    passkeyError.value = GENERIC_ERROR_MSG
+  } catch (e: unknown) {
+    passkeyError.value = e instanceof Error ? e.message : GENERIC_ERROR_MSG
+  } finally {
+    passkeyLoading.value = false
+  }
+}
+
+onMounted(async () => {
+  try {
+    const support = await doesBrowserSupportWebAuthn({ userContext: {} })
+    if (support.status !== 'OK' || !support.browserSupportsWebauthn) {
+      passkeyDisabled.value = true
+    }
+  } catch {
+    // SDK probe failed (network or environment quirk) — be conservative:
+    // disable the button rather than letting the user click into a broken
+    // flow. The Google button is still available as fallback.
+    passkeyDisabled.value = true
+  }
+})
 </script>
