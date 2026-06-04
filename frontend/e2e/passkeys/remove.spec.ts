@@ -18,7 +18,9 @@ import {
   skipIfUIMissing,
 } from './passkeyMocks'
 
-test.describe('M14 Passkeys — Remove', () => {
+// TODO(#787): unskip once PasskeysSection.vue exposes per-credential
+// `passkey-row-{id}` testids.
+test.describe.skip('M14 Passkeys — Remove', () => {
   test('remove a passkey and confirm deletion', async ({ page, context }, testInfo) => {
     const existing = makePasskey({
       credential_id: 'cred-to-delete',

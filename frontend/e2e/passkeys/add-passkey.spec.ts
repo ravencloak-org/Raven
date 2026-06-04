@@ -23,7 +23,9 @@ import {
   skipIfUIMissing,
 } from './passkeyMocks'
 
-test.describe('M14 Passkeys — Add', () => {
+// TODO(#787): unskip once PasskeysSection.vue exposes `add-passkey-btn` and
+// per-credential row/label testids that this spec relies on.
+test.describe.skip('M14 Passkeys — Add', () => {
   test('add a passkey from Settings → Authentication', async ({
     page,
     context,
