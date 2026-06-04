@@ -634,6 +634,12 @@ func main() {
 	importerSvc := marketplace.NewImporter(pool, importPlanResolver, importEmbResolver)
 	marketplaceImportHandler := handler.NewMarketplaceHandler(importerSvc)
 	_ = marketplaceImportHandler // wired below in marketplace route group
+
+	// Marketplace re-import (#730). The service depends only on the pgx pool;
+	// the projection function is wired separately so #729 can swap it in
+	// without touching wiring. See internal/marketplace/projection.go.
+	reImporter := marketplace.NewReImporter(pool)
+	reImportHandler := handler.NewMarketplaceReImportHandler(reImporter)
 	sourceHandler := handler.NewSourceHandler(sourceSvc)
 	docHandler := handler.NewDocumentHandler(docSvc)
 	searchHandler := handler.NewSearchHandler(searchSvc)
@@ -911,6 +917,13 @@ func main() {
 				}
 			}
 		}
+
+		// --- Marketplace lifecycle (flat, session-scoped) ---
+		// The Re-import endpoint per ADR-0007 §7b / #730 sits at the flat
+		// /knowledge_bases/{kb_id}/re-import path — the publisher / importer
+		// lifecycle is conceptually org-level, and the handler resolves
+		// org_id from the session rather than the URL.
+		api.POST("/knowledge_bases/:kb_id/re-import", reImportHandler.ReImport)
 
 		// --- Airbyte connector routes (nested under org) ---
 		wireAirbyteConnectorRoutes(api, airbyteHandler)
