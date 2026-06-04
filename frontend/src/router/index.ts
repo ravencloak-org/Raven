@@ -73,6 +73,18 @@ const router = createRouter({
           meta: { requiresAuth: true },
         },
         {
+          path: 'marketplace',
+          name: 'marketplace-list',
+          component: () => import('../pages/marketplace/MarketplaceListView.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
+          path: 'marketplace/:orgSlug/:kbSlug',
+          name: 'marketplace-kb-detail',
+          component: () => import('../pages/marketplace/MarketplaceKbDetailView.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
           path: 'analytics',
           name: 'analytics',
           component: () => import('../pages/analytics/AnalyticsDashboardPage.vue'),
