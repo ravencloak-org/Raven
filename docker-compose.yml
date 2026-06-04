@@ -24,6 +24,12 @@ services:
       RAVEN_OTEL_SERVICE_NAME: "raven-api"
       RAVEN_SUPERTOKENS_CONNECTION_URI: "http://supertokens:3567"
       RAVEN_SUPERTOKENS_API_KEY: "${SUPERTOKENS_API_KEY:-supertokens-dev-key-replace-me}"
+      # WebAuthn / Passkey Relying Party config (M14 #775). Default `localhost`
+      # so local dev works out of the box; production must set the registered
+      # domain (e.g. `ravencloak.org`) so generated credentials are scoped
+      # correctly.
+      RAVEN_WEBAUTHN_RP_ID: "${RAVEN_WEBAUTHN_RP_ID:-localhost}"
+      RAVEN_WEBAUTHN_RP_NAME: "${RAVEN_WEBAUTHN_RP_NAME:-Raven}"
       GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}"
       GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET}"
       TMDB_API_KEY: "${TMDB_API_KEY:-}"
@@ -280,7 +286,10 @@ services:
 
   # ─── SuperTokens Auth Backend ─────────────────────────────────────────────
   supertokens:
-    image: registry.supertokens.io/supertokens/supertokens-postgresql
+    # Pinned to the latest stable tag with WebAuthn / passkey support (core
+    # v11.4.4 — see M14 #775). The `latest` tag is intentionally avoided so
+    # passkey behaviour stays reproducible across redeploys.
+    image: registry.supertokens.io/supertokens/supertokens-postgresql:11.4.4
     # Hardening: SuperTokens Core boots a JVM that listens on a high port and
     # drops to the `supertokens` user via its entrypoint.
     security_opt:

@@ -32,6 +32,9 @@ services:
     environment:
       SUPERTOKENS_CONNECTION_URI: "http://supertokens:3567"
       SUPERTOKENS_API_KEY: "${SUPERTOKENS_API_KEY}"
+      # WebAuthn / Passkey Relying Party config (M14 #775).
+      RAVEN_WEBAUTHN_RP_ID: "${RAVEN_WEBAUTHN_RP_ID:-localhost}"
+      RAVEN_WEBAUTHN_RP_NAME: "${RAVEN_WEBAUTHN_RP_NAME:-Raven}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -62,6 +65,9 @@ services:
     environment:
       SUPERTOKENS_CONNECTION_URI: "http://supertokens:3567"
       SUPERTOKENS_API_KEY: "${SUPERTOKENS_API_KEY}"
+      # WebAuthn / Passkey Relying Party config (M14 #775).
+      RAVEN_WEBAUTHN_RP_ID: "${RAVEN_WEBAUTHN_RP_ID:-localhost}"
+      RAVEN_WEBAUTHN_RP_NAME: "${RAVEN_WEBAUTHN_RP_NAME:-Raven}"
     entrypoint: ["dotenvx", "run", "--", "/app/worker"]
     depends_on:
       postgres:
@@ -129,7 +135,10 @@ services:
 
   # ─── SuperTokens Auth Backend ─────────────────────────────────────────────
   supertokens:
-    image: registry.supertokens.io/supertokens/supertokens-postgresql
+    # Pinned to the latest stable tag with WebAuthn / passkey support (core
+    # v11.4.4 — see M14 #775). The `latest` tag is intentionally avoided so
+    # passkey behaviour stays reproducible across redeploys.
+    image: registry.supertokens.io/supertokens/supertokens-postgresql:11.4.4
     environment:
       POSTGRESQL_CONNECTION_URI: "postgresql://${POSTGRES_USER:-raven}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-raven}"
       API_KEYS: "${SUPERTOKENS_API_KEY}"
