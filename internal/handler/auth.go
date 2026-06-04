@@ -65,7 +65,23 @@ func NewAuthHandler(svc AuthServicer, opts ...any) *AuthHandler {
 }
 
 // Callback handles POST /api/v1/auth/callback.
-// Called by the frontend after OIDC redirect callback completes.
+// Called by the frontend after OIDC redirect callback completes — for
+// BOTH SuperTokens recipes Raven uses:
+//
+//   - ThirdParty (Google sign-in) — initial onboarding path.
+//   - WebAuthn (passkey sign-in)   — returning-user fast path, added by
+//     M14 (issue #771, docs/superpowers/specs/2026-06-04-passkey-auth-design.md).
+//
+// The contract is recipe-agnostic: the SuperTokens session middleware
+// populates the external_id context key from whichever recipe signed the
+// user in, and we map it 1:1 onto a row in our local users table. A user
+// who first enrolled via Google and later registered a passkey shares the
+// SAME SuperTokens user ID across both recipes, so the lookup hits the
+// existing users row and the response carries `isNewUser: false`. A
+// passkey-only user (rare, since registration requires an authenticated
+// Google session under the M14 design) follows the same first-login
+// create path as Google.
+//
 // Returns whether the user is new (needs onboarding) or existing.
 func (h *AuthHandler) Callback(c *gin.Context) {
 	externalID, _ := c.Get(string(middleware.ContextKeyExternalID))
@@ -81,11 +97,15 @@ func (h *AuthHandler) Callback(c *gin.Context) {
 	name, _ := c.Get(string(middleware.ContextKeyUserName))
 	nameStr, _ := name.(string)
 
-	// SuperTokens' ThirdParty (Google) signin doesn't include email in the
-	// access-token payload, so the middleware-populated emailStr is empty for
-	// Google logins. Fetch it from the SuperTokens core user record so newly
-	// created rows in our `users` table carry the email (used for emailing,
-	// audit logs, and the eventual /api/v1/me response).
+	// Neither ThirdParty (Google) nor WebAuthn (passkey) signin bakes the
+	// email into the access-token payload by default, so the middleware-
+	// populated emailStr is empty on first login. Fetch it from the
+	// SuperTokens core user record so newly created rows in our `users`
+	// table carry the email (used for emailing, audit logs, and the
+	// eventual /api/v1/me response). The EmailLookup implementation is
+	// recipe-aware; lookup failures (transient core outage, recipe
+	// mismatch) are non-fatal — we create the row with whatever email we
+	// have and the user can fill it in via PUT /me later.
 	if emailStr == "" && h.emailLookup != nil {
 		if resolved, err := h.emailLookup.LookupEmail(c.Request.Context(), externalIDStr); err == nil {
 			emailStr = resolved

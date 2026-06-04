@@ -592,6 +592,13 @@ func main() {
 	seedSvc := service.NewSeedService(orgSvc, wsSvc, kbSvc, docRepo, pool, tmdbClient, storageClient, queueClient)
 	seedHandler := handler.NewSeedHandler(seedSvc)
 
+	// Passkey management (issue #771, M14). Talks to the SuperTokens core
+	// over REST for the credential lifecycle and to the local
+	// user_passkey_labels table (migration 00054) for human-readable labels.
+	// See docs/superpowers/specs/2026-06-04-passkey-auth-design.md.
+	passkeySvc := service.NewPasskeyService(cfg.SuperTokens.ConnectionURI, cfg.SuperTokens.APIKey, nil)
+	passkeyHandler := handler.NewPasskeyHandler(passkeySvc, pool)
+
 	// Create router
 	router := gin.Default()
 
@@ -971,6 +978,15 @@ func main() {
 		api.DELETE("/me", userHandler.DeleteMe)
 		api.PUT("/me/notification-preferences/:ws_id", resolveWSRole, notifPrefsHandler.UpsertUserPreference)
 		api.GET("/users/:user_id", middleware.RequireOrgRole("org_admin"), userHandler.GetUser)
+
+		// --- Passkey routes (issue #771, M14) ---
+		// All three sit under the standard session middleware so the caller's
+		// internal user ID + SuperTokens external ID are already on the gin
+		// context. Ownership of :credential_id is verified inside the handler
+		// by listing the core's credentials for the session user.
+		api.GET("/me/passkeys", passkeyHandler.List)
+		api.PATCH("/me/passkeys/:credential_id", passkeyHandler.Patch)
+		api.DELETE("/me/passkeys/:credential_id", passkeyHandler.Delete)
 
 		// --- DSAR routes ---
 		// GET /account/export → JSON download of the caller's data.
