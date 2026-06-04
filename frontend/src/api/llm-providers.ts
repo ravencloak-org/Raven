@@ -150,11 +150,18 @@ export async function testLlmProviderConnection(
 // failure (dead Cloudflare tunnel, revoked key, missing default) instead
 // of an HTTP error, so the polling cron can render a banner uniformly
 // without distinguishing 5xx from "configured but broken".
+//
+// The `_=<ts>` query param is a cache-buster. The Raven SPA registers a
+// PWA service worker at `/raven/` scope which intercepts same-origin
+// GETs and serves stale responses — Chrome's `cache: 'no-store'` fetch
+// option does not bypass SW interception (it only bypasses the HTTP
+// cache layer below the SW). A per-call unique URL forces the SW
+// strategy to fall through to the network on every probe.
 export async function fetchDefaultProviderHealth(
   orgId: string,
 ): Promise<TestConnectionResult> {
   return authFetch<TestConnectionResult>(
-    `/orgs/${orgId}/llm-providers/default/health`,
+    `/orgs/${orgId}/llm-providers/default/health?_=${Date.now()}`,
   )
 }
 
