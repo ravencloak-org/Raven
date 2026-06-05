@@ -57,6 +57,18 @@ func NewVoiceService(repo VoiceRepository, pool *pgxpool.Pool, lkc LiveKitClient
 	}
 }
 
+// withOrgTx is the service-local wrapper around db.WithOrgID. It binds the
+// pool (held by the service) to the call site so methods only have to pass
+// ctx + orgID + the closure. This eliminates the s.pool repetition that
+// previously appeared at every db.WithOrgID call site in this file.
+//
+// This is the first-slice demonstration of the pattern described in #830.
+// To migrate another service, copy this helper onto its receiver and rewrite
+// each `db.WithOrgID(ctx, s.pool, orgID, fn)` as `s.withOrgTx(ctx, orgID, fn)`.
+func (s *VoiceService) withOrgTx(ctx context.Context, orgID string, fn func(pgx.Tx) error) error {
+	return db.WithOrgID(ctx, s.pool, orgID, fn)
+}
+
 // generateRoomName produces a deterministic, human-friendly room name like
 // "voice-ab12-cd34" using short prefixes of the orgID and a random UUID.
 func generateRoomName(orgID string) string {
@@ -92,7 +104,7 @@ func (s *VoiceService) CreateSession(ctx context.Context, orgID string, req *mod
 	}
 
 	var session *model.VoiceSession
-	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+	err := s.withOrgTx(ctx, orgID, func(tx pgx.Tx) error {
 		if maxSessions >= 0 {
 			lockKey := int64(fnv32a(orgID))
 			if _, e := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", lockKey); e != nil {
@@ -132,7 +144,7 @@ func (s *VoiceService) CreateSession(ctx context.Context, orgID string, req *mod
 // GetSession retrieves a voice session by ID.
 func (s *VoiceService) GetSession(ctx context.Context, orgID, sessionID string) (*model.VoiceSession, error) {
 	var session *model.VoiceSession
-	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+	err := s.withOrgTx(ctx, orgID, func(tx pgx.Tx) error {
 		var e error
 		session, e = s.repo.GetSession(ctx, tx, orgID, sessionID)
 		return e
@@ -156,7 +168,7 @@ func (s *VoiceService) UpdateSessionState(ctx context.Context, orgID, sessionID 
 	}
 
 	var session *model.VoiceSession
-	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+	err := s.withOrgTx(ctx, orgID, func(tx pgx.Tx) error {
 		current, e := s.repo.GetSession(ctx, tx, orgID, sessionID)
 		if e != nil {
 			return e
@@ -200,7 +212,7 @@ func (s *VoiceService) ListSessions(ctx context.Context, orgID string, limit, of
 
 	var sessions []model.VoiceSession
 	var total int
-	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+	err := s.withOrgTx(ctx, orgID, func(tx pgx.Tx) error {
 		var e error
 		sessions, total, e = s.repo.ListSessions(ctx, tx, orgID, limit, offset)
 		return e
@@ -228,7 +240,7 @@ func (s *VoiceService) GenerateToken(ctx context.Context, orgID, sessionID, iden
 	}
 
 	var session *model.VoiceSession
-	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+	err := s.withOrgTx(ctx, orgID, func(tx pgx.Tx) error {
 		var e error
 		session, e = s.repo.GetSession(ctx, tx, orgID, sessionID)
 		return e
@@ -263,7 +275,7 @@ func (s *VoiceService) AppendTurn(ctx context.Context, orgID, sessionID string, 
 		return nil, apierror.NewBadRequest("request body must not be nil")
 	}
 	var turn *model.VoiceTurn
-	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+	err := s.withOrgTx(ctx, orgID, func(tx pgx.Tx) error {
 		// Verify the session exists and belongs to this org before appending.
 		if _, e := s.repo.GetSession(ctx, tx, orgID, sessionID); e != nil {
 			return e
@@ -285,7 +297,7 @@ func (s *VoiceService) AppendTurn(ctx context.Context, orgID, sessionID string, 
 // ListTurns returns all transcription turns for a session ordered by started_at.
 func (s *VoiceService) ListTurns(ctx context.Context, orgID, sessionID string) (*model.VoiceTurnListResponse, error) {
 	var turns []model.VoiceTurn
-	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
+	err := s.withOrgTx(ctx, orgID, func(tx pgx.Tx) error {
 		// Verify session ownership before listing turns.
 		if _, e := s.repo.GetSession(ctx, tx, orgID, sessionID); e != nil {
 			return e
