@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ravencloak-org/Raven/internal/config"
+	"github.com/ravencloak-org/Raven/internal/marketplace"
 	"github.com/ravencloak-org/Raven/internal/queue"
 )
 
@@ -25,6 +26,11 @@ const (
 
 	// CronUsageAggregation runs the usage aggregation every hour at minute 5.
 	CronUsageAggregation = "5 * * * *"
+
+	// CronMarketplaceDMCASweep runs the DMCA counter-notice-window sweep
+	// daily at 4 AM UTC. Offset from cleanup (2 AM) and trial-lifecycle
+	// (3 AM) so the daily-cluster doesn't all hit the DB pool at once.
+	CronMarketplaceDMCASweep = "0 4 * * *"
 )
 
 // SchedulerConfig holds the dependencies needed to set up the cron scheduler.
@@ -34,6 +40,14 @@ type SchedulerConfig struct {
 	QueueClient *queue.Client
 	Logger      *slog.Logger
 	Asynq       config.AsynqConfig
+
+	// DMCAService drives the daily DMCA counter-notice-window sweep
+	// (issue #736). Optional — when nil the DMCA cron is not registered
+	// so the worker can boot in environments where the Marketplace is
+	// disabled (e.g. self-hosted edge nodes). cmd/api/main.go wires
+	// this; integration tests that don't exercise the sweep can leave
+	// it nil.
+	DMCAService *marketplace.DMCAService
 }
 
 // Scheduler wraps an asynq.Scheduler and the handler mux for processing
@@ -116,6 +130,21 @@ func NewScheduler(cfg SchedulerConfig) (*Scheduler, error) {
 		return nil, fmt.Errorf("register trial lifecycle cron: %w", err)
 	}
 
+	// Marketplace DMCA sweep — only registered when the DMCAService is
+	// wired (skipped on edge nodes that disable the marketplace).
+	if cfg.DMCAService != nil {
+		dmcaTask, err := NewMarketplaceDMCASweepTask(MarketplaceDMCASweepPayload{})
+		if err != nil {
+			return nil, fmt.Errorf("create DMCA sweep task: %w", err)
+		}
+		if _, err := scheduler.Register(CronMarketplaceDMCASweep, dmcaTask,
+			asynq.Queue("low"),
+			asynq.MaxRetry(2),
+		); err != nil {
+			return nil, fmt.Errorf("register DMCA sweep cron: %w", err)
+		}
+	}
+
 	// Build a ServeMux with handlers for each scheduled task type.
 	mux := asynq.NewServeMux()
 
@@ -143,13 +172,22 @@ func NewScheduler(cfg SchedulerConfig) (*Scheduler, error) {
 	trialLifecycleHandler := NewTrialLifecycleHandler(cfg.Pool, cfg.QueueClient, cfg.Logger)
 	mux.Handle(TypeTrialLifecycle, trialLifecycleHandler)
 
-	cfg.Logger.Info("scheduler configured",
+	if cfg.DMCAService != nil {
+		dmcaHandler := NewDMCASweeper(cfg.DMCAService, cfg.Logger)
+		mux.Handle(TypeMarketplaceDMCASweep, dmcaHandler)
+	}
+
+	logFields := []any{
 		"recrawl_cron", CronRecrawl,
 		"cleanup_cron", CronCleanup,
 		"usage_aggregation_cron", CronUsageAggregation,
 		"voice_usage_aggregation_cron", CronVoiceUsageAggregation,
 		"trial_lifecycle_cron", CronTrialLifecycle,
-	)
+	}
+	if cfg.DMCAService != nil {
+		logFields = append(logFields, "marketplace_dmca_sweep_cron", CronMarketplaceDMCASweep)
+	}
+	cfg.Logger.Info("scheduler configured", logFields...)
 
 	return &Scheduler{
 		scheduler: scheduler,

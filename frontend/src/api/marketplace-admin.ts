@@ -103,3 +103,93 @@ export async function dismissReport(reportId: string): Promise<DismissResult> {
   })
   return jsonOrThrow<DismissResult>(res, 'dismissReport')
 }
+
+// ─── DMCA inbox + counter-notice workflow (issue #736) ─────────────────────
+
+export type DMCAStatus =
+  | 'pending'
+  | 'counter_filed'
+  | 'resolved_take_down'
+  | 'resolved_keep_up'
+  | 'withdrawn'
+
+export interface DMCANotice {
+  id: string
+  target_kb_id: string
+  notice_text: string
+  claimant_email: string
+  claimant_name: string
+  counter_notice_text?: string | null
+  counter_notice_submitted_at?: string | null
+  counter_notice_window_ends: string
+  status: DMCAStatus
+  resolved_at?: string | null
+  created_at: string
+}
+
+export interface ListDMCANoticesResponse {
+  notices: DMCANotice[]
+  limit: number
+  offset: number
+}
+
+export interface DMCASubmitInput {
+  target_kb_id: string
+  notice_text: string
+  claimant_email: string
+  claimant_name: string
+}
+
+/**
+ * Lists DMCA notices visible to admins. Status filter is optional;
+ * empty means all five statuses. The `pending` filter is the live
+ * work-view (notices still inside the 14-day counter-notice window).
+ */
+export async function listDMCANotices(
+  status?: DMCAStatus,
+  limit = 50,
+  offset = 0,
+): Promise<ListDMCANoticesResponse> {
+  const qs = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  })
+  if (status) qs.set('status', status)
+  const res = await authFetch(`/admin/marketplace/dmca?${qs.toString()}`)
+  return jsonOrThrow<ListDMCANoticesResponse>(res, 'listDMCANotices')
+}
+
+/**
+ * Records a fresh DMCA notice arriving via dmca@ravencloak.org. Atomic:
+ * the target KB flips to `kb_status='dmca_pending'` and the 14-day
+ * counter-notice clock starts. Returns the full notice including
+ * `counter_notice_window_ends` so the UI can render the countdown.
+ *
+ * 409 means the KB already has a pending notice (one-active-notice-per-
+ * KB invariant — see ADR-0006).
+ */
+export async function submitDMCANotice(input: DMCASubmitInput): Promise<DMCANotice> {
+  const res = await authFetch(`/admin/marketplace/dmca`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+  return jsonOrThrow<DMCANotice>(res, 'submitDMCANotice')
+}
+
+/**
+ * Records a publisher counter-notice on the named DMCA notice. MVP
+ * simplification: admin acts on behalf of the publisher who replied
+ * to dmca@ravencloak.org. The KB stays frozen until an admin issues
+ * the final keep-up/take-down call (safe harbour requires the OSP to
+ * hold restoration for 10-14 business days per 17 U.S.C. § 512(g)(2)(C)).
+ */
+export async function submitCounterNotice(
+  noticeId: string,
+  counterNoticeText: string,
+): Promise<{ notice_id: string; status: 'counter_filed' }> {
+  const res = await authFetch(`/admin/marketplace/dmca/${noticeId}/counter-notice`, {
+    method: 'POST',
+    body: JSON.stringify({ counter_notice_text: counterNoticeText }),
+  })
+  return jsonOrThrow(res, 'submitCounterNotice')
+}

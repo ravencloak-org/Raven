@@ -631,6 +631,15 @@ func main() {
 		return derivativeNotifier.NotifyDerivativeOwners(ctx, td.TargetKBID, reason)
 	})
 
+	// DMCA inbox + counter-notice workflow (issue #736, launch blocker per
+	// ADR-0006). The service drives the two-stage atomic Submit and the
+	// daily sweeper auto-takedown; the handler exposes the admin
+	// endpoints. The claimant receipt email is a no-op placeholder
+	// (logged TODO) until the M9 SES pipeline lands — same pattern as
+	// PublisherNotifier on AdminModeration.
+	dmcaSvc := marketplace.NewDMCAService(pool, takedownsRepo, marketplace.NewNoopDMCAClaimantNotifier())
+	adminDMCAHandler := handler.NewAdminDMCAHandler(dmcaSvc)
+
 	// Create router
 	router := gin.Default()
 
@@ -1072,6 +1081,15 @@ func main() {
 			adminMarket.GET("/reports", adminMarketplaceHandler.ListReports)
 			adminMarket.POST("/reports/:id/approve", adminMarketplaceHandler.Approve)
 			adminMarket.POST("/reports/:id/dismiss", adminMarketplaceHandler.Dismiss)
+
+			// DMCA inbox + counter-notice workflow (issue #736).
+			// Submit records a notice + freezes the KB; the counter-
+			// notice endpoint pivots the row to `counter_filed`. The
+			// daily sweep (jobs/marketplace_dmca_sweeper.go) handles
+			// the 14-day auto-takedown for un-contested notices.
+			adminMarket.GET("/dmca", adminDMCAHandler.List)
+			adminMarket.POST("/dmca", adminDMCAHandler.Submit)
+			adminMarket.POST("/dmca/:id/counter-notice", adminDMCAHandler.SubmitCounterNotice)
 		}
 	}
 
