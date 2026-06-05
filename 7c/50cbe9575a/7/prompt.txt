@@ -1213,3 +1213,421 @@ yes in parallel
 <usage><total_tokens>56498</total_tokens><tool_uses>26</tool_uses><duration_ms>170698</duration_ms></usage>
 <worktree><worktreePath>/Users/jobinlawrance/Project/raven/.claude/worktrees/agent-a7019c5bdd03589b3</worktreePath><worktreeBranch>worktree-agent-a7019c5bdd03589b3</worktreeBranch></worktree>
 </task-notification>
+
+---
+
+why are actions and badges for go frontend, python and docker all showing failing.
+
+---
+
+yes
+
+---
+
+<task-notification>
+<task-id>a7e9f426e9047e60c</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix B — Go CI quic-go test failure" completed</summary>
+<result>- **PR URL:** https://github.com/ravencloak-org/Raven/pull/786
+- **Decision:** adapted tests (well, adapted the migration prose) — **not** related to quic-go 0.59.1; the bump was a coincidence. Pinning back would not have fixed it.
+- **Root cause:** Migration `00054_user_passkey_labels.sql` (merged via PR #778) contained a narrative comment `` -- `+goose NO TRANSACTION` ... `` inside the Up section. goose's parser (`internal/sqlparser/parser.go:127`) treats any `--` line containing `+goose` as an annotation, so it tried to parse the prose as a directive and failed with "invalid annotation". Every package whose tests call `goose.Up` (`internal/db`, `internal/integration`, `internal/marketplace`, `internal/repository`, `migrations`) failed on main. Fix reworded the prose so the literal `+goose` token no longer appears in a `--` comment; the real annotations (`-- +goose Up/Down/NO TRANSACTION`) are untouched.
+- **Local verification:** `go test -count=1 -short ./...` passes everywhere except `internal/db` migration tests, which require Docker — they fail locally only due to my Colima socket bind-mount limitation, not the code (the goose-parse repro was confirmed independently with a standalone harness). `golangci-lint run --new-from-rev=origin/main ./...` reports 0 issues. PR auto-merge queued.</result>
+<usage><total_tokens>70272</total_tokens><tool_uses>33</tool_uses><duration_ms>361210</duration_ms></usage>
+<worktree><worktreePath>/Users/jobinlawrance/Project/raven/.claude/worktrees/agent-a7e9f426e9047e60c</worktreePath><worktreeBranch>worktree-agent-a7e9f426e9047e60c</worktreeBranch></worktree>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ad3b22a68533471e4</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix C — Frontend Playwright E2E" completed</summary>
+<result>Done. PR is open, queued for auto-squash-merge.
+
+## Report
+
+- **PR URL:** https://github.com/ravencloak-org/Raven/pull/788
+- **Decision:** skipped pending issue #787
+- **Failing specs:**
+  - `frontend/e2e/passkeys/add-passkey.spec.ts:27` — `getByTestId('add-passkey-btn').click()` timed out (30s)
+  - `frontend/e2e/passkeys/relabel.spec.ts:21` — `getByTestId('passkey-label-cred-existing-1')` element not found
+  - (Plus latent failures in `remove.spec.ts`, `signin-passkey.spec.ts`, `unsupported.spec.ts` — same selector drift, masked by retry ordering)
+- **Root cause:** The M14 passkey specs (PR #782) were authored against the data-test names in the spec doc for Issue #776, but PR #780's implementation of `PasskeysSection.vue` shipped with different testid names (`passkey-add-button` instead of `add-passkey-btn`, no per-credential `passkey-row-{id}` / `passkey-label-{id}`), and `LoginPage.vue` uses `data-testid` while `playwright.config.ts` overrides `testIdAttribute: 'data-test'`. The `skipIfUIMissing` guard only probes `tab-authentication` / `signin-passkey-btn`; once the tab opens, the missing button testids cause locator timeouts. Quarantined all five describe blocks via `test.describe.skip` with `TODO(#787)` markers. Tracking issue #787 documents the selector drift and recommends adding the missing testids to the implementation as the proper fix.</result>
+<usage><total_tokens>100110</total_tokens><tool_uses>30</tool_uses><duration_ms>289030</duration_ms></usage>
+<worktree><worktreePath>/Users/jobinlawrance/Project/raven/.claude/worktrees/agent-ad3b22a68533471e4</worktreePath><worktreeBranch>worktree-agent-ad3b22a68533471e4</worktreeBranch></worktree>
+</task-notification>
+
+---
+
+https://github.com/ravencloak-org/Raven/pull/786#issuecomment-4623186647 fix squawk report
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/skills/thermo-nuclear-code-quality-review
+
+# Thermo-Nuclear Code Quality Review
+
+Use this skill for an unusually strict review focused on implementation quality, maintainability, abstraction quality, and codebase health.
+
+Above all, this skill should push the reviewer to be **ambitious** about code structure. Do not merely identify local cleanup opportunities. Actively search for "code judo" moves: restructurings that preserve behavior while making the implementation dramatically simpler, smaller, more direct, and more elegant.
+
+## Core Prompt
+
+Start from this baseline:
+
+> Perform a deep code quality audit of the current branch's changes.
+> Rethink how to structure / implement the changes to meaningfully improve code quality without impacting behavior.
+> Work to improve abstractions, modularity, reduce Spaghetti code, improve succinctness and legibility.
+> Be ambitious, if there is a clear path to improving the implementation that involves restructuring some of the codebase, go for it.
+> Be extremely thorough and rigorous. Measure twice, cut once.
+
+## Non-Negotiable Additional Standards
+
+Apply the baseline prompt above, plus these explicit review rules:
+
+0. **Be ambitious about structural simplification.**
+   - Do not stop at "this could be a bit cleaner."
+   - Look for opportunities to reframe the change so that whole branches, helpers, modes, conditionals, or layers disappear entirely.
+   - Prefer the solution that makes the code feel inevitable in hindsight.
+   - Assume there is often a "code judo" move available: a re-organization that uses the existing architecture more effectively and makes the change dramatically simpler and more elegant.
+   - If you see a path to delete complexity rather than rearrange it, push hard for that path.
+
+1. **Do not let a PR push a file from under 1k lines to over 1k lines without a very strong reason.**
+   - Treat this as a strong code-quality smell by default.
+   - Prefer extracting helpers, subcomponents, modules, or local abstractions instead of letting a file sprawl past 1000 lines.
+   - If the diff crosses that threshold, explicitly ask whether the code should be decomposed first.
+   - Only waive this if there is a compelling structural reason and the resulting file is still clearly organized.
+
+2. **Do not allow random spaghetti growth in existing code.**
+   - Be highly suspicious of new ad-hoc conditionals, scattered special cases, or one-off branches inserted into unrelated flows.
+   - If a change adds "weird if statements in random places", treat that as a design problem, not a stylistic nit.
+   - Prefer pushing the logic into a dedicated abstraction, helper, state machine, policy object, or separate module instead of tangling an existing path.
+   - Call out changes that make the surrounding code harder to reason about, even if they technically work.
+
+3. **Bias toward cleaning the design, not just accepting working code.**
+   - If behavior can stay the same while the structure becomes meaningfully cleaner, push for the cleaner version.
+   - Do not rubber-stamp "it works" implementations that leave the codebase messier.
+   - Strongly prefer simplifications that remove moving pieces altogether over refactors that merely spread the same complexity around.
+
+4. **Prefer direct, boring, maintainable code over hacky or magical code.**
+   - Treat brittle, ad-hoc, or "magic" behavior as a code-quality problem.
+   - Be skeptical of generic mechanisms that hide simple data-shape assumptions.
+   - Flag thin abstractions, identity wrappers, or pass-through helpers that add indirection without buying clarity.
+
+5. **Push hard on type and boundary cleanliness when they affect maintainability.**
+   - Question unnecessary optionality, `unknown`, `any`, or cast-heavy code when a clearer type boundary could exist.
+   - Prefer explicit typed models or shared contracts over loosely-shaped ad-hoc objects.
+   - If a branch relies on silent fallback to paper over an unclear invariant, ask whether the boundary should be made explicit instead.
+
+6. **Keep logic in the canonical layer and reuse existing helpers.**
+   - Call out feature logic leaking into shared paths or implementation details leaking through APIs.
+   - Prefer existing canonical utilities/helpers over bespoke one-offs.
+   - Push code toward the right package, service, or module instead of normalizing architectural drift.
+
+7. **Treat unnecessary sequential orchestration and non-atomic updates as design smells when the cleaner structure is obvious.**
+   - If independent work is serialized for no good reason, ask whether the flow should run in parallel instead.
+   - If related updates can leave state half-applied, push for a more atomic structure.
+   - Do not over-index on micro-optimizations, but do flag avoidable orchestration complexity that makes the implementation more brittle.
+
+## Primary Review Questions
+
+For every meaningful change, ask:
+
+- Is there a "code judo" move that would make this dramatically simpler?
+- Can this change be reframed so fewer concepts, branches, or helper layers are needed?
+- Does this improve or worsen the local architecture?
+- Did the diff add branching complexity where a better abstraction should exist?
+- Did a previously cohesive module become more coupled, more stateful, or harder to scan?
+- Is this logic living in the right file and layer?
+- Did this change enlarge a file or component past a healthy size boundary?
+- Are there repeated conditionals that signal a missing model or missing helper?
+- Is the implementation direct and legible, or does it rely on special cases and incidental control flow?
+- Is this abstraction actually earning its keep, or is it just a wrapper?
+- Did the diff introduce casts, optionality, or ad-hoc object shapes that obscure the real invariant?
+- Is this logic living in the canonical layer, or did the diff leak details across a boundary?
+- Is this orchestration more sequential or less atomic than it needs to be?
+
+## What to Flag Aggressively
+
+Escalate findings when you see:
+
+- A complicated implementation where a cleaner reframing could delete whole categories of complexity.
+- Refactors that move code around but fail to reduce the number of concepts a reader must hold in their head.
+- A file crossing 1000 lines due to the PR, especially if the new code could be split out.
+- New conditionals bolted onto unrelated code paths.
+- One-off booleans, nullable modes, or flags that complicate existing control flow.
+- Feature-specific logic leaking into general-purpose modules.
+- Generic "magic" handling that hides simple structure and makes the code harder to reason about.
+- Thin wrappers or identity abstractions that add indirection without simplifying anything.
+- Unnecessary casts, `any`, `unknown`, or optional params that muddy the real contract.
+- Copy-pasted logic instead of extracted helpers.
+- Narrow edge-case handling implemented in the middle of an already busy function.
+- Refactors that technically pass tests but make the code less modular or less readable.
+- "Temporary" branching that is likely to become permanent debt.
+- Bespoke helpers where the codebase already has a canonical utility for the job.
+- Logic added in the wrong layer/package when it should live somewhere more central.
+- Sequential async flow where obviously independent work could stay simpler and clearer with parallel execution.
+- Partial-update logic that leaves state less atomic than necessary.
+
+## Preferred Remedies
+
+When you identify a code-quality problem, prefer suggestions like:
+
+- Delete a whole layer of indirection rather than polishing it.
+- Reframe the state model so conditionals disappear instead of getting centralized.
+- Change the ownership boundary so the feature becomes a natural extension of an existing abstraction.
+- Turn special-case logic into a simpler default flow with fewer exceptions.
+- Extract a helper or pure function.
+- Split a large file into smaller focused modules.
+- Move feature-specific logic behind a dedicated abstraction.
+- Replace condition chains with a typed model or explicit dispatcher.
+- Separate orchestration from business logic.
+- Collapse duplicate branches into a single clearer flow.
+- Delete wrappers that do not meaningfully clarify the API.
+- Reuse the existing canonical helper instead of introducing a near-duplicate.
+- Make type boundaries more explicit so the control flow gets simpler.
+- Move the logic to the package/module/layer that already owns the concept.
+- Parallelize independent work when that also simplifies the orchestration.
+- Restructure related updates into a more atomic flow when partial state would be harder to reason about.
+
+Do not be satisfied with "maybe rename this" feedback when the real issue is structural.
+Do not be satisfied with a merely cleaner version of the same messy idea if there is a plausible path to a much simpler idea.
+
+## Review Tone
+
+Be direct, serious, and demanding about quality.
+Do not be rude, but do not soften major maintainability issues into mild suggestions.
+If the code is making the codebase messier, say so clearly.
+If the implementation missed an opportunity for a dramatic simplification, say that clearly too.
+
+Good phrases:
+
+- `this pushes the file past 1k lines. can we decompose this first?`
+- `this adds another special-case branch into an already busy flow. can we move this behind its own abstraction?`
+- `this works, but it makes the surrounding code more spaghetti. let's keep the behavior and restructure the implementation.`
+- `this feels like feature logic leaking into a shared path. can we isolate it?`
+- `this abstraction seems unnecessary. can we just keep the direct flow?`
+- `why does this need a cast / optional here? can we make the boundary more explicit instead?`
+- `this looks like a bespoke helper for something we already have elsewhere. can we reuse the canonical one?`
+- `i think there's a code-judo move here that makes this much simpler. can we reframe this so these branches disappear?`
+- `this refactor moves complexity around, but doesn't really delete it. is there a way to make the model itself simpler?`
+
+## Output Expectations
+
+Prioritize findings in this order:
+
+1. Structural code-quality regressions
+2. Missed opportunities for dramatic simplification / code-judo restructuring
+3. Spaghetti / branching complexity increases
+4. Boundary / abstraction / type-contract problems that make the code harder to reason about
+5. File-size and decomposition concerns
+6. Modularity and abstraction issues
+7. Legibility and maintainability concerns
+
+Do not flood the review with low-value nits if there are larger structural issues.
+Prefer a smaller number of high-conviction comments over a long list of cosmetic notes.
+
+## Approval Bar
+
+Do not approve merely because behavior seems correct.
+The bar for approval is:
+
+- no clear structural regression
+- no obvious missed opportunity to make the implementation dramatically simpler when such a path is visible
+- no unjustified file-size explosion
+- no obvious spaghetti-growth from special-case branching
+- no obviously hacky or magical abstraction that makes the code harder to reason about
+- no unnecessary wrapper/cast/optionality churn obscuring the real design
+- no clear architecture-boundary leak or avoidable canonical-helper duplication
+- no missed opportunity for an obvious decomposition that would materially improve maintainability
+
+Treat these as presumptive blockers unless the author can justify them clearly:
+
+- the PR preserves a lot of incidental complexity when there is a plausible code-judo move that would delete it
+- the PR pushes a file from below 1000 lines to above 1000 lines
+- the PR adds ad-hoc branching that makes an existing flow more tangled
+- the PR solves a local problem by scattering feature checks across shared code
+- the PR adds an unnecessary abstraction, wrapper, or cast-heavy contract that makes the design more indirect
+- the PR duplicates an existing helper or puts logic in the wrong layer when there is a clear canonical home
+
+If those conditions are not met, leave explicit, actionable feedback and push for a cleaner decomposition.
+
+---
+
+Base directory for this skill: /Users/jobinlawrance/.claude/skills/improve-codebase-architecture
+
+# Improve Codebase Architecture
+
+Surface architectural friction and propose **deepening opportunities** — refactors that turn shallow modules into deep ones. The aim is testability and AI-navigability.
+
+## Glossary
+
+Use these terms exactly in every suggestion. Consistent language is the point — don't drift into "component," "service," "API," or "boundary." Full definitions in [LANGUAGE.md](LANGUAGE.md).
+
+- **Module** — anything with an interface and an implementation (function, class, package, slice).
+- **Interface** — everything a caller must know to use the module: types, invariants, error modes, ordering, config. Not just the type signature.
+- **Implementation** — the code inside.
+- **Depth** — leverage at the interface: a lot of behaviour behind a small interface. **Deep** = high leverage. **Shallow** = interface nearly as complex as the implementation.
+- **Seam** — where an interface lives; a place behaviour can be altered without editing in place. (Use this, not "boundary.")
+- **Adapter** — a concrete thing satisfying an interface at a seam.
+- **Leverage** — what callers get from depth.
+- **Locality** — what maintainers get from depth: change, bugs, knowledge concentrated in one place.
+
+Key principles (see [LANGUAGE.md](LANGUAGE.md) for the full list):
+
+- **Deletion test**: imagine deleting the module. If complexity vanishes, it was a pass-through. If complexity reappears across N callers, it was earning its keep.
+- **The interface is the test surface.**
+- **One adapter = hypothetical seam. Two adapters = real seam.**
+
+This skill is _informed_ by the project's domain model. The domain language gives names to good seams; ADRs record decisions the skill should not re-litigate.
+
+## Process
+
+### 1. Explore
+
+Read the project's domain glossary and any ADRs in the area you're touching first.
+
+Then use the Agent tool with `subagent_type=Explore` to walk the codebase. Don't follow rigid heuristics — explore organically and note where you experience friction:
+
+- Where does understanding one concept require bouncing between many small modules?
+- Where are modules **shallow** — interface nearly as complex as the implementation?
+- Where have pure functions been extracted just for testability, but the real bugs hide in how they're called (no **locality**)?
+- Where do tightly-coupled modules leak across their seams?
+- Which parts of the codebase are untested, or hard to test through their current interface?
+
+Apply the **deletion test** to anything you suspect is shallow: would deleting it concentrate complexity, or just move it? A "yes, concentrates" is the signal you want.
+
+### 2. Present candidates
+
+Present a numbered list of deepening opportunities. For each candidate:
+
+- **Files** — which files/modules are involved
+- **Problem** — why the current architecture is causing friction
+- **Solution** — plain English description of what would change
+- **Benefits** — explained in terms of locality and leverage, and also in how tests would improve
+
+**Use CONTEXT.md vocabulary for the domain, and [LANGUAGE.md](LANGUAGE.md) vocabulary for the architecture.** If `CONTEXT.md` defines "Order," talk about "the Order intake module" — not "the FooBarHandler," and not "the Order service."
+
+**ADR conflicts**: if a candidate contradicts an existing ADR, only surface it when the friction is real enough to warrant revisiting the ADR. Mark it clearly (e.g. _"contradicts ADR-0007 — but worth reopening because…"_). Don't list every theoretical refactor an ADR forbids.
+
+Do NOT propose interfaces yet. Ask the user: "Which of these would you like to explore?"
+
+### 3. Grilling loop
+
+Once the user picks a candidate, drop into a grilling conversation. Walk the design tree with them — constraints, dependencies, the shape of the deepened module, what sits behind the seam, what tests survive.
+
+Side effects happen inline as decisions crystallize:
+
+- **Naming a deepened module after a concept not in `CONTEXT.md`?** Add the term to `CONTEXT.md` — same discipline as `/grill-with-docs` (see [CONTEXT-FORMAT.md](../grill-with-docs/CONTEXT-FORMAT.md)). Create the file lazily if it doesn't exist.
+- **Sharpening a fuzzy term during the conversation?** Update `CONTEXT.md` right there.
+- **User rejects the candidate with a load-bearing reason?** Offer an ADR, framed as: _"Want me to record this as an ADR so future architecture reviews don't re-suggest it?"_ Only offer when the reason would actually be needed by a future explorer to avoid re-suggesting the same thing — skip ephemeral reasons ("not worth it right now") and self-evident ones. See [ADR-FORMAT.md](../grill-with-docs/ADR-FORMAT.md).
+- **Want to explore alternative interfaces for the deepened module?** See [INTERFACE-DESIGN.md](INTERFACE-DESIGN.md).
+
+---
+
+continue
+
+---
+
+all in parallel
+
+---
+
+<task-notification>
+<task-id>a5121145ac0f9ac66</task-id>
+<tool-use-id>toolu_01HwiMHtdrSLzjqviKMqBEkM</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "B — PasskeyHandler refactor (3-in-1)" completed</summary>
+<result>Done. Auto-merge queued (squash).
+
+## Report
+
+**PR URL:** https://github.com/ravencloak-org/Raven/pull/800 (open, auto-merge SQUASH enqueued)
+
+**New file created:**
+- `/Users/jobinlawrance/Project/raven/.REDACTED.go`
+
+**Files modified:**
+- `internal/handler/passkey.go`
+- `internal/handler/passkey_test.go`
+- `internal/service/passkey.go`
+- `cmd/api/main.go`
+
+**Handler line count:** before **348**, after **255** (−93 lines, −27%).
+
+**Acceptance confirmation:**
+- Handler imports only `context`, `errors`, `net/http`, `time`, `gin`, `middleware`, `service`, `apierror` — no `db`, no `pgxpool`, no `pgx`, no SQL.
+- Single `PasskeyService` interface in `internal/handler/passkey.go` (5 methods: `ListByUser`, `DeleteCredential`, `ListLabelsForUser`, `UpdateLabel`, `DeleteLabel`).
+- Single constructor `NewPasskeyHandler(svc PasskeyService)`.
+- `ownsCredential` deleted. PATCH uses `repository.UpdateLabel` → atomic `UPDATE ... WHERE credential_id=$2 AND user_id=$3`; 0 rows surfaces as `ErrPasskeyLabelNotFound` → 404. DELETE relies on the SuperTokens core's own ownership check (its `CREDENTIAL_NOT_FOUND_ERROR` maps to 404); label cleanup is best-effort.
+- Tests adapted: a single `fakePasskeyService` implements all five methods, coverage preserved (List merge / fallback / empty, Patch happy + 404 + bad body, Delete happy + core-not-found, plus the 4 existing HTTP-level `TestPasskeyService_*` tests updated for the new constructor signature).
+- `go build ./...` clean, `go test ./internal/handler/... ./internal/service/...` pass, `golangci-lint run --new-from-rev=origin/main ./...` reports 0 issues.
+- Commit signed off (`Signed-off-by: Jobin Lawrance`), no `Co-Authored-By` trailer, hooks ran (no `--no-verify`).
+
+Note: `internal/repository/...` tests for RLS need testcontainers/Docker and fail locally with a colima docker.sock mount error — unrelated to this refactor; the new `PasskeyLabelRepository` compiles cleanly and `go vet` passes.</result>
+<usage><total_tokens>130501</total_tokens><tool_uses>57</tool_uses><duration_ms>713391</duration_ms></usage>
+<worktree><worktreePath>/Users/jobinlawrance/Project/raven/.claude/worktrees/agent-a5121145ac0f9ac66</worktreePath><worktreeBranch>worktree-agent-a5121145ac0f9ac66</worktreeBranch></worktree>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a1a61f3aa29b5693b</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "D — Start route-wiring extraction in main.go" completed</summary>
+<result>Done. Auto-squash queued.
+
+## Report
+
+- **PR**: https://github.com/ravencloak-org/Raven/pull/801 (auto-squash queued)
+- **`cmd/api/main.go`**: 1152 → 1113 lines (**−39 net**)
+- **Duplicate routes found**: **None.** Parsed all 154 `(method, path)` registrations on `origin/main` with group-prefix tracking — zero duplicates. The PR #689 vs #749 bug was already resolved on main.
+
+New file `/Users/jobinlawrance/Project/raven/.REDACTED.go` (71 lines) — seeds the pattern with four helpers: `wirePasskeyRoutes`, `wireLLMProviderRoutes`, `wireAirbyteConnectorRoutes`, `wireRoutingRuleRoutes`. Route set verified identical (154 in, 154 out, zero drift). One deliberate semantic-equivalent cleanup: `RequireOrgRole("org_admin")` hoisted to the group level in `wireRoutingRuleRoutes` since every route in that block had the same gate.
+
+Gates: `go build ./...` clean, `go vet` clean, `go test ./cmd/api/...` + `./internal/handler/...` pass, `golangci-lint --new-from-rev=origin/main` 0 issues, commit signed off, no AI attribution.</result>
+<usage><total_tokens>100751</total_tokens><tool_uses>40</tool_uses><duration_ms>416576</duration_ms></usage>
+<worktree><worktreePath>/Users/jobinlawrance/Project/raven/.claude/worktrees/agent-a1a61f3aa29b5693b</worktreePath><worktreeBranch>worktree-agent-a1a61f3aa29b5693b</worktreeBranch></worktree>
+</task-notification>
+
+---
+
+Fix all in parallel, create issues for the same and then run /thermo-nuclear-code-quality-review without creating issue in any of the features it touches.
+
+---
+
+<task-notification>
+<task-id>a713df41381497f6c</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "W — WithOrgID first-slice refactor" completed</summary>
+<result>All done. Auto-squash-merge is queued.
+
+## Report
+
+**PR URL:** https://github.com/ravencloak-org/Raven/pull/833 — queued for auto-squash-merge.
+
+**Audit summary:**
+- Total `db.WithOrgID` call sites in `internal/service/`: **140** (issue said 141; same order, no `db.WithUserID` callers today)
+- **Trivial** (1 repo call): 120
+- **Multi-call** (2+ repo calls): 18
+- **Cross-scope** (org + user/workspace): 0
+
+**Service migrated:** `VoiceService` — picked because it has the most multi-call methods of any service (4 of 4 leaderboard slots). All **7** `db.WithOrgID` call sites in `internal/service/voice.go` now route through the new `s.withOrgTx(ctx, orgID, fn)` helper.
+
+**Chosen helper shape:** **(a) method-on-Service** — `func (s *VoiceService) withOrgTx(ctx context.Context, orgID string, fn func(pgx.Tx) error) error { return db.WithOrgID(ctx, s.pool, orgID, fn) }`. Two lines, no new package, eliminates the `s.pool` repetition at every call site, leaves repo signatures untouched. (b) and (c) rejected in PR body with rationale.
+
+**Tests + lint:** `go test ./internal/service/...` passes (full service package, not just voice); `go vet ./...` clean; `golangci-lint run --new-from-rev=origin/main ./...` reports 0 issues.
+
+Files touched: `/Users/jobinlawrance/Project/raven/.claude/worktrees/agent-a713df41381497f6c/internal/service/voice.go` (+19/-7).</result>
+<usage><total_tokens>90447</total_tokens><tool_uses>33</tool_uses><duration_ms>355927</duration_ms></usage>
+<worktree><worktreePath>/Users/jobinlawrance/Project/raven/.claude/worktrees/agent-a713df41381497f6c</worktreePath><worktreeBranch>worktree-agent-a713df41381497f6c</worktreeBranch></worktree>
+</task-notification>

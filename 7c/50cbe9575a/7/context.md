@@ -517,3 +517,117 @@ yes in parallel
 **PR:** https://github.com/ravencloak-org/Raven/pull/783
 **Call sites fixed:** 1 (line 599 in `frontend/src/p...
 
+### Prompt 72
+
+why are actions and badges for go frontend, python and docker all showing failing.
+
+### Prompt 73
+
+yes
+
+### Prompt 74
+
+<task-notification>
+<task-id>a7e9f426e9047e60c</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix B — Go CI quic-go test failure" completed</summary>
+<result>- **PR URL:** https://github.com/ravencloak-org/Raven/pull/786
+- **Decision:** adapted tests (well, adapted the migration ...
+
+### Prompt 75
+
+<task-notification>
+<task-id>ad3b22a68533471e4</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix C — Frontend Playwright E2E" completed</summary>
+<result>Done. PR is open, queued for auto-squash-merge.
+
+## Report
+
+- **PR URL:** https://github.com/ravencloak-org/Raven/pull/788
+- ...
+
+### Prompt 76
+
+https://github.com/ravencloak-org/Raven/pull/786#issuecomment-4623186647 fix squawk report
+
+### Prompt 77
+
+Base directory for this skill: /Users/jobinlawrance/.claude/skills/thermo-nuclear-code-quality-review
+
+# Thermo-Nuclear Code Quality Review
+
+Use this skill for an unusually strict review focused on implementation quality, maintainability, abstraction quality, and codebase health.
+
+Above all, this skill should push the reviewer to be **ambitious** about code structure. Do not merely identify local cleanup opportunities. Actively search for "code judo" moves: restructurings that preserve behavior ...
+
+### Prompt 78
+
+Base directory for this skill: /Users/jobinlawrance/.claude/skills/improve-codebase-architecture
+
+# Improve Codebase Architecture
+
+Surface architectural friction and propose **deepening opportunities** — refactors that turn shallow modules into deep ones. The aim is testability and AI-navigability.
+
+## Glossary
+
+Use these terms exactly in every suggestion. Consistent language is the point — don't drift into "component," "service," "API," or "boundary." Full definitions in [LANGUAGE.md](LANGU...
+
+### Prompt 79
+
+continue
+
+### Prompt 80
+
+all in parallel
+
+### Prompt 81
+
+<task-notification>
+<task-id>a5121145ac0f9ac66</task-id>
+<tool-use-id>toolu_01HwiMHtdrSLzjqviKMqBEkM</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "B — PasskeyHandler refactor (3-in-1)" completed</summary>
+<result>Done. Auto-merge queued (squash).
+
+## Report
+
+**PR URL:** https://github.com/ravencloak-org/Raven/pull/800 (open, auto-m...
+
+### Prompt 82
+
+<task-notification>
+<task-id>a1a61f3aa29b5693b</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "D — Start route-wiring extraction in main.go" completed</summary>
+<result>Done. Auto-squash queued.
+
+## Report
+
+- **PR**: https://github.com/ravencloak-org/Raven/pull/801 (auto-squash qu...
+
+### Prompt 83
+
+Fix all in parallel, create issues for the same and then run /thermo-nuclear-code-quality-review without creating issue in any of the features it touches.
+
+### Prompt 84
+
+<task-notification>
+<task-id>a713df41381497f6c</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "W — WithOrgID first-slice refactor" completed</summary>
+<result>All done. Auto-squash-merge is queued.
+
+## Report
+
+**PR URL:** https://github.com/ravencloak-org/Raven/pull/833 — queued...
+
