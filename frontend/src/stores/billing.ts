@@ -1,3 +1,6 @@
+// KEEP (issue #831 audit): owns the 30s usage poller, cross-cutting upgrade-prompt
+// modal state, and 402-interception — shared by 4 consumers (DefaultLayout, api/client,
+// BillingPage, PlansPage). Not a pass-through; deletion would scatter the poll timer.
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { getUsage, getSubscription, type BillingUsage, type Subscription } from '../api/billing'

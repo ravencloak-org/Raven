@@ -1,10 +1,45 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
-import { useChatbotConfigStore } from '../../stores/chatbot-config'
+import {
+  getChatbotConfig,
+  updateChatbotConfig,
+  type ChatbotConfig,
+  type UpdateChatbotConfigRequest,
+} from '../../api/chatbot-config'
 import { useMobile } from '../../composables/useMediaQuery'
 
-const store = useChatbotConfigStore()
 const { isMobile } = useMobile()
+
+// --- Local state (formerly in stores/chatbot-config.ts) ---
+const config = ref<ChatbotConfig | null>(null)
+const loading = ref(false)
+const saving = ref(false)
+const error = ref<string | null>(null)
+
+async function fetchConfig(): Promise<void> {
+  loading.value = true
+  error.value = null
+  try {
+    config.value = await getChatbotConfig()
+  } catch (e) {
+    error.value = (e as Error).message
+  } finally {
+    loading.value = false
+  }
+}
+
+async function saveConfig(updates: UpdateChatbotConfigRequest): Promise<void> {
+  saving.value = true
+  error.value = null
+  try {
+    config.value = await updateChatbotConfig(updates)
+  } catch (e) {
+    error.value = (e as Error).message
+    throw e
+  } finally {
+    saving.value = false
+  }
+}
 
 // --- Local form state bound via v-model ---
 const themeColor = ref('#4f46e5')
@@ -36,9 +71,9 @@ const embedCode = computed(() => {
   )
 })
 
-// Sync local form state when store config loads
+// Sync local form state when config loads
 watch(
-  () => store.config,
+  config,
   (cfg) => {
     if (!cfg) return
     themeColor.value = cfg.theme_color
@@ -51,7 +86,7 @@ watch(
   { immediate: true },
 )
 
-onMounted(() => store.fetchConfig())
+onMounted(() => fetchConfig())
 
 function addQuestion() {
   const q = newQuestion.value.trim()
@@ -67,17 +102,19 @@ function removeQuestion(index: number) {
 
 async function handleSave() {
   saveSuccess.value = false
-  await store.saveConfig({
-    theme_color: themeColor.value,
-    avatar_url: avatarUrl.value,
-    welcome_text: welcomeText.value,
-    suggested_questions: [...suggestedQuestions.value],
-    position: position.value,
-    widget_title: widgetTitle.value,
-  })
-  if (!store.error) {
+  try {
+    await saveConfig({
+      theme_color: themeColor.value,
+      avatar_url: avatarUrl.value,
+      welcome_text: welcomeText.value,
+      suggested_questions: [...suggestedQuestions.value],
+      position: position.value,
+      widget_title: widgetTitle.value,
+    })
     saveSuccess.value = true
     setTimeout(() => (saveSuccess.value = false), 3000)
+  } catch {
+    // error already captured in `error` ref by saveConfig
   }
 }
 
@@ -99,14 +136,14 @@ async function copyEmbedCode() {
     </div>
 
     <!-- Loading -->
-    <div v-if="store.loading" class="text-gray-500">Loading configuration...</div>
+    <div v-if="loading" class="text-gray-500">Loading configuration...</div>
 
     <!-- Error banner -->
     <div
-      v-if="store.error"
+      v-if="error"
       class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
     >
-      {{ store.error }}
+      {{ error }}
     </div>
 
     <!-- Save success banner -->
@@ -118,7 +155,7 @@ async function copyEmbedCode() {
     </div>
 
     <!-- Main two-column layout -->
-    <div v-if="!store.loading" class="grid grid-cols-1 gap-8 lg:grid-cols-2">
+    <div v-if="!loading" class="grid grid-cols-1 gap-8 lg:grid-cols-2">
       <!-- Left panel: Configuration form -->
       <div class="space-y-6">
         <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -265,11 +302,11 @@ async function copyEmbedCode() {
             <div class="flex items-center gap-3 pt-2">
               <button
                 type="submit"
-                :disabled="store.saving"
+                :disabled="saving"
                 class="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
                 :class="isMobile ? 'w-full' : ''"
               >
-                {{ store.saving ? 'Saving...' : 'Save Configuration' }}
+                {{ saving ? 'Saving...' : 'Save Configuration' }}
               </button>
             </div>
           </form>

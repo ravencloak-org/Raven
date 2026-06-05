@@ -1,3 +1,5 @@
+// KEEP (issue #831 audit): session source-of-truth shared by 13 consumers
+// (router guard, layouts, every authenticated page, useAuth composable).
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import Session from 'supertokens-web-js/recipe/session'

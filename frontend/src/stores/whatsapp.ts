@@ -1,3 +1,6 @@
+// KEEP (issue #831 audit): shares phoneNumbers, calls, activeCall and bridges across
+// 5 consumers (PhoneNumbersPage, CallsPage, ActiveCallPanel, BridgeStatus, InitiateCallModal).
+// activeCall + currentBridge are coordinated across components; not a pass-through.
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { filter } from 'remeda'

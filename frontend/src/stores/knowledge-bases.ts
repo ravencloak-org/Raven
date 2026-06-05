@@ -1,3 +1,6 @@
+// KEEP (issue #831 audit): shares KB list, currentKB, documents and sources across
+// KBListPage, KBDetailPage and TestSandboxPage; archive() mutates entries seen by
+// multiple consumers and uploadDocument() bumps the currentKB doc_count optimistically.
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { findIndex } from 'remeda'

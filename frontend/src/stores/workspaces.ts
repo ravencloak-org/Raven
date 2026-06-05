@@ -1,3 +1,6 @@
+// KEEP (issue #831 audit): shares workspaces list, currentWorkspace, members between
+// WorkspaceListPage and WorkspaceDetailPage; remove() mutates list + currentWorkspace
+// together so detail page reflects deletions performed from the list page.
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { filter } from 'remeda'

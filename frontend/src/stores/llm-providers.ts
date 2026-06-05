@@ -1,3 +1,6 @@
+// KEEP (issue #831 audit): reference implementation of the optimistic-update +
+// snapshot-rollback pattern (setDefault). Issue #831 itself names this as the
+// pattern other stores should match — not a shallow wrapper.
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import {
