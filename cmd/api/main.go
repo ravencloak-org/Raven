@@ -610,6 +610,27 @@ func main() {
 	passkeySvc := service.NewPasskeyService(cfg.SuperTokens.ConnectionURI, cfg.SuperTokens.APIKey, nil)
 	passkeyHandler := handler.NewPasskeyHandler(passkeySvc, pool)
 
+	// Marketplace moderation surfaces (issue #735, M3). The admin audit
+	// view reads marketplace_takedowns under the raven_admin RLS bypass;
+	// the derivative-owner notifier walks lineage one hop downstream on
+	// takedown creation. Both share the same Takedowns repo; the
+	// notifier is wired through the OnTakedownCreated registry so future
+	// callers (publisher self-unpublish, #734's admin approve) can fire
+	// it without importing internal/mail. demoMailer is the shared
+	// transactional sender — when no provider key is configured it falls
+	// back to NoopSender (best-effort, structured-log only).
+	adminTakedownsHandler := handler.NewAdminTakedownsHandler(takedownsRepo)
+	derivativeNotifier := marketplace.NewDerivativeNotifier(
+		pool,
+		marketplace.NewMailNotifier(demoMailer),
+	)
+	marketplace.RegisterOnTakedownCreated(func(ctx context.Context, td marketplace.Takedown, reason string) error {
+		// Fire-and-forget on the request context. The notifier itself
+		// logs per-recipient failures with enough detail to manually
+		// re-send; the takedown audit-log row is the durable record.
+		return derivativeNotifier.NotifyDerivativeOwners(ctx, td.TargetKBID, reason)
+	})
+
 	// Create router
 	router := gin.Default()
 
@@ -988,6 +1009,18 @@ func main() {
 		api.DELETE("/me", userHandler.DeleteMe)
 		api.PUT("/me/notification-preferences/:ws_id", resolveWSRole, notifPrefsHandler.UpsertUserPreference)
 		api.GET("/users/:user_id", middleware.RequireOrgRole("org_admin"), userHandler.GetUser)
+
+		// --- Marketplace admin routes (issue #735, M3) ---
+		// Read-only takedown audit log. The HTTP gate is the global
+		// raven-admin allowlist (RAVEN_ADMIN_EMAILS env); ListAudit
+		// internally switches to the raven_admin DB role inside a
+		// short-lived transaction so the cross-tenant SELECT can see
+		// every row. Future admin write surfaces (POST /takedowns,
+		// /reports/{id}/approve from #734) plug in here.
+		api.GET("/admin/marketplace/takedowns",
+			middleware.RequireRavenAdmin(),
+			adminTakedownsHandler.List,
+		)
 
 		// --- Passkey routes (issue #771, M14) ---
 		// All three sit under the standard session middleware so the caller's
