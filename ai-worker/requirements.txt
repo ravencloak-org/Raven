@@ -1083,9 +1083,9 @@ langchain-text-splitters==1.1.2 \
     --hash=sha256:782a723db0a4746ac91e251c7c1d57fd23636e4f38ed733074e28d7a86f41627 \
     --hash=sha256:a2de0d799ff31886429fd6e2e0032df275b60ec817c19059a7b46181cc1c2f10
     # via raven-worker (pyproject.toml)
-langsmith==0.8.8 \
-    --hash=sha256:9d00e54f54d833c1914003527ff03ad0364741034330da72f0adbeaba852b6cf \
-    --hash=sha256:9d60d724c0d187c036e184b3ffdf9fa5c6822aa0bb88144a5fb898e79be645af
+langsmith==0.8.9 \
+    --hash=sha256:c9519cabc75568d088df045710d1b86eae9780c91054528b2aa7e6cb1fc80c52 \
+    --hash=sha256:f16e37fcd5a8a2d4db30eae0e399a866a65ce5cc86218825c59409ed57a3bf53
     # via langchain-core
 livekit==1.1.8 \
     --hash=sha256:080a3799bcf7075328f2921868646296a18e4ab1c613df6b313d723f99b5557b \
