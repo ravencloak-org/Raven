@@ -173,6 +173,15 @@ const router = createRouter({
           component: () => import('../pages/admin/AdminReportsView.vue'),
           meta: { requiresAuth: true, requiresPlatformAdmin: true },
         },
+        {
+          // Marketplace takedown audit log (issue #735). View handles 403
+          // in its loader so a deep link degrades gracefully if the
+          // requiresPlatformAdmin hint is bypassed.
+          path: 'admin/marketplace/takedowns',
+          name: 'admin-marketplace-takedowns',
+          component: () => import('../pages/admin/AdminTakedownsView.vue'),
+          meta: { requiresAuth: true, requiresPlatformAdmin: true },
+        },
       ],
     },
     {

@@ -3,6 +3,7 @@ package marketplace
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -136,4 +137,159 @@ func (t *Takedowns) ListForKB(ctx context.Context, kbID uuid.UUID) ([]Takedown, 
 		return nil, fmt.Errorf("Takedowns.ListForKB: rows: %w", err)
 	}
 	return out, nil
+}
+
+// AuditRow is the join shape returned by ListAudit. It collects the
+// columns the AdminTakedownsView in #735's frontend needs in a single
+// round-trip: the takedown event itself, the target KB's display name,
+// the publisher Org's slug + display name, and that Org's running
+// strike total at read time.
+//
+// The strike count is the live `organizations.takedown_strikes` value,
+// not a snapshot stored on the takedown row. Snapshotting would require
+// schema migration #735 didn't budget for, and the live value matches
+// the "current state of the publisher" semantic the audit log is for:
+// an admin looking up a takedown wants to know "where does this Org
+// sit on the strike scale right now?".
+type AuditRow struct {
+	TakedownID            uuid.UUID
+	TargetKBID            uuid.UUID
+	TargetKBName          string
+	TargetOrgSlug         string
+	TargetOrgDisplayName  string
+	Source                TakedownSource
+	Notes                 string
+	CreatedAt             time.Time
+	StrikesAfterOrgTotal  int64
+}
+
+// auditListCap is the hard ceiling on pagination page size. Audit reads
+// are admin-only and infrequent; a deeper page than this is almost
+// certainly a misconfigured caller and would expand the response payload
+// without payoff.
+const auditListCap = 100
+
+// auditListDefault is the soft default when no limit is supplied. Picked
+// to match the report queue page size (#734) so the two admin surfaces
+// behave consistently.
+const auditListDefault = 25
+
+// ListAudit returns a page of takedown audit-log rows, newest first,
+// joined with KB + publisher Org metadata. Pagination uses a
+// (created_at, id) keyset cursor — opaque to the caller, parsed by
+// EncodeAuditCursor / parseAuditCursor.
+//
+// Admin-only (see package doc): the SELECT crosses every tenant via the
+// raven_admin RLS bypass on marketplace_takedowns, knowledge_bases, and
+// organizations. The caller MUST be on a session that has switched to
+// raven_admin before invoking this. The handler in
+// internal/handler/admin_takedowns.go does so inside a short-lived tx.
+func (t *Takedowns) ListAudit(ctx context.Context, limit int, cursor string) ([]AuditRow, string, error) {
+	if limit <= 0 {
+		limit = auditListDefault
+	}
+	if limit > auditListCap {
+		limit = auditListCap
+	}
+
+	var (
+		cursorCreatedAt time.Time
+		cursorID        uuid.UUID
+		hasCursor       bool
+	)
+	if cursor != "" {
+		ca, id, err := parseAuditCursor(cursor)
+		if err != nil {
+			return nil, "", fmt.Errorf("Takedowns.ListAudit: cursor: %w", err)
+		}
+		cursorCreatedAt, cursorID, hasCursor = ca, id, true
+	}
+
+	// Fetch limit+1 rows so we can detect "more available" without a
+	// COUNT(*). The extra row, if present, becomes the next cursor.
+	//
+	// Switch to raven_admin inside a transaction so the audit cross-tenant
+	// SELECT can see every row. SET LOCAL ROLE reverts on COMMIT/ROLLBACK,
+	// leaving the pool connection in its original role for the next caller.
+	tx, err := t.pool.Begin(ctx)
+	if err != nil {
+		return nil, "", fmt.Errorf("Takedowns.ListAudit: begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if _, err := tx.Exec(ctx, "SET LOCAL ROLE raven_admin"); err != nil {
+		return nil, "", fmt.Errorf("Takedowns.ListAudit: set role: %w", err)
+	}
+
+	// Keyset pagination predicate: rows with (created_at, id) strictly
+	// less than the cursor. The tie-break on id keeps the order
+	// deterministic when two takedowns landed in the same microsecond.
+	//
+	// $2 / $3 are NULL on the first page; the WHERE clause's NULL guard
+	// then short-circuits the comparison so the same prepared statement
+	// serves both the first-page and follow-page cases.
+	const sql = `
+		SELECT
+		    td.id, td.target_kb_id, kb.name, o.slug, o.name,
+		    td.source, td.notes, td.created_at,
+		    o.takedown_strikes
+		FROM marketplace_takedowns AS td
+		JOIN knowledge_bases  AS kb ON kb.id = td.target_kb_id
+		JOIN organizations    AS o  ON o.id  = kb.org_id
+		WHERE ($2::timestamptz IS NULL)
+		   OR (td.created_at, td.id) < ($2::timestamptz, $3::uuid)
+		ORDER BY td.created_at DESC, td.id DESC
+		LIMIT $1
+	`
+
+	var (
+		cursorCreatedArg any
+		cursorIDArg      any
+	)
+	if hasCursor {
+		cursorCreatedArg = cursorCreatedAt
+		cursorIDArg = cursorID
+	}
+
+	rows, err := tx.Query(ctx, sql, limit+1, cursorCreatedArg, cursorIDArg)
+	if err != nil {
+		return nil, "", fmt.Errorf("Takedowns.ListAudit: query: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]AuditRow, 0, limit)
+	for rows.Next() {
+		var r AuditRow
+		var notes *string
+		if err := rows.Scan(
+			&r.TakedownID, &r.TargetKBID, &r.TargetKBName,
+			&r.TargetOrgSlug, &r.TargetOrgDisplayName,
+			&r.Source, &notes, &r.CreatedAt,
+			&r.StrikesAfterOrgTotal,
+		); err != nil {
+			return nil, "", fmt.Errorf("Takedowns.ListAudit: scan: %w", err)
+		}
+		if notes != nil {
+			r.Notes = *notes
+		}
+		out = append(out, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, "", fmt.Errorf("Takedowns.ListAudit: rows: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, "", fmt.Errorf("Takedowns.ListAudit: commit: %w", err)
+	}
+
+	// Trim the look-ahead row and emit a cursor pointing at the last
+	// returned row so the caller can page forward.
+	var nextCursor string
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	if len(out) == limit {
+		last := out[len(out)-1]
+		nextCursor = EncodeAuditCursor(last.CreatedAt, last.TakedownID)
+	}
+	return out, nextCursor, nil
 }
