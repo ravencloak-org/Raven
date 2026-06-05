@@ -1,12 +1,59 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { useApiKeysStore } from '../../stores/apikeys'
+import {
+  listApiKeys,
+  createApiKey,
+  revokeApiKey,
+  type ApiKey,
+  type CreateApiKeyRequest,
+} from '../../api/apikeys'
+import { findIndex } from 'remeda'
 import { useMobile } from '../../composables/useMediaQuery'
 import { pipe, split, map, filter, isTruthy } from 'remeda'
 import BottomSheet from '../../components/BottomSheet.vue'
 
-const store = useApiKeysStore()
 const { isMobile } = useMobile()
+
+// --- Local state (formerly in stores/apikeys.ts) ---
+const keys = ref<ApiKey[]>([])
+const loading = ref(false)
+const error = ref<string | null>(null)
+
+async function fetchKeys(): Promise<void> {
+  loading.value = true
+  error.value = null
+  try {
+    keys.value = await listApiKeys()
+  } catch (e) {
+    error.value = (e as Error).message
+  } finally {
+    loading.value = false
+  }
+}
+
+async function createKey(req: CreateApiKeyRequest) {
+  error.value = null
+  try {
+    const result = await createApiKey(req)
+    keys.value.push(result.api_key)
+    return result
+  } catch (e) {
+    error.value = (e as Error).message
+    throw e
+  }
+}
+
+async function revokeKey(keyId: string): Promise<void> {
+  error.value = null
+  try {
+    const updated = await revokeApiKey(keyId)
+    const idx = findIndex(keys.value, (k) => k.id === keyId)
+    if (idx !== -1) keys.value[idx] = updated
+  } catch (e) {
+    error.value = (e as Error).message
+    throw e
+  }
+}
 
 // --- Create dialog state ---
 const showCreateDialog = ref(false)
@@ -36,7 +83,7 @@ const embedCode = computed(() => {
   return `<script src="${WIDGET_SCRIPT_URL}" data-api-key="${newRawKey.value}" async><` + '/script>'
 })
 
-onMounted(() => store.fetchKeys())
+onMounted(() => fetchKeys())
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -63,7 +110,7 @@ async function handleCreate() {
       map((d) => d.trim()),
       filter(isTruthy),
     )
-    const result = await store.create({
+    const result = await createKey({
       name: newKeyName.value.trim(),
       allowed_domains: domains,
       rate_limit: newKeyRateLimit.value,
@@ -88,7 +135,7 @@ async function confirmRevoke() {
   if (!keyToRevoke.value) return
   revoking.value = true
   try {
-    await store.revoke(keyToRevoke.value)
+    await revokeKey(keyToRevoke.value)
     showRevokeDialog.value = false
   } finally {
     revoking.value = false
@@ -109,7 +156,6 @@ async function copyToClipboard(text: string, type: 'key' | 'embed') {
 function dismissNewKeyBanner() {
   showNewKeyBanner.value = false
   newRawKey.value = ''
-  store.clearLastCreatedKey()
 }
 
 function mobileStatusClass(status: string): string {
@@ -192,16 +238,16 @@ function mobileStatusClass(status: string): string {
     </div>
 
     <!-- Loading -->
-    <div v-if="store.loading" class="text-gray-500">Loading API keys...</div>
+    <div v-if="loading" class="text-gray-500">Loading API keys...</div>
 
     <!-- Error -->
-    <div v-else-if="store.error" class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-      {{ store.error }}
+    <div v-else-if="error" class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+      {{ error }}
     </div>
 
     <!-- Empty state -->
     <div
-      v-else-if="store.keys.length === 0"
+      v-else-if="keys.length === 0"
       class="rounded-xl border border-dashed border-gray-300 bg-white p-12 text-center"
     >
       <p class="text-gray-500">No API keys yet. Create one to get started.</p>
@@ -222,7 +268,7 @@ function mobileStatusClass(status: string): string {
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-200">
-          <tr v-for="key in store.keys" :key="key.id">
+          <tr v-for="key in keys" :key="key.id">
             <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
               {{ key.name }}
             </td>
@@ -265,7 +311,7 @@ function mobileStatusClass(status: string): string {
     <!-- Mobile: card list -->
     <div v-else class="space-y-3">
       <div
-        v-for="key in store.keys"
+        v-for="key in keys"
         :key="key.id"
         class="bg-slate-800 rounded-xl p-3.5"
       >

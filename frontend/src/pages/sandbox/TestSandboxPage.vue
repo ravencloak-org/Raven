@@ -1,11 +1,91 @@
 <script setup lang="ts">
-import { ref, nextTick, watch, onMounted } from 'vue'
-import { useTestSandboxStore } from '../../stores/test-sandbox'
+import { ref, computed, nextTick, watch, onMounted } from 'vue'
+import {
+  sendTestMessage,
+  getTestHistory,
+  generateMockId,
+  type TestMessage,
+} from '../../api/test-sandbox'
 import { useKnowledgeBasesStore } from '../../stores/knowledge-bases'
 import { filter } from 'remeda'
 
-const sandboxStore = useTestSandboxStore()
 const kbStore = useKnowledgeBasesStore()
+
+// --- Local sandbox state (formerly stores/test-sandbox.ts) ---
+const messages = ref<TestMessage[]>([])
+const selectedKbId = ref<string | null>(null)
+const loading = ref(false)
+const streaming = ref(false)
+const error = ref<string | null>(null)
+
+const hasMessages = computed(() => messages.value.length > 0)
+const hasSelectedKb = computed(() => selectedKbId.value !== null)
+
+async function loadHistory(kbId: string): Promise<void> {
+  loading.value = true
+  error.value = null
+  try {
+    messages.value = await getTestHistory(kbId)
+  } catch (e) {
+    error.value = (e as Error).message
+  } finally {
+    loading.value = false
+  }
+}
+
+async function selectKb(kbId: string): Promise<void> {
+  if (selectedKbId.value === kbId) return
+  selectedKbId.value = kbId
+  messages.value = []
+  error.value = null
+  await loadHistory(kbId)
+}
+
+async function sendMessage(content: string): Promise<void> {
+  if (!selectedKbId.value || !content.trim()) return
+
+  const userMessage: TestMessage = {
+    id: generateMockId(),
+    role: 'user',
+    content: content.trim(),
+    timestamp: new Date().toISOString(),
+  }
+  messages.value.push(userMessage)
+
+  const assistantMessage: TestMessage = {
+    id: generateMockId(),
+    role: 'assistant',
+    content: '',
+    timestamp: new Date().toISOString(),
+  }
+  messages.value.push(assistantMessage)
+
+  streaming.value = true
+  error.value = null
+
+  try {
+    const stream = sendTestMessage(selectedKbId.value, content.trim())
+    for await (const chunk of stream) {
+      const lastMsg = messages.value[messages.value.length - 1]
+      if (lastMsg && lastMsg.role === 'assistant') {
+        lastMsg.content += chunk
+      }
+    }
+  } catch (e) {
+    error.value = (e as Error).message
+    const lastMsg = messages.value[messages.value.length - 1]
+    if (lastMsg && lastMsg.role === 'assistant' && !lastMsg.content) {
+      messages.value.pop()
+    }
+  } finally {
+    streaming.value = false
+  }
+}
+
+function clearConversation(): void {
+  messages.value = []
+  error.value = null
+}
 
 const messageInput = ref('')
 const chatContainer = ref<HTMLElement | null>(null)
@@ -23,15 +103,15 @@ onMounted(() => {
 async function onKbChange(event: Event) {
   const kbId = (event.target as HTMLSelectElement).value
   if (kbId) {
-    await sandboxStore.selectKb(kbId)
+    await selectKb(kbId)
   }
 }
 
 async function handleSend() {
   const content = messageInput.value.trim()
-  if (!content || !sandboxStore.hasSelectedKb) return
+  if (!content || !hasSelectedKb.value) return
   messageInput.value = ''
-  await sandboxStore.sendMessage(content)
+  await sendMessage(content)
 }
 
 function handleKeydown(event: KeyboardEvent) {
@@ -54,7 +134,7 @@ function scrollToBottom() {
 
 // Auto-scroll when messages change or during streaming
 watch(
-  () => sandboxStore.messages.map((m) => m.content).join(''),
+  () => messages.value.map((m) => m.content).join(''),
   () => scrollToBottom(),
 )
 
@@ -90,9 +170,9 @@ watch(
         </div>
         <div class="flex items-center gap-3">
           <button
-            v-if="sandboxStore.hasMessages"
+            v-if="hasMessages"
             class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            @click="sandboxStore.clearConversation()"
+            @click="clearConversation()"
           >
             Clear conversation
           </button>
@@ -106,7 +186,7 @@ watch(
         </label>
         <select
           id="kb-select"
-          :value="sandboxStore.selectedKbId ?? ''"
+          :value="selectedKbId ?? ''"
           class="mt-1 block w-full max-w-md rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           @change="onKbChange"
         >
@@ -122,7 +202,7 @@ watch(
     <div class="flex flex-1 flex-col overflow-hidden bg-gray-50">
       <!-- Empty state: no KB selected -->
       <div
-        v-if="!sandboxStore.hasSelectedKb"
+        v-if="!hasSelectedKb"
         class="flex flex-1 items-center justify-center"
       >
         <div class="text-center">
@@ -140,7 +220,7 @@ watch(
 
       <!-- Loading history -->
       <div
-        v-else-if="sandboxStore.loading"
+        v-else-if="loading"
         class="flex flex-1 items-center justify-center"
       >
         <div class="flex items-center gap-3">
@@ -153,7 +233,7 @@ watch(
       <template v-else>
         <!-- Empty conversation state -->
         <div
-          v-if="!sandboxStore.hasMessages && !sandboxStore.streaming"
+          v-if="!hasMessages && !streaming"
           class="flex flex-1 items-center justify-center"
         >
           <div class="text-center">
@@ -176,7 +256,7 @@ watch(
           class="flex-1 space-y-4 overflow-y-auto px-6 py-4"
         >
           <div
-            v-for="msg in sandboxStore.messages"
+            v-for="msg in messages"
             :key="msg.id"
             class="flex"
             :class="msg.role === 'user' ? 'justify-end' : 'justify-start'"
@@ -190,7 +270,7 @@ watch(
               "
             >
               <p class="whitespace-pre-wrap text-sm leading-relaxed">{{ msg.content }}<span
-                v-if="msg.role === 'assistant' && sandboxStore.streaming && msg === sandboxStore.messages[sandboxStore.messages.length - 1]"
+                v-if="msg.role === 'assistant' && streaming && msg === messages[messages.length - 1]"
                 class="ml-0.5 inline-block h-4 w-1 animate-pulse bg-current align-middle"
               ></span></p>
               <p
@@ -204,7 +284,7 @@ watch(
 
           <!-- Typing indicator when streaming hasn't produced content yet -->
           <div
-            v-if="sandboxStore.streaming && sandboxStore.messages.length > 0 && sandboxStore.messages[sandboxStore.messages.length - 1].content === ''"
+            v-if="streaming && messages.length > 0 && messages[messages.length - 1].content === ''"
             class="flex justify-start"
           >
             <div class="rounded-2xl border border-gray-200 bg-white px-4 py-3">
@@ -219,10 +299,10 @@ watch(
 
         <!-- Error banner -->
         <div
-          v-if="sandboxStore.error"
+          v-if="error"
           class="mx-6 mb-2 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
         >
-          {{ sandboxStore.error }}
+          {{ error }}
         </div>
 
         <!-- Message input -->
@@ -232,13 +312,13 @@ watch(
               v-model="messageInput"
               rows="1"
               placeholder="Type a message to test..."
-              :disabled="!sandboxStore.hasSelectedKb || sandboxStore.streaming"
+              :disabled="!hasSelectedKb || streaming"
               class="flex-1 resize-none rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100"
               @keydown="handleKeydown"
             ></textarea>
             <button
               type="submit"
-              :disabled="!messageInput.trim() || !sandboxStore.hasSelectedKb || sandboxStore.streaming"
+              :disabled="!messageInput.trim() || !hasSelectedKb || streaming"
               class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

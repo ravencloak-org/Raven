@@ -1,13 +1,53 @@
 <script setup lang="ts">
-import { onMounted, computed } from 'vue'
-import { useAnalyticsStore } from '../../stores/analytics'
-import type { DateRange } from '../../api/analytics'
+import { onMounted, ref, computed } from 'vue'
+import {
+  getConversationVolume,
+  getTopQueries,
+  getSourceHits,
+  getUnansweredQuestions,
+  type ConversationVolumePoint,
+  type TopQuery,
+  type SourceHit,
+  type UnansweredQuestion,
+  type DateRange,
+} from '../../api/analytics'
 import { map, firstBy, sumBy } from 'remeda'
 
-const store = useAnalyticsStore()
+const conversationVolume = ref<ConversationVolumePoint[]>([])
+const topQueries = ref<TopQuery[]>([])
+const sourceHits = ref<SourceHit[]>([])
+const unansweredQuestions = ref<UnansweredQuestion[]>([])
+const selectedRange = ref<DateRange>('30d')
+const loading = ref(false)
+const error = ref<string | null>(null)
+
+async function fetchAll(range?: DateRange) {
+  if (range) {
+    selectedRange.value = range
+  }
+  loading.value = true
+  error.value = null
+  try {
+    const r = selectedRange.value
+    const [volume, queries, sources, unanswered] = await Promise.all([
+      getConversationVolume(r),
+      getTopQueries(r),
+      getSourceHits(r),
+      getUnansweredQuestions(r),
+    ])
+    conversationVolume.value = volume
+    topQueries.value = queries
+    sourceHits.value = sources
+    unansweredQuestions.value = unanswered
+  } catch (e) {
+    error.value = (e as Error).message
+  } finally {
+    loading.value = false
+  }
+}
 
 onMounted(() => {
-  store.fetchAll()
+  fetchAll()
 })
 
 const rangeOptions: { value: DateRange; label: string }[] = [
@@ -18,22 +58,22 @@ const rangeOptions: { value: DateRange; label: string }[] = [
 
 function onRangeChange(event: Event) {
   const value = (event.target as HTMLSelectElement).value as DateRange
-  store.changeRange(value)
+  fetchAll(value)
 }
 
 const maxVolume = computed(() => {
-  if (store.conversationVolume.length === 0) return 1
-  const top = firstBy(store.conversationVolume, [(p) => p.count, 'desc'])
+  if (conversationVolume.value.length === 0) return 1
+  const top = firstBy(conversationVolume.value, [(p) => p.count, 'desc'])
   return top?.count ?? 1
 })
 
 const totalConversations = computed(() =>
-  sumBy(store.conversationVolume, (p) => p.count),
+  sumBy(conversationVolume.value, (p) => p.count),
 )
 
 const maxSourceHitCount = computed(() => {
-  if (store.sourceHits.length === 0) return 1
-  const top = firstBy(store.sourceHits, [(s) => s.hitCount, 'desc'])
+  if (sourceHits.value.length === 0) return 1
+  const top = firstBy(sourceHits.value, [(s) => s.hitCount, 'desc'])
   return top?.hitCount ?? 1
 })
 
@@ -49,7 +89,7 @@ function formatDateTime(iso: string): string {
 
 /** Show abbreviated labels on the volume chart x-axis. */
 const volumeLabels = computed(() => {
-  const pts = store.conversationVolume
+  const pts = conversationVolume.value
   if (pts.length <= 14) return map(pts, (p) => formatDate(p.date))
   // For 30d/90d, show every Nth label
   const step = Math.ceil(pts.length / 12)
@@ -66,7 +106,7 @@ const volumeLabels = computed(() => {
         <p class="mt-1 text-sm text-gray-500">Conversation insights and knowledge base performance</p>
       </div>
       <select
-        :value="store.selectedRange"
+        :value="selectedRange"
         class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
         @change="onRangeChange"
       >
@@ -77,17 +117,17 @@ const volumeLabels = computed(() => {
     </div>
 
     <!-- Loading state -->
-    <div v-if="store.loading" class="flex items-center justify-center py-20">
+    <div v-if="loading" class="flex items-center justify-center py-20">
       <div class="h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600"></div>
       <span class="ml-3 text-sm text-gray-500">Loading analytics...</span>
     </div>
 
     <!-- Error state -->
     <div
-      v-else-if="store.error"
+      v-else-if="error"
       class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
     >
-      Failed to load analytics: {{ store.error }}
+      Failed to load analytics: {{ error }}
     </div>
 
     <!-- Dashboard content -->
@@ -100,15 +140,15 @@ const volumeLabels = computed(() => {
         </div>
         <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <h3 class="text-sm font-semibold text-gray-500">Unique Queries</h3>
-          <p class="mt-2 text-3xl font-bold text-gray-900">{{ store.topQueries.length }}</p>
+          <p class="mt-2 text-3xl font-bold text-gray-900">{{ topQueries.length }}</p>
         </div>
         <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <h3 class="text-sm font-semibold text-gray-500">Sources Used</h3>
-          <p class="mt-2 text-3xl font-bold text-gray-900">{{ store.sourceHits.length }}</p>
+          <p class="mt-2 text-3xl font-bold text-gray-900">{{ sourceHits.length }}</p>
         </div>
         <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <h3 class="text-sm font-semibold text-gray-500">Unanswered</h3>
-          <p class="mt-2 text-3xl font-bold text-indigo-600">{{ store.unansweredQuestions.length }}</p>
+          <p class="mt-2 text-3xl font-bold text-indigo-600">{{ unansweredQuestions.length }}</p>
         </div>
       </div>
 
@@ -117,7 +157,7 @@ const volumeLabels = computed(() => {
         <h2 class="mb-4 text-lg font-semibold text-gray-900">Conversation Volume</h2>
         <div class="flex items-end gap-px" style="height: 200px">
           <div
-            v-for="(point, idx) in store.conversationVolume"
+            v-for="(point, idx) in conversationVolume"
             :key="point.date"
             class="group relative flex flex-1 flex-col items-center justify-end"
           >
@@ -150,7 +190,7 @@ const volumeLabels = computed(() => {
           <h2 class="mb-4 text-lg font-semibold text-gray-900">Top Queries</h2>
           <div class="space-y-3">
             <div
-              v-for="q in store.topQueries"
+              v-for="q in topQueries"
               :key="q.query"
               class="space-y-1"
             >
@@ -161,7 +201,7 @@ const volumeLabels = computed(() => {
               <div class="h-2 w-full overflow-hidden rounded-full bg-gray-100">
                 <div
                   class="h-full rounded-full bg-indigo-500"
-                  :style="{ width: (q.count / (store.topQueries[0]?.count || 1)) * 100 + '%' }"
+                  :style="{ width: (q.count / (topQueries[0]?.count || 1)) * 100 + '%' }"
                 ></div>
               </div>
             </div>
@@ -173,7 +213,7 @@ const volumeLabels = computed(() => {
           <h2 class="mb-4 text-lg font-semibold text-gray-900">Source Hit Frequency</h2>
           <div class="space-y-3">
             <div
-              v-for="src in store.sourceHits"
+              v-for="src in sourceHits"
               :key="src.sourceId"
               class="space-y-1"
             >
@@ -195,12 +235,12 @@ const volumeLabels = computed(() => {
       <!-- Unanswered Questions -->
       <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 class="mb-4 text-lg font-semibold text-gray-900">Unanswered Questions</h2>
-        <div v-if="store.unansweredQuestions.length === 0" class="py-8 text-center text-sm text-gray-400">
+        <div v-if="unansweredQuestions.length === 0" class="py-8 text-center text-sm text-gray-400">
           No unanswered questions in this period.
         </div>
         <div v-else class="divide-y divide-gray-100">
           <div
-            v-for="uq in store.unansweredQuestions"
+            v-for="uq in unansweredQuestions"
             :key="uq.id"
             class="flex items-start justify-between gap-4 py-3"
           >

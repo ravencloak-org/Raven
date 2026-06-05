@@ -1,3 +1,6 @@
+// KEEP (issue #831 audit): owns the 5s polling timer for live sessions and shares
+// sessions/currentSession/turns across VoiceSessionListPage and VoiceSessionDetailPage.
+// Detail page must see list-page mutations, and only one polling handle may exist.
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { filter } from 'remeda'

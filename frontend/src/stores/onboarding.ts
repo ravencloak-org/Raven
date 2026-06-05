@@ -1,3 +1,5 @@
+// KEEP (issue #831 audit): bridges localStorage onboarding-completed flag to the
+// reactive system; consumed by router guard, DefaultLayout, and OnboardingWizard.
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
