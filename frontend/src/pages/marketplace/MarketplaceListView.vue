@@ -222,5 +222,14 @@ function onImported(payload: { orgId: string; workspaceId: string; kbId: string 
       @close="importDialogOpen = false"
       @imported="onImported"
     />
+
+    <!-- DMCA footer link (issue #736, ADR-0006 launch blocker). The link
+         is intentionally minimal — operational details live at
+         /legal/dmca. -->
+    <footer class="mt-8 border-t border-gray-200 pt-4 text-xs text-gray-500">
+      <RouterLink to="/legal/dmca" class="text-indigo-600 hover:underline">
+        DMCA policy
+      </RouterLink>
+    </footer>
   </div>
 </template>

@@ -27,6 +27,11 @@ const (
 
 	// TypeTrialLifecycle advances subscriptions through the trial→grace→archive→delete pipeline.
 	TypeTrialLifecycle = "scheduled:trial_lifecycle"
+
+	// TypeMarketplaceDMCASweep auto-resolves DMCA notices whose 14-day
+	// counter-notice window has expired (issue #736, ADR-0006). Runs
+	// daily; see internal/jobs/marketplace_dmca_sweeper.go.
+	TypeMarketplaceDMCASweep = "scheduled:marketplace_dmca_sweep"
 )
 
 // RecrawlPayload is the payload for the source re-crawl scheduled task.
@@ -101,4 +106,20 @@ func NewTrialLifecycleTask(p TrialLifecyclePayload) (*asynq.Task, error) {
 		return nil, fmt.Errorf("marshal TrialLifecyclePayload: %w", err)
 	}
 	return asynq.NewTask(TypeTrialLifecycle, data), nil
+}
+
+// MarketplaceDMCASweepPayload is the payload for the daily DMCA sweep
+// cron task. Empty in MVP — the sweep always scans every pending notice
+// whose 14-day window has expired. The struct exists so future
+// payloads (limit, dry-run flag) do not require a task-type rename.
+type MarketplaceDMCASweepPayload struct{}
+
+// NewMarketplaceDMCASweepTask creates a new Asynq task for the DMCA
+// counter-notice-window sweep.
+func NewMarketplaceDMCASweepTask(p MarketplaceDMCASweepPayload) (*asynq.Task, error) {
+	data, err := json.Marshal(p)
+	if err != nil {
+		return nil, fmt.Errorf("marshal MarketplaceDMCASweepPayload: %w", err)
+	}
+	return asynq.NewTask(TypeMarketplaceDMCASweep, data), nil
 }

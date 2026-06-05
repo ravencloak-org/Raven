@@ -182,6 +182,15 @@ const router = createRouter({
           component: () => import('../pages/admin/AdminTakedownsView.vue'),
           meta: { requiresAuth: true, requiresPlatformAdmin: true },
         },
+        {
+          // DMCA inbox + two-stage counter-notice workflow (issue #736,
+          // launch blocker per ADR-0006). Same SPA-side guard as #734/#735;
+          // the backend enforces the gate via RequirePlatformAdmin.
+          path: 'admin/marketplace/dmca',
+          name: 'admin-marketplace-dmca',
+          component: () => import('../pages/admin/AdminDMCAView.vue'),
+          meta: { requiresAuth: true, requiresPlatformAdmin: true },
+        },
       ],
     },
     {
@@ -197,6 +206,13 @@ const router = createRouter({
           path: 'terms',
           name: 'terms-of-service',
           component: () => import('../pages/legal/TermsOfServicePage.vue'),
+        },
+        {
+          // Designated-agent details + counter-notice rights summary
+          // required by ADR-0006 + #736's launch-blocker scope.
+          path: 'dmca',
+          name: 'dmca',
+          component: () => import('../pages/legal/DMCAPage.vue'),
         },
       ],
     },
