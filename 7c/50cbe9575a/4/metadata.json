@@ -3,29 +3,29 @@
   "checkpoint_id": "7c50cbe9575a",
   "session_id": "337cea8f-5a6b-4199-bc68-1de07b76ec01",
   "strategy": "manual-commit",
-  "created_at": "2026-06-06T09:09:06.440781Z",
-  "branch": "fix/unblock-ci-migration-00054",
+  "created_at": "2026-06-06T09:21:42.670522Z",
+  "branch": "fix/aiofiles-missing-hash",
   "checkpoints_count": 1,
   "files_touched": [
     ".github/workflows/go.yml"
   ],
   "agent": "Claude Code",
-  "checkpoint_transcript_start": 8928,
-  "transcript_lines_at_start": 8928,
+  "checkpoint_transcript_start": 9080,
+  "transcript_lines_at_start": 9080,
   "token_usage": {
-    "input_tokens": 41,
-    "cache_creation_tokens": 40695,
-    "cache_read_tokens": 22231422,
-    "output_tokens": 18079,
-    "api_call_count": 36
+    "input_tokens": 24,
+    "cache_creation_tokens": 16497,
+    "cache_read_tokens": 12251266,
+    "output_tokens": 8697,
+    "api_call_count": 19
   },
   "initial_attribution": {
-    "calculated_at": "2026-06-06T09:09:05.393381Z",
+    "calculated_at": "2026-06-06T09:21:41.510024Z",
     "agent_lines": 0,
-    "human_added": 12,
+    "human_added": 594,
     "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 12,
+    "total_committed": 594,
     "agent_percentage": 0
   }
 }

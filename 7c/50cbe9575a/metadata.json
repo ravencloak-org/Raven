@@ -2,7 +2,7 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "branch": "fix/unblock-ci-migration-00054",
+  "branch": "fix/aiofiles-missing-hash",
   "checkpoints_count": 19,
   "files_touched": [
     ".claude/worktrees/agent-a0133ac4b53119310/.env.ci",
@@ -2222,10 +2222,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 1962,
-    "cache_creation_tokens": 11396621,
-    "cache_read_tokens": 408782355,
-    "output_tokens": 861881,
-    "api_call_count": 1259
+    "input_tokens": 1945,
+    "cache_creation_tokens": 11372423,
+    "cache_read_tokens": 398802199,
+    "output_tokens": 852499,
+    "api_call_count": 1242
   }
 }
