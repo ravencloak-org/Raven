@@ -93,7 +93,4 @@ class LLMSpendFuse:
         new_total = self.redis.incrbyfloat(self._key(), actual_cost_usd)
         self.redis.expire(self._key(), self._TTL_SECONDS)
         if float(new_total) > self.cap:
-            raise FuseTripped(
-                f"Daily LLM cap ${self.cap:.2f} exceeded "
-                f"(total ${new_total:.4f})"
-            )
+            raise FuseTripped(f"Daily LLM cap ${self.cap:.2f} exceeded (total ${new_total:.4f})")
