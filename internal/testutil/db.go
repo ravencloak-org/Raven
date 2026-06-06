@@ -147,22 +147,33 @@ func RunMigrations(t *testing.T, db *sql.DB, overrideDir ...string) {
 		t.Fatalf("goose.Up: %v", err)
 	}
 
-	// Grant all tables to the application roles. Production databases
-	// set up grants out-of-band (or via role configuration), but the
-	// testcontainer starts fresh with raven_test as superuser and no
-	// pre-existing grants. Services that run SET LOCAL ROLE raven_admin
-	// (or raven_app) inside transactions need explicit table access;
-	// without this grant they hit "permission denied" even though the
-	// schema is correct.
+	// Grant marketplace-specific tables to the application roles.
+	// The testcontainer starts as raven_test (superuser) with no
+	// pre-existing grants. Services that do SET LOCAL ROLE raven_admin
+	// inside transactions need explicit SELECT/INSERT/UPDATE on these
+	// tables; without this they hit "permission denied" even though the
+	// schema (and RLS policies) are correct.
+	// Only the tables that cross the SET LOCAL ROLE boundary are listed
+	// here — broad GRANT ALL would break RLS-focused tests.
 	grantCtx := context.Background()
-	if _, err := db.ExecContext(grantCtx,
-		`GRANT ALL ON ALL TABLES IN SCHEMA public TO raven_admin, raven_app`,
-	); err != nil {
-		t.Fatalf("grant tables to app roles: %v", err)
+	adminTables := []string{
+		"marketplace_reports",
+		"marketplace_takedowns",
+		"dmca_notices",
+		"knowledge_bases",
+		"organizations",
 	}
+	for _, tbl := range adminTables {
+		if _, err := db.ExecContext(grantCtx,
+			"GRANT SELECT, INSERT, UPDATE, DELETE ON "+tbl+" TO raven_admin",
+		); err != nil {
+			t.Fatalf("grant %s to raven_admin: %v", tbl, err)
+		}
+	}
+	// raven_app creates reports on behalf of authenticated users.
 	if _, err := db.ExecContext(grantCtx,
-		`GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO raven_admin, raven_app`,
+		`GRANT SELECT, INSERT ON marketplace_reports TO raven_app`,
 	); err != nil {
-		t.Fatalf("grant sequences to app roles: %v", err)
+		t.Fatalf("grant marketplace_reports to raven_app: %v", err)
 	}
 }
