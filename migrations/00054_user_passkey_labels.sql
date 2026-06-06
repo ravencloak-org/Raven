@@ -70,7 +70,7 @@ CREATE POLICY admin_bypass ON user_passkey_labels
 -- scan; this index keeps the list query O(log n) per user. Squawk warns
 -- about CONCURRENTLY inside a transaction; the migration is wrapped in
 -- the goose annotation at the top so it runs outside one.
--- squawk-ignore-next-statement ban-concurrent-index-creation-in-transaction
+-- squawk-ignore ban-concurrent-index-creation-in-transaction
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_passkey_labels_user_id
     ON user_passkey_labels (user_id);
 
@@ -86,5 +86,5 @@ SET statement_timeout = '30s';
 DROP INDEX CONCURRENTLY IF EXISTS idx_user_passkey_labels_user_id;
 DROP POLICY IF EXISTS admin_bypass ON user_passkey_labels;
 DROP POLICY IF EXISTS user_self_access ON user_passkey_labels;
--- squawk-ignore-next-statement ban-drop-table
+-- squawk-ignore ban-drop-table
 DROP TABLE IF EXISTS user_passkey_labels;
