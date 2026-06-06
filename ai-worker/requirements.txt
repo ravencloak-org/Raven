@@ -124,7 +124,7 @@ idna==3.18
     #   httpx
     #   requests
     #   yarl
-importlib-metadata==8.7.1
+importlib-metadata==9.0.0
     # via opentelemetry-api
 jiter==0.15.0
     # via
