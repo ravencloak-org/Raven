@@ -1796,3 +1796,15 @@ continue
 ---
 
 continue
+
+---
+
+finish the rest of it
+
+---
+
+for url source crawling lets use https://github.com/firecrawl/firecrawl
+
+---
+
+close https://github.com/ravencloak-org/Raven/pull/832 comments

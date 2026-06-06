@@ -884,3 +884,15 @@ continue
 
 continue
 
+### Prompt 152
+
+finish the rest of it
+
+### Prompt 153
+
+for url source crawling lets use https://github.com/firecrawl/firecrawl
+
+### Prompt 154
+
+close https://github.com/ravencloak-org/Raven/pull/832 comments
+
