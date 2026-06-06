@@ -45,17 +45,20 @@ func seedModFixture(ctx context.Context, t *testing.T, pool *pgxpool.Pool, label
 		KBID:   uuid.New(),
 	}
 
+	// Precompute slugs in Go to avoid reusing the same $N parameter in
+	// both a column value and a string expression within the same VALUES
+	// clause, which triggers SQLSTATE 42P08 with pgx/v5 extended protocol.
+	orgSlug := label + "-org-" + f.OrgID.String()[:8]
+	wsSlug := label + "-ws-" + f.WSID.String()[:8]
 	if _, err := pool.Exec(ctx,
-		`INSERT INTO organizations (id, name, slug)
-		 VALUES ($1, $2, $2 || '-' || substring($1::text from 1 for 8))`,
-		f.OrgID, label+"-org",
+		`INSERT INTO organizations (id, name, slug) VALUES ($1, $2, $3)`,
+		f.OrgID, label+"-org", orgSlug,
 	); err != nil {
 		t.Fatalf("seed organization: %v", err)
 	}
 	if _, err := pool.Exec(ctx,
-		`INSERT INTO workspaces (id, org_id, name, slug)
-		 VALUES ($1, $2, $3, $3 || '-' || substring($1::text from 1 for 8))`,
-		f.WSID, f.OrgID, label+"-ws",
+		`INSERT INTO workspaces (id, org_id, name, slug) VALUES ($1, $2, $3, $4)`,
+		f.WSID, f.OrgID, label+"-ws", wsSlug,
 	); err != nil {
 		t.Fatalf("seed workspace: %v", err)
 	}

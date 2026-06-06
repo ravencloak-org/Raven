@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,6 +20,15 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
+
+// goose.SetDialect writes to package-level global state in the goose library.
+// Calling it from parallel test goroutines triggers the race detector even
+// though the value is always "postgres". Call it once at process start.
+var setDialectOnce = sync.OnceFunc(func() {
+	if err := goose.SetDialect("postgres"); err != nil {
+		panic("goose.SetDialect: " + err.Error())
+	}
+})
 
 // TestDBOption configures NewTestDB behaviour.
 type TestDBOption func(*testDBConfig)
@@ -132,9 +142,7 @@ func RunMigrations(t *testing.T, db *sql.DB, overrideDir ...string) {
 		t.Fatalf("migrations directory not found at %s: %v", migrationsDir, err)
 	}
 
-	if err := goose.SetDialect("postgres"); err != nil {
-		t.Fatalf("goose.SetDialect: %v", err)
-	}
+	setDialectOnce()
 	if err := goose.Up(db, migrationsDir); err != nil {
 		t.Fatalf("goose.Up: %v", err)
 	}

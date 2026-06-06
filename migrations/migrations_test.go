@@ -829,13 +829,16 @@ func TestMigrationsUpAndDown(t *testing.T) {
 			t.Run(tc.fnName, func(t *testing.T) {
 				// 1. Function exists at the expected (name, arg-types) signature.
 				var oid uint32
+				// pg_get_function_identity_arguments returns only types (no
+				// parameter names), matching the "text, text, text[]…" form in
+				// the test cases. pg_get_function_arguments includes names.
 				err := db.QueryRowContext(ctx,
 					`SELECT p.oid
 					 FROM pg_proc p
 					 JOIN pg_namespace n ON n.oid = p.pronamespace
 					 WHERE n.nspname = 'public'
 					   AND p.proname = $1
-					   AND pg_get_function_arguments(p.oid) = $2`,
+					   AND pg_get_function_identity_arguments(p.oid) = $2`,
 					tc.fnName, tc.args).Scan(&oid)
 				if err != nil {
 					t.Fatalf("function %s(%s) not found: %v", tc.fnName, tc.args, err)
