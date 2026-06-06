@@ -45,30 +45,36 @@ func seedModFixture(ctx context.Context, t *testing.T, pool *pgxpool.Pool, label
 		KBID:   uuid.New(),
 	}
 
+	// pgx + PG18 reject `$N || ... substring($1::text...)` shapes when the
+	// same placeholder appears in both a column slot AND a text-concat
+	// expression — parameter type inference deduces incompatible types
+	// and aborts with SQLSTATE 42P08. Casting each placeholder explicitly
+	// at every use site pins the type at parse time and dodges the inference
+	// loop entirely.
 	if _, err := pool.Exec(ctx,
 		`INSERT INTO organizations (id, name, slug)
-		 VALUES ($1, $2, $2 || '-' || substring($1::text from 1 for 8))`,
+		 VALUES ($1::uuid, $2::text, $2::text || '-' || substring($1::uuid::text from 1 for 8))`,
 		f.OrgID, label+"-org",
 	); err != nil {
 		t.Fatalf("seed organization: %v", err)
 	}
 	if _, err := pool.Exec(ctx,
 		`INSERT INTO workspaces (id, org_id, name, slug)
-		 VALUES ($1, $2, $3, $3 || '-' || substring($1::text from 1 for 8))`,
+		 VALUES ($1::uuid, $2::uuid, $3::text, $3::text || '-' || substring($1::uuid::text from 1 for 8))`,
 		f.WSID, f.OrgID, label+"-ws",
 	); err != nil {
 		t.Fatalf("seed workspace: %v", err)
 	}
 	if _, err := pool.Exec(ctx,
 		`INSERT INTO users (id, org_id, email, status)
-		 VALUES ($1, $2, $3 || '-' || substring($1::text from 1 for 8) || '@example.com', 'active')`,
+		 VALUES ($1::uuid, $2::uuid, $3::text || '-' || substring($1::uuid::text from 1 for 8) || '@example.com', 'active')`,
 		f.UserID, f.OrgID, label,
 	); err != nil {
 		t.Fatalf("seed user: %v", err)
 	}
 	if _, err := pool.Exec(ctx,
 		`INSERT INTO knowledge_bases (id, org_id, workspace_id, name, slug)
-		 VALUES ($1, $2, $3, $4, $4 || '-' || substring($1::text from 1 for 8))`,
+		 VALUES ($1::uuid, $2::uuid, $3::uuid, $4::text, $4::text || '-' || substring($1::uuid::text from 1 for 8))`,
 		f.KBID, f.OrgID, f.WSID, label+"-kb",
 	); err != nil {
 		t.Fatalf("seed knowledge_base: %v", err)
