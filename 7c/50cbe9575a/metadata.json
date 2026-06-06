@@ -28,8 +28,8 @@
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
     ".claude/worktrees/feat-billing-annual-refund/.env.ci",
     ".claude/worktrees/feat-enterprise-onboarding/.env.ci",
-    ".github/workflows/go.yml",
     "CONTEXT.md",
+    "ai-worker/Dockerfile",
     "ai-worker/pyproject.toml",
     "ai-worker/tests/test_rag_llm_fuse.py",
     "cmd/api/main.go",
@@ -2222,10 +2222,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 1945,
-    "cache_creation_tokens": 11372423,
-    "cache_read_tokens": 398802199,
-    "output_tokens": 852499,
-    "api_call_count": 1242
+    "input_tokens": 1948,
+    "cache_creation_tokens": 11378510,
+    "cache_read_tokens": 401175912,
+    "output_tokens": 856373,
+    "api_call_count": 1245
   }
 }
