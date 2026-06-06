@@ -278,7 +278,7 @@ pyyaml==6.0.3
     #   huggingface-hub
     #   langchain-core
     #   uvicorn
-redis==7.4.0
+redis==8.0.0
     # via raven-worker
 requests==2.34.2
     # via
