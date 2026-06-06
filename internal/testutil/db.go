@@ -146,4 +146,22 @@ func RunMigrations(t *testing.T, db *sql.DB, overrideDir ...string) {
 	if err := goose.Up(db, migrationsDir); err != nil {
 		t.Fatalf("goose.Up: %v", err)
 	}
+
+	// Grant all tables to the application roles. Production databases
+	// set up grants out-of-band (or via role configuration), but the
+	// testcontainer starts fresh with raven_test as superuser and no
+	// pre-existing grants. Services that run SET LOCAL ROLE raven_admin
+	// (or raven_app) inside transactions need explicit table access;
+	// without this grant they hit "permission denied" even though the
+	// schema is correct.
+	if _, err := db.ExecContext(ctx,
+		`GRANT ALL ON ALL TABLES IN SCHEMA public TO raven_admin, raven_app`,
+	); err != nil {
+		t.Fatalf("grant tables to app roles: %v", err)
+	}
+	if _, err := db.ExecContext(ctx,
+		`GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO raven_admin, raven_app`,
+	); err != nil {
+		t.Fatalf("grant sequences to app roles: %v", err)
+	}
 }
