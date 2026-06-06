@@ -45,11 +45,14 @@ jobs:
 
       - run: pip install --no-deps -e .
 
-      - run: ruff check
+      # Invoke via `python -m` so the workflow keeps working regardless of
+      # whether pip dropped binaries on the system-site PATH or fell back
+      # to a user-site directory that wasn't picked up by setup-python.
+      - run: python -m ruff check
 
-      - run: ruff format --check
+      - run: python -m ruff format --check
 
-      - run: mypy raven_worker
+      - run: python -m mypy raven_worker
 
       - name: Install dotenvx
         env:
