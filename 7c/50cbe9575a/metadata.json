@@ -2,7 +2,8 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "checkpoints_count": 21,
+  "branch": "fix/unblock-ci-migration-00054",
+  "checkpoints_count": 19,
   "files_touched": [
     ".claude/worktrees/agent-a0133ac4b53119310/.env.ci",
     ".claude/worktrees/agent-a12cf64ad26391b5c/.env.ci",
@@ -27,11 +28,11 @@
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
     ".claude/worktrees/feat-billing-annual-refund/.env.ci",
     ".claude/worktrees/feat-enterprise-onboarding/.env.ci",
+    ".github/workflows/go.yml",
     "CONTEXT.md",
     "ai-worker/pyproject.toml",
     "ai-worker/tests/test_rag_llm_fuse.py",
     "cmd/api/main.go",
-    "cmd/worker/main.go",
     "deploy/ansible/group_vars/all.yml",
     "deploy/ansible/inventory/hosts.yml",
     "deploy/ansible/roles/cloudflared/tasks/main.yml",
@@ -67,12 +68,7 @@
     "frontend/src/pages/LoginPage.vue",
     "frontend/src/plugins/supertokens.ts",
     "frontend/src/router/index.ts",
-    "internal/config/config.go",
-    "internal/firecrawl/client.go",
-    "internal/firecrawl/client_test.go",
     "internal/handler/dmca_test.go",
-    "internal/jobs/url_scrape.go",
-    "internal/jobs/url_scrape_test.go",
     "internal/model/billing.go",
     "internal/repository/billing.go",
     "internal/repository/search_test.go",
@@ -83,7 +79,6 @@
     "mig2191233328/00054_user_passkey_labels.sql",
     "mig2794639124/00054_user_passkey_labels.sql",
     "migrations/00054_user_passkey_labels.sql",
-    "migrations/00056_response_cache_resize_to_768.sql",
     "migrations/migrations_test.go",
     "node-compile-cache/v25.9.0-arm64-392347a2-501/02774df2",
     "node-compile-cache/v25.9.0-arm64-392347a2-501/0355ce7f",
@@ -2227,10 +2222,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 2006,
-    "cache_creation_tokens": 12546978,
-    "cache_read_tokens": 424109212,
-    "output_tokens": 889807,
-    "api_call_count": 1293
+    "input_tokens": 1962,
+    "cache_creation_tokens": 11396621,
+    "cache_read_tokens": 408782355,
+    "output_tokens": 861881,
+    "api_call_count": 1259
   }
 }

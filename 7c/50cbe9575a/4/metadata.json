@@ -3,34 +3,29 @@
   "checkpoint_id": "7c50cbe9575a",
   "session_id": "337cea8f-5a6b-4199-bc68-1de07b76ec01",
   "strategy": "manual-commit",
-  "created_at": "2026-06-06T08:09:26.244892Z",
-  "checkpoints_count": 3,
+  "created_at": "2026-06-06T09:09:06.440781Z",
+  "branch": "fix/unblock-ci-migration-00054",
+  "checkpoints_count": 1,
   "files_touched": [
-    "cmd/worker/main.go",
-    "internal/config/config.go",
-    "internal/firecrawl/client.go",
-    "internal/firecrawl/client_test.go",
-    "internal/jobs/url_scrape.go",
-    "internal/jobs/url_scrape_test.go",
-    "migrations/00056_response_cache_resize_to_768.sql"
+    ".github/workflows/go.yml"
   ],
   "agent": "Claude Code",
-  "checkpoint_transcript_start": 8633,
-  "transcript_lines_at_start": 8633,
+  "checkpoint_transcript_start": 8928,
+  "transcript_lines_at_start": 8928,
   "token_usage": {
-    "input_tokens": 85,
-    "cache_creation_tokens": 1191052,
-    "cache_read_tokens": 37558279,
-    "output_tokens": 46005,
-    "api_call_count": 70
+    "input_tokens": 41,
+    "cache_creation_tokens": 40695,
+    "cache_read_tokens": 22231422,
+    "output_tokens": 18079,
+    "api_call_count": 36
   },
   "initial_attribution": {
-    "calculated_at": "2026-06-06T08:09:25.192076Z",
-    "agent_lines": 22,
-    "human_added": 9264,
-    "human_modified": 776,
+    "calculated_at": "2026-06-06T09:09:05.393381Z",
+    "agent_lines": 0,
+    "human_added": 12,
+    "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 10062,
-    "agent_percentage": 0.21864440469091634
+    "total_committed": 12,
+    "agent_percentage": 0
   }
 }
