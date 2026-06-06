@@ -11,6 +11,14 @@ WORKDIR /build
 # Regenerate with:
 #   uv export --no-emit-project --no-dev -o requirements.txt
 COPY requirements.txt .
+# Compensating integrity gate: every non-blank, non-comment dependency
+# line must be exact-pinned with `==` so range specifiers cannot slip
+# into image builds while --require-hashes is disabled.
+RUN awk 'NF && $0 !~ /^[[:space:]]*(#|--)/ && $0 !~ /==/' requirements.txt \
+    | grep -q . \
+    && { echo "ERROR: requirements.txt contains non-exact-pinned entries:"; \
+         awk 'NF && $0 !~ /^[[:space:]]*(#|--)/ && $0 !~ /==/' requirements.txt; \
+         exit 1; } || true
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 # The local package is built from in-tree source (no network fetch), so
