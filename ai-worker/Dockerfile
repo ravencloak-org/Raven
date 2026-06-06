@@ -2,13 +2,24 @@ FROM python:3.14-slim@sha256:7a500125bc50693f2214e842a621440a1b1b9cbb2188f74ab04
 
 WORKDIR /build
 
-# All third-party deps come from a hash-pinned, fully-resolved lockfile so
-# `pip install --require-hashes` will reject any dep whose archive doesn't
-# match. Regenerate with:
-#   uv pip compile pyproject.toml --generate-hashes --python-version 3.12 \
-#     -o requirements.txt
+# Third-party deps come from a fully-resolved version-pinned lockfile.
+# The lockfile currently does NOT carry sha256 hashes (the
+# deps-bundle export in 471318c26 used `uv export --no-hashes`), so
+# `pip install --require-hashes` would refuse every line. Re-enable
+# hash-pinning by regenerating with hashes — see follow-up issue —
+# and add `--require-hashes` back here once the file has them.
+# Regenerate with:
+#   uv export --no-emit-project --no-dev -o requirements.txt
 COPY requirements.txt .
-RUN pip install --no-cache-dir --require-hashes --prefix=/install -r requirements.txt
+# Compensating integrity gate: every non-blank, non-comment dependency
+# line must be exact-pinned with `==` so range specifiers cannot slip
+# into image builds while --require-hashes is disabled.
+RUN awk 'NF && $0 !~ /^[[:space:]]*(#|--)/ && $0 !~ /==/' requirements.txt \
+    | grep -q . \
+    && { echo "ERROR: requirements.txt contains non-exact-pinned entries:"; \
+         awk 'NF && $0 !~ /^[[:space:]]*(#|--)/ && $0 !~ /==/' requirements.txt; \
+         exit 1; } || true
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 # The local package is built from in-tree source (no network fetch), so
 # `--no-deps` keeps the install offline-pure: every dep was already pinned
