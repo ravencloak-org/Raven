@@ -139,17 +139,19 @@ SELECT
   o.id,
   o.display_name,
   o.takedown_strikes,
-  count(t.id) AS admin_takedowns
+  count(t.id) AS confirmed_takedowns
 FROM organizations o
 LEFT JOIN knowledge_bases k ON k.org_id = o.id
 LEFT JOIN marketplace_takedowns t
-  ON t.target_kb_id = k.id AND t.source = 'admin'
+  ON t.target_kb_id = k.id AND t.source IN ('admin', 'dmca')
 WHERE o.id = '{org_id}'
 GROUP BY o.id;
 ```
 
-`takedown_strikes` and `admin_takedowns` should agree. A mismatch is a
-bug — page the on-call engineer.
+`takedown_strikes` and `confirmed_takedowns` should agree (both
+`admin`-source and `dmca`-source takedowns increment the strike
+counter — see §6 below for the DMCA path). A mismatch is a bug — page
+the on-call engineer.
 
 ## 5. Org suspension (strikes ≥ 3)
 
@@ -169,6 +171,7 @@ WHERE id = '{org_id}';
 UPDATE organizations
 SET status = 'suspended'
 WHERE id = '{org_id}'
+  AND status = 'active'
   AND takedown_strikes >= 3;
 ```
 

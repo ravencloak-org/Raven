@@ -33,7 +33,7 @@ Sent automatically by the approve handler (#734) when the strike count
 hits 3. Keep this template here as the canonical wording — change it
 here and in the handler in lockstep.
 
-```
+```text
 Subject: [Raven Marketplace] Final warning — third takedown strike
 
 Hi {org_display_name} admin,
@@ -132,7 +132,7 @@ and this runbook in the same PR.)
 
 ### Step 3.5 — Notify the Org
 
-```
+```text
 Subject: [Raven Marketplace] Your organization has been suspended
 
 Hi {org_display_name} admin,
