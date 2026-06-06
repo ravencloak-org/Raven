@@ -72,8 +72,12 @@ def _get_llm_fuse() -> LLMSpendFuse | None:
         return None
     if _llm_fuse_singleton is None:
         _llm_fuse_sync_client = syncredis.from_url(settings.valkey_url)
+        # redis-py's Redis structurally satisfies LLMSpendFuse's _Redis
+        # Protocol (incr/expire/get/set) but mypy compares Protocols
+        # nominally. Suppressed locally to avoid importing the private
+        # _Redis symbol from llm_fuse.
         _llm_fuse_singleton = LLMSpendFuse(
-            redis=_llm_fuse_sync_client,
+            redis=_llm_fuse_sync_client,  # type: ignore[arg-type]
             daily_cap_usd=settings.llm_daily_usd_cap,
         )
     return _llm_fuse_singleton
@@ -136,7 +140,14 @@ def _validate_ollama_base_url(raw: str) -> None:
     for fam, _type, _proto, _canon, sockaddr in infos:
         if fam not in (socket.AF_INET, socket.AF_INET6):
             continue
-        addr = sockaddr[0]
+        # getaddrinfo's sockaddr[0] is typed `str | int` because the stub
+        # covers AF_PACKET etc.; for the AF_INET / AF_INET6 families we
+        # filtered to above, it's always a str (the IP address). Assert
+        # the narrowing so mypy sees a `str` here too.
+        addr_raw = sockaddr[0]
+        if not isinstance(addr_raw, str):
+            continue
+        addr: str = addr_raw
         if addr in seen:
             continue
         seen.add(addr)
