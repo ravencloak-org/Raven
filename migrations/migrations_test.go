@@ -796,7 +796,9 @@ func TestMigrationsUpAndDown(t *testing.T) {
 		cases := []sigCheck{
 			{
 				fnName:     "marketplace_list_public_kbs",
-				args:       "text, text, text[], integer, integer",
+				// pg_get_function_arguments reconstructs the CREATE FUNCTION
+				// arg list including parameter names, not just types.
+				args:       "q text, sort text, licenses text[], page_limit integer, page_offset integer",
 				wantSecDef: true,
 				wantOwner:  "raven_admin",
 				wantCols: []string{
@@ -814,7 +816,7 @@ func TestMigrationsUpAndDown(t *testing.T) {
 			},
 			{
 				fnName:     "marketplace_preview_kb",
-				args:       "uuid",
+				args:       "p_public_kb_id uuid",
 				wantSecDef: true,
 				wantOwner:  "raven_admin",
 				wantCols:   []string{"chunk_id", "ordinal", "text"},
