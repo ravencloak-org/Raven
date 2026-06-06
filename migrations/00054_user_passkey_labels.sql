@@ -18,8 +18,8 @@
 -- (which lists every label for the calling user in one shot). Built
 -- CONCURRENTLY so the deploy does not hold ACCESS EXCLUSIVE on the table
 -- while the index is built — this is why the migration is wrapped in
--- `+goose NO TRANSACTION` (CREATE INDEX CONCURRENTLY cannot run inside a
--- transaction block).
+-- the NO TRANSACTION goose directive (CREATE INDEX CONCURRENTLY cannot
+-- run inside a transaction block).
 --
 -- References:
 --   - docs/superpowers/specs/2026-06-04-passkey-auth-design.md §Architecture
