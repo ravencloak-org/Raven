@@ -145,7 +145,7 @@ langchain-text-splitters==1.1.2
     # via raven-worker
 langsmith==0.8.9
     # via langchain-core
-livekit==1.1.8
+livekit==1.1.10
     # via
     #   livekit-agents
     #   raven-worker
