@@ -21,6 +21,16 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    services:
+      valkey:
+        image: valkey/valkey:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
     defaults:
       run:
         working-directory: ai-worker
