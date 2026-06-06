@@ -43,7 +43,7 @@ func (s *stubImporter) Import(_ context.Context,
 	return s.result, s.err
 }
 
-func newTestRouter(h *handler.MarketplaceHandler, userID, orgID string) *gin.Engine {
+func newMarketplaceTestRouter(h *handler.MarketplaceHandler, userID, orgID string) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.Use(apierror.ErrorHandler())
@@ -76,7 +76,7 @@ func TestMarketplaceHandler_Import_HappyPath(t *testing.T) {
 		},
 	}
 	h := handler.NewMarketplaceHandler(st)
-	r := newTestRouter(h, userID.String(), orgID.String())
+	r := newMarketplaceTestRouter(h, userID.String(), orgID.String())
 
 	body, _ := json.Marshal(handler.ImportKBRequest{WorkspaceID: wsID.String()})
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost,
@@ -99,7 +99,7 @@ func TestMarketplaceHandler_Import_HappyPath(t *testing.T) {
 
 func TestMarketplaceHandler_Import_InvalidPathParam_404(t *testing.T) {
 	h := handler.NewMarketplaceHandler(&stubImporter{})
-	r := newTestRouter(h, uuid.New().String(), uuid.New().String())
+	r := newMarketplaceTestRouter(h, uuid.New().String(), uuid.New().String())
 
 	body, _ := json.Marshal(handler.ImportKBRequest{WorkspaceID: uuid.New().String()})
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost,
@@ -115,7 +115,7 @@ func TestMarketplaceHandler_Import_InvalidPathParam_404(t *testing.T) {
 
 func TestMarketplaceHandler_Import_MissingUser_401(t *testing.T) {
 	h := handler.NewMarketplaceHandler(&stubImporter{})
-	r := newTestRouter(h, "", uuid.New().String()) // no user
+	r := newMarketplaceTestRouter(h, "", uuid.New().String()) // no user
 
 	body, _ := json.Marshal(handler.ImportKBRequest{WorkspaceID: uuid.New().String()})
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost,
@@ -131,7 +131,7 @@ func TestMarketplaceHandler_Import_MissingUser_401(t *testing.T) {
 
 func TestMarketplaceHandler_Import_InvalidWorkspaceID_422(t *testing.T) {
 	h := handler.NewMarketplaceHandler(&stubImporter{})
-	r := newTestRouter(h, uuid.New().String(), uuid.New().String())
+	r := newMarketplaceTestRouter(h, uuid.New().String(), uuid.New().String())
 
 	// workspace_id is not a UUID — binding tag rejects.
 	body := []byte(`{"workspace_id":"banana"}`)
@@ -153,7 +153,7 @@ func TestMarketplaceHandler_Import_InvalidWorkspaceID_422(t *testing.T) {
 func TestMarketplaceHandler_Import_ImporterErrorPropagates(t *testing.T) {
 	st := &stubImporter{err: apierror.NewConflict("already imported")}
 	h := handler.NewMarketplaceHandler(st)
-	r := newTestRouter(h, uuid.New().String(), uuid.New().String())
+	r := newMarketplaceTestRouter(h, uuid.New().String(), uuid.New().String())
 
 	body, _ := json.Marshal(handler.ImportKBRequest{WorkspaceID: uuid.New().String()})
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost,

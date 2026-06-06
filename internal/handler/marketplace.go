@@ -44,17 +44,18 @@ func NewMarketplaceHandler(importer MarketplaceImporter) *MarketplaceHandler {
 
 // ImportKBRequest is the payload for POST /api/v1/marketplace/import/:public_kb_id.
 // The workspace_id is the destination workspace inside the importer's own
-// Org (resolved from session) — it identifies WHERE the new local KB will
-// land, not WHAT will be imported.
+// Org (resolved from session, NEVER from request body) — it identifies
+// WHERE the new local KB will land, not WHAT will be imported.
+//
+// SECURITY: this struct deliberately has no `OrgID` field. The destination
+// Org is always pulled from the session-authenticated context. Letting
+// callers specify the target Org via the body opens a cross-tenant
+// authorisation bypass — an authenticated user from Org A could specify
+// Org B and force an import into a workspace they don't belong to. Multi-
+// Org users switch active Org through the dedicated org-switch endpoint
+// that re-issues the session, not via per-request override.
 type ImportKBRequest struct {
 	WorkspaceID string `json:"workspace_id" binding:"required,uuid"`
-	// OrgID is optional — when present the handler trusts the caller's
-	// own session resolution of "which Org owns this workspace". The
-	// session middleware sets ContextKeyOrgID by default; we allow the
-	// body to override only when the session has not been bound to a
-	// single Org (multi-Org users on first login). Empty falls back to
-	// the session value.
-	OrgID string `json:"org_id,omitempty" binding:"omitempty,uuid"`
 }
 
 // Import handles POST /api/v1/marketplace/import/:public_kb_id.
@@ -134,22 +135,20 @@ func (h *MarketplaceHandler) Import(c *gin.Context) {
 		return
 	}
 
-	orgIDStr := req.OrgID
+	// Destination Org is read ONLY from session context. See SECURITY note
+	// on ImportKBRequest — never trust a body field for the target Org.
+	orgIDRaw, _ := c.Get(string(middleware.ContextKeyOrgID))
+	orgIDStr, _ := orgIDRaw.(string)
 	if orgIDStr == "" {
-		orgIDRaw, _ := c.Get(string(middleware.ContextKeyOrgID))
-		orgIDStr, _ = orgIDRaw.(string)
-	}
-	if orgIDStr == "" {
-		// No body OrgID and no session OrgID — surface 422 (the request
-		// shape parsed but is incomplete) rather than 401 (the session
-		// is fine, the caller just has no Org bound).
-		_ = c.Error(apierror.NewUnprocessableEntity("org_id missing from request and session"))
+		// Authenticated session without a bound Org — surface 401 because
+		// the caller has no usable identity for any cross-tenant write.
+		_ = c.Error(apierror.NewUnauthorized("session has no bound org"))
 		c.Abort()
 		return
 	}
 	dstOrgID, err := uuid.Parse(orgIDStr)
 	if err != nil {
-		_ = c.Error(apierror.NewUnprocessableEntity("org_id is not a valid UUID"))
+		_ = c.Error(apierror.NewUnauthorized("session org id is malformed"))
 		c.Abort()
 		return
 	}
