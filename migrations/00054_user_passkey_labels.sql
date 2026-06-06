@@ -17,9 +17,9 @@
 -- Concurrent index on user_id supports the GET /api/v1/me/passkeys query
 -- (which lists every label for the calling user in one shot). Built
 -- CONCURRENTLY so the deploy does not hold ACCESS EXCLUSIVE on the table
--- while the index is built — this is why the migration is wrapped in
--- `+goose NO TRANSACTION` (CREATE INDEX CONCURRENTLY cannot run inside a
--- transaction block).
+-- while the index is built — this is why the migration is wrapped in the
+-- goose "NO TRANSACTION" annotation above (CREATE INDEX CONCURRENTLY
+-- cannot run inside a transaction block).
 --
 -- References:
 --   - docs/superpowers/specs/2026-06-04-passkey-auth-design.md §Architecture
@@ -67,7 +67,10 @@ CREATE POLICY admin_bypass ON user_passkey_labels
 
 -- Concurrent secondary index supporting GET /api/v1/me/passkeys. The PK is
 -- credential_id (text), so a per-user list would otherwise sequentially
--- scan; this index keeps the list query O(log n) per user.
+-- scan; this index keeps the list query O(log n) per user. Squawk warns
+-- about CONCURRENTLY inside a transaction; the migration is wrapped in
+-- the goose annotation at the top so it runs outside one.
+-- squawk-ignore ban-concurrent-index-creation-in-transaction
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_passkey_labels_user_id
     ON user_passkey_labels (user_id);
 
@@ -83,4 +86,5 @@ SET statement_timeout = '30s';
 DROP INDEX CONCURRENTLY IF EXISTS idx_user_passkey_labels_user_id;
 DROP POLICY IF EXISTS admin_bypass ON user_passkey_labels;
 DROP POLICY IF EXISTS user_self_access ON user_passkey_labels;
+-- squawk-ignore ban-drop-table
 DROP TABLE IF EXISTS user_passkey_labels;
