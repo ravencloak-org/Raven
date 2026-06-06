@@ -2,7 +2,7 @@
   "cli_version": "0.4.2",
   "checkpoint_id": "7c50cbe9575a",
   "strategy": "manual-commit",
-  "branch": "fix/aiofiles-missing-hash",
+  "branch": "tmp/fix-799-squawk",
   "checkpoints_count": 19,
   "files_touched": [
     ".claude/worktrees/agent-a0133ac4b53119310/.env.ci",
@@ -28,8 +28,8 @@
     ".claude/worktrees/feat+billing-per-seat-pricing/.env.ci",
     ".claude/worktrees/feat-billing-annual-refund/.env.ci",
     ".claude/worktrees/feat-enterprise-onboarding/.env.ci",
+    ".github/workflows/python.yml",
     "CONTEXT.md",
-    "ai-worker/Dockerfile",
     "ai-worker/pyproject.toml",
     "ai-worker/tests/test_rag_llm_fuse.py",
     "cmd/api/main.go",
@@ -2222,10 +2222,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 1948,
-    "cache_creation_tokens": 11378510,
-    "cache_read_tokens": 401175912,
-    "output_tokens": 856373,
-    "api_call_count": 1245
+    "input_tokens": 1942,
+    "cache_creation_tokens": 11373753,
+    "cache_read_tokens": 397481743,
+    "output_tokens": 850351,
+    "api_call_count": 1239
   }
 }

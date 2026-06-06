@@ -3,29 +3,29 @@
   "checkpoint_id": "7c50cbe9575a",
   "session_id": "337cea8f-5a6b-4199-bc68-1de07b76ec01",
   "strategy": "manual-commit",
-  "created_at": "2026-06-06T09:56:18.598971Z",
-  "branch": "fix/aiofiles-missing-hash",
+  "created_at": "2026-06-06T10:05:07.798439Z",
+  "branch": "tmp/fix-799-squawk",
   "checkpoints_count": 1,
   "files_touched": [
-    "ai-worker/Dockerfile"
+    ".github/workflows/python.yml"
   ],
   "agent": "Claude Code",
-  "checkpoint_transcript_start": 9168,
-  "transcript_lines_at_start": 9168,
+  "checkpoint_transcript_start": 9264,
+  "transcript_lines_at_start": 9264,
   "token_usage": {
-    "input_tokens": 27,
-    "cache_creation_tokens": 22584,
-    "cache_read_tokens": 14624979,
-    "output_tokens": 12571,
-    "api_call_count": 22
+    "input_tokens": 21,
+    "cache_creation_tokens": 17827,
+    "cache_read_tokens": 10930810,
+    "output_tokens": 6549,
+    "api_call_count": 16
   },
   "initial_attribution": {
-    "calculated_at": "2026-06-06T09:56:17.529529Z",
-    "agent_lines": 0,
-    "human_added": 11,
-    "human_modified": 6,
+    "calculated_at": "2026-06-06T10:05:06.75678Z",
+    "agent_lines": 2,
+    "human_added": 75,
+    "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 17,
-    "agent_percentage": 0
+    "total_committed": 77,
+    "agent_percentage": 2.5974025974025974
   }
 }
