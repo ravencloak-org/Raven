@@ -62,17 +62,17 @@ func seedModFixture(ctx context.Context, t *testing.T, pool *pgxpool.Pool, label
 	); err != nil {
 		t.Fatalf("seed workspace: %v", err)
 	}
+	userEmail := label + "-" + f.UserID.String()[:8] + "@example.com"
+	kbSlug := label + "-kb-" + f.KBID.String()[:8]
 	if _, err := pool.Exec(ctx,
-		`INSERT INTO users (id, org_id, email, status)
-		 VALUES ($1, $2, $3 || '-' || substring($1::text from 1 for 8) || '@example.com', 'active')`,
-		f.UserID, f.OrgID, label,
+		`INSERT INTO users (id, org_id, email, status) VALUES ($1, $2, $3, 'active')`,
+		f.UserID, f.OrgID, userEmail,
 	); err != nil {
 		t.Fatalf("seed user: %v", err)
 	}
 	if _, err := pool.Exec(ctx,
-		`INSERT INTO knowledge_bases (id, org_id, workspace_id, name, slug)
-		 VALUES ($1, $2, $3, $4, $4 || '-' || substring($1::text from 1 for 8))`,
-		f.KBID, f.OrgID, f.WSID, label+"-kb",
+		`INSERT INTO knowledge_bases (id, org_id, workspace_id, name, slug) VALUES ($1, $2, $3, $4, $5)`,
+		f.KBID, f.OrgID, f.WSID, label+"-kb", kbSlug,
 	); err != nil {
 		t.Fatalf("seed knowledge_base: %v", err)
 	}
