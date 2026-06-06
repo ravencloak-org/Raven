@@ -85,7 +85,7 @@ func TestAdminModeration_Approve_FourSideEffectsAtomic(t *testing.T) {
 	if v := kbVisibility(ctx, t, pool, f.KBID); v != "private" {
 		// fixture seeds without visibility, so default is 'private'.
 		// First, simulate it being published so the approve flip is observable.
-		if _, err := pool.Exec(ctx, `UPDATE knowledge_bases SET visibility='public' WHERE id=$1`, f.KBID); err != nil {
+		if _, err := pool.Exec(ctx, `UPDATE knowledge_bases SET visibility='public', license_spdx_id='MIT' WHERE id=$1`, f.KBID); err != nil {
 			t.Fatalf("publish KB: %v", err)
 		}
 		_ = v
@@ -141,7 +141,7 @@ func TestAdminModeration_Approve_AlreadyResolvedReturnsIllegalTransition(t *test
 	ctx := context.Background()
 	f := seedModFixture(ctx, t, pool, "double")
 
-	if _, err := pool.Exec(ctx, `UPDATE knowledge_bases SET visibility='public' WHERE id=$1`, f.KBID); err != nil {
+	if _, err := pool.Exec(ctx, `UPDATE knowledge_bases SET visibility='public', license_spdx_id='MIT' WHERE id=$1`, f.KBID); err != nil {
 		t.Fatalf("publish KB: %v", err)
 	}
 
@@ -198,7 +198,7 @@ func TestAdminModeration_Dismiss_HappyPath(t *testing.T) {
 	ctx := context.Background()
 	f := seedModFixture(ctx, t, pool, "dismiss")
 
-	if _, err := pool.Exec(ctx, `UPDATE knowledge_bases SET visibility='public' WHERE id=$1`, f.KBID); err != nil {
+	if _, err := pool.Exec(ctx, `UPDATE knowledge_bases SET visibility='public', license_spdx_id='MIT' WHERE id=$1`, f.KBID); err != nil {
 		t.Fatalf("publish KB: %v", err)
 	}
 
