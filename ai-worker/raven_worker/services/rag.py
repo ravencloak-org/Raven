@@ -21,6 +21,7 @@ import os
 import socket
 import time
 from collections.abc import AsyncIterator
+from typing import cast
 from urllib.parse import urlparse
 
 import anthropic
@@ -35,7 +36,7 @@ from openai import AsyncOpenAI
 from raven_worker.config import settings
 from raven_worker.crypto import decrypt_api_key
 from raven_worker.generated import ai_worker_pb2
-from raven_worker.llm_fuse import FuseTripped, LLMSpendFuse
+from raven_worker.llm_fuse import FuseTripped, LLMSpendFuse, _Redis
 from raven_worker.memory import MEMORY_TOOL, MemoryStore
 from raven_worker.providers.registry import _looks_like_chat_model, get_provider_for_request
 from raven_worker.retrieval.bm25_search import bm25_search
@@ -71,7 +72,9 @@ def _get_llm_fuse() -> LLMSpendFuse | None:
     if settings.llm_daily_usd_cap <= 0:
         return None
     if _llm_fuse_singleton is None:
-        _llm_fuse_sync_client = syncredis.from_url(settings.valkey_url)
+        # redis.from_url returns a polymorphic Redis client; cast to the
+        # narrower _Redis Protocol the fuse expects.
+        _llm_fuse_sync_client = cast(_Redis, syncredis.from_url(settings.valkey_url))
         _llm_fuse_singleton = LLMSpendFuse(
             redis=_llm_fuse_sync_client,
             daily_cap_usd=settings.llm_daily_usd_cap,
@@ -136,7 +139,9 @@ def _validate_ollama_base_url(raw: str) -> None:
     for fam, _type, _proto, _canon, sockaddr in infos:
         if fam not in (socket.AF_INET, socket.AF_INET6):
             continue
-        addr = sockaddr[0]
+        # sockaddr[0] is str for AF_INET/AF_INET6 but typed as str | int
+        # in the stubs; coerce to str so the set[str] type lines up.
+        addr = str(sockaddr[0])
         if addr in seen:
             continue
         seen.add(addr)
