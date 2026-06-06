@@ -154,12 +154,13 @@ func RunMigrations(t *testing.T, db *sql.DB, overrideDir ...string) {
 	// (or raven_app) inside transactions need explicit table access;
 	// without this grant they hit "permission denied" even though the
 	// schema is correct.
-	if _, err := db.ExecContext(ctx,
+	grantCtx := context.Background()
+	if _, err := db.ExecContext(grantCtx,
 		`GRANT ALL ON ALL TABLES IN SCHEMA public TO raven_admin, raven_app`,
 	); err != nil {
 		t.Fatalf("grant tables to app roles: %v", err)
 	}
-	if _, err := db.ExecContext(ctx,
+	if _, err := db.ExecContext(grantCtx,
 		`GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO raven_admin, raven_app`,
 	); err != nil {
 		t.Fatalf("grant sequences to app roles: %v", err)
