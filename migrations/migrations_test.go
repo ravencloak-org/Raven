@@ -1088,6 +1088,54 @@ func TestMigrationsUpAndDown(t *testing.T) {
 		if remaining != 0 {
 			t.Errorf("expected ON DELETE CASCADE to remove holds, found %d", remaining)
 		}
+
+		// --- ON DELETE SET NULL from knowledge_bases ---
+		// The kb_id column carries a soft pointer to the KB that vacated
+		// the slug; deleting the KB row must keep the hold alive (so
+		// the 410 still fires) and null out kb_id. The CASCADE test
+		// above only covered the organizations parent; this case is
+		// what makes the audit trail survive a hard KB delete.
+		var orgC, wsC, kbC string
+		if err := db.QueryRowContext(ctx,
+			`INSERT INTO organizations (id, name, slug)
+			 VALUES (uuid_generate_v4(), 'Hold C', 'kbhold-org-c')
+			 RETURNING id`).Scan(&orgC); err != nil {
+			t.Fatalf("insert org C: %v", err)
+		}
+		if err := db.QueryRowContext(ctx,
+			`INSERT INTO workspaces (id, org_id, name, slug)
+			 VALUES (uuid_generate_v4(), $1, 'Hold WS', 'hold-ws')
+			 RETURNING id`, orgC).Scan(&wsC); err != nil {
+			t.Fatalf("insert ws C: %v", err)
+		}
+		if err := db.QueryRowContext(ctx,
+			`INSERT INTO knowledge_bases (id, org_id, workspace_id, name, slug)
+			 VALUES (uuid_generate_v4(), $1, $2, 'Hold KB', 'set-null-kb')
+			 RETURNING id`, orgC, wsC).Scan(&kbC); err != nil {
+			t.Fatalf("insert kb C: %v", err)
+		}
+		if _, err := db.ExecContext(ctx,
+			`INSERT INTO kb_slug_holds (org_id, slug, kb_id, held_until)
+			 VALUES ($1, 'set-null-kb', $2, NOW() + interval '30 days')`,
+			orgC, kbC,
+		); err != nil {
+			t.Fatalf("insert hold with kb_id: %v", err)
+		}
+		if _, err := db.ExecContext(ctx,
+			`DELETE FROM knowledge_bases WHERE id = $1`, kbC,
+		); err != nil {
+			t.Fatalf("delete kb C: %v", err)
+		}
+		var kbIDAfter *string
+		if err := db.QueryRowContext(ctx,
+			`SELECT kb_id FROM kb_slug_holds WHERE org_id = $1 AND slug = 'set-null-kb'`,
+			orgC,
+		).Scan(&kbIDAfter); err != nil {
+			t.Fatalf("read hold after kb delete: %v", err)
+		}
+		if kbIDAfter != nil {
+			t.Errorf("expected ON DELETE SET NULL to null out kb_id; got %v", *kbIDAfter)
+		}
 	})
 
 	// --- Run all migrations DOWN ---

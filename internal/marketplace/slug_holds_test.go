@@ -27,7 +27,7 @@ func TestLookupKBSlugHold_PresentAndActive_ReturnsHeld(t *testing.T) {
 	// Run the unpublish path to land an active hold. Avoids leaking
 	// SQL-shaped fixtures into a test of the resolver itself.
 	svc := marketplace.NewUnpublishService(pool, noopGate)
-	if _, err := svc.UnpublishKB(ctx, f.OrgID.String(), f.KBID.String()); err != nil {
+	if _, err := svc.UnpublishKB(ctx, f.OrgID.String(), f.WSID.String(), f.KBID.String()); err != nil {
 		t.Fatalf("UnpublishKB: %v", err)
 	}
 
@@ -117,9 +117,16 @@ func TestLookupKBSlugHold_OrgPresentNoHold_ReturnsNotFound(t *testing.T) {
 		t.Fatalf("read org slug: %v", err)
 	}
 
-	_, err := marketplace.LookupKBSlugHold(ctx, pool, orgSlug, "never-existed")
+	status, err := marketplace.LookupKBSlugHold(ctx, pool, orgSlug, "never-existed")
 	if !errors.Is(err, marketplace.ErrKBSlugNotFound) {
 		t.Errorf("org-without-hold: want ErrKBSlugNotFound, got %v", err)
+	}
+	// Pin the contract: when the Org resolves but the KB slug does not
+	// have an active hold, the returned status must still carry the
+	// resolved OrgID so callers can disambiguate "we found the Org but
+	// not the slug" from a wholly-unknown Org slug.
+	if status.OrgID != f.OrgID {
+		t.Errorf("status.OrgID: got %v want %v", status.OrgID, f.OrgID)
 	}
 }
 

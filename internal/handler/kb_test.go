@@ -433,19 +433,20 @@ func TestUpdateKB_RejectsOutOfRangeThreshold(t *testing.T) {
 // mockUnpublisher implements handler.KBUnpublisher for unit tests
 // covering the /unpublish route. Symmetric with mockPublisher.
 type mockUnpublisher struct {
-	unpublishFn func(ctx context.Context, orgID, kbID string) (*marketplace.UnpublishResult, error)
+	unpublishFn func(ctx context.Context, orgID, wsID, kbID string) (*marketplace.UnpublishResult, error)
 	lastCall    struct {
-		orgID, kbID string
+		orgID, wsID, kbID string
 	}
 }
 
-func (m *mockUnpublisher) UnpublishKB(ctx context.Context, orgID, kbID string) (*marketplace.UnpublishResult, error) {
+func (m *mockUnpublisher) UnpublishKB(ctx context.Context, orgID, wsID, kbID string) (*marketplace.UnpublishResult, error) {
 	m.lastCall.orgID = orgID
+	m.lastCall.wsID = wsID
 	m.lastCall.kbID = kbID
 	if m.unpublishFn == nil {
 		return nil, apierror.NewInternal("mock unpublishFn not set")
 	}
-	return m.unpublishFn(ctx, orgID, kbID)
+	return m.unpublishFn(ctx, orgID, wsID, kbID)
 }
 
 // newKBRouterWithUnpublisher mirrors newKBRouterWithPublisher for the
@@ -473,7 +474,7 @@ func newKBRouterWithUnpublisher(svc handler.KBServicer, unpub handler.KBUnpublis
 func TestUnpublishKB_Success(t *testing.T) {
 	heldUntil := time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)
 	unpub := &mockUnpublisher{
-		unpublishFn: func(_ context.Context, _, _ string) (*marketplace.UnpublishResult, error) {
+		unpublishFn: func(_ context.Context, _, _, _ string) (*marketplace.UnpublishResult, error) {
 			return &marketplace.UnpublishResult{
 				Visibility:    model.KBVisibilityPrivate,
 				SlugHeldUntil: heldUntil,
@@ -484,7 +485,7 @@ func TestUnpublishKB_Success(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost,
-		"/api/v1/orgs/org-abc/workspaces/ws-1/knowledge-bases/kb-1/unpublish",
+		"/api/v1/orgs/041b0ae6-ae25-404b-8b46-06857a874222/workspaces/83311cb6-f03a-4ebd-a1d8-4a382a7edff7/knowledge-bases/6ceb1402-876b-4998-aaed-72e891e1c56e/unpublish",
 		http.NoBody,
 	)
 	r.ServeHTTP(w, req)
@@ -492,7 +493,9 @@ func TestUnpublishKB_Success(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
-	if unpub.lastCall.orgID != "org-abc" || unpub.lastCall.kbID != "kb-1" {
+	if unpub.lastCall.orgID != "041b0ae6-ae25-404b-8b46-06857a874222" ||
+		unpub.lastCall.wsID != "83311cb6-f03a-4ebd-a1d8-4a382a7edff7" ||
+		unpub.lastCall.kbID != "6ceb1402-876b-4998-aaed-72e891e1c56e" {
 		t.Errorf("path params not propagated: %+v", unpub.lastCall)
 	}
 
@@ -514,7 +517,7 @@ func TestUnpublishKB_MissingUserID_Returns401(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost,
-		"/api/v1/orgs/org-abc/workspaces/ws-1/knowledge-bases/kb-1/unpublish",
+		"/api/v1/orgs/041b0ae6-ae25-404b-8b46-06857a874222/workspaces/83311cb6-f03a-4ebd-a1d8-4a382a7edff7/knowledge-bases/6ceb1402-876b-4998-aaed-72e891e1c56e/unpublish",
 		http.NoBody,
 	)
 	r.ServeHTTP(w, req)
@@ -529,14 +532,14 @@ func TestUnpublishKB_MissingUserID_Returns401(t *testing.T) {
 
 func TestUnpublishKB_NotFound_Returns404(t *testing.T) {
 	unpub := &mockUnpublisher{
-		unpublishFn: func(_ context.Context, _, _ string) (*marketplace.UnpublishResult, error) {
+		unpublishFn: func(_ context.Context, _, _, _ string) (*marketplace.UnpublishResult, error) {
 			return nil, apierror.NewNotFound("knowledge base not found")
 		},
 	}
 	r := newKBRouterWithUnpublisher(&mockKBService{}, unpub, "user-1")
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost,
-		"/api/v1/orgs/org-abc/workspaces/ws-1/knowledge-bases/missing/unpublish",
+		"/api/v1/orgs/041b0ae6-ae25-404b-8b46-06857a874222/workspaces/83311cb6-f03a-4ebd-a1d8-4a382a7edff7/knowledge-bases/00000000-0000-0000-0000-000000000000/unpublish",
 		http.NoBody,
 	)
 	r.ServeHTTP(w, req)
@@ -547,14 +550,14 @@ func TestUnpublishKB_NotFound_Returns404(t *testing.T) {
 
 func TestUnpublishKB_KBFrozen_Returns409(t *testing.T) {
 	unpub := &mockUnpublisher{
-		unpublishFn: func(_ context.Context, _, _ string) (*marketplace.UnpublishResult, error) {
+		unpublishFn: func(_ context.Context, _, _, _ string) (*marketplace.UnpublishResult, error) {
 			return nil, apierror.NewKBFrozen("frozen on Free Plan")
 		},
 	}
 	r := newKBRouterWithUnpublisher(&mockKBService{}, unpub, "user-1")
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost,
-		"/api/v1/orgs/org-abc/workspaces/ws-1/knowledge-bases/kb-1/unpublish",
+		"/api/v1/orgs/041b0ae6-ae25-404b-8b46-06857a874222/workspaces/83311cb6-f03a-4ebd-a1d8-4a382a7edff7/knowledge-bases/6ceb1402-876b-4998-aaed-72e891e1c56e/unpublish",
 		http.NoBody,
 	)
 	r.ServeHTTP(w, req)
@@ -581,7 +584,7 @@ func TestUnpublishKB_ServiceNotWired_Returns500(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost,
-		"/api/v1/orgs/org-abc/workspaces/ws-1/knowledge-bases/kb-1/unpublish",
+		"/api/v1/orgs/041b0ae6-ae25-404b-8b46-06857a874222/workspaces/83311cb6-f03a-4ebd-a1d8-4a382a7edff7/knowledge-bases/6ceb1402-876b-4998-aaed-72e891e1c56e/unpublish",
 		http.NoBody,
 	)
 	r.ServeHTTP(w, req)

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/samber/lo"
 
 	"github.com/ravencloak-org/Raven/internal/marketplace"
@@ -33,7 +34,7 @@ type KBPublisher interface {
 // KB handler needs. Mirrors KBPublisher so tests can stub the
 // transition without touching pgx wiring.
 type KBUnpublisher interface {
-	UnpublishKB(ctx context.Context, orgID, kbID string) (*marketplace.UnpublishResult, error)
+	UnpublishKB(ctx context.Context, orgID, wsID, kbID string) (*marketplace.UnpublishResult, error)
 }
 
 // PublishKBRequest is the payload for POST .../knowledge-bases/{id}/publish.
@@ -258,7 +259,26 @@ func (h *KBHandler) Unpublish(c *gin.Context) {
 		return
 	}
 	orgID := c.Param("org_id")
+	wsID := c.Param("ws_id")
 	kbID := c.Param("kb_id")
+	// Validate UUIDs at the handler boundary so malformed input surfaces
+	// as a 422 rather than a 500 from a downstream pgx parse error. Same
+	// shape as the marketplace import handler.
+	if _, err := uuid.Parse(orgID); err != nil {
+		_ = c.Error(apierror.NewUnprocessableEntity("org_id is not a valid UUID"))
+		c.Abort()
+		return
+	}
+	if _, err := uuid.Parse(wsID); err != nil {
+		_ = c.Error(apierror.NewUnprocessableEntity("ws_id is not a valid UUID"))
+		c.Abort()
+		return
+	}
+	if _, err := uuid.Parse(kbID); err != nil {
+		_ = c.Error(apierror.NewUnprocessableEntity("kb_id is not a valid UUID"))
+		c.Abort()
+		return
+	}
 	userID, _ := c.Get(string(middleware.ContextKeyUserID))
 	userIDStr, _ := userID.(string)
 	if userIDStr == "" {
@@ -271,7 +291,7 @@ func (h *KBHandler) Unpublish(c *gin.Context) {
 		return
 	}
 
-	result, err := h.unpublisher.UnpublishKB(c.Request.Context(), orgID, kbID)
+	result, err := h.unpublisher.UnpublishKB(c.Request.Context(), orgID, wsID, kbID)
 	if err != nil {
 		_ = c.Error(err)
 		c.Abort()

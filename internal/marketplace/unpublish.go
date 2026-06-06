@@ -76,7 +76,7 @@ func NewUnpublishService(pool *pgxpool.Pool, gate PublishGateFunc) *UnpublishSer
 // microsecond.
 func (s *UnpublishService) UnpublishKB(
 	ctx context.Context,
-	orgID, kbID string,
+	orgID, workspaceID, kbID string,
 ) (*UnpublishResult, error) {
 	var result UnpublishResult
 
@@ -96,16 +96,25 @@ func (s *UnpublishService) UnpublishKB(
 		// take down what's already down" from a successful idempotent
 		// repeat. Catching it here keeps the slug-hold insert from
 		// running with a stale (org_id, slug) pair.
+		//
+		// SECURITY: scope the predicate by workspace_id as well as
+		// org_id. The route guard runs RequireWorkspaceRole on :ws_id,
+		// so the caller is authorized for THAT workspace — but without
+		// `workspace_id = $3` here a workspace-A admin could pass a
+		// kb_id belonging to workspace B of the same Org and we'd
+		// happily unpublish it. The filter turns that into a 404 so
+		// the authorization scope matches the route's intent.
 		var slug string
 		err := tx.QueryRow(ctx,
 			`UPDATE knowledge_bases
 			   SET visibility   = 'private',
 			       published_at = NULL
-			 WHERE id         = $1
-			   AND org_id     = $2
-			   AND visibility = 'public'
+			 WHERE id           = $1
+			   AND org_id       = $2
+			   AND workspace_id = $3
+			   AND visibility   = 'public'
 			 RETURNING slug`,
-			kbID, orgID,
+			kbID, orgID, workspaceID,
 		).Scan(&slug)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {

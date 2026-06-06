@@ -83,7 +83,7 @@ func TestUnpublishKB_Success_FlipsVisibilityAndRegistersHold(t *testing.T) {
 	svc := marketplace.NewUnpublishService(pool, noopGate)
 
 	start := time.Now()
-	res, err := svc.UnpublishKB(ctx, f.OrgID.String(), f.KBID.String())
+	res, err := svc.UnpublishKB(ctx, f.OrgID.String(), f.WSID.String(), f.KBID.String())
 	if err != nil {
 		t.Fatalf("UnpublishKB: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestUnpublishKB_NotFound_Returns404(t *testing.T) {
 	svc := marketplace.NewUnpublishService(pool, noopGate)
 
 	// Unknown KB id under the right org → 404.
-	_, err := svc.UnpublishKB(ctx, f.OrgID.String(), uuid.New().String())
+	_, err := svc.UnpublishKB(ctx, f.OrgID.String(), f.WSID.String(), uuid.New().String())
 	var appErr *apierror.AppError
 	if !errors.As(err, &appErr) {
 		t.Fatalf("unknown kb id: want AppError, got %v", err)
@@ -171,7 +171,7 @@ func TestUnpublishKB_AlreadyPrivate_Returns404(t *testing.T) {
 	}
 
 	svc := marketplace.NewUnpublishService(pool, noopGate)
-	_, err := svc.UnpublishKB(ctx, f.OrgID.String(), f.KBID.String())
+	_, err := svc.UnpublishKB(ctx, f.OrgID.String(), f.WSID.String(), f.KBID.String())
 	var appErr *apierror.AppError
 	if !errors.As(err, &appErr) {
 		t.Fatalf("already-private kb: want AppError, got %v", err)
@@ -196,7 +196,7 @@ func TestUnpublishKB_GateRejects_Returns409(t *testing.T) {
 	}
 	svc := marketplace.NewUnpublishService(pool, frozenGate)
 
-	_, err := svc.UnpublishKB(ctx, f.OrgID.String(), f.KBID.String())
+	_, err := svc.UnpublishKB(ctx, f.OrgID.String(), f.WSID.String(), f.KBID.String())
 	var appErr *apierror.AppError
 	if !errors.As(err, &appErr) {
 		t.Fatalf("gate refusal: want AppError, got %v", err)
@@ -248,7 +248,7 @@ func TestUnpublishKB_ExistingImportsUnaffected(t *testing.T) {
 	}
 
 	svc := marketplace.NewUnpublishService(pool, noopGate)
-	if _, err := svc.UnpublishKB(ctx, publisher.OrgID.String(), publisher.KBID.String()); err != nil {
+	if _, err := svc.UnpublishKB(ctx, publisher.OrgID.String(), publisher.WSID.String(), publisher.KBID.String()); err != nil {
 		t.Fatalf("UnpublishKB: %v", err)
 	}
 
@@ -315,7 +315,7 @@ func TestUnpublishKB_RefreshesExistingHold(t *testing.T) {
 	}
 
 	svc := marketplace.NewUnpublishService(pool, noopGate)
-	res, err := svc.UnpublishKB(ctx, f.OrgID.String(), f.KBID.String())
+	res, err := svc.UnpublishKB(ctx, f.OrgID.String(), f.WSID.String(), f.KBID.String())
 	if err != nil {
 		t.Fatalf("UnpublishKB: %v", err)
 	}
