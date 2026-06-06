@@ -45,7 +45,12 @@ SET statement_timeout = '30s';
 -- ---------------------------------------------------------------------------
 CREATE TABLE kb_slug_holds (
     org_id     UUID         NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    slug       VARCHAR(100) NOT NULL,
+    -- TEXT not VARCHAR(N): per Squawk's prefer-text-field rule, VARCHAR with
+    -- an explicit length forces an ACCESS EXCLUSIVE lock if the bound ever
+    -- needs to change. The length cap is enforced by the application layer
+    -- (the slug validator in internal/marketplace) so the DB type is the
+    -- safer-to-evolve one. Same shape as `org_slug_holds` in 00048.
+    slug       TEXT         NOT NULL,
     -- Soft pointer to the KB that vacated the slug. Carried for audit
     -- and admin tooling. SET NULL on KB hard-delete so the hold row
     -- survives — the 410 still needs to fire even after the row is
@@ -62,10 +67,22 @@ CREATE TABLE kb_slug_holds (
 CREATE INDEX idx_kb_slug_holds_held_until ON kb_slug_holds(held_until);
 
 -- +goose Down
+-- +goose NO TRANSACTION
 --
 -- Drop in reverse order. The table is freshly introduced by this
 -- migration, so DROP TABLE here is safe — no pre-existing data to
 -- preserve. (Squawk's "no DROP COLUMN on existing tables" rule does
 -- not apply to a table this migration itself created.)
-DROP INDEX IF EXISTS idx_kb_slug_holds_held_until;
+--
+-- DROP INDEX CONCURRENTLY takes only SHARE UPDATE EXCLUSIVE on the
+-- table rather than ACCESS EXCLUSIVE, so concurrent reads of the
+-- already-doomed table during rollback don't get blocked. The
+-- enclosing `+goose NO TRANSACTION` directive is required because
+-- CONCURRENTLY cannot run inside a transaction block.
+SET lock_timeout = '5s';
+SET statement_timeout = '30s';
+-- squawk-ignore prefer-robust-stmts
+DROP INDEX CONCURRENTLY IF EXISTS idx_kb_slug_holds_held_until;
+-- squawk-ignore ban-drop-table — this table is created by this
+-- migration's Up half; the Down half necessarily drops it.
 DROP TABLE IF EXISTS kb_slug_holds;
