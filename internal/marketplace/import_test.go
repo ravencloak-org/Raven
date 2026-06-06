@@ -530,7 +530,6 @@ func TestImporter_SourceNotPublic_403(t *testing.T) {
 	_ = errors.Is // keep import alive on linters
 }
 
-func contains(haystack, needle string) bool { return containsString(haystack, needle) }
 
 func containsString(haystack, needle string) bool {
 	return len(haystack) >= len(needle) && (haystack == needle || indexOf(haystack, needle) >= 0)
