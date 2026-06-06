@@ -41,13 +41,17 @@ jobs:
       # requirements-dev.txt is currently exported without hashes (see the
       # `uv export --no-hashes` invocation in its header). Re-add
       # --require-hashes here once the lockfile carries hashes again.
-      - run: pip install -r requirements-dev.txt
+      #
+      # Use `python -m pip` so the install targets the same interpreter
+      # that the lint/test steps below will run with. Bare `pip` can
+      # resolve to a different Python on GitHub runners (system pip
+      # in /usr/bin/pip vs. the setup-python interpreter), which lands
+      # packages where `python -m <tool>` can't import them and the
+      # next step dies with `No module named ruff`.
+      - run: python -m pip install -r requirements-dev.txt
 
-      - run: pip install --no-deps -e .
+      - run: python -m pip install --no-deps -e .
 
-      # Invoke via `python -m` so the workflow keeps working regardless of
-      # whether pip dropped binaries on the system-site PATH or fell back
-      # to a user-site directory that wasn't picked up by setup-python.
       - run: python -m ruff check
 
       - run: python -m ruff format --check
@@ -100,9 +104,9 @@ jobs:
       # requirements-dev.txt is currently exported without hashes (see the
       # `uv export --no-hashes` invocation in its header). Re-add
       # --require-hashes here once the lockfile carries hashes again.
-      - run: pip install -r requirements-dev.txt
+      - run: python -m pip install -r requirements-dev.txt
 
-      - run: pip install --no-deps -e .
+      - run: python -m pip install --no-deps -e .
 
       - name: Install dotenvx
         env:
