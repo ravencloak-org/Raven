@@ -179,6 +179,9 @@ func (q *Queries) ListPublicKBs(ctx context.Context, f ListFilters) ([]ListItem,
 		items = append(items, it)
 	}
 	if err := rows.Err(); err != nil {
+		if pgErrCode(err) == pgInvalidParameterValue {
+			return nil, fmt.Errorf("%w: %s", ErrUnknownSort, sort)
+		}
 		return nil, fmt.Errorf("marketplace: list public KBs iterate: %w", err)
 	}
 	return items, nil
