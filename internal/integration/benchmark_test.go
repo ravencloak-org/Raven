@@ -103,7 +103,7 @@ func seedBenchmarkDataRaw(ctx context.Context, conn *pgxpool.Conn, orgID, kbID, 
 
 			_, err = conn.Exec(ctx, `
 				INSERT INTO embeddings (id, org_id, chunk_id, embedding, model_name, dimensions)
-				VALUES ($1, $2, $3, $4::vector, 'text-embedding-3-small', 1536)`,
+				VALUES ($1, $2, $3, $4::vector, 'nomic-embed-text', 768)`,
 				uuid.NewString(), orgID, chunkID, vectorToString(generateEmbedding(globalIndex)))
 			if err != nil {
 				return fmt.Errorf("insert embedding %d.%d: %w", d, c, err)

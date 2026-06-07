@@ -118,7 +118,7 @@ func insertEmbedding(t *testing.T, ctx context.Context, orgID, chunkID string, e
 	err := db.WithOrgID(ctx, testPool, orgID, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `
             INSERT INTO embeddings (id, org_id, chunk_id, embedding, model_name, dimensions)
-            VALUES ($1, $2, $3, $4::vector, 'text-embedding-3-small', 1536)`,
+            VALUES ($1, $2, $3, $4::vector, 'nomic-embed-text', 768)`,
 			uuid.NewString(), orgID, chunkID, vectorToString(embedding))
 		return err
 	})
@@ -185,7 +185,7 @@ func loadFixture[T any](t *testing.T, filename string) T {
 }
 
 func generateEmbedding(seed int) []float32 {
-	vec := make([]float32, 1536)
+	vec := make([]float32, 768)
 	for j := range vec {
 		vec[j] = float32(math.Sin(float64(seed)*0.1 + float64(j)*0.01))
 	}
