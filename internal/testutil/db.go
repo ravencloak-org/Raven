@@ -147,33 +147,43 @@ func RunMigrations(t *testing.T, db *sql.DB, overrideDir ...string) {
 		t.Fatalf("goose.Up: %v", err)
 	}
 
-	// Grant marketplace-specific tables to the application roles.
+	// Grant table access to the application roles.
 	// The testcontainer starts as raven_test (superuser) with no
-	// pre-existing grants. Services that do SET LOCAL ROLE raven_admin
-	// inside transactions need explicit SELECT/INSERT/UPDATE on these
-	// tables; without this they hit "permission denied" even though the
-	// schema (and RLS policies) are correct.
-	// Only the tables that cross the SET LOCAL ROLE boundary are listed
-	// here — broad GRANT ALL would break RLS-focused tests.
+	// pre-existing grants. Production databases set up these grants via
+	// an out-of-band DBA step; in tests we replicate that step here.
+	//
+	// raven_admin is the bypass role (admin_bypass RLS policy on every
+	// table) — it needs full access to perform cross-tenant admin operations.
+	//
+	// raven_app is the application role (tenant_isolation RLS policy) — it
+	// gets SELECT + write on tables it touches during normal request handling.
+	// We deliberately do NOT give raven_app broader access so that RLS
+	// correctness tests continue to validate row isolation.
 	grantCtx := context.Background()
-	adminTables := []string{
-		"marketplace_reports",
-		"marketplace_takedowns",
-		"dmca_notices",
-		"knowledge_bases",
-		"organizations",
-	}
-	for _, tbl := range adminTables {
-		if _, err := db.ExecContext(grantCtx,
-			"GRANT SELECT, INSERT, UPDATE, DELETE ON "+tbl+" TO raven_admin",
-		); err != nil {
-			t.Fatalf("grant %s to raven_admin: %v", tbl, err)
-		}
-	}
-	// raven_app creates reports on behalf of authenticated users.
 	if _, err := db.ExecContext(grantCtx,
-		`GRANT SELECT, INSERT ON marketplace_reports TO raven_app`,
+		`GRANT ALL ON ALL TABLES IN SCHEMA public TO raven_admin`,
 	); err != nil {
-		t.Fatalf("grant marketplace_reports to raven_app: %v", err)
+		t.Fatalf("grant all tables to raven_admin: %v", err)
+	}
+	if _, err := db.ExecContext(grantCtx,
+		`GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO raven_admin`,
+	); err != nil {
+		t.Fatalf("grant sequences to raven_admin: %v", err)
+	}
+	// raven_app needs access to the tables it writes or reads during
+	// normal request flows. The RLS policies further constrain what rows
+	// it can see, so granting broader column access here is safe.
+	appTables := []string{
+		"knowledge_bases", "workspaces", "workspace_members",
+		"users", "organizations", "documents", "sources",
+		"chunks", "embeddings", "response_cache",
+		"marketplace_reports", "marketplace_takedowns", "dmca_notices",
+	}
+	for _, tbl := range appTables {
+		if _, err := db.ExecContext(grantCtx,
+			"GRANT SELECT, INSERT, UPDATE, DELETE ON "+tbl+" TO raven_app",
+		); err != nil {
+			t.Fatalf("grant %s to raven_app: %v", tbl, err)
+		}
 	}
 }
