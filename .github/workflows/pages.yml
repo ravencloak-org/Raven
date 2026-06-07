@@ -1,3 +1,4 @@
+# Deploy Frontend to Cloudflare Pages
 name: Deploy Frontend to Cloudflare Pages
 
 on:
