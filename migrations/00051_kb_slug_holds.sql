@@ -77,7 +77,7 @@ CREATE INDEX idx_kb_slug_holds_held_until ON kb_slug_holds(held_until);
 -- DROP INDEX CONCURRENTLY takes only SHARE UPDATE EXCLUSIVE on the
 -- table rather than ACCESS EXCLUSIVE, so concurrent reads of the
 -- already-doomed table during rollback don't get blocked. The
--- enclosing `+goose NO TRANSACTION` directive is required because
+-- enclosing "+goose NO TRANSACTION" directive is required because
 -- CONCURRENTLY cannot run inside a transaction block.
 SET lock_timeout = '5s';
 SET statement_timeout = '30s';
