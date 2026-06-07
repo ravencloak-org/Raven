@@ -146,13 +146,13 @@ func seedPublicKBWithContent(ctx context.Context, t *testing.T, pool *pgxpool.Po
 				t.Fatalf("seed chunk: %v", err)
 			}
 			if embeddingModel != "" {
-				vec := make([]float32, 1536)
+				vec := make([]float32, 768)
 				vec[0] = float32(i + 1)
 				if _, err := pool.Exec(ctx,
 					`INSERT INTO embeddings
 					   (org_id, chunk_id, embedding, model_name, dimensions)
 					 VALUES ($1, $2, $3, $4, $5)`,
-					orgID, chunkID, pgvector.NewVector(vec), embeddingModel, 1536,
+					orgID, chunkID, pgvector.NewVector(vec), embeddingModel, 768,
 				); err != nil {
 					t.Fatalf("seed embedding: %v", err)
 				}
