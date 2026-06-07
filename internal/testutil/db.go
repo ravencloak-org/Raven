@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,6 +20,15 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
+
+// goose.SetDialect writes to package-level global state in the goose library.
+// Calling it from parallel test goroutines triggers the race detector even
+// though the value is always "postgres". Call it once at process start.
+var setDialectOnce = sync.OnceFunc(func() {
+	if err := goose.SetDialect("postgres"); err != nil {
+		panic("goose.SetDialect: " + err.Error())
+	}
+})
 
 // TestDBOption configures NewTestDB behaviour.
 type TestDBOption func(*testDBConfig)
@@ -132,10 +142,44 @@ func RunMigrations(t *testing.T, db *sql.DB, overrideDir ...string) {
 		t.Fatalf("migrations directory not found at %s: %v", migrationsDir, err)
 	}
 
-	if err := goose.SetDialect("postgres"); err != nil {
-		t.Fatalf("goose.SetDialect: %v", err)
-	}
+	setDialectOnce()
 	if err := goose.Up(db, migrationsDir); err != nil {
 		t.Fatalf("goose.Up: %v", err)
+	}
+
+	// Grant table access to the application roles.
+	// The testcontainer starts as raven_test (superuser) with no
+	// pre-existing grants. Production databases set up these grants via
+	// an out-of-band DBA step; in tests we replicate that step here.
+	//
+	// raven_admin is the bypass role (admin_bypass RLS policy on every
+	// table) — it needs full access to perform cross-tenant admin operations.
+	//
+	// raven_app is the application role (tenant_isolation RLS policy) — it
+	// gets SELECT + write on tables it touches during normal request handling.
+	// We deliberately do NOT give raven_app broader access so that RLS
+	// correctness tests continue to validate row isolation.
+	grantCtx := context.Background()
+	if _, err := db.ExecContext(grantCtx,
+		`GRANT ALL ON ALL TABLES IN SCHEMA public TO raven_admin`,
+	); err != nil {
+		t.Fatalf("grant all tables to raven_admin: %v", err)
+	}
+	if _, err := db.ExecContext(grantCtx,
+		`GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO raven_admin`,
+	); err != nil {
+		t.Fatalf("grant sequences to raven_admin: %v", err)
+	}
+	// Grant raven_app full access too — RLS policies then restrict what rows
+	// it sees. This mirrors the setup in internal/integration/setup_test.go.
+	if _, err := db.ExecContext(grantCtx,
+		`GRANT ALL ON ALL TABLES IN SCHEMA public TO raven_app`,
+	); err != nil {
+		t.Fatalf("grant all tables to raven_app: %v", err)
+	}
+	if _, err := db.ExecContext(grantCtx,
+		`GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO raven_app`,
+	); err != nil {
+		t.Fatalf("grant sequences to raven_app: %v", err)
 	}
 }

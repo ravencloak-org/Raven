@@ -94,20 +94,26 @@ func seedDerivFixture(ctx context.Context, t *testing.T, pool *pgxpool.Pool) der
 		SecondHopKBID:    uuid.New(),
 		SecondHopAdminID: uuid.New(),
 	}
-	// Upstream Org + upstream Public KB (no workspace required for the
-	// test — the upstream is what is being taken down; we only need its
-	// org name to populate SourceOrgDisplayName in the notice).
+	// Upstream Org + workspace + Public KB.
+	// knowledge_bases.workspace_id is NOT NULL, so we must seed a workspace
+	// even though the test only reads org_name from the upstream to populate
+	// SourceOrgDisplayName in the takedown notice.
+	upstreamWSID := uuid.New()
 	if _, err := pool.Exec(ctx,
-		`INSERT INTO organizations (id, name, slug)
-		 VALUES ($1, 'Upstream Org', 'upstream-' || substring($1::text from 1 for 8))`,
-		f.UpstreamOrgID,
+		`INSERT INTO organizations (id, name, slug) VALUES ($1, $2, $3)`,
+		f.UpstreamOrgID, "Upstream Org", "upstream-"+f.UpstreamOrgID.String()[:8],
 	); err != nil {
 		t.Fatalf("seed upstream org: %v", err)
 	}
 	if _, err := pool.Exec(ctx,
-		`INSERT INTO knowledge_bases (id, org_id, workspace_id, name, slug)
-		 VALUES ($1, $2, NULL, 'Upstream KB', 'upstream-kb-' || substring($1::text from 1 for 8))`,
-		f.UpstreamKBID, f.UpstreamOrgID,
+		`INSERT INTO workspaces (id, org_id, name, slug) VALUES ($1, $2, $3, $4)`,
+		upstreamWSID, f.UpstreamOrgID, "Upstream WS", "upstream-ws-"+upstreamWSID.String()[:8],
+	); err != nil {
+		t.Fatalf("seed upstream workspace: %v", err)
+	}
+	if _, err := pool.Exec(ctx,
+		`INSERT INTO knowledge_bases (id, org_id, workspace_id, name, slug) VALUES ($1, $2, $3, $4, $5)`,
+		f.UpstreamKBID, f.UpstreamOrgID, upstreamWSID, "Upstream KB", "upstream-kb-"+f.UpstreamKBID.String()[:8],
 	); err != nil {
 		t.Fatalf("seed upstream kb: %v", err)
 	}
@@ -115,37 +121,32 @@ func seedDerivFixture(ctx context.Context, t *testing.T, pool *pgxpool.Pool) der
 	seedImporter := func(name string, orgID, wsID, kbID, adminID, sourceKBID uuid.UUID) {
 		t.Helper()
 		if _, err := pool.Exec(ctx,
-			`INSERT INTO organizations (id, name, slug)
-			 VALUES ($1, $2, $2 || '-' || substring($1::text from 1 for 8))`,
-			orgID, name,
+			`INSERT INTO organizations (id, name, slug) VALUES ($1, $2, $3)`,
+			orgID, name, name+"-"+orgID.String()[:8],
 		); err != nil {
 			t.Fatalf("seed %s org: %v", name, err)
 		}
 		if _, err := pool.Exec(ctx,
-			`INSERT INTO workspaces (id, org_id, name, slug)
-			 VALUES ($1, $2, $3, $3 || '-' || substring($1::text from 1 for 8))`,
-			wsID, orgID, name+"-ws",
+			`INSERT INTO workspaces (id, org_id, name, slug) VALUES ($1, $2, $3, $4)`,
+			wsID, orgID, name+"-ws", name+"-ws-"+wsID.String()[:8],
 		); err != nil {
 			t.Fatalf("seed %s workspace: %v", name, err)
 		}
 		if _, err := pool.Exec(ctx,
-			`INSERT INTO users (id, org_id, email, status)
-			 VALUES ($1, $2, $3 || '-' || substring($1::text from 1 for 8) || '@example.com', 'active')`,
-			adminID, orgID, name+"-admin",
+			`INSERT INTO users (id, org_id, email, status) VALUES ($1, $2, $3, 'active')`,
+			adminID, orgID, name+"-admin-"+adminID.String()[:8]+"@example.com",
 		); err != nil {
 			t.Fatalf("seed %s admin user: %v", name, err)
 		}
 		if _, err := pool.Exec(ctx,
-			`INSERT INTO workspace_members (workspace_id, user_id, role, org_id)
-			 VALUES ($1, $2, 'admin', $3)`,
+			`INSERT INTO workspace_members (workspace_id, user_id, role, org_id) VALUES ($1, $2, 'admin', $3)`,
 			wsID, adminID, orgID,
 		); err != nil {
 			t.Fatalf("seed %s workspace_members: %v", name, err)
 		}
 		if _, err := pool.Exec(ctx,
-			`INSERT INTO knowledge_bases (id, org_id, workspace_id, name, slug, source_public_kb_id)
-			 VALUES ($1, $2, $3, $4, $4 || '-' || substring($1::text from 1 for 8), $5)`,
-			kbID, orgID, wsID, name+"-kb", sourceKBID,
+			`INSERT INTO knowledge_bases (id, org_id, workspace_id, name, slug, source_public_kb_id) VALUES ($1, $2, $3, $4, $5, $6)`,
+			kbID, orgID, wsID, name+"-kb", name+"-kb-"+kbID.String()[:8], sourceKBID,
 		); err != nil {
 			t.Fatalf("seed %s kb: %v", name, err)
 		}
@@ -224,15 +225,21 @@ func TestDerivativeNotifier_NoDerivatives(t *testing.T) {
 	ctx := context.Background()
 
 	orgID := uuid.New()
+	wsID := uuid.New()
 	kbID := uuid.New()
 	if _, err := pool.Exec(ctx,
-		`INSERT INTO organizations (id, name, slug)
-		 VALUES ($1, 'Lonely Org', 'lonely-' || substring($1::text from 1 for 8))`, orgID); err != nil {
+		`INSERT INTO organizations (id, name, slug) VALUES ($1, $2, $3)`,
+		orgID, "Lonely Org", "lonely-"+orgID.String()[:8]); err != nil {
 		t.Fatalf("seed org: %v", err)
 	}
 	if _, err := pool.Exec(ctx,
-		`INSERT INTO knowledge_bases (id, org_id, name, slug)
-		 VALUES ($1, $2, 'Lonely KB', 'lonely-kb-' || substring($1::text from 1 for 8))`, kbID, orgID); err != nil {
+		`INSERT INTO workspaces (id, org_id, name, slug) VALUES ($1, $2, $3, $4)`,
+		wsID, orgID, "Lonely WS", "lonely-ws-"+wsID.String()[:8]); err != nil {
+		t.Fatalf("seed workspace: %v", err)
+	}
+	if _, err := pool.Exec(ctx,
+		`INSERT INTO knowledge_bases (id, org_id, workspace_id, name, slug) VALUES ($1, $2, $3, $4, $5)`,
+		kbID, orgID, wsID, "Lonely KB", "lonely-kb-"+kbID.String()[:8]); err != nil {
 		t.Fatalf("seed kb: %v", err)
 	}
 
@@ -261,6 +268,8 @@ func TestTakedowns_ListAudit_PaginatesNewestFirst(t *testing.T) {
 	// Org B: 1 takedown,  strike counter at 1.
 	orgA := uuid.New()
 	orgB := uuid.New()
+	wsA := uuid.New()
+	wsB := uuid.New()
 	kbA1 := uuid.New()
 	kbA2 := uuid.New()
 	kbB1 := uuid.New()
@@ -270,16 +279,20 @@ func TestTakedowns_ListAudit_PaginatesNewestFirst(t *testing.T) {
 			t.Fatalf("exec: %v\nsql=%s", err, sql)
 		}
 	}
-	mustExec(`INSERT INTO organizations (id, name, slug, takedown_strikes)
-	          VALUES ($1, 'Org A', 'orga-' || substring($1::text from 1 for 8), 5)`, orgA)
-	mustExec(`INSERT INTO organizations (id, name, slug, takedown_strikes)
-	          VALUES ($1, 'Org B', 'orgb-' || substring($1::text from 1 for 8), 1)`, orgB)
-	mustExec(`INSERT INTO knowledge_bases (id, org_id, name, slug)
-	          VALUES ($1, $2, 'A1', 'a1-' || substring($1::text from 1 for 8))`, kbA1, orgA)
-	mustExec(`INSERT INTO knowledge_bases (id, org_id, name, slug)
-	          VALUES ($1, $2, 'A2', 'a2-' || substring($1::text from 1 for 8))`, kbA2, orgA)
-	mustExec(`INSERT INTO knowledge_bases (id, org_id, name, slug)
-	          VALUES ($1, $2, 'B1', 'b1-' || substring($1::text from 1 for 8))`, kbB1, orgB)
+	mustExec(`INSERT INTO organizations (id, name, slug, takedown_strikes) VALUES ($1, $2, $3, $4)`,
+		orgA, "Org A", "orga-"+orgA.String()[:8], 5)
+	mustExec(`INSERT INTO organizations (id, name, slug, takedown_strikes) VALUES ($1, $2, $3, $4)`,
+		orgB, "Org B", "orgb-"+orgB.String()[:8], 1)
+	mustExec(`INSERT INTO workspaces (id, org_id, name, slug) VALUES ($1, $2, $3, $4)`,
+		wsA, orgA, "WS A", "ws-a-"+wsA.String()[:8])
+	mustExec(`INSERT INTO workspaces (id, org_id, name, slug) VALUES ($1, $2, $3, $4)`,
+		wsB, orgB, "WS B", "ws-b-"+wsB.String()[:8])
+	mustExec(`INSERT INTO knowledge_bases (id, org_id, workspace_id, name, slug) VALUES ($1, $2, $3, $4, $5)`,
+		kbA1, orgA, wsA, "A1", "a1-"+kbA1.String()[:8])
+	mustExec(`INSERT INTO knowledge_bases (id, org_id, workspace_id, name, slug) VALUES ($1, $2, $3, $4, $5)`,
+		kbA2, orgA, wsA, "A2", "a2-"+kbA2.String()[:8])
+	mustExec(`INSERT INTO knowledge_bases (id, org_id, workspace_id, name, slug) VALUES ($1, $2, $3, $4, $5)`,
+		kbB1, orgB, wsB, "B1", "b1-"+kbB1.String()[:8])
 
 	// Insert takedowns with explicit timestamps so we can assert the
 	// sort order deterministically (default DEFAULT now() would be too

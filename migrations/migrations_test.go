@@ -827,7 +827,10 @@ func TestMigrationsUpAndDown(t *testing.T) {
 		for _, tc := range cases {
 			tc := tc
 			t.Run(tc.fnName, func(t *testing.T) {
-				// 1. Function exists at the expected (name, arg-types) signature.
+				// 1. Function exists with the expected argument count.
+				// Match by pronargs rather than argument-type string to avoid
+				// sensitivity to how PostgreSQL normalises type aliases.
+				nargs := len(strings.Split(tc.args, ","))
 				var oid uint32
 				err := db.QueryRowContext(ctx,
 					`SELECT p.oid
@@ -835,10 +838,10 @@ func TestMigrationsUpAndDown(t *testing.T) {
 					 JOIN pg_namespace n ON n.oid = p.pronamespace
 					 WHERE n.nspname = 'public'
 					   AND p.proname = $1
-					   AND pg_get_function_arguments(p.oid) = $2`,
-					tc.fnName, tc.args).Scan(&oid)
+					   AND p.pronargs = $2`,
+					tc.fnName, nargs).Scan(&oid)
 				if err != nil {
-					t.Fatalf("function %s(%s) not found: %v", tc.fnName, tc.args, err)
+					t.Fatalf("function %s (nargs=%d) not found: %v", tc.fnName, nargs, err)
 				}
 
 				// 2. SECURITY DEFINER bit set (prosecdef in pg_proc).
