@@ -170,20 +170,16 @@ func RunMigrations(t *testing.T, db *sql.DB, overrideDir ...string) {
 	); err != nil {
 		t.Fatalf("grant sequences to raven_admin: %v", err)
 	}
-	// raven_app needs access to the tables it writes or reads during
-	// normal request flows. The RLS policies further constrain what rows
-	// it can see, so granting broader column access here is safe.
-	appTables := []string{
-		"knowledge_bases", "workspaces", "workspace_members",
-		"users", "organizations", "documents", "sources",
-		"chunks", "embeddings", "response_cache",
-		"marketplace_reports", "marketplace_takedowns", "dmca_notices",
+	// Grant raven_app full access too — RLS policies then restrict what rows
+	// it sees. This mirrors the setup in internal/integration/setup_test.go.
+	if _, err := db.ExecContext(grantCtx,
+		`GRANT ALL ON ALL TABLES IN SCHEMA public TO raven_app`,
+	); err != nil {
+		t.Fatalf("grant all tables to raven_app: %v", err)
 	}
-	for _, tbl := range appTables {
-		if _, err := db.ExecContext(grantCtx,
-			"GRANT SELECT, INSERT, UPDATE, DELETE ON "+tbl+" TO raven_app",
-		); err != nil {
-			t.Fatalf("grant %s to raven_app: %v", tbl, err)
-		}
+	if _, err := db.ExecContext(grantCtx,
+		`GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO raven_app`,
+	); err != nil {
+		t.Fatalf("grant sequences to raven_app: %v", err)
 	}
 }
