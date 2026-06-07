@@ -96,8 +96,8 @@ func seedReimportFixture(ctx context.Context, t *testing.T, pool *pgxpool.Pool) 
 	// Public KB on the publisher org. visibility='public' is the
 	// pre-condition every Re-import lookup verifies.
 	_, err = pool.Exec(ctx,
-		`INSERT INTO knowledge_bases (id, org_id, workspace_id, name, slug, visibility, last_modified_at)
-		 VALUES ($1, $2, $3, 'Public KB', 'public-kb', 'public', NOW())`,
+		`INSERT INTO knowledge_bases (id, org_id, workspace_id, name, slug, visibility, license_spdx_id, last_modified_at)
+		 VALUES ($1, $2, $3, 'Public KB', 'public-kb', 'public', 'MIT', NOW())`,
 		f.pubKBID, f.pubOrgID, f.pubWSID,
 	)
 	require.NoError(t, err)
