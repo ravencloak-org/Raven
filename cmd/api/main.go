@@ -29,6 +29,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -39,6 +40,7 @@ import (
 	"go.opentelemetry.io/otel"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	_ "github.com/ravencloak-org/Raven/docs/swagger" // swagger docs
 	"github.com/ravencloak-org/Raven/internal/account"
@@ -155,6 +157,78 @@ func apiKeyToLookupResult(ak *model.APIKey) *middleware.APIKeyLookupResult {
 		RateLimit:       ak.RateLimit,
 		Status:          string(ak.Status),
 	}
+}
+
+// importerPlanResolver adapts the QuotaChecker's OrgSubscription lookup to
+// the marketplace.PlanResolver interface. Inline here (vs. a method on
+// *service.QuotaChecker) because the marketplace package must stay a leaf
+// in the import graph — internal/service imports internal/marketplace via
+// publishGate already, so the reverse would cycle.
+type importerPlanResolver struct {
+	checker *service.QuotaChecker
+}
+
+// IsFreePlanOrg returns true when the Org has no active paid Subscription
+// today. Matches ADR-0004's definition: "any Org without an active paid
+// Subscription is a Free Plan Org". A Pro / Enterprise plan with a
+// canceled / past-due subscription that is no longer active also reads as
+// Free, which is the intent — strict-flywheel + frozen-private only
+// applies once the Org is genuinely on Free.
+func (r importerPlanResolver) IsFreePlanOrg(ctx context.Context, orgID string) (bool, error) {
+	sub, err := r.checker.GetOrgSubscription(ctx, orgID)
+	if err != nil {
+		// Fail-open like every other quota path: surface the error so
+		// the caller can decide. The Importer translates this to a 500.
+		return false, err
+	}
+	return sub.Plan.Tier == model.PlanTierFree, nil
+}
+
+// importerEmbeddingResolver adapts the LLM provider service's default
+// lookup to marketplace.EmbeddingModelResolver. For the MVP the embedding
+// model name lives inside LLMProviderConfig.Config["embedding_model"] —
+// no first-class column. Empty string is "no default" and the import will
+// proceed without an embedding model match check (re-embed deferred per
+// ADR-0001).
+type importerEmbeddingResolver struct {
+	llm  *service.LLMProviderService
+	pool *pgxpool.Pool
+}
+
+// DefaultEmbeddingModel resolves the Org's default embedding model name by
+// reading the default LLM provider's Config blob. The resolution is best-
+// effort: a missing default, a missing embedding_model key, or any lookup
+// error all collapse to an empty string so the import does not block on
+// observability problems — the SQL function treats empty as "no
+// enforcement, skip embeddings projection".
+func (r importerEmbeddingResolver) DefaultEmbeddingModel(ctx context.Context, orgID string) (string, error) {
+	// Use the same per-Org tx the rest of the LLM service uses so the
+	// row read respects RLS just like the dashboard read would.
+	var modelName string
+	repo := repository.NewLLMProviderRepository(r.pool)
+	err := db.WithOrgID(ctx, r.pool, orgID, func(tx pgx.Tx) error {
+		cfg, getErr := repo.GetDefault(ctx, tx, orgID)
+		if getErr != nil {
+			if errors.Is(getErr, pgx.ErrNoRows) ||
+				strings.Contains(getErr.Error(), "no rows") {
+				return nil // no default — empty string
+			}
+			return getErr
+		}
+		if cfg == nil {
+			return nil
+		}
+		if v, ok := cfg.Config["embedding_model"]; ok {
+			if s, ok := v.(string); ok {
+				modelName = s
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return modelName, nil
 }
 
 func main() {
@@ -548,6 +622,18 @@ func main() {
 		pool, reportsRepo, takedownsRepo, marketplace.NewNoopPublisherNotifier(),
 	)
 	adminMarketplaceHandler := handler.NewAdminMarketplaceHandler(adminModerationSvc)
+
+	// Marketplace importer (issue #729, ADR-0001 + ADR-0002 + ADR-0004).
+	// The cross-tenant fork. Free Plan resolver and embedding-model
+	// resolver are inline closures over quotaChecker and llmSvc so the
+	// marketplace package stays a leaf in the import graph (it must not
+	// pull in internal/service for the same import-cycle reason
+	// publishGate exists as a closure).
+	importPlanResolver := importerPlanResolver{checker: quotaChecker}
+	importEmbResolver := importerEmbeddingResolver{llm: llmSvc, pool: pool}
+	importerSvc := marketplace.NewImporter(pool, importPlanResolver, importEmbResolver)
+	marketplaceImportHandler := handler.NewMarketplaceHandler(importerSvc)
+	_ = marketplaceImportHandler // wired below in marketplace route group
 	sourceHandler := handler.NewSourceHandler(sourceSvc)
 	docHandler := handler.NewDocumentHandler(docSvc)
 	searchHandler := handler.NewSearchHandler(searchSvc)
@@ -1001,6 +1087,14 @@ func main() {
 
 		// --- Passkey routes (issue #771, M14) ---
 		wirePasskeyRoutes(api, passkeyHandler)
+
+		// --- Marketplace routes ---
+		// Issue #729: import endpoint. The cross-tenant content-grade
+		// fork (ADR-0001 + ADR-0002). Listing / preview land in #731 and
+		// extend this group; this PR is import-only by design so the M2
+		// milestone can ship as independently-mergeable PRs (the plan's
+		// §8 cadence).
+		api.POST("/marketplace/import/:public_kb_id", marketplaceImportHandler.Import)
 
 		// --- DSAR routes ---
 		// GET /account/export → JSON download of the caller's data.
