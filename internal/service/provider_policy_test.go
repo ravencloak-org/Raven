@@ -2,8 +2,11 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/jackc/pgx/v5"
 
 	"github.com/ravencloak-org/Raven/internal/model"
 )
@@ -35,8 +38,8 @@ func TestResolveChatFrom(t *testing.T) {
 		{
 			name: "no default configured (no-rows) — returns (nil, nil)",
 			cfg:  nil,
-			getErr: errors.New(
-				"LLMProviderRepository.GetDefault: no rows in result set"),
+			getErr: fmt.Errorf(
+				"LLMProviderRepository.GetDefault: %w", pgx.ErrNoRows),
 			want: nil,
 		},
 		{

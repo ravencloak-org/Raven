@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -42,9 +42,10 @@ type ProviderSelectionPolicy struct {
 }
 
 // NewProviderSelectionPolicy wires the policy to the LLM-provider repo and
-// the connection pool. Both are required — a nil repo or pool would force
-// every method to error on first call, so we surface that at wiring time
-// instead of at request time.
+// the connection pool. A nil repo (or nil policy) is handled gracefully at
+// call time: ResolveForChat returns (nil, nil) so callers fall through to
+// their literal default, while ResolveForEmbed returns an error since an
+// embedding provider must be explicitly configured.
 func NewProviderSelectionPolicy(pool *pgxpool.Pool, repo LLMProviderLister) *ProviderSelectionPolicy {
 	return &ProviderSelectionPolicy{pool: pool, repo: repo}
 }
@@ -83,7 +84,7 @@ func resolveChatFrom(cfg *model.LLMProviderConfig, getErr error) (*model.LLMProv
 	if getErr != nil {
 		// no-rows is the common "no default configured" path —
 		// don't surface it as an error.
-		if strings.Contains(getErr.Error(), "no rows") {
+		if errors.Is(getErr, pgx.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, getErr
@@ -120,7 +121,7 @@ func (p *ProviderSelectionPolicy) ResolveForEmbed(ctx context.Context, orgID str
 	)
 	err := db.WithOrgID(ctx, p.pool, orgID, func(tx pgx.Tx) error {
 		def, dErr := p.repo.GetDefault(ctx, tx, orgID)
-		if dErr != nil && !strings.Contains(dErr.Error(), "no rows") {
+		if dErr != nil && !errors.Is(dErr, pgx.ErrNoRows) {
 			return fmt.Errorf("get default provider: %w", dErr)
 		}
 		defaultCfg = def
