@@ -826,46 +826,13 @@ func main() {
 		}
 
 		// --- Airbyte connector routes (nested under org) ---
-		connectors := api.Group("/orgs/:org_id/connectors")
-		{
-			connectors.POST("", middleware.RequireOrgRole("org_admin"), airbyteHandler.Create)
-			connectors.GET("", airbyteHandler.List)
-			connectors.GET("/:connector_id", airbyteHandler.Get)
-			connectors.PUT("/:connector_id", middleware.RequireOrgRole("org_admin"), airbyteHandler.Update)
-			connectors.DELETE("/:connector_id", middleware.RequireOrgRole("org_admin"), airbyteHandler.Delete)
-			connectors.POST("/:connector_id/sync", middleware.RequireOrgRole("org_admin"), airbyteHandler.TriggerSync)
-			connectors.GET("/:connector_id/history", airbyteHandler.GetSyncHistory)
-		}
+		wireAirbyteConnectorRoutes(api, airbyteHandler)
 
 		// --- LLM Provider routes (nested under org) ---
-		llm := api.Group("/orgs/:org_id/llm-providers")
-		{
-			llm.POST("", middleware.RequireOrgRole("org_admin"), llmHandler.Create)
-			// Probe-before-create; same body as POST "" but doesn't persist.
-			// Kept admin-only since it carries the API key, even though no
-			// row is written — limits how loud bad keys can get in the logs.
-			llm.POST("/test", middleware.RequireOrgRole("org_admin"), llmHandler.TestConnection)
-			llm.GET("", llmHandler.List)
-			// Default-provider health probe used by the SPA's polling cron.
-			// Open to any authenticated org member (not just admins) since
-			// the toast lives across every authenticated page.
-			llm.GET("/default/health", llmHandler.DefaultHealth)
-			llm.GET("/:provider_id", llmHandler.Get)
-			llm.PUT("/:provider_id", middleware.RequireOrgRole("org_admin"), llmHandler.Update)
-			llm.DELETE("/:provider_id", middleware.RequireOrgRole("org_admin"), llmHandler.Delete)
-			llm.PUT("/:provider_id/default", middleware.RequireOrgRole("org_admin"), llmHandler.SetDefault)
-		}
+		wireLLMProviderRoutes(api, llmHandler)
 
 		// --- Routing rule routes (nested under org) ---
-		routing := api.Group("/orgs/:org_id/routing-rules")
-		{
-			routing.POST("", middleware.RequireOrgRole("org_admin"), routingHandler.Create)
-			routing.GET("", middleware.RequireOrgRole("org_admin"), routingHandler.List)
-			routing.GET("/:rule_id", middleware.RequireOrgRole("org_admin"), routingHandler.Get)
-			routing.PUT("/:rule_id", middleware.RequireOrgRole("org_admin"), routingHandler.Update)
-			routing.DELETE("/:rule_id", middleware.RequireOrgRole("org_admin"), routingHandler.Delete)
-			routing.POST("/resolve", middleware.RequireOrgRole("org_admin"), routingHandler.Resolve)
-		}
+		wireRoutingRuleRoutes(api, routingHandler)
 
 		// --- Catalog metadata routes (nested under org) ---
 		api.GET("/orgs/:org_id/catalog", middleware.RequireOrgRole("org_admin"), routingHandler.ListCatalog)
@@ -1032,13 +999,7 @@ func main() {
 		)
 
 		// --- Passkey routes (issue #771, M14) ---
-		// All three sit under the standard session middleware so the caller's
-		// internal user ID + SuperTokens external ID are already on the gin
-		// context. Ownership of :credential_id is verified inside the handler
-		// by listing the core's credentials for the session user.
-		api.GET("/me/passkeys", passkeyHandler.List)
-		api.PATCH("/me/passkeys/:credential_id", passkeyHandler.Patch)
-		api.DELETE("/me/passkeys/:credential_id", passkeyHandler.Delete)
+		wirePasskeyRoutes(api, passkeyHandler)
 
 		// --- DSAR routes ---
 		// GET /account/export → JSON download of the caller's data.
