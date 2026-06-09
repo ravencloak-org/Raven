@@ -85,7 +85,7 @@ SET statement_timeout = '30s';
 --   data_exception        (22000) — source KB has zero documents (an
 --                                    empty Public KB is unimportable per
 --                                    plan §4).
---   restrict_violation    (2BP01) — embedding model mismatch. The Go layer
+--   restrict_violation    (23001) — embedding model mismatch. The Go layer
 --                                    maps this to ErrEmbeddingModelMismatch
 --                                    and surfaces HTTP 422 / 409 per spec.
 --   unique_violation       (23505) — a KB already exists for this

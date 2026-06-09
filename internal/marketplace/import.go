@@ -306,7 +306,7 @@ func mapImportErr(err error) error {
 		return ErrSourceNotPublic
 	case "22000": // data_exception
 		return ErrSourceEmpty
-	case "2BP01": // restrict_violation
+	case "23001": // restrict_violation
 		return ErrEmbeddingModelMismatch
 	case pgUniqueViolation:
 		return ErrAlreadyImported
