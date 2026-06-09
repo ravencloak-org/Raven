@@ -44,17 +44,21 @@ func seedPublicKBForUnpublish(ctx context.Context, t *testing.T, pool *pgxpool.P
 		KBID:   uuid.New(),
 		KBSlug: label + "-kb-" + uuid.New().String()[:8],
 	}
+	// Precompute slugs in Go. Reusing the same $N parameter as both a typed
+	// column value and inside a text expression in one VALUES clause makes
+	// pgx/v5 (extended protocol) deduce inconsistent types for it -> SQLSTATE
+	// 42P08. Mirrors seedModFixture in moderation_integration_test.go.
+	orgSlug := label + "-org-" + f.OrgID.String()[:8]
+	wsSlug := label + "-ws-" + f.WSID.String()[:8]
 	if _, err := pool.Exec(ctx,
-		`INSERT INTO organizations (id, name, slug)
-		 VALUES ($1, $2, $2 || '-' || substring($1::text from 1 for 8))`,
-		f.OrgID, label+"-org",
+		`INSERT INTO organizations (id, name, slug) VALUES ($1, $2, $3)`,
+		f.OrgID, label+"-org", orgSlug,
 	); err != nil {
 		t.Fatalf("seed organization: %v", err)
 	}
 	if _, err := pool.Exec(ctx,
-		`INSERT INTO workspaces (id, org_id, name, slug)
-		 VALUES ($1, $2, $3, $3 || '-' || substring($1::text from 1 for 8))`,
-		f.WSID, f.OrgID, label+"-ws",
+		`INSERT INTO workspaces (id, org_id, name, slug) VALUES ($1, $2, $3, $4)`,
+		f.WSID, f.OrgID, label+"-ws", wsSlug,
 	); err != nil {
 		t.Fatalf("seed workspace: %v", err)
 	}
