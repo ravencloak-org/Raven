@@ -146,18 +146,19 @@ func main() {
 			"cohere": true,
 			"ollama": true,
 		}
+		providerPolicy := service.NewProviderSelectionPolicy(pool, llmRepo)
 		resolveProvider := func(ctx context.Context, orgID string) string {
-			// Pick the org's embedding-capable provider. Walks the
-			// default first (kept for the common case where the
-			// default IS embedding-capable), then the
-			// Ollama→OpenAI→Cohere priority list. Falls back to the
-			// default's slug only when the resolver finds nothing —
-			// preserves prior behaviour for unconfigured orgs so
-			// document ingestion keeps degrading gracefully instead
-			// of failing the whole worker job.
-			if p, err := service.ResolveEmbeddingProvider(ctx, pool, llmRepo, orgID); err == nil {
-				return p
-			} else {
+			// Pick the org's embedding-capable provider via the unified
+			// ProviderSelectionPolicy. Walks the default first (kept for
+			// the common case where the default IS embedding-capable),
+			// then the Ollama→OpenAI→Cohere priority list. Falls back
+			// to scanning the active provider list only when the policy
+			// finds nothing — preserves prior behaviour for unconfigured
+			// orgs so document ingestion keeps degrading gracefully
+			// instead of failing the whole worker job.
+			if p, err := providerPolicy.ResolveForEmbed(ctx, orgID); err == nil && p != nil {
+				return string(*p)
+			} else if err != nil {
 				logger.Warn("resolve embedding provider failed",
 					"org_id", orgID, "error", err)
 			}

@@ -80,11 +80,12 @@ type ChatService struct {
 	// convMem is optional: when non-nil and the caller has an authenticated
 	// user, the service pulls cross-channel history and records the turn.
 	convMem ConversationMemory
-	// llmRepo is optional: when non-nil, StreamCompletion resolves the org's
-	// default provider before falling back to the hardcoded "anthropic"
-	// literal. Without it, an org that has only Ollama (or only OpenAI)
-	// configured would 500 on every chat the SPA didn't pin a provider on.
-	llmRepo *repository.LLMProviderRepository
+	// policy is optional: when non-nil, StreamCompletion resolves the org's
+	// default provider (and the embedding-sibling for chat-only defaults like
+	// Anthropic) via the unified ProviderSelectionPolicy. Without it, an org
+	// that has only Ollama (or only OpenAI) configured would 500 on every
+	// chat the SPA didn't pin a provider on.
+	policy *ProviderSelectionPolicy
 	// kbGuard enforces KBStatusGate freeze semantics on the chat path.
 	// Read_only_private allows chat (the corpus is queryable), but
 	// dmca_pending and archived KBs reject it (issue #725, ADR-0006).
@@ -109,11 +110,11 @@ func (s *ChatService) WithConversationMemory(m ConversationMemory) *ChatService 
 	return s
 }
 
-// WithLLMProviderRepo attaches the provider-config repo so StreamCompletion
-// can pick the org's configured default instead of the "anthropic" literal
-// fallback. Chainable.
-func (s *ChatService) WithLLMProviderRepo(r *repository.LLMProviderRepository) *ChatService {
-	s.llmRepo = r
+// WithProviderPolicy attaches the unified ProviderSelectionPolicy so
+// StreamCompletion can resolve the org's default chat provider and the
+// embedding-sibling fallback from a single module. Chainable.
+func (s *ChatService) WithProviderPolicy(p *ProviderSelectionPolicy) *ChatService {
+	s.policy = p
 	return s
 }
 
@@ -123,40 +124,6 @@ func (s *ChatService) WithLLMProviderRepo(r *repository.LLMProviderRepository) *
 func (s *ChatService) WithKBStatusGuard(g *KBStatusGuard) *ChatService {
 	s.kbGuard = g
 	return s
-}
-
-// resolveDefaultProvider returns the provider type configured as the org's
-// default (e.g. "ollama", "openai"), or "" when none is configured or the
-// repo isn't wired. The error return surfaces real infra/repo failures so
-// the caller can 500 explicitly instead of silently masking them with the
-// literal-default fallback (CodeRabbit PR #689). A no-rows / no-default
-// hit returns ("", nil) — the legitimate "org hasn't set a default" case
-// that the caller still falls through to the literal.
-func (s *ChatService) resolveDefaultProvider(ctx context.Context, orgID string) (string, error) {
-	if s.llmRepo == nil {
-		return "", nil
-	}
-	var providerType string
-	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
-		cfg, err := s.llmRepo.GetDefault(ctx, tx, orgID)
-		if err != nil {
-			// no-rows is the common "no default configured" path —
-			// don't surface it as an error.
-			if strings.Contains(err.Error(), "no rows") {
-				return nil
-			}
-			return err
-		}
-		if cfg == nil {
-			return nil
-		}
-		providerType = string(cfg.Provider)
-		return nil
-	})
-	if err != nil {
-		return "", err
-	}
-	return providerType, nil
 }
 
 // StreamCompletion calls QueryRAG and returns a channel of SSE events.
@@ -253,19 +220,19 @@ func (s *ChatService) StreamCompletion(ctx context.Context, orgID, kbID string, 
 	// the env-level ANTHROPIC_API_KEY exists — in that case Python uses the
 	// env key. Anything else 500s with "no active provider config".
 	provider := req.Provider
-	if provider == "" && s.llmRepo != nil {
+	if provider == "" && s.policy != nil {
 		// Surface real lookup failures instead of silently falling through
 		// to "anthropic" — masking infra/repo errors here misroutes prompts
 		// and trips downstream RAG 500s with confusing provider context.
-		// resolveDefaultProvider returns ("", nil) for the legitimate
-		// "org hasn't set a default" case, which we still let fall through
-		// to the literal default below.
-		def, err := s.resolveDefaultProvider(ctx, orgID)
+		// ResolveForChat returns (nil, nil) for the legitimate "org hasn't
+		// set a default" case, which we still let fall through to the
+		// literal default below.
+		def, err := s.policy.ResolveForChat(ctx, orgID)
 		if err != nil {
 			return nil, apierror.NewInternal("failed to resolve default LLM provider: " + err.Error())
 		}
-		if def != "" {
-			provider = def
+		if def != nil {
+			provider = string(*def)
 		}
 	}
 	if provider == "" {
@@ -288,9 +255,9 @@ func (s *ChatService) StreamCompletion(ctx context.Context, orgID, kbID string, 
 	// Failing loudly here would also block orgs whose default IS
 	// embedding-capable (the common case), which is worse than the bug.
 	var embedProvider string
-	if !model.SupportsEmbeddings(model.LLMProvider(provider)) && s.llmRepo != nil {
-		if ep, err := ResolveEmbeddingProvider(ctx, s.pool, s.llmRepo, orgID); err == nil {
-			embedProvider = ep
+	if !model.SupportsEmbeddings(model.LLMProvider(provider)) && s.policy != nil {
+		if ep, err := s.policy.ResolveForEmbed(ctx, orgID); err == nil && ep != nil {
+			embedProvider = string(*ep)
 		}
 	}
 

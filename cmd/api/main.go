@@ -514,9 +514,10 @@ func main() {
 	// branch reads/writes the table but does not create it.
 	conversationRepo := repository.NewConversationRepository(pool)
 	conversationSvc := service.NewConversationService(conversationRepo, posthogClient)
+	providerPolicy := service.NewProviderSelectionPolicy(pool, llmRepo)
 	chatSvc := service.NewChatService(chatRepo, grpcClient, pool).
 		WithConversationMemory(conversationSvc).
-		WithLLMProviderRepo(llmRepo).
+		WithProviderPolicy(providerPolicy).
 		WithKBStatusGuard(kbStatusGuard)
 	voiceRepo := repository.NewVoiceRepository(pool)
 	// Instantiate shared LiveKit client for WebRTC room management and token generation.
