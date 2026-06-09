@@ -1,9 +1,11 @@
 // Package service contains the business-logic layer for Raven.
 //
-// passkey.go is a thin wrapper around the SuperTokens core's WebAuthn REST
-// API. It exists so the handler layer can stay HTTP-transport-agnostic and
-// tests can inject a fake HTTP client (via httptest.NewServer) without
-// reaching for the real SuperTokens SDK.
+// passkey.go is the unified passkey service: a thin wrapper around the
+// SuperTokens core's WebAuthn REST API plus the local
+// user_passkey_labels persistence layer (via
+// repository.PasskeyLabelRepository). The handler depends on this single
+// service through a 5-method interface; tests inject a fake
+// implementation rather than mocking the core and the repo separately.
 package service
 
 import (
@@ -16,7 +18,18 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/ravencloak-org/Raven/internal/repository"
 )
+
+// PasskeyLabel re-exports the repository row shape so handler code can
+// trade in service-package types only.
+type PasskeyLabel = repository.PasskeyLabel
+
+// ErrPasskeyLabelNotFound is the canonical "no row" sentinel for label
+// writes, re-exported from the repository so handlers can errors.Is
+// against the service package alone.
+var ErrPasskeyLabelNotFound = repository.ErrPasskeyLabelNotFound
 
 // PasskeyCredential represents one WebAuthn credential as the SuperTokens
 // core returns it on a list response. We intentionally model only the
@@ -60,7 +73,10 @@ type httpDoer interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-// PasskeyService talks to the SuperTokens core's WebAuthn recipe over REST.
+// PasskeyService talks to the SuperTokens core's WebAuthn recipe over REST
+// and persists user-supplied labels via PasskeyLabelRepository. Bundling
+// both responsibilities lets the handler depend on one interface and lets
+// tests substitute a single fake instead of two.
 type PasskeyService struct {
 	// baseURL is the SuperTokens core base URL (e.g. http://supertokens:3567).
 	// Trailing slashes are stripped on construction so paths join cleanly.
@@ -72,16 +88,21 @@ type PasskeyService struct {
 	// client is the HTTP client used for every outbound call. Injectable so
 	// tests can swap in a transport that points at httptest.NewServer.
 	client httpDoer
+	// labels persists user-supplied labels for credentials. May be nil in
+	// the HTTP-only test setup; the label-store methods will return an
+	// explicit error rather than panic in that case.
+	labels *repository.PasskeyLabelRepository
 }
 
 // NewPasskeyService constructs a service. connectionURI is the same value
 // the Go SDK uses (RAVEN_SUPERTOKENS_CONNECTION_URI / config.supertokens.
-// connection_uri). apiKey may be empty.
+// connection_uri). apiKey may be empty. labels persists user-supplied
+// labels and may be nil for tests that only exercise the core HTTP path.
 //
 // If client is nil a default *http.Client with a 5-second timeout is used —
 // passkey list/delete are interactive paths so a long stall would hang the
 // caller's Settings page.
-func NewPasskeyService(connectionURI, apiKey string, client httpDoer) *PasskeyService {
+func NewPasskeyService(connectionURI, apiKey string, client httpDoer, labels *repository.PasskeyLabelRepository) *PasskeyService {
 	if client == nil {
 		client = &http.Client{Timeout: 5 * time.Second}
 	}
@@ -89,7 +110,53 @@ func NewPasskeyService(connectionURI, apiKey string, client httpDoer) *PasskeySe
 		baseURL: strings.TrimRight(connectionURI, "/"),
 		apiKey:  apiKey,
 		client:  client,
+		labels:  labels,
 	}
+}
+
+// errLabelsUnconfigured signals that a caller invoked a label-store method
+// on a PasskeyService constructed without a repository. In production this
+// can never happen (cmd/api/main.go always passes one); the guard exists
+// purely to keep the HTTP-level tests from segfaulting if a future change
+// accidentally calls into the label path.
+var errLabelsUnconfigured = errors.New("PasskeyService: label repository not configured")
+
+// ListLabelsForUser returns every label row owned by userID, keyed by
+// credential_id. Delegated to the repository.
+func (s *PasskeyService) ListLabelsForUser(ctx context.Context, userID string) (map[string]PasskeyLabel, error) {
+	if s.labels == nil {
+		return nil, errLabelsUnconfigured
+	}
+	return s.labels.ListForUser(ctx, userID)
+}
+
+// UpsertLabel inserts a new label row or updates an existing one. Used
+// only by the SuperTokens registration hook path — the user-facing PATCH
+// goes through UpdateLabel so it can return 404 on missing rows.
+func (s *PasskeyService) UpsertLabel(ctx context.Context, userID, credentialID, label string) error {
+	if s.labels == nil {
+		return errLabelsUnconfigured
+	}
+	return s.labels.Upsert(ctx, userID, credentialID, label)
+}
+
+// UpdateLabel atomically renames the label for an existing row. Returns
+// ErrPasskeyLabelNotFound when no row matches — ownership is enforced by
+// the (credential_id, user_id) WHERE clause rather than a pre-check.
+func (s *PasskeyService) UpdateLabel(ctx context.Context, userID, credentialID, label string) error {
+	if s.labels == nil {
+		return errLabelsUnconfigured
+	}
+	return s.labels.UpdateLabel(ctx, userID, credentialID, label)
+}
+
+// DeleteLabel removes a single label row. Best-effort; missing rows are
+// silently absorbed by the repository.
+func (s *PasskeyService) DeleteLabel(ctx context.Context, userID, credentialID string) error {
+	if s.labels == nil {
+		return errLabelsUnconfigured
+	}
+	return s.labels.Delete(ctx, userID, credentialID)
 }
 
 // ListByUser returns every WebAuthn credential the SuperTokens core has

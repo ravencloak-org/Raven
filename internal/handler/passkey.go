@@ -2,6 +2,20 @@
 // management endpoints under /api/v1/me/passkeys. All routes assume the
 // session middleware has populated ContextKeyUserID + ContextKeyExternalID
 // (i.e. they sit under the standard authenticated /api/v1 group).
+//
+// Ownership model:
+//
+//   - GET is naturally scoped to the session user (the core list call
+//     takes the external user ID, and the label join is by user_id).
+//   - PATCH and DELETE prove ownership atomically inside each write,
+//     rather than via a pre-flight ListByUser round-trip to the
+//     SuperTokens core. PATCH relies on the (credential_id, user_id)
+//     WHERE clause of the UPDATE — 0 rows means "not yours" (or
+//     "doesn't exist", which is the same 404 from the caller's
+//     point of view). DELETE relies on the core's own ownership
+//     check inside its DELETE /recipe/webauthn/user/credential
+//     handler; a credential_id that does not belong to the calling
+//     user surfaces as ErrPasskeyNotFound, which we map to 404.
 package handler
 
 import (
@@ -11,58 +25,37 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/ravencloak-org/Raven/internal/db"
 	"github.com/ravencloak-org/Raven/internal/middleware"
 	"github.com/ravencloak-org/Raven/internal/service"
 	"github.com/ravencloak-org/Raven/pkg/apierror"
 )
 
-// PasskeyServicer is the subset of *service.PasskeyService the handler
-// needs. Defined as an interface so handler tests can inject a stub
-// without touching the live SuperTokens core.
-type PasskeyServicer interface {
+// PasskeyService is the full interface the handler requires. One
+// implementation (service.PasskeyService) bundles both the SuperTokens
+// core HTTP client and the label repository, and one fake serves both
+// sides in tests.
+type PasskeyService interface {
+	// Core (SuperTokens) side.
 	ListByUser(ctx context.Context, externalUserID string) ([]service.PasskeyCredential, error)
 	DeleteCredential(ctx context.Context, externalUserID, credentialID string) error
-}
 
-// PasskeyLabelStore is the subset of *pgxpool.Pool the handler exercises.
-// Allowing nil + a labelStoreOverride field on the handler keeps tests free
-// of the pool entirely — they can simulate the DB by injecting a fake.
-type PasskeyLabelStore interface {
-	ListLabelsForUser(ctx context.Context, userID string) (map[string]passkeyLabelRow, error)
-	UpsertLabel(ctx context.Context, userID, credentialID, label string) error
+	// Label persistence side.
+	ListLabelsForUser(ctx context.Context, userID string) (map[string]service.PasskeyLabel, error)
+	UpdateLabel(ctx context.Context, userID, credentialID, label string) error
 	DeleteLabel(ctx context.Context, userID, credentialID string) error
 }
 
-// passkeyLabelRow is the projected shape we need from
-// user_passkey_labels for the GET join.
-type passkeyLabelRow struct {
-	Label      string
-	CreatedAt  time.Time
-	LastUsedAt *time.Time
-}
-
-// PasskeyHandler wires the SuperTokens core (via PasskeyServicer) to the
-// local user_passkey_labels table.
+// PasskeyHandler wires the unified PasskeyService into Gin routes.
 type PasskeyHandler struct {
-	svc   PasskeyServicer
-	store PasskeyLabelStore
+	svc PasskeyService
 }
 
-// NewPasskeyHandler constructs a handler backed by the supplied service and
-// a real pgxpool-backed label store. Tests construct the handler with
-// NewPasskeyHandlerWithStore so they can substitute a fake store.
-func NewPasskeyHandler(svc PasskeyServicer, pool *pgxpool.Pool) *PasskeyHandler {
-	return &PasskeyHandler{svc: svc, store: &pgxPasskeyLabelStore{pool: pool}}
-}
-
-// NewPasskeyHandlerWithStore is the test seam — pass a fake PasskeyLabelStore
-// and the handler will route every DB call through it.
-func NewPasskeyHandlerWithStore(svc PasskeyServicer, store PasskeyLabelStore) *PasskeyHandler {
-	return &PasskeyHandler{svc: svc, store: store}
+// NewPasskeyHandler constructs a handler backed by the supplied service.
+// Production wiring passes *service.PasskeyService (which itself holds
+// the core client + label repo); tests pass a hand-written fake.
+func NewPasskeyHandler(svc PasskeyService) *PasskeyHandler {
+	return &PasskeyHandler{svc: svc}
 }
 
 // passkeyResponseItem is one row in the merged GET response.
@@ -101,7 +94,7 @@ func (h *PasskeyHandler) List(c *gin.Context) {
 		return
 	}
 
-	labels, err := h.store.ListLabelsForUser(c.Request.Context(), userID)
+	labels, err := h.svc.ListLabelsForUser(c.Request.Context(), userID)
 	if err != nil {
 		_ = c.Error(apierror.NewInternal("passkey label lookup failed: " + err.Error()))
 		c.Abort()
@@ -138,6 +131,10 @@ func (h *PasskeyHandler) List(c *gin.Context) {
 
 // Patch handles PATCH /api/v1/me/passkeys/:credential_id.
 //
+// Ownership is enforced atomically by the UPDATE's WHERE clause: a row
+// is only touched when (credential_id, user_id) matches. 0 rows → 404.
+// No pre-flight ListByUser call is required.
+//
 // @Summary     Relabel a passkey owned by the caller
 // @Tags        passkeys
 // @Accept      json
@@ -146,11 +143,11 @@ func (h *PasskeyHandler) List(c *gin.Context) {
 // @Param       credential_id path string true "Credential ID"
 // @Param       request body passkeyPatchRequest true "New label"
 // @Success     204
-// @Failure     403 {object} apierror.AppError
+// @Failure     404 {object} apierror.AppError
 // @Failure     422 {object} apierror.AppError
 // @Router      /me/passkeys/{credential_id} [patch]
 func (h *PasskeyHandler) Patch(c *gin.Context) {
-	userID, externalID, ok := h.requireSession(c)
+	userID, _, ok := h.requireSession(c)
 	if !ok {
 		return
 	}
@@ -172,12 +169,13 @@ func (h *PasskeyHandler) Patch(c *gin.Context) {
 		return
 	}
 
-	if !h.ownsCredential(c, externalID, credentialID) {
-		return
-	}
-
-	if err := h.store.UpsertLabel(c.Request.Context(), userID, credentialID, req.Label); err != nil {
-		_ = c.Error(apierror.NewInternal("passkey label upsert failed: " + err.Error()))
+	if err := h.svc.UpdateLabel(c.Request.Context(), userID, credentialID, req.Label); err != nil {
+		if errors.Is(err, service.ErrPasskeyLabelNotFound) {
+			_ = c.Error(apierror.NewNotFound("passkey not found"))
+			c.Abort()
+			return
+		}
+		_ = c.Error(apierror.NewInternal("passkey label update failed: " + err.Error()))
 		c.Abort()
 		return
 	}
@@ -187,12 +185,17 @@ func (h *PasskeyHandler) Patch(c *gin.Context) {
 
 // Delete handles DELETE /api/v1/me/passkeys/:credential_id.
 //
+// Ownership is enforced by the SuperTokens core's own DELETE handler: a
+// credential_id that does not belong to the calling external user is
+// reported back as ErrPasskeyNotFound, which we surface as 404. The
+// label row delete that follows is best-effort and absorbs missing rows
+// at the repository level.
+//
 // @Summary     Delete a passkey owned by the caller
 // @Tags        passkeys
 // @Security    BearerAuth
 // @Param       credential_id path string true "Credential ID"
 // @Success     204
-// @Failure     403 {object} apierror.AppError
 // @Failure     404 {object} apierror.AppError
 // @Router      /me/passkeys/{credential_id} [delete]
 func (h *PasskeyHandler) Delete(c *gin.Context) {
@@ -207,16 +210,9 @@ func (h *PasskeyHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if !h.ownsCredential(c, externalID, credentialID) {
-		return
-	}
-
-	// Core delete first: if the core fails we don't want to leave Raven's
-	// label row pointing at a credential the user still has. The label-row
-	// delete is best-effort — if it fails after the core succeeded we
-	// surface the error but the credential is already gone from the core
-	// and a stale label row is harmless (the next GET will simply not see
-	// it since the join is by credential_id).
+	// Core delete first: the core's own ownership check is the
+	// authorisation. If the core rejects with "not found" we never touch
+	// the label row.
 	if err := h.svc.DeleteCredential(c.Request.Context(), externalID, credentialID); err != nil {
 		if errors.Is(err, service.ErrPasskeyNotFound) {
 			_ = c.Error(apierror.NewNotFound("passkey not found"))
@@ -228,7 +224,12 @@ func (h *PasskeyHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if err := h.store.DeleteLabel(c.Request.Context(), userID, credentialID); err != nil {
+	// Label-row delete is best-effort. A missing row is harmless (the
+	// credential is already gone from the core; the next GET will not
+	// see it either way), but a write error after the core succeeded
+	// would leave the user looking at a stale label they cannot clear,
+	// so we surface those.
+	if err := h.svc.DeleteLabel(c.Request.Context(), userID, credentialID); err != nil {
 		_ = c.Error(apierror.NewInternal("passkey label cleanup failed: " + err.Error()))
 		c.Abort()
 		return
@@ -251,98 +252,4 @@ func (h *PasskeyHandler) requireSession(c *gin.Context) (userID, externalID stri
 		return "", "", false
 	}
 	return uid, ext, true
-}
-
-// ownsCredential confirms the caller actually owns the credential by
-// listing the core's credentials for the session user and checking
-// membership. Returns true when ownership is confirmed; otherwise writes
-// a 403 (or 500 on lookup failure) and returns false.
-//
-// This is the authorisation backstop: the routes already sit under the
-// session middleware, but PATCH/DELETE accept the credential ID as a URL
-// parameter and we must not trust it.
-func (h *PasskeyHandler) ownsCredential(c *gin.Context, externalID, credentialID string) bool {
-	creds, err := h.svc.ListByUser(c.Request.Context(), externalID)
-	if err != nil {
-		_ = c.Error(apierror.NewInternal("passkey ownership check failed: " + err.Error()))
-		c.Abort()
-		return false
-	}
-	for _, cred := range creds {
-		if cred.CredentialID == credentialID {
-			return true
-		}
-	}
-	_ = c.Error(&apierror.AppError{
-		Code:    http.StatusForbidden,
-		Message: "Forbidden",
-		Detail:  "credential does not belong to caller",
-	})
-	c.Abort()
-	return false
-}
-
-// pgxPasskeyLabelStore implements PasskeyLabelStore against the live
-// user_passkey_labels table. RLS is enforced by setting
-// app.current_user_id inside the wrapping transaction (db.WithUserID).
-type pgxPasskeyLabelStore struct {
-	pool *pgxpool.Pool
-}
-
-// ListLabelsForUser returns label rows keyed by credential_id.
-func (s *pgxPasskeyLabelStore) ListLabelsForUser(ctx context.Context, userID string) (map[string]passkeyLabelRow, error) {
-	out := make(map[string]passkeyLabelRow)
-	err := db.WithUserID(ctx, s.pool, userID, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx,
-			`SELECT credential_id, label, created_at, last_used_at
-			 FROM user_passkey_labels
-			 WHERE user_id = $1`, userID)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var (
-				credID     string
-				row        passkeyLabelRow
-				lastUsedAt *time.Time
-			)
-			if err := rows.Scan(&credID, &row.Label, &row.CreatedAt, &lastUsedAt); err != nil {
-				return err
-			}
-			row.LastUsedAt = lastUsedAt
-			out[credID] = row
-		}
-		return rows.Err()
-	})
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// UpsertLabel inserts a new row or updates the label on an existing one.
-// Behaviour is intentionally "label only" — created_at is never touched on
-// update, and last_used_at is owned by the SuperTokens hook path (set when
-// the credential is used for sign-in).
-func (s *pgxPasskeyLabelStore) UpsertLabel(ctx context.Context, userID, credentialID, label string) error {
-	return db.WithUserID(ctx, s.pool, userID, func(tx pgx.Tx) error {
-		_, err := tx.Exec(ctx,
-			`INSERT INTO user_passkey_labels (user_id, credential_id, label)
-			 VALUES ($1, $2, $3)
-			 ON CONFLICT (credential_id) DO UPDATE SET label = EXCLUDED.label`,
-			userID, credentialID, label)
-		return err
-	})
-}
-
-// DeleteLabel removes a single label row. It is the caller's responsibility
-// to have already deleted the credential from the SuperTokens core.
-func (s *pgxPasskeyLabelStore) DeleteLabel(ctx context.Context, userID, credentialID string) error {
-	return db.WithUserID(ctx, s.pool, userID, func(tx pgx.Tx) error {
-		_, err := tx.Exec(ctx,
-			`DELETE FROM user_passkey_labels WHERE user_id = $1 AND credential_id = $2`,
-			userID, credentialID)
-		return err
-	})
 }
