@@ -278,6 +278,29 @@ Rules:
 - Every tenant-scoped table needs an RLS policy
 - Use `gen_random_uuid()` for primary keys
 
+### Schema version-control with Atlas
+
+goose stays the **applier of record** — nothing about the workflow above changes.
+On top of it, [Atlas](https://atlasgo.io) gives Git-style version-control of the
+**schema shape only** (never data): `db/schema.sql` is a generated, diffable
+snapshot of the full schema, regenerated from the goose-migrated DB. Think of it
+as a Dolt-like artifact you can `git diff` / branch / review in PRs. Doltgres was
+rejected because it cannot load the pgvector extension; Atlas works against real
+Postgres 18 + pgvector. See `docs/adr/0010-atlas-schema-version-control.md`.
+
+```bash
+brew install ariga/tap/atlas   # one-time; not needed to build/run/test Raven
+
+make schema-inspect   # regenerate db/schema.sql from a fresh goose-migrated DB
+make schema-diff      # report drift between db/schema.sql and the migrations
+```
+
+Both targets spin an ephemeral `pgvector/pgvector:pg18` container (podman) and
+tear it down afterwards. **Whenever you add or change a migration, run
+`make schema-inspect` and commit the updated `db/schema.sql`** — CI
+(`atlas-schema.yml`) fails the PR if it drifted. Per-migration linting is
+unchanged (`sql-review.yml`, squawk).
+
 ---
 
 ## Running Tests
