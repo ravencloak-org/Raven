@@ -610,7 +610,8 @@ func main() {
 		return kbStatusGuard.RequireInTx(ctx, tx, orgID, kbID, service.KBActionPublish)
 	}
 	publishSvc := marketplace.NewPublishService(pool, publishGate)
-	kbHandler := handler.NewKBHandler(kbSvc).WithPublisher(publishSvc)
+	unpublishSvc := marketplace.NewUnpublishService(pool, publishGate) // #727 — same gate.
+	kbHandler := handler.NewKBHandler(kbSvc).WithPublisher(publishSvc).WithUnpublisher(unpublishSvc)
 
 	// Marketplace moderation (issue #734, ADR-0006 + ADR-0008):
 	// reports + takedowns + admin approve/dismiss. The publisher email
@@ -860,6 +861,9 @@ func main() {
 				// gate as Archive since publishing is an irreversible-ish
 				// content-grade action.
 				kb.POST("/:kb_id/publish", resolveWSRole, middleware.RequireWorkspaceRole("admin"), kbHandler.Publish)
+				// Marketplace unpublish (issue #727, ADR-0007). Same admin
+				// gate as publish since the action affects external URLs.
+				kb.POST("/:kb_id/unpublish", resolveWSRole, middleware.RequireWorkspaceRole("admin"), kbHandler.Unpublish)
 
 				// Full-text search (nested under knowledge base)
 				kb.GET("/:kb_id/search", searchHandler.Search)

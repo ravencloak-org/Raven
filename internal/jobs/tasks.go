@@ -32,6 +32,10 @@ const (
 	// counter-notice window has expired (issue #736, ADR-0006). Runs
 	// daily; see internal/jobs/marketplace_dmca_sweeper.go.
 	TypeMarketplaceDMCASweep = "scheduled:marketplace_dmca_sweep"
+
+	// TypeMarketplaceSlugHoldSweep deletes expired rows from
+	// `kb_slug_holds` and `org_slug_holds` (ADR-0007). Daily cron.
+	TypeMarketplaceSlugHoldSweep = "scheduled:marketplace_slug_hold_sweep"
 )
 
 // RecrawlPayload is the payload for the source re-crawl scheduled task.

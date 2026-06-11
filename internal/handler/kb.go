@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/samber/lo"
 
 	"github.com/ravencloak-org/Raven/internal/marketplace"
@@ -29,6 +30,13 @@ type KBPublisher interface {
 	PublishKB(ctx context.Context, orgID, kbID, userID, licenseSPDXID string) (*marketplace.PublishResult, error)
 }
 
+// KBUnpublisher is the narrow slice of marketplace.UnpublishService the
+// KB handler needs. Mirrors KBPublisher so tests can stub the
+// transition without touching pgx wiring.
+type KBUnpublisher interface {
+	UnpublishKB(ctx context.Context, orgID, wsID, kbID string) (*marketplace.UnpublishResult, error)
+}
+
 // PublishKBRequest is the payload for POST .../knowledge-bases/{id}/publish.
 // The SPDX identifier is required and is validated against the canonical
 // allow-list in marketplace.IsAllowedLicense — the binding tag only catches
@@ -39,8 +47,9 @@ type PublishKBRequest struct {
 
 // KBHandler handles HTTP requests for knowledge base management.
 type KBHandler struct {
-	svc       KBServicer
-	publisher KBPublisher
+	svc         KBServicer
+	publisher   KBPublisher
+	unpublisher KBUnpublisher
 }
 
 // NewKBHandler creates a new KBHandler. The publisher is optional and may
@@ -57,6 +66,14 @@ func NewKBHandler(svc KBServicer) *KBHandler {
 // path with a stub.
 func (h *KBHandler) WithPublisher(p KBPublisher) *KBHandler {
 	h.publisher = p
+	return h
+}
+
+// WithUnpublisher wires the Marketplace unpublish service. Symmetric
+// with WithPublisher — same opt-in setter shape so test wiring and
+// production main.go both stay one line per dependency.
+func (h *KBHandler) WithUnpublisher(u KBUnpublisher) *KBHandler {
+	h.unpublisher = u
 	return h
 }
 
@@ -207,6 +224,74 @@ func (h *KBHandler) Publish(c *gin.Context) {
 	}
 
 	result, err := h.publisher.PublishKB(c.Request.Context(), orgID, kbID, userIDStr, req.LicenseSPDXID)
+	if err != nil {
+		_ = c.Error(err)
+		c.Abort()
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+// Unpublish handles POST /api/v1/orgs/:org_id/workspaces/:ws_id/knowledge-bases/:kb_id/unpublish.
+// Flips a KB from public back to private and registers a 90-day slug
+// hold so external Marketplace links resolve to 410 Gone for the
+// duration (ADR-0007). Requires workspace role "admin" (enforced at
+// route registration) — same gate as Publish since the action is
+// publisher-only and affects external URLs.
+//
+// @Summary     Unpublish knowledge base from Marketplace
+// @Tags        knowledge-bases
+// @Produce     json
+// @Security    BearerAuth
+// @Param       org_id path string true "Organisation ID"
+// @Param       ws_id  path string true "Workspace ID"
+// @Param       kb_id  path string true "Knowledge base ID"
+// @Success     200 {object} marketplace.UnpublishResult
+// @Failure     401 {object} apierror.AppError
+// @Failure     403 {object} apierror.AppError
+// @Failure     404 {object} apierror.AppError
+// @Failure     409 {object} apierror.AppError
+// @Router      /orgs/{org_id}/workspaces/{ws_id}/knowledge-bases/{kb_id}/unpublish [post]
+func (h *KBHandler) Unpublish(c *gin.Context) {
+	if h.unpublisher == nil {
+		_ = c.Error(apierror.NewInternal("unpublish service not wired"))
+		c.Abort()
+		return
+	}
+	orgID := c.Param("org_id")
+	wsID := c.Param("ws_id")
+	kbID := c.Param("kb_id")
+	// Validate UUIDs at the handler boundary so malformed input surfaces
+	// as a 422 rather than a 500 from a downstream pgx parse error. Same
+	// shape as the marketplace import handler.
+	if _, err := uuid.Parse(orgID); err != nil {
+		_ = c.Error(apierror.NewUnprocessableEntity("org_id is not a valid UUID"))
+		c.Abort()
+		return
+	}
+	if _, err := uuid.Parse(wsID); err != nil {
+		_ = c.Error(apierror.NewUnprocessableEntity("ws_id is not a valid UUID"))
+		c.Abort()
+		return
+	}
+	if _, err := uuid.Parse(kbID); err != nil {
+		_ = c.Error(apierror.NewUnprocessableEntity("kb_id is not a valid UUID"))
+		c.Abort()
+		return
+	}
+	userID, _ := c.Get(string(middleware.ContextKeyUserID))
+	userIDStr, _ := userID.(string)
+	if userIDStr == "" {
+		// Auth middleware should have already short-circuited; the
+		// defence-in-depth check belongs here too. Same shape as
+		// Publish so the two routes stay easy to reason about
+		// together.
+		_ = c.Error(apierror.NewUnauthorized("user context missing"))
+		c.Abort()
+		return
+	}
+
+	result, err := h.unpublisher.UnpublishKB(c.Request.Context(), orgID, wsID, kbID)
 	if err != nil {
 		_ = c.Error(err)
 		c.Abort()
