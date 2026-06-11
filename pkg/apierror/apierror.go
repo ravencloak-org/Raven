@@ -127,6 +127,20 @@ func NewKBDMCALocked(detail string) *AppError {
 	}
 }
 
+// NewGone creates a 410 Gone with a machine-readable code. Used by the
+// Marketplace detail/preview paths to distinguish an unpublished slug
+// sitting in `kb_slug_holds` from a never-existed 404, per ADR-0007 §"Slug
+// hold semantics". `errorCode` is the stable client-facing identifier
+// (e.g. "slug_held"); pass "" to omit it.
+func NewGone(detail, errorCode string) *AppError {
+	return &AppError{
+		Code:      http.StatusGone,
+		Message:   "Gone",
+		Detail:    detail,
+		ErrorCode: errorCode,
+	}
+}
+
 // QuotaError extends AppError with billing-specific fields for 402 responses.
 type QuotaError struct {
 	AppError
