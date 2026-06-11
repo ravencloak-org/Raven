@@ -105,7 +105,7 @@ func seedReimportFixture(ctx context.Context, t *testing.T, pool *pgxpool.Pool) 
 	// Publisher content — one row in each child table so the wipe step has
 	// something to delete.
 	_, err = pool.Exec(ctx,
-		`INSERT INTO documents (id, org_id, knowledge_base_id, filename, file_size, mime_type)
+		`INSERT INTO documents (id, org_id, knowledge_base_id, file_name, file_size_bytes, file_type)
 		 VALUES ($1, $2, $3, 'pub.pdf', 100, 'application/pdf')`,
 		uuid.NewString(), f.pubOrgID, f.pubKBID,
 	)
@@ -127,15 +127,15 @@ func seedReimportFixture(ctx context.Context, t *testing.T, pool *pgxpool.Pool) 
 	staleDocID := uuid.NewString()
 	staleSrcID := uuid.NewString()
 	_, err = pool.Exec(ctx,
-		`INSERT INTO documents (id, org_id, knowledge_base_id, filename, file_size, mime_type)
+		`INSERT INTO documents (id, org_id, knowledge_base_id, file_name, file_size_bytes, file_type)
 		 VALUES ($1, $2, $3, 'stale.pdf', 50, 'application/pdf')`,
 		staleDocID, f.impOrgID, f.impKBID,
 	)
 	require.NoError(t, err)
 
 	_, err = pool.Exec(ctx,
-		`INSERT INTO sources (id, org_id, knowledge_base_id, url, processing_status)
-		 VALUES ($1, $2, $3, 'https://stale.example/', 'completed')`,
+		`INSERT INTO sources (id, org_id, knowledge_base_id, source_type, url, processing_status)
+		 VALUES ($1, $2, $3, 'url', 'https://stale.example/', 'ready')`,
 		staleSrcID, f.impOrgID, f.impKBID,
 	)
 	require.NoError(t, err)
@@ -165,7 +165,7 @@ func fakeProjection(content string) marketplace.ProjectionFunc {
 	return func(ctx context.Context, tx pgx.Tx, destOrgID, destKBID, _ string) (int, error) {
 		newDocID := uuid.NewString()
 		if _, err := tx.Exec(ctx,
-			`INSERT INTO documents (id, org_id, knowledge_base_id, filename, file_size, mime_type)
+			`INSERT INTO documents (id, org_id, knowledge_base_id, file_name, file_size_bytes, file_type)
 			 VALUES ($1, $2, $3, 'reimported.pdf', 1, 'application/pdf')`,
 			newDocID, destOrgID, destKBID,
 		); err != nil {
@@ -298,20 +298,26 @@ func TestReImporter_Refuses_DeletedSource(t *testing.T) {
 	ctx := context.Background()
 	f := seedReimportFixture(ctx, t, pool)
 
-	// Clear the FK first so a hard DELETE on the publisher KB is allowed
-	// — the importer's source_public_kb_id has ON DELETE SET NULL, but
-	// the test wants to exercise the "row missing" branch directly.
+	// We want to exercise the "source row no longer exists" branch (Step 2b
+	// returns ErrNoRows -> ErrSourceUnpublished). The lineage FK is
+	// ON DELETE SET NULL, which would null the importer's pointer on a
+	// publisher delete and trip the earlier ErrNotAnImport branch instead.
+	// Drop the FK on this throwaway test DB so the importer keeps a dangling
+	// source_public_kb_id after the publisher KB row is hard-deleted.
 	_, err := pool.Exec(ctx,
+		`ALTER TABLE knowledge_bases DROP CONSTRAINT knowledge_bases_source_public_kb_id_fkey`,
+	)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx,
+		`DELETE FROM chunks WHERE knowledge_base_id = $1`, f.pubKBID,
+	)
+	require.NoError(t, err)
+	_, err = pool.Exec(ctx,
 		`DELETE FROM documents WHERE knowledge_base_id = $1`, f.pubKBID,
 	)
 	require.NoError(t, err)
-	// The Importer keeps the lineage pointer even after the publisher row
-	// vanishes (ON DELETE SET NULL would null it; we instead UPDATE to a
-	// random uuid so the lookup misses with ErrNoRows).
-	bogus := uuid.NewString()
 	_, err = pool.Exec(ctx,
-		`UPDATE knowledge_bases SET source_public_kb_id = $1 WHERE id = $2`,
-		bogus, f.impKBID,
+		`DELETE FROM knowledge_bases WHERE id = $1`, f.pubKBID,
 	)
 	require.NoError(t, err)
 
@@ -412,7 +418,7 @@ func TestReImporter_ConcurrentReImports_Serialise(t *testing.T) {
 			}
 			docID := uuid.NewString()
 			if _, err := tx.Exec(ctx,
-				`INSERT INTO documents (id, org_id, knowledge_base_id, filename, file_size, mime_type)
+				`INSERT INTO documents (id, org_id, knowledge_base_id, file_name, file_size_bytes, file_type)
 				 VALUES ($1, $2, $3, $4, 1, 'application/pdf')`,
 				docID, destOrgID, destKBID, label+".pdf",
 			); err != nil {
