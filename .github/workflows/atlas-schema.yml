@@ -1,0 +1,91 @@
+name: Atlas Schema
+
+# Schema version-control drift check (runs ALONGSIDE goose; goose stays the
+# applier). On PRs touching the migration set or the canonical schema snapshot,
+# apply ALL goose migrations to a throwaway pgvector Postgres, then assert that
+# db/schema.sql is in sync via `atlas schema diff`. Catches the case where a
+# migration changed the schema but db/schema.sql was not regenerated with
+# `make schema-inspect`. Per-migration SQL linting lives in sql-review.yml
+# (squawk); Atlas migrate-lint is Atlas-Pro-only since v0.38, so it is not used
+# here. See docs/adr/0010-atlas-schema-version-control.md.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'migrations/**'
+      - 'db/schema.sql'
+      - 'atlas.hcl'
+      - '.github/workflows/atlas-schema.yml'
+
+permissions: {}
+
+concurrency:
+  group: atlas-schema-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  schema-diff:
+    name: Schema drift check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_PASSWORD: pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # DB that goose migrates into (the "live" schema state under review).
+      GOOSE_URL: postgres://postgres:pass@localhost:5432/postgres?sslmode=disable
+      # Clean scratch DB Atlas uses as its dev-url (search_path scoped to public).
+      ATLAS_DEV_URL: postgres://postgres:pass@localhost:5432/atlas_dev?sslmode=disable&search_path=public
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
+        with:
+          go-version: '1.26.2'
+          cache: true
+
+      - name: Install goose
+        run: go install github.com/pressly/goose/v3/cmd/goose@v3.27.0
+
+      - uses: ariga/setup-atlas@2f3c785c89a15e1c0d07bcae3900fb5feb969eea # v0.3
+
+      - name: Apply all goose migrations
+        run: goose -dir migrations postgres "$GOOSE_URL" up
+
+      - name: Bootstrap clean Atlas dev database
+        # Atlas needs a CLEAN dev DB with the extensions + roles the inspected
+        # schema references (it does not drop pre-existing extensions/roles).
+        run: |
+          export PGPASSWORD=pass
+          psql -h localhost -U postgres -c 'CREATE DATABASE atlas_dev;'
+          psql -h localhost -U postgres -d atlas_dev -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp";'
+          psql -h localhost -U postgres -d atlas_dev -c 'CREATE EXTENSION IF NOT EXISTS "vector";'
+          psql -h localhost -U postgres -d atlas_dev -c 'CREATE EXTENSION IF NOT EXISTS "pg_trgm";'
+          psql -h localhost -U postgres -d atlas_dev -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='raven_app') THEN CREATE ROLE raven_app; END IF; IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='raven_admin') THEN CREATE ROLE raven_admin; END IF; END \$\$;"
+
+      - name: Check db/schema.sql is in sync with migrations
+        run: |
+          set -e
+          out=$(atlas schema diff --env local \
+            --from "postgres://postgres:pass@localhost:5432/postgres?sslmode=disable&search_path=public" \
+            --to file://db/schema.sql)
+          echo "$out"
+          if [ "$out" != "Schemas are synced, no changes to be made." ]; then
+            echo "::error::db/schema.sql drifted from migrations/. Run 'make schema-inspect' and commit the result."
+            exit 1
+          fi
