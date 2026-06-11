@@ -81,21 +81,14 @@ func (s *UnpublishService) UnpublishKB(
 	var result UnpublishResult
 
 	err := db.WithOrgID(ctx, s.pool, orgID, func(tx pgx.Tx) error {
-		// Lifecycle gate. CanPublish covers the symmetric case: a
-		// DMCA-locked or archived KB cannot toggle visibility either
-		// direction — the publisher must contact admin / restore.
-		if s.gate != nil {
-			if gateErr := s.gate(ctx, tx, orgID, kbID); gateErr != nil {
-				return gateErr
-			}
-		}
-
-		// The UPDATE filter `visibility = 'public'` is load-bearing:
-		// unpublishing an already-private KB is a no-op semantically,
-		// but the API contract returns 404 to distinguish "you can't
-		// take down what's already down" from a successful idempotent
-		// repeat. Catching it here keeps the slug-hold insert from
-		// running with a stale (org_id, slug) pair.
+		// Establish workspace-scoped ownership BEFORE the lifecycle gate.
+		//
+		// The SELECT ... FOR UPDATE filter `visibility = 'public'` is
+		// load-bearing: unpublishing an already-private KB is a no-op
+		// semantically, but the API contract returns 404 to distinguish
+		// "you can't take down what's already down" from a successful
+		// idempotent repeat. Catching it here keeps the slug-hold insert
+		// from running with a stale (org_id, slug) pair.
 		//
 		// SECURITY: scope the predicate by workspace_id as well as
 		// org_id. The route guard runs RequireWorkspaceRole on :ws_id,
@@ -104,22 +97,50 @@ func (s *UnpublishService) UnpublishKB(
 		// kb_id belonging to workspace B of the same Org and we'd
 		// happily unpublish it. The filter turns that into a 404 so
 		// the authorization scope matches the route's intent.
+		//
+		// The ownership check runs first so a caller scoped to one
+		// workspace cannot probe lifecycle state of a KB in another
+		// workspace of the same Org: an out-of-scope kb_id resolves to
+		// 404 here before the gate can leak a 409 (kb_frozen /
+		// kb_dmca_locked). FOR UPDATE locks the row so the visibility
+		// flip below stays atomic with the gate decision.
 		var slug string
 		err := tx.QueryRow(ctx,
-			`UPDATE knowledge_bases
-			   SET visibility   = 'private',
-			       published_at = NULL
-			 WHERE id           = $1
-			   AND org_id       = $2
-			   AND workspace_id = $3
-			   AND visibility   = 'public'
-			 RETURNING slug`,
+			`SELECT slug
+			   FROM knowledge_bases
+			  WHERE id           = $1
+			    AND org_id       = $2
+			    AND workspace_id = $3
+			    AND visibility   = 'public'
+			  FOR UPDATE`,
 			kbID, orgID, workspaceID,
 		).Scan(&slug)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return apierror.NewNotFound("knowledge base not found or not currently public")
 			}
+			return apierror.NewInternal("failed to unpublish knowledge base: " + err.Error())
+		}
+
+		// Lifecycle gate, run only after workspace ownership is proven.
+		// CanPublish covers the symmetric case: a DMCA-locked or archived
+		// KB cannot toggle visibility either direction — the publisher
+		// must contact admin / restore.
+		if s.gate != nil {
+			if gateErr := s.gate(ctx, tx, orgID, kbID); gateErr != nil {
+				return gateErr
+			}
+		}
+
+		// Flip visibility. The row is already locked and proven to be
+		// public + in-scope, so the bare id predicate is sufficient.
+		if _, err := tx.Exec(ctx,
+			`UPDATE knowledge_bases
+			   SET visibility   = 'private',
+			       published_at = NULL
+			 WHERE id = $1`,
+			kbID,
+		); err != nil {
 			return apierror.NewInternal("failed to unpublish knowledge base: " + err.Error())
 		}
 

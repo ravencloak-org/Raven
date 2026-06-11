@@ -83,6 +83,6 @@ SET lock_timeout = '5s';
 SET statement_timeout = '30s';
 -- squawk-ignore prefer-robust-stmts
 DROP INDEX CONCURRENTLY IF EXISTS idx_kb_slug_holds_held_until;
--- squawk-ignore ban-drop-table — this table is created by this
--- migration's Up half; the Down half necessarily drops it.
+-- squawk-ignore ban-drop-table
+-- this table is created by this migration's Up half; the Down half necessarily drops it.
 DROP TABLE IF EXISTS kb_slug_holds;

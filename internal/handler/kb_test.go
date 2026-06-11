@@ -511,6 +511,67 @@ func TestUnpublishKB_Success(t *testing.T) {
 	}
 }
 
+// The three tests below assert the handler rejects a malformed path param
+// with 422 before the unpublisher is ever invoked (defence in depth: a bad
+// UUID must never reach the service layer). Mirrors the publish-route
+// invalid-UUID tests above.
+func TestUnpublishKB_InvalidOrgID_Returns422(t *testing.T) {
+	unpub := &mockUnpublisher{}
+	r := newKBRouterWithUnpublisher(&mockKBService{}, unpub, "user-1")
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost,
+		"/api/v1/orgs/not-a-uuid/workspaces/83311cb6-f03a-4ebd-a1d8-4a382a7edff7/knowledge-bases/6ceb1402-876b-4998-aaed-72e891e1c56e/unpublish",
+		http.NoBody,
+	)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d: %s", w.Code, w.Body.String())
+	}
+	if unpub.lastCall.kbID != "" {
+		t.Error("unpublisher must not be called when org_id is not a valid UUID")
+	}
+}
+
+func TestUnpublishKB_InvalidWSID_Returns422(t *testing.T) {
+	unpub := &mockUnpublisher{}
+	r := newKBRouterWithUnpublisher(&mockKBService{}, unpub, "user-1")
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost,
+		"/api/v1/orgs/041b0ae6-ae25-404b-8b46-06857a874222/workspaces/not-a-uuid/knowledge-bases/6ceb1402-876b-4998-aaed-72e891e1c56e/unpublish",
+		http.NoBody,
+	)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d: %s", w.Code, w.Body.String())
+	}
+	if unpub.lastCall.kbID != "" {
+		t.Error("unpublisher must not be called when ws_id is not a valid UUID")
+	}
+}
+
+func TestUnpublishKB_InvalidKBID_Returns422(t *testing.T) {
+	unpub := &mockUnpublisher{}
+	r := newKBRouterWithUnpublisher(&mockKBService{}, unpub, "user-1")
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodPost,
+		"/api/v1/orgs/041b0ae6-ae25-404b-8b46-06857a874222/workspaces/83311cb6-f03a-4ebd-a1d8-4a382a7edff7/knowledge-bases/not-a-uuid/unpublish",
+		http.NoBody,
+	)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d: %s", w.Code, w.Body.String())
+	}
+	if unpub.lastCall.kbID != "" {
+		t.Error("unpublisher must not be called when kb_id is not a valid UUID")
+	}
+}
+
 func TestUnpublishKB_MissingUserID_Returns401(t *testing.T) {
 	unpub := &mockUnpublisher{}
 	r := newKBRouterWithUnpublisher(&mockKBService{}, unpub, "")
