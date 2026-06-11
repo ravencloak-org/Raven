@@ -118,7 +118,7 @@ func MarketplaceSlugStatus(ctx context.Context, pool *pgxpool.Pool, orgSlug, kbS
 		 FROM kb_slug_holds h
 		 JOIN organizations o ON o.id = h.org_id
 		 WHERE o.slug = $1
-		   AND h.kb_slug = $2
+		   AND h.slug = $2
 		   AND h.held_until > NOW()
 		   AND o.status != 'deactivated'`,
 		orgSlug, kbSlug,

@@ -128,7 +128,7 @@ func TestMarketplaceSlugStatus_HeldShortCircuits(t *testing.T) {
 		t.Fatalf("seed public kb: %v", err)
 	}
 	if _, err := pool.Exec(ctx,
-		`INSERT INTO kb_slug_holds (org_id, kb_slug, kb_id, held_until)
+		`INSERT INTO kb_slug_holds (org_id, slug, kb_id, held_until)
 		 VALUES ($1, $2, NULL, $3)`,
 		orgID, "withdrawn", time.Now().Add(7*24*time.Hour),
 	); err != nil {
@@ -156,7 +156,7 @@ func TestMarketplaceSlugStatus_ExpiredHoldIsMiss(t *testing.T) {
 
 	orgID, _ := seedSlugStatusOrg(ctx, t, pool, "ss-exp-org", "SS Exp")
 	if _, err := pool.Exec(ctx,
-		`INSERT INTO kb_slug_holds (org_id, kb_slug, kb_id, held_until)
+		`INSERT INTO kb_slug_holds (org_id, slug, kb_id, held_until)
 		 VALUES ($1, $2, NULL, $3)`,
 		orgID, "expired", time.Now().Add(-24*time.Hour),
 	); err != nil {
