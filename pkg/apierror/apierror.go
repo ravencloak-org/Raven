@@ -84,6 +84,31 @@ func NewUnprocessableEntity(detail string) *AppError {
 	}
 }
 
+// NewForbidden creates a 403 Forbidden error. Used by handlers that gate
+// access on session / role / membership checks distinct from authentication
+// (which is 401) — e.g. the Re-import handler (issue #730) when the caller's
+// org does not own the target KB.
+func NewForbidden(detail string) *AppError {
+	return &AppError{
+		Code:    http.StatusForbidden,
+		Message: "Forbidden",
+		Detail:  detail,
+	}
+}
+
+// NewGone creates a 410 Gone error. The Marketplace lifecycle (ADR-0007 §7c)
+// uses 410 — not 404 — when a resource was deliberately taken down so
+// Importers and link checkers can distinguish "removed" from "never existed".
+// The Re-import endpoint (issue #730) surfaces it when the upstream Public KB
+// has been unpublished.
+func NewGone(detail string) *AppError {
+	return &AppError{
+		Code:    http.StatusGone,
+		Message: "Gone",
+		Detail:  detail,
+	}
+}
+
 // NewTooManyRequests creates a 429 Too Many Requests error.
 func NewTooManyRequests(detail string) *AppError {
 	return &AppError{
