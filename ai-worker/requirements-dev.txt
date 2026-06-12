@@ -315,7 +315,7 @@ pyyaml==6.0.3
     #   huggingface-hub
     #   langchain-core
     #   uvicorn
-redis==7.4.0
+redis==7.4.1
     # via
     #   fakeredis
     #   raven-worker
