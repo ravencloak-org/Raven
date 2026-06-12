@@ -105,7 +105,7 @@ grpcio-health-checking==1.81.0
     # via raven-worker
 grpcio-reflection==1.81.0
     # via raven-worker
-grpcio-tools==1.81.0
+grpcio-tools==1.81.1
     # via raven-worker
 h11==0.16.0
     # via
