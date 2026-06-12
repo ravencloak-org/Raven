@@ -18,7 +18,7 @@
     "@tailwindcss/typography": "^0.5.19",
     "@tauri-apps/api": "^2.11.0",
     "@vueuse/core": "^14.3.0",
-    "livekit-client": "^2.19.1",
+    "livekit-client": "^2.19.2",
     "pinia": "^3.0.4",
     "remeda": "^2.37.0",
     "supertokens-web-js": "^0.16.0",
