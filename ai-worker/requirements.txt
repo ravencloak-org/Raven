@@ -200,7 +200,7 @@ opentelemetry-exporter-otlp-proto-http==1.39.1
     # via opentelemetry-exporter-otlp
 opentelemetry-instrumentation==0.60b1
     # via opentelemetry-instrumentation-grpc
-opentelemetry-instrumentation-grpc==0.60b1
+opentelemetry-instrumentation-grpc==0.63b1
     # via raven-worker
 opentelemetry-proto==1.39.1
     # via
