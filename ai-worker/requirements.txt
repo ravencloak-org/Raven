@@ -154,7 +154,7 @@ livekit-api==1.1.0
     # via livekit-agents
 livekit-blingfire==1.1.0
     # via livekit-agents
-livekit-protocol==1.1.13
+livekit-protocol==1.1.15
     # via
     #   livekit-agents
     #   livekit-api
