@@ -142,7 +142,7 @@ jiter==0.15.0
     # via
     #   anthropic
     #   openai
-json-repair==0.59.10
+json-repair==0.60.1
     # via livekit-agents
 jsonpatch==1.33
     # via langchain-core
