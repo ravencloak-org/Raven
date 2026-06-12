@@ -15,7 +15,7 @@
     "test": "npm run test:unit && npm run test:e2e"
   },
   "dependencies": {
-    "@tailwindcss/typography": "^0.5.19",
+    "@tailwindcss/typography": "^0.5.20",
     "@tauri-apps/api": "^2.11.0",
     "@vueuse/core": "^14.3.0",
     "livekit-client": "^2.19.1",
