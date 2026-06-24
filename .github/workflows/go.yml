@@ -9,8 +9,10 @@ on:
       - 'internal/**'
       - 'pkg/**'
       - 'tests/**'
+      - 'migrations/**'
       - 'go.mod'
       - 'go.sum'
+      - '.github/workflows/go.yml'
   pull_request:
     branches: [main]
     paths:
@@ -18,8 +20,18 @@ on:
       - 'internal/**'
       - 'pkg/**'
       - 'tests/**'
+      # Unit + integration tests run goose.Up against the on-disk
+      # migrations directory, so a broken SQL file breaks Go CI for
+      # every other PR. Triggering Go CI on migration-only PRs was
+      # missing — PR #786 spent two days unable to merge the very
+      # fix the rest of the queue was waiting for. See migrations/
+      # README for the goose annotation rules.
+      - 'migrations/**'
       - 'go.mod'
       - 'go.sum'
+      # Self-trigger when this workflow itself changes so path-filter
+      # tweaks can be verified on their own PR.
+      - '.github/workflows/go.yml'
 
 permissions: {}
 
