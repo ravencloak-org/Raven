@@ -23,7 +23,7 @@ require (
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.1
 	github.com/swaggo/swag v1.16.6
-	github.com/testcontainers/testcontainers-go v0.42.0 // bumped from v0.41.0 by Dependabot (#215); v0.42 fixes container wait strategy regressions
+	github.com/testcontainers/testcontainers-go v0.43.0 // bumped from v0.41.0 by Dependabot (#215); v0.42 fixes container wait strategy regressions
 	go.opentelemetry.io/contrib/bridges/otelslog v0.19.0
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc v0.20.0
@@ -123,7 +123,7 @@ require (
 	github.com/sagikazarmark/locafero v0.11.0 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/sethvargo/go-retry v0.3.0 // indirect
-	github.com/shirou/gopsutil/v4 v4.26.3 // indirect; pinned to v4.26.3 — latest stable at time of integration; transitive via testcontainers
+	github.com/shirou/gopsutil/v4 v4.26.5 // indirect; pinned to v4.26.3 — latest stable at time of integration; transitive via testcontainers
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8 // indirect
