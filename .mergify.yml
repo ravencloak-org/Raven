@@ -24,8 +24,9 @@ pull_request_rules:
     actions:
       merge:
         method: squash
-        commit_message_template: "{{ title }} (#{{ number }})"
-
+        commit_message_format:
+          title: pr-title
+          body: empty
   - name: Flag Dependabot major bumps for manual review
     conditions:
       - author = dependabot[bot]
