@@ -333,7 +333,7 @@ rich==15.0.0
     # via typer
 ruff==0.15.16
     # via raven-worker
-setuptools==82.0.1
+setuptools==83.0.0
     # via grpcio-tools
 shellingham==1.5.4
     # via typer
