@@ -3,6 +3,6 @@
     "svgtofont": "^6.5.2"
   },
   "devDependencies": {
-    "wrangler": "^4.82.0"
+    "wrangler": "^4.114.0"
   }
 }
