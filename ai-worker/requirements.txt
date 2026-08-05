@@ -60,7 +60,7 @@ colorama==0.4.6
     #   tqdm
     #   typer
     #   uvicorn
-cryptography==48.0.0
+cryptography==50.0.0
     # via raven-worker
 distro==1.9.0
     # via
