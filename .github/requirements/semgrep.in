@@ -1,4 +1,4 @@
 # Auto-generated. Do not edit by hand. Regenerate with:
-#   echo 'semgrep==1.163.0' > semgrep.in
+#   echo 'semgrep==1.173.0' > semgrep.in
 #   uv pip compile semgrep.in --generate-hashes --python-version 3.12 -o semgrep.txt
-semgrep==1.163.0
+semgrep==1.173.0
